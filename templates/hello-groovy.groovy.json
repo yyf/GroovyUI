@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "metadata": {
+    "title": "Hello Groovy",
+    "author": "groovy",
+    "description": "Load sample audio, normalize to -16 LUFS, preview. No AI models required.",
+    "tags": ["starter", "core"],
+    "created_at": "2026-07-05T12:00:00Z",
+    "modified_at": "2026-07-05T12:00:00Z"
+  },
+  "nodes": [
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n2", "type": "Normalize", "pos": { "x": 300, "y": 0 }, "widgets": { "mode": "lufs", "target_lufs": -16.0 } },
+    { "id": "n3", "type": "Preview", "pos": { "x": 600, "y": 0 }, "widgets": {} }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

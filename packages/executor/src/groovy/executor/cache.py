@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import numpy as np
+from groovy.executor.audio import AudioBuffer
+
+
+class CacheStore:
+    def __init__(self, project_dir: Path) -> None:
+        self.project_dir = project_dir.resolve()
+        self.cache_dir = self.project_dir / ".groovy" / "cache"
+        self.runs_dir = self.project_dir / ".groovy" / "runs"
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.runs_dir.mkdir(parents=True, exist_ok=True)
+
+    def resolve_project_path(self, relative: str) -> Path:
+        candidate = (self.project_dir / relative).resolve()
+        if not str(candidate).startswith(str(self.project_dir)):
+            raise ValueError(f"Path escapes project directory: {relative}")
+        return candidate
+
+    def write_audio(self, buffer: AudioBuffer, pcm: np.ndarray) -> AudioBuffer:
+        f64_path = self.cache_dir / f"{buffer.id}.f64"
+        pcm = np.asarray(pcm, dtype=np.float64)
+        if pcm.ndim == 1:
+            pcm = pcm.reshape(1, -1)
+        pcm.tofile(f64_path)
+
+        meta_path = self.cache_dir / f"{buffer.id}.meta.json"
+        buffer.path = str(f64_path)
+        meta_path.write_text(json.dumps(buffer.to_meta(), indent=2))
+
+        return buffer
+
+    def read_meta(self, cache_id: str) -> dict:
+        meta_path = self.cache_dir / f"{cache_id}.meta.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Cache entry not found: {cache_id}")
+        return json.loads(meta_path.read_text())
+
+    def load_audio(self, cache_id: str) -> tuple[AudioBuffer, np.ndarray]:
+        meta = self.read_meta(cache_id)
+        buffer = AudioBuffer(
+            id=meta["id"],
+            sample_rate=meta["sample_rate"],
+            channels=meta["channels"],
+            frame_count=meta["frame_count"],
+            channel_layout=meta.get("channel_layout", "mono"),
+            channel_map=meta.get("channel_map", []),
+            path=str(self.cache_dir / f"{cache_id}.f64"),
+            source_node=meta.get("source_node"),
+            source_node_type=meta.get("source_node_type"),
+            content_hash=meta.get("content_hash"),
+        )
+        pcm = buffer.data
+        return buffer, pcm
+
+    def write_provenance(self, cache_id: str, record: dict) -> None:
+        path = self.cache_dir / f"{cache_id}.provenance.json"
+        path.write_text(json.dumps(record, indent=2))
+
+    def preview_wav_bytes(self, cache_id: str) -> bytes:
+        import io
+
+        import soundfile as sf
+
+        _, pcm = self.load_audio(cache_id)
+        interleaved = pcm.T.reshape(-1)
+        buf = io.BytesIO()
+        sf.write(
+            buf, interleaved, self.read_meta(cache_id)["sample_rate"], format="WAV", subtype="FLOAT"
+        )
+        return buf.getvalue()
+
+    def waveform_peaks(self, cache_id: str, width: int = 512) -> dict:
+        _, pcm = self.load_audio(cache_id)
+        mono = pcm.mean(axis=0)
+        if len(mono) == 0:
+            return {"peaks": [], "duration": 0.0}
+        chunk = max(1, len(mono) // width)
+        peaks = [float(np.max(np.abs(mono[i : i + chunk]))) for i in range(0, len(mono), chunk)]
+        peaks = peaks[:width]
+        sr = self.read_meta(cache_id)["sample_rate"]
+        return {"peaks": peaks, "duration": len(mono) / sr}
+
+    def create_run_dir(self, job_id: str) -> Path:
+        run_dir = self.runs_dir / job_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        return run_dir
+
+    def write_manifest(self, job_id: str, manifest: dict) -> Path:
+        run_dir = self.create_run_dir(job_id)
+        path = run_dir / "manifest.json"
+        path.write_text(json.dumps(manifest, indent=2))
+        return path

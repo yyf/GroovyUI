@@ -1,0 +1,26 @@
+[project]
+name = "groovy-nodes-core"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "groovy-node-sdk",
+    "groovy-executor",
+    "numpy>=2.0",
+    "soundfile>=0.12",
+    "scipy>=1.14",
+    "pyloudnorm>=0.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/groovy"]
+
+[tool.uv.sources]
+groovy-node-sdk = { workspace = true }
+groovy-executor = { workspace = true }
+
+[project.entry-points."groovy.nodes"]
+core = "groovy.nodes.core:register_all"
