@@ -55,3 +55,36 @@ export function downloadWorkflow(workflow: Workflow): void {
   anchor.click();
   URL.revokeObjectURL(url);
 }
+
+export function addLink(workflow: Workflow, sourceId: string, targetId: string, type = "AUDIO"): Workflow {
+  const link: WorkflowLink = {
+    id: `l_${sourceId}_${targetId}_${Date.now()}`,
+    from: [sourceId, 0],
+    to: [targetId, 0],
+    type,
+  };
+  return { ...workflow, links: [...workflow.links, link] };
+}
+
+export function removeLinks(workflow: Workflow, linkIds: Set<string>): Workflow {
+  return { ...workflow, links: workflow.links.filter((link) => !linkIds.has(link.id)) };
+}
+
+export function collectModelRefs(workflow: Workflow): string[] {
+  const ids = new Set<string>();
+  for (const node of workflow.nodes) {
+    const model = node.widgets.model;
+    if (typeof model === "string" && model) {
+      ids.add(model);
+    }
+  }
+  return [...ids];
+}
+
+export function formatJobError(error: string | null | undefined): string {
+  if (!error) return "unknown error";
+  const runtime = error.match(/RuntimeError:\s*(.+)/);
+  if (runtime) return runtime[1].trim();
+  const lines = error.trim().split("\n").filter(Boolean);
+  return lines[lines.length - 1] ?? error;
+}

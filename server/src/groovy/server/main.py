@@ -13,12 +13,15 @@ from fastapi.responses import Response
 from groovy.executor import Executor
 from groovy.executor.engine import GROOVY_VERSION
 from groovy.node import NODE_REGISTRY, get_node_class
-from groovy.nodes.core import register_all
+from groovy.nodes.core import register_all as register_core
+from groovy.nodes.ai import register_all as register_ai
+from groovy.registry import ModelRegistry
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
 from pydantic import BaseModel
 
-register_all()
+register_core()
+register_ai()
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_WORKSPACE = REPO_ROOT / "workspace"
@@ -39,6 +42,14 @@ app.add_middleware(
 _jobs: dict[str, dict[str, Any]] = {}
 _ws_subscribers: dict[str, set[WebSocket]] = {}
 _executor = Executor(PROJECT_DIR)
+_registry = ModelRegistry(PROJECT_DIR)
+
+
+class ModelSearchRequest(BaseModel):
+    query: str = ""
+    task_type: str | None = None
+    commercial_ok: bool | None = None
+    node_type: str | None = None
 
 
 class ExecuteRequest(BaseModel):
@@ -108,6 +119,54 @@ def get_template(template_id: str) -> dict[str, Any]:
     if not path.exists():
         raise HTTPException(status_code=404, detail="Template not found")
     return json.loads(path.read_text())
+
+
+@app.get("/api/models")
+def list_models() -> dict[str, list[dict[str, Any]]]:
+    return {"models": [_model_card(m) for m in _registry.catalog.all()]}
+
+
+@app.post("/api/models/search")
+def search_models(body: ModelSearchRequest) -> dict[str, list[dict[str, Any]]]:
+    matches = _registry.catalog.search(
+        body.query,
+        task_type=body.task_type,
+        commercial_ok=body.commercial_ok,
+        node_type=body.node_type,
+    )
+    return {"models": [_model_card(m) for m in matches]}
+
+
+@app.get("/api/models/{model_id}")
+def get_model(model_id: str) -> dict[str, Any]:
+    manifest = _registry.catalog.get(model_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Model not found")
+    return _model_card(manifest)
+
+
+@app.post("/api/models/{model_id}/install", status_code=202)
+def install_model(model_id: str) -> dict[str, Any]:
+    manifest = _registry.catalog.get(model_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail="Model not found")
+    state = _registry.installer.install(model_id)
+    return state.model_dump()
+
+
+@app.get("/api/models/{model_id}/recovery")
+def model_recovery(model_id: str) -> dict[str, Any]:
+    return _registry.installer.recovery_suggestions(model_id)
+
+
+def _model_card(manifest) -> dict[str, Any]:
+    state = _registry.store.get(manifest.id)
+    return {
+        **manifest.model_dump(),
+        "install_status": state.status,
+        "install_progress": state.progress,
+        "install_error": state.error,
+    }
 
 
 @app.post("/api/workflow/validate")

@@ -3,23 +3,36 @@ import {
   Background,
   Controls,
   ReactFlow,
+  type Connection,
+  type Edge,
   type Node,
   type NodeTypes,
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { executeWorkflow, fetchHealth, fetchTemplate, previewUrl } from "./api";
+import { ensureWorkflowModels, executeWorkflow, fetchHealth, fetchTemplate, listTemplates, previewUrl } from "./api";
 import GroovyFlowNode from "./components/GroovyFlowNode";
+import ModelBrowser from "./components/ModelBrowser";
 import NodeHelper from "./components/NodeHelper";
 import TransportBar from "./components/TransportBar";
 import type { JobState, NodeRenderStatus, Workflow } from "./types";
-import { downloadWorkflow, resolveTargetNode, syncPositions, workflowToFlow } from "./workflow";
+import {
+  addLink,
+  downloadWorkflow,
+  formatJobError,
+  removeLinks,
+  resolveTargetNode,
+  syncPositions,
+  workflowToFlow,
+} from "./workflow";
 
 const nodeTypes: NodeTypes = { groovy: GroovyFlowNode };
+const DEFAULT_TEMPLATE = "podcast-denoise";
 
 export default function App() {
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
+  const [templates, setTemplates] = useState<Array<{ id: string; title: string }>>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [nodeStatus, setNodeStatus] = useState<Record<string, NodeRenderStatus>>({});
@@ -30,33 +43,58 @@ export default function App() {
   const [health, setHealth] = useState("…");
   const [progress, setProgress] = useState<number | undefined>();
   const [currentNode, setCurrentNode] = useState<string | undefined>();
+  const [modelBrowserOpen, setModelBrowserOpen] = useState(false);
+  const [modelPickTarget, setModelPickTarget] = useState<{ nodeId: string; widget: string } | null>(null);
 
   const flow = useMemo(
     () => (workflow ? workflowToFlow(workflow, nodeStatus) : { nodes: [], edges: [] }),
     [workflow, nodeStatus],
   );
   const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
-  const [edges, , onEdgesChange] = useEdgesState(flow.edges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(flow.edges);
+
+  const loadTemplate = useCallback(async (templateId: string) => {
+    setStatus("Loading template…");
+    setPreview(null);
+    setLastJob(null);
+    setNodeStatus({});
+    const data = await fetchTemplate(templateId);
+    setWorkflow(data);
+    setStatus("Ready");
+    setLoadError(null);
+  }, []);
 
   useEffect(() => {
     fetchHealth()
       .then(setHealth)
       .catch(() => setHealth("offline"));
-    fetchTemplate("hello-groovy")
-      .then((data) => {
-        setWorkflow(data);
-        setStatus("Ready");
-        setLoadError(null);
-      })
-      .catch((err) => {
-        setLoadError(String(err));
-        setStatus("Template load failed");
-      });
+    listTemplates()
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
+    loadTemplate(DEFAULT_TEMPLATE).catch((err) => {
+      setLoadError(String(err));
+      setStatus("Template load failed");
+    });
+  }, [loadTemplate]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setModelBrowserOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   useEffect(() => {
     setNodes(flow.nodes);
   }, [flow.nodes, setNodes]);
+
+  useEffect(() => {
+    setEdges(flow.edges);
+  }, [flow.edges, setEdges]);
 
   const updateWidget = useCallback((nodeId: string, name: string, value: unknown) => {
     setWorkflow((prev) => {
@@ -73,15 +111,32 @@ export default function App() {
     setPreview(null);
   }, []);
 
-  const onNodeDragStop = useCallback(
-    (_: unknown, node: Node) => {
-      setWorkflow((prev) => {
-        if (!prev) return prev;
-        return syncPositions(prev, [node]);
-      });
-    },
-    [],
-  );
+  const onNodeDragStop = useCallback((_: unknown, node: Node) => {
+    setWorkflow((prev) => {
+      if (!prev) return prev;
+      return syncPositions(prev, [node]);
+    });
+  }, []);
+
+  const onConnect = useCallback((connection: Connection) => {
+    if (!connection.source || !connection.target) return;
+    setWorkflow((prev) => {
+      if (!prev) return prev;
+      return addLink(prev, connection.source, connection.target);
+    });
+    setLastJob(null);
+    setPreview(null);
+  }, []);
+
+  const onEdgesDelete = useCallback((deleted: Edge[]) => {
+    const ids = new Set(deleted.map((edge) => edge.id));
+    setWorkflow((prev) => {
+      if (!prev) return prev;
+      return removeLinks(prev, ids);
+    });
+    setLastJob(null);
+    setPreview(null);
+  }, []);
 
   const runRender = useCallback(
     async (targetNodeId?: string) => {
@@ -100,6 +155,13 @@ export default function App() {
       });
 
       try {
+        const modelIds = [...new Set(workflow.nodes.map((n) => n.widgets.model).filter((m): m is string => typeof m === "string" && !!m))];
+        if (modelIds.length > 0) {
+          setStatus("Installing models…");
+          await ensureWorkflowModels(workflow);
+        }
+
+        setStatus("Rendering…");
         const job = await executeWorkflow(workflow, [target], (update) => {
           if (update.current_node) {
             setCurrentNode(update.current_node);
@@ -129,10 +191,10 @@ export default function App() {
           }
           setStatus("Complete");
         } else {
-          setStatus(`Failed: ${job.error ?? "unknown error"}`);
+          setStatus(`Failed: ${formatJobError(job.error)}`);
         }
       } catch (err) {
-        setStatus(`Error: ${String(err)}`);
+        setStatus(`Error: ${formatJobError(String(err))}`);
       } finally {
         setRunning(false);
         setCurrentNode(undefined);
@@ -151,6 +213,17 @@ export default function App() {
     void runRender();
   }, [preview, running, runRender]);
 
+  const handleModelSelect = useCallback(
+    (modelId: string) => {
+      if (modelPickTarget) {
+        updateWidget(modelPickTarget.nodeId, modelPickTarget.widget, modelId);
+        setModelPickTarget(null);
+      }
+      setModelBrowserOpen(false);
+    },
+    [modelPickTarget, updateWidget],
+  );
+
   const selectedNode = workflow?.nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedOutput = selectedNodeId && lastJob?.outputs ? lastJob.outputs[selectedNodeId] : undefined;
   const chainPreview =
@@ -166,7 +239,7 @@ export default function App() {
   if (loadError) {
     return (
       <div className="app app--error">
-        <p>Could not load Hello Groovy template: {loadError}</p>
+        <p>Could not load template: {loadError}</p>
         <p className="status">Is the API running on port 8188?</p>
       </div>
     );
@@ -184,7 +257,20 @@ export default function App() {
     <div className="app">
       <header className="toolbar">
         <h1>GroovyUI Studio</h1>
-        <span className="toolbar__template">{workflow.metadata.title}</span>
+        <select
+          className="toolbar__select"
+          value={templates.find((t) => t.title === workflow.metadata.title)?.id ?? DEFAULT_TEMPLATE}
+          onChange={(e) => void loadTemplate(e.target.value)}
+        >
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.title}
+            </option>
+          ))}
+        </select>
+        <button type="button" onClick={() => setModelBrowserOpen(true)}>
+          Model Browser
+        </button>
         <button type="button" onClick={() => downloadWorkflow(workflow)}>
           Save workflow
         </button>
@@ -200,10 +286,13 @@ export default function App() {
             nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onEdgesDelete={onEdgesDelete}
             onNodeClick={(_, node) => setSelectedNodeId(node.id)}
             onPaneClick={() => setSelectedNodeId(null)}
             onNodeDragStop={onNodeDragStop}
             fitView
+            deleteKeyCode={["Backspace", "Delete"]}
           >
             <Background gap={16} color="#2a2f3a" />
             <Controls />
@@ -214,6 +303,10 @@ export default function App() {
           workflow={workflow}
           output={selectedOutput}
           onWidgetChange={updateWidget}
+          onBrowseModel={(nodeId, widget) => {
+            setModelPickTarget({ nodeId, widget });
+            setModelBrowserOpen(true);
+          }}
         />
       </div>
       <TransportBar
@@ -224,6 +317,14 @@ export default function App() {
         progress={progress}
         onRender={() => void runRender()}
         onPlay={playChain}
+      />
+      <ModelBrowser
+        open={modelBrowserOpen}
+        onClose={() => {
+          setModelBrowserOpen(false);
+          setModelPickTarget(null);
+        }}
+        onSelectModel={handleModelSelect}
       />
     </div>
   );

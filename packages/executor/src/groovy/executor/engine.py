@@ -95,7 +95,17 @@ class Executor:
                     kwargs[_input_name(node_cls, input_idx)] = src_outputs[src_out_idx]
 
                 run_fn = getattr(instance, node_cls.FUNCTION)
-                result = run_fn(**kwargs)
+                if node_cls.run_in_worker:
+                    from groovy.executor.worker import run_ai_worker
+
+                    raw_outputs = run_ai_worker(node.type, kwargs, self.project_dir)
+                    result: tuple[Any, ...] = ()
+                    for item in raw_outputs:
+                        if item.get("type") == "AUDIO" and item.get("cache_id"):
+                            buffer, _ = self.cache.load_audio(item["cache_id"])
+                            result = (*result, buffer)
+                else:
+                    result = run_fn(**kwargs)
                 if not isinstance(result, tuple):
                     result = (result,)
 

@@ -30,6 +30,20 @@ export type NodeWidgetSpec = {
   optional?: boolean;
 };
 
+export type ModelCard = {
+  id: string;
+  name: string;
+  description: string;
+  task_types: string[];
+  tags: string[];
+  license: { spdx: string; commercial_ok: boolean; attribution_required: boolean };
+  vram_gb_estimate: number;
+  compatible_nodes: string[];
+  install_status: string;
+  install_progress?: number;
+  install_error?: string | null;
+};
+
 export type NodeSchema = {
   type: string;
   category: string;

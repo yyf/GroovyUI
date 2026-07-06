@@ -1,0 +1,211 @@
+{
+  "schema_version": "1.0.0",
+  "models": [
+    {
+      "id": "deepfilternet-v3",
+      "status": "published",
+      "trust": "verified",
+      "name": "DeepFilterNet v3",
+      "description": "Speech denoising for podcasts and dialogue cleanup.",
+      "task_types": ["denoise"],
+      "tags": ["denoise", "podcast", "cleanup", "speech"],
+      "author": "Rikorose",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 1,
+      "compatible_nodes": ["Denoise"],
+      "install": {
+        "python_deps": [{ "package": "deepfilternet", "version": ">=0.5.0" }],
+        "dev_stub": true
+      },
+      "similar_models": ["whisper-small-en"]
+    },
+    {
+      "id": "demucs-v4",
+      "status": "published",
+      "trust": "verified",
+      "name": "Demucs v4",
+      "description": "Music source separation into vocals, drums, bass, and other.",
+      "task_types": ["separation"],
+      "tags": ["stems", "music", "vocals", "demucs"],
+      "author": "Meta",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 4,
+      "compatible_nodes": ["SeparateStems"],
+      "install": {
+        "python_deps": [{ "package": "demucs", "version": ">=4.0.0" }],
+        "dev_stub": true
+      },
+      "similar_models": ["demucs-v4-ht", "uvr-mdx-net", "spleeter-2stems"]
+    },
+    {
+      "id": "demucs-v4-ht",
+      "status": "published",
+      "trust": "verified",
+      "name": "Demucs v4 (htdemucs)",
+      "description": "Hybrid Transformer Demucs checkpoint for stem separation.",
+      "task_types": ["separation"],
+      "tags": ["stems", "demucs", "htdemucs"],
+      "author": "Meta",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 4,
+      "compatible_nodes": ["SeparateStems"],
+      "install": { "dev_stub": true },
+      "similar_models": ["demucs-v4", "uvr-mdx-net"]
+    },
+    {
+      "id": "whisper-large-v3-turbo",
+      "status": "published",
+      "trust": "verified",
+      "name": "Whisper Large v3 Turbo",
+      "description": "Fast multilingual speech-to-text transcription.",
+      "task_types": ["stt"],
+      "tags": ["transcribe", "whisper", "subtitles", "stt"],
+      "author": "OpenAI",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 2,
+      "compatible_nodes": ["WhisperSTT"],
+      "install": { "dev_stub": true },
+      "similar_models": ["whisper-small-en"]
+    },
+    {
+      "id": "whisper-small-en",
+      "status": "published",
+      "trust": "verified",
+      "name": "Whisper Small EN",
+      "description": "Lightweight English speech-to-text model.",
+      "task_types": ["stt"],
+      "tags": ["transcribe", "whisper", "english", "stt"],
+      "author": "OpenAI",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 1,
+      "compatible_nodes": ["WhisperSTT"],
+      "install": { "dev_stub": true },
+      "similar_models": ["whisper-large-v3-turbo"]
+    },
+    {
+      "id": "f5-tts-base",
+      "status": "published",
+      "trust": "verified",
+      "name": "F5-TTS Base",
+      "description": "Multilingual voice clone from a short reference clip.",
+      "task_types": ["tts"],
+      "tags": ["tts", "voice-clone", "speech", "dubbing"],
+      "author": "SWivid",
+      "license": {
+        "spdx": "CC-BY-NC-4.0",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 6,
+      "compatible_nodes": ["TTS"],
+      "install": { "dev_stub": true },
+      "similar_models": ["cosyvoice-300m", "gpt-sovits-v2"]
+    },
+    {
+      "id": "cosyvoice-300m",
+      "status": "published",
+      "trust": "verified",
+      "name": "CosyVoice 300M",
+      "description": "Commercial-friendly multilingual TTS.",
+      "task_types": ["tts"],
+      "tags": ["tts", "commercial", "speech"],
+      "author": "FunAudioLLM",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 4,
+      "compatible_nodes": ["TTS"],
+      "install": { "dev_stub": true },
+      "similar_models": ["f5-tts-base", "gpt-sovits-v2"]
+    },
+    {
+      "id": "rvc-v2-base",
+      "status": "published",
+      "trust": "verified",
+      "name": "RVC v2",
+      "description": "Real-time voice conversion and timbre transfer.",
+      "task_types": ["conversion"],
+      "tags": ["rvc", "voice-convert", "conversion"],
+      "author": "RVC Project",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 4,
+      "compatible_nodes": ["VoiceConvert"],
+      "install": { "dev_stub": true },
+      "similar_models": ["openvoice-v2"]
+    },
+    {
+      "id": "uvr-mdx-net",
+      "status": "published",
+      "trust": "verified",
+      "name": "UVR MDX-Net",
+      "description": "Lightweight vocal/instrument separation alternative to Demucs.",
+      "task_types": ["separation"],
+      "tags": ["stems", "uvr", "vocals", "separation"],
+      "author": "UVR",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 2,
+      "compatible_nodes": ["SeparateStems"],
+      "install": { "dev_stub": true },
+      "similar_models": ["demucs-v4", "spleeter-2stems"]
+    },
+    {
+      "id": "spleeter-2stems",
+      "status": "published",
+      "trust": "verified",
+      "name": "Spleeter 2-stems",
+      "description": "Fast 2-stem vocal separation for quick previews.",
+      "task_types": ["separation"],
+      "tags": ["stems", "spleeter", "vocals", "fast"],
+      "author": "Deezer",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 1,
+      "compatible_nodes": ["SeparateStems"],
+      "install": { "dev_stub": true },
+      "similar_models": ["uvr-mdx-net", "demucs-v4"]
+    }
+  ]
+}

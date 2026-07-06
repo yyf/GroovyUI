@@ -38,6 +38,11 @@ def test_get_template(client: TestClient) -> None:
 
 
 def test_all_templates_validate() -> None:
+    from groovy.nodes.ai import register_all as register_ai
+    from groovy.nodes.core import register_all as register_core
+
+    register_core()
+    register_ai()
     for path in sorted(TEMPLATES_DIR.glob("*.groovy.json")):
         workflow = Workflow.model_validate(json.loads(path.read_text()))
         result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))

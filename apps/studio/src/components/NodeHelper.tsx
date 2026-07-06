@@ -9,9 +9,10 @@ type Props = {
   workflow: Workflow;
   output?: JobOutput;
   onWidgetChange: (nodeId: string, name: string, value: unknown) => void;
+  onBrowseModel?: (nodeId: string, widgetName: string) => void;
 };
 
-export default function NodeHelper({ node, workflow, output, onWidgetChange }: Props) {
+export default function NodeHelper({ node, workflow, output, onWidgetChange, onBrowseModel }: Props) {
   const [tab, setTab] = useState<Tab>("config");
   const [schema, setSchema] = useState<NodeSchema | null>(null);
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
@@ -88,6 +89,11 @@ export default function NodeHelper({ node, workflow, output, onWidgetChange }: P
                   spec={widget}
                   value={node.widgets[widget.name] ?? widget.default ?? ""}
                   onChange={(value) => onWidgetChange(node.id, widget.name, value)}
+                  onBrowse={
+                    widget.type === "MODEL_REF"
+                      ? () => onBrowseModel?.(node.id, widget.name)
+                      : undefined
+                  }
                 />
               </label>
             ))}
@@ -133,9 +139,20 @@ type WidgetInputProps = {
   spec: { name: string; type: string; default?: unknown };
   value: unknown;
   onChange: (value: unknown) => void;
+  onBrowse?: () => void;
 };
 
-function WidgetInput({ spec, value, onChange }: WidgetInputProps) {
+function WidgetInput({ spec, value, onChange, onBrowse }: WidgetInputProps) {
+  if (spec.type === "MODEL_REF") {
+    return (
+      <div className="node-helper__model-ref">
+        <input type="text" readOnly value={typeof value === "string" ? value : String(value ?? "")} />
+        <button type="button" onClick={onBrowse}>
+          Browse…
+        </button>
+      </div>
+    );
+  }
   if (spec.type === "FLOAT" || spec.type === "INT") {
     return (
       <input

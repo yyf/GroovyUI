@@ -1,4 +1,4 @@
-import type { JobState, NodeSchema, Workflow } from "./types";
+import type { JobState, ModelCard, NodeSchema, Workflow } from "./types";
 
 export const API = import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188";
 
@@ -36,6 +36,51 @@ export async function fetchCacheMeta(cacheId: string): Promise<Record<string, un
     throw new Error(`Cache not found: ${cacheId}`);
   }
   return res.json();
+}
+
+export async function searchModels(query: string, filters?: { task_type?: string }): Promise<ModelCard[]> {
+  const res = await fetch(`${API}/api/models/search`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, ...filters }),
+  });
+  if (!res.ok) {
+    throw new Error(`Model search failed (${res.status})`);
+  }
+  const data = await res.json();
+  return data.models;
+}
+
+export async function installModel(modelId: string): Promise<void> {
+  const res = await fetch(`${API}/api/models/${modelId}/install`, { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`Install failed: ${modelId}`);
+  }
+}
+
+export async function ensureWorkflowModels(workflow: Workflow): Promise<string[]> {
+  const modelIds = new Set<string>();
+  for (const node of workflow.nodes) {
+    const model = node.widgets.model;
+    if (typeof model === "string" && model) {
+      modelIds.add(model);
+    }
+  }
+  const installed: string[] = [];
+  for (const modelId of modelIds) {
+    await installModel(modelId);
+    installed.push(modelId);
+  }
+  return installed;
+}
+
+export async function listTemplates(): Promise<Array<{ id: string; title: string; description: string }>> {
+  const res = await fetch(`${API}/api/templates`);
+  if (!res.ok) {
+    throw new Error("Failed to list templates");
+  }
+  const data = await res.json();
+  return data.templates;
 }
 
 export function previewUrl(cacheId: string): string {

@@ -57,10 +57,19 @@ class GroovyNode:
 
         for section in ("required", "optional"):
             for name, spec in inputs.get(section, {}).items():
-                if isinstance(spec, tuple) and spec and spec[0] != "MODEL_REF":
+                if isinstance(spec, tuple) and spec:
                     socket_type = spec[0]
                     widget_meta = spec[1] if len(spec) > 1 and isinstance(spec[1], dict) else {}
-                    if socket_type in {"AUDIO", "STEMS", "MIDI", "AUTHENTICITY"}:
+                    if socket_type == "MODEL_REF":
+                        widgets.append(
+                            {
+                                "name": name,
+                                "type": socket_type,
+                                "default": widget_meta.get("default"),
+                                "optional": section == "optional",
+                            }
+                        )
+                    elif socket_type in {"AUDIO", "STEMS", "MIDI", "AUTHENTICITY"}:
                         input_sockets.append(
                             {
                                 "name": name,
