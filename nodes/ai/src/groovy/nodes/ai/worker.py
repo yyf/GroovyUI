@@ -4,40 +4,42 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
-from groovy.executor.audio import AudioBuffer
 from groovy.executor.cache import CacheStore
-from groovy.nodes.ai.inference import denoise_audio
+from groovy.nodes.ai.inference import (
+    require_model,
+    run_denoise,
+    run_separate_stems,
+    run_tts,
+    run_voice_convert,
+    run_whisper_stt,
+)
+
+HANDLERS = {
+    "Denoise": run_denoise,
+    "SeparateStems": run_separate_stems,
+    "WhisperSTT": run_whisper_stt,
+    "TTS": run_tts,
+    "VoiceConvert": run_voice_convert,
+}
 
 
 def main() -> None:
     payload = json.loads(sys.stdin.read())
+    node_type = payload["node_type"]
     project_dir = Path(payload["project_dir"])
     kwargs = payload["kwargs"]
     cache = CacheStore(project_dir)
 
-    audio_id = kwargs["audio_id"]
-    model_id = str(kwargs.get("model", "deepfilternet-v3"))
-    strength = float(kwargs.get("strength", 1.0))
+    handler = HANDLERS.get(node_type)
+    if handler is None:
+        raise RuntimeError(f"Unknown AI node type: {node_type}")
 
-    marker = project_dir / ".groovy" / "models" / model_id / "installed.json"
-    if not marker.exists():
-        raise RuntimeError(
-            f"Model not installed: {model_id}. Install it from Model Browser (Cmd+K) first."
-        )
+    model_id = kwargs.get("model")
+    if model_id:
+        require_model(project_dir, str(model_id))
 
-    buffer, pcm = cache.load_audio(audio_id)
-    out = denoise_audio(pcm, model_id=model_id, strength=strength, sample_rate=buffer.sample_rate)
-
-    out_buffer = AudioBuffer.from_planar(
-        out,
-        buffer.sample_rate,
-        source_node_type="Denoise",
-        channel_layout=buffer.channel_layout,
-    )
-    cache.write_audio(out_buffer, out)
-    result = {"outputs": [{"type": "AUDIO", "cache_id": out_buffer.id}]}
-    sys.stdout.write(json.dumps(result))
+    outputs = handler(cache, kwargs)
+    sys.stdout.write(json.dumps({"outputs": outputs}))
 
 
 if __name__ == "__main__":

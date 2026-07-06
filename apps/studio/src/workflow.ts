@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { NodeRenderStatus, Workflow, WorkflowLink, WorkflowNode } from "./types";
+import type { NodeRenderStatus, Workflow, WorkflowLink, WorkflowNode, JobOutput } from "./types";
 import type { GroovyNodeData } from "./components/GroovyFlowNode";
 
 export function workflowToFlow(
@@ -79,6 +79,28 @@ export function collectModelRefs(workflow: Workflow): string[] {
     }
   }
   return [...ids];
+}
+
+export function addNodeToWorkflow(
+  workflow: Workflow,
+  nodeType: string,
+  widgets: Record<string, unknown>,
+): Workflow {
+  const id = `n${workflow.nodes.length + 1}`;
+  const maxX = workflow.nodes.reduce((acc, n) => Math.max(acc, n.pos?.x ?? 0), 0);
+  return {
+    ...workflow,
+    nodes: [
+      ...workflow.nodes,
+      { id, type: nodeType, pos: { x: maxX + 220, y: 80 }, widgets },
+    ],
+  };
+}
+
+export function previewCacheId(output?: JobOutput): string | null {
+  if (!output) return null;
+  if (output.type === "AUDIO" && output.cache_id) return output.cache_id;
+  return null;
 }
 
 export function formatJobError(error: string | null | undefined): string {

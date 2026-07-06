@@ -2,20 +2,31 @@ import { useEffect, useState } from "react";
 import { fetchCacheMeta, fetchNodeSchema } from "../api";
 import type { JobOutput, NodeSchema, Workflow, WorkflowNode } from "../types";
 
-type Tab = "config" | "inputs" | "outputs";
+type Tab = "config" | "inputs" | "outputs" | "provenance";
 
 type Props = {
   node: WorkflowNode | null;
   workflow: Workflow;
   output?: JobOutput;
+  previewUrl?: string | null;
   onWidgetChange: (nodeId: string, name: string, value: unknown) => void;
   onBrowseModel?: (nodeId: string, widgetName: string) => void;
+  onAudition?: () => void;
 };
 
-export default function NodeHelper({ node, workflow, output, onWidgetChange, onBrowseModel }: Props) {
+export default function NodeHelper({
+  node,
+  workflow,
+  output,
+  previewUrl,
+  onWidgetChange,
+  onBrowseModel,
+  onAudition,
+}: Props) {
   const [tab, setTab] = useState<Tab>("config");
   const [schema, setSchema] = useState<NodeSchema | null>(null);
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
+  const [provenance, setProvenance] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     setTab("config");
@@ -31,11 +42,16 @@ export default function NodeHelper({ node, workflow, output, onWidgetChange, onB
   useEffect(() => {
     if (!output?.cache_id) {
       setMeta(null);
+      setProvenance(null);
       return;
     }
     fetchCacheMeta(output.cache_id)
       .then(setMeta)
       .catch(() => setMeta(null));
+    fetch(`${import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188"}/api/cache/${output.cache_id}/provenance`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setProvenance)
+      .catch(() => setProvenance(null));
   }, [output?.cache_id]);
 
   if (!node) {
@@ -78,6 +94,14 @@ export default function NodeHelper({ node, workflow, output, onWidgetChange, onB
         >
           Outputs
         </button>
+        <button
+          type="button"
+          className={tab === "provenance" ? "active" : ""}
+          onClick={() => setTab("provenance")}
+          disabled={!output?.cache_id}
+        >
+          Provenance
+        </button>
       </nav>
       <div className="node-helper__body">
         {tab === "config" && schema ? (
@@ -118,6 +142,16 @@ export default function NodeHelper({ node, workflow, output, onWidgetChange, onB
             <p>
               <strong>{output.type}</strong> cached
             </p>
+            {output.type === "TEXT" && output.text ? (
+              <p className="node-helper__text">{output.text}</p>
+            ) : null}
+            {output.type === "STEMS" && output.stems ? (
+              <ul className="node-helper__list">
+                {Object.keys(output.stems).map((stem) => (
+                  <li key={stem}>{stem}</li>
+                ))}
+              </ul>
+            ) : null}
             {meta ? (
               <>
                 <p>
@@ -125,10 +159,36 @@ export default function NodeHelper({ node, workflow, output, onWidgetChange, onB
                 </p>
                 <p className="node-helper__mono">{output.cache_id}</p>
               </>
-            ) : (
+            ) : null}
+            {previewUrl ? (
+              <button type="button" className="node-helper__audition" onClick={onAudition}>
+                ▶ Audition node
+              </button>
+            ) : null}
+            {!meta && output.type === "AUDIO" ? (
               <p className="node-helper__hint">Render to populate output metadata.</p>
-            )}
+            ) : null}
           </div>
+        ) : null}
+        {tab === "provenance" && provenance ? (
+          <div className="node-helper__provenance">
+            <p>
+              <span className={`pill pill--${String((provenance.contribution as { class?: string })?.class ?? "unknown")}`}>
+                {String((provenance.contribution as { class?: string })?.class ?? "unknown")}
+              </span>
+            </p>
+            <p>{String((provenance.contribution as { disclosure_label?: string })?.disclosure_label ?? "")}</p>
+            <ul className="node-helper__list">
+              {((provenance.parents as Array<{ node_type?: string; cache_id?: string }>) ?? []).map((parent) => (
+                <li key={parent.cache_id}>
+                  ↑ {parent.node_type ?? "parent"} ({parent.cache_id?.slice(0, 8)}…)
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {tab === "provenance" && !provenance ? (
+          <p className="node-helper__hint">Render to populate provenance.</p>
         ) : null}
       </div>
     </aside>

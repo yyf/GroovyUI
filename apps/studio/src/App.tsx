@@ -11,16 +11,20 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ensureWorkflowModels, executeWorkflow, fetchHealth, fetchTemplate, listTemplates, previewUrl } from "./api";
+import { ensureWorkflowModels, executeWorkflow, fetchCompliance, fetchHealth, fetchTemplate, listTemplates, previewUrl } from "./api";
+import ComplianceDrawer from "./components/ComplianceDrawer";
 import GroovyFlowNode from "./components/GroovyFlowNode";
 import ModelBrowser from "./components/ModelBrowser";
 import NodeHelper from "./components/NodeHelper";
+import NodePalette, { defaultWidgetsForNode } from "./components/NodePalette";
 import TransportBar from "./components/TransportBar";
 import type { JobState, NodeRenderStatus, Workflow } from "./types";
 import {
   addLink,
+  addNodeToWorkflow,
   downloadWorkflow,
   formatJobError,
+  previewCacheId,
   removeLinks,
   resolveTargetNode,
   syncPositions,
@@ -45,6 +49,10 @@ export default function App() {
   const [currentNode, setCurrentNode] = useState<string | undefined>();
   const [modelBrowserOpen, setModelBrowserOpen] = useState(false);
   const [modelPickTarget, setModelPickTarget] = useState<{ nodeId: string; widget: string } | null>(null);
+  const [complianceOpen, setComplianceOpen] = useState(false);
+  const [complianceWarnings, setComplianceWarnings] = useState(0);
+  const [focusMode, setFocusMode] = useState(false);
+  const [nodePreviewUrl, setNodePreviewUrl] = useState<string | null>(null);
 
   const flow = useMemo(
     () => (workflow ? workflowToFlow(workflow, nodeStatus) : { nodes: [], edges: [] }),
@@ -76,17 +84,6 @@ export default function App() {
       setStatus("Template load failed");
     });
   }, [loadTemplate]);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setModelBrowserOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   useEffect(() => {
     setNodes(flow.nodes);
@@ -139,9 +136,12 @@ export default function App() {
   }, []);
 
   const runRender = useCallback(
-    async (targetNodeId?: string) => {
+    async (targetNodeId?: string, renderAll = false) => {
       if (!workflow) return;
-      const target = targetNodeId ?? resolveTargetNode(workflow, selectedNodeId);
+      const target = renderAll
+        ? resolveTargetNode(workflow, selectedNodeId)
+        : (targetNodeId ?? resolveTargetNode(workflow, selectedNodeId));
+      const targets = renderAll ? workflow.nodes.map((n) => n.id) : [target];
       setRunning(true);
       setStatus("Rendering…");
       setProgress(0);
@@ -162,7 +162,7 @@ export default function App() {
         }
 
         setStatus("Rendering…");
-        const job = await executeWorkflow(workflow, [target], (update) => {
+        const job = await executeWorkflow(workflow, targets, (update) => {
           if (update.current_node) {
             setCurrentNode(update.current_node);
             setNodeStatus((prev) => ({
@@ -180,7 +180,7 @@ export default function App() {
           const outputs = job.outputs ?? {};
           const cached: Record<string, NodeRenderStatus> = {};
           for (const [nodeId, out] of Object.entries(outputs)) {
-            if (out?.cache_id) {
+            if (out?.cache_id || out?.stems_id || out?.type === "TEXT") {
               cached[nodeId] = "cached";
             }
           }
@@ -204,14 +204,44 @@ export default function App() {
     [workflow, selectedNodeId],
   );
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setModelBrowserOpen(true);
+        return;
+      }
+      if (event.key === "f" || event.key === "\\") {
+        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+        event.preventDefault();
+        setFocusMode((prev) => !prev);
+        return;
+      }
+      if (event.shiftKey && event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        if (!running) void runRender(undefined, true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [running, runRender]);
+
   const playChain = useCallback(() => {
-    if (preview && !running) {
+    const hasStale = workflow?.nodes.some((n) => nodeStatus[n.id] === "stale" || !nodeStatus[n.id]);
+    if (preview && !running && !hasStale) {
       const audio = document.querySelector<HTMLAudioElement>(".transport__audio");
       void audio?.play();
       return;
     }
     void runRender();
-  }, [preview, running, runRender]);
+  }, [preview, running, runRender, workflow, nodeStatus]);
+
+  useEffect(() => {
+    if (!workflow) return;
+    fetchCompliance(workflow)
+      .then((data) => setComplianceWarnings(data.warnings.length))
+      .catch(() => setComplianceWarnings(0));
+  }, [workflow]);
 
   const handleModelSelect = useCallback(
     (modelId: string) => {
@@ -226,6 +256,8 @@ export default function App() {
 
   const selectedNode = workflow?.nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedOutput = selectedNodeId && lastJob?.outputs ? lastJob.outputs[selectedNodeId] : undefined;
+  const selectedPreviewId = previewCacheId(selectedOutput);
+  const selectedNodePreview = selectedPreviewId ? previewUrl(selectedPreviewId) : null;
   const chainPreview =
     preview ??
     (lastJob?.outputs && workflow
@@ -254,7 +286,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${focusMode ? "app--focus" : ""}`}>
       <header className="toolbar">
         <h1>GroovyUI Studio</h1>
         <select
@@ -271,6 +303,9 @@ export default function App() {
         <button type="button" onClick={() => setModelBrowserOpen(true)}>
           Model Browser
         </button>
+        <button type="button" className={complianceWarnings > 0 ? "toolbar__warn" : ""} onClick={() => setComplianceOpen(true)}>
+          Compliance{complianceWarnings > 0 ? ` (${complianceWarnings})` : ""}
+        </button>
         <button type="button" onClick={() => downloadWorkflow(workflow)}>
           Save workflow
         </button>
@@ -278,7 +313,16 @@ export default function App() {
           {status} · API {health}
         </span>
       </header>
-      <div className="workspace">
+      <div className={`workspace workspace--with-palette ${focusMode ? "workspace--focus" : ""}`}>
+        {!focusMode ? (
+          <NodePalette
+            onAddNode={(nodeType) => {
+              void defaultWidgetsForNode(nodeType).then((widgets) => {
+                setWorkflow((prev) => (prev ? addNodeToWorkflow(prev, nodeType, widgets) : prev));
+              });
+            }}
+          />
+        ) : null}
         <div className="canvas">
           <ReactFlow
             nodes={nodes}
@@ -298,17 +342,29 @@ export default function App() {
             <Controls />
           </ReactFlow>
         </div>
-        <NodeHelper
-          node={selectedNode}
-          workflow={workflow}
-          output={selectedOutput}
-          onWidgetChange={updateWidget}
-          onBrowseModel={(nodeId, widget) => {
-            setModelPickTarget({ nodeId, widget });
-            setModelBrowserOpen(true);
-          }}
-        />
+        {!focusMode ? (
+          <NodeHelper
+            node={selectedNode}
+            workflow={workflow}
+            output={selectedOutput}
+            previewUrl={selectedNodePreview}
+            onWidgetChange={updateWidget}
+            onBrowseModel={(nodeId, widget) => {
+              setModelPickTarget({ nodeId, widget });
+              setModelBrowserOpen(true);
+            }}
+            onAudition={() => {
+              if (selectedNodePreview) {
+                setNodePreviewUrl(selectedNodePreview);
+                setTimeout(() => {
+                  document.querySelector<HTMLAudioElement>(".node-audition")?.play();
+                }, 0);
+              }
+            }}
+          />
+        ) : null}
       </div>
+      {nodePreviewUrl ? <audio className="node-audition" src={nodePreviewUrl} hidden /> : null}
       <TransportBar
         workflow={workflow}
         previewUrl={chainPreview}
@@ -316,6 +372,7 @@ export default function App() {
         currentNode={currentNode}
         progress={progress}
         onRender={() => void runRender()}
+        onRenderAll={() => void runRender(undefined, true)}
         onPlay={playChain}
       />
       <ModelBrowser
@@ -325,6 +382,13 @@ export default function App() {
           setModelPickTarget(null);
         }}
         onSelectModel={handleModelSelect}
+      />
+      <ComplianceDrawer
+        open={complianceOpen}
+        workflow={workflow}
+        outputs={lastJob?.outputs}
+        targetNodeId={selectedNodeId}
+        onClose={() => setComplianceOpen(false)}
       />
     </div>
   );

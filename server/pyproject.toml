@@ -16,6 +16,7 @@ dependencies = [
 
 [project.scripts]
 groovy-server = "groovy.server.main:main"
+groovy-verify = "groovy.verify:main"
 
 [build-system]
 requires = ["hatchling"]

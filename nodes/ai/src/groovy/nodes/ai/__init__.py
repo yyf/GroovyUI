@@ -1,3 +1,3 @@
-from groovy.nodes.ai.nodes import Denoise, register_all
+from groovy.nodes.ai.nodes import Denoise, SeparateStems, TTS, VoiceConvert, WhisperSTT, register_all
 
-__all__ = ["register_all", "Denoise"]
+__all__ = ["register_all", "Denoise", "SeparateStems", "WhisperSTT", "TTS", "VoiceConvert"]

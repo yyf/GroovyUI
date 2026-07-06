@@ -7,6 +7,7 @@ type Props = {
   currentNode?: string;
   progress?: number;
   onRender: () => void;
+  onRenderAll?: () => void;
   onPlay: () => void;
 };
 
@@ -17,6 +18,7 @@ export default function TransportBar({
   currentNode,
   progress,
   onRender,
+  onRenderAll,
   onPlay,
 }: Props) {
   const title = workflow.metadata.title;
@@ -27,9 +29,14 @@ export default function TransportBar({
       <button type="button" className="transport__play" onClick={onPlay} disabled={running}>
         ▶ Play chain
       </button>
-      <button type="button" className="transport__render" onClick={onRender} disabled={running}>
+      <button type="button" className="transport__render" onClick={onRender} disabled={running} title="Render chain">
         {running ? "Rendering…" : "Render chain"}
       </button>
+      {onRenderAll ? (
+        <button type="button" className="transport__render-all" onClick={onRenderAll} disabled={running} title="Shift+R">
+          Render all
+        </button>
+      ) : null}
       <div className="transport__progress">
         {running && currentNode ? (
           <span>

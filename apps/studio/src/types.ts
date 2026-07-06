@@ -53,8 +53,57 @@ export type NodeSchema = {
 };
 
 export type JobOutput = {
-  cache_id: string;
+  cache_id?: string;
   type: string;
+  text?: string;
+  stems_id?: string;
+  stems?: Record<string, string>;
+};
+
+export type ComplianceSummary = {
+  workflow_id: string;
+  workflow_title: string;
+  license_rows: Array<{
+    component: string;
+    kind: string;
+    license_spdx: string;
+    commercial_ok: boolean;
+    attribution_required?: boolean;
+  }>;
+  warnings: string[];
+  commercial_ok: boolean;
+};
+
+export type ProvenanceEntry = {
+  node_id: string;
+  cache_id: string;
+  chain: Array<{
+    contribution?: { class?: string; disclosure_label?: string };
+    node?: { node_id?: string; node_type?: string };
+    models?: Array<{ registry_id?: string }>;
+  }>;
+  disclosure: string;
+};
+
+export type ProvenanceSummary = {
+  entries: ProvenanceEntry[];
+  focus_node_id: string | null;
+  focus_disclosure: string;
+  contains_ai: boolean;
+};
+
+export type ModelRecommendation = {
+  model: ModelCard;
+  rationale: string;
+  score: number;
+};
+
+export type InstallRecovery = {
+  model_id: string;
+  error: string | null;
+  summary: string;
+  similar_models: ModelCard[];
+  suggested_fixes: string[];
 };
 
 export type JobState = {

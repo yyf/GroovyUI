@@ -44,13 +44,17 @@ def run_ai_worker(
 def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for key, value in kwargs.items():
-        if hasattr(value, "id"):
+        if hasattr(value, "stems"):
+            out[key] = {"type": "STEMS", "stems_id": value.id}
+        elif hasattr(value, "id") and hasattr(value, "frame_count"):
             out[key] = {"type": "AUDIO", "cache_id": value.id}
             out[f"{key}_id"] = value.id
         else:
             out[key] = value
     if "audio" in kwargs and hasattr(kwargs["audio"], "id"):
         out["audio_id"] = kwargs["audio"].id
+    if "stems" in kwargs and hasattr(kwargs["stems"], "id"):
+        out["stems_id"] = kwargs["stems"].id
     return out
 
 

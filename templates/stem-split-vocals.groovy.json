@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "c3d4e5f6-a7b8-9012-cdef-123456789abc",
+  "metadata": {
+    "title": "Stem Split Vocals",
+    "description": "Separate stems with Demucs, pick vocals, preview.",
+    "tags": ["ai", "separation", "stems"]
+  },
+  "nodes": [
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n2", "type": "SeparateStems", "pos": { "x": 260, "y": 0 }, "widgets": { "model": "demucs-v4" } },
+    { "id": "n3", "type": "StemPick", "pos": { "x": 520, "y": 0 }, "widgets": { "stem": "vocals" } },
+    { "id": "n4", "type": "Preview", "pos": { "x": 780, "y": 0 }, "widgets": {} }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "STEMS" },
+    { "id": "l3", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO" }
+  ],
+  "groups": []
+}

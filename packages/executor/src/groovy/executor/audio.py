@@ -75,3 +75,57 @@ class AudioBuffer:
             "created_at": datetime.now(UTC).isoformat(),
             "content_hash": self.content_hash,
         }
+
+
+@dataclass
+class StemsBuffer:
+    id: str
+    sample_rate: int
+    channels: int
+    frame_count: int
+    stems: dict[str, AudioBuffer]
+
+    def to_meta(self) -> dict:
+        return {
+            "id": self.id,
+            "type": "STEMS",
+            "sample_rate": self.sample_rate,
+            "channels": self.channels,
+            "frame_count": self.frame_count,
+            "stems": {
+                name: {"id": buf.id, "frame_count": buf.frame_count}
+                for name, buf in self.stems.items()
+            },
+        }
+
+    @classmethod
+    def from_stem_pcm(
+        cls,
+        stem_pcm: dict[str, np.ndarray],
+        sample_rate: int,
+        *,
+        channel_layout: str = "mono",
+        source_node_type: str = "SeparateStems",
+    ) -> StemsBuffer:
+        buffers: dict[str, AudioBuffer] = {}
+        frame_count = 0
+        channels = 1
+        for name, pcm in stem_pcm.items():
+            if pcm.ndim == 1:
+                pcm = pcm.reshape(1, -1)
+            buf = AudioBuffer.from_planar(
+                pcm,
+                sample_rate,
+                source_node_type=source_node_type,
+                channel_layout=channel_layout,
+            )
+            buffers[name] = buf
+            frame_count = buf.frame_count
+            channels = buf.channels
+        return cls(
+            id=str(uuid.uuid4()),
+            sample_rate=sample_rate,
+            channels=channels,
+            frame_count=frame_count,
+            stems=buffers,
+        )

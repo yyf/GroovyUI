@@ -76,8 +76,12 @@ body {
 
 .workspace {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 160px 1fr 280px;
   min-height: 0;
+}
+
+.workspace--with-palette {
+  grid-template-columns: 160px 1fr 280px;
 }
 
 .canvas {
@@ -459,4 +463,250 @@ body {
 .pill--not_installed {
   background: #2a3142;
   color: #9aa3b2;
+}
+
+.node-palette {
+  border-right: 1px solid #2a2f3a;
+  background: #151820;
+  padding: 12px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.node-palette h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.node-palette h3 {
+  margin: 12px 0 6px;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.node-palette button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  background: #1b2030;
+  border: 1px solid #2a2f3a;
+  border-radius: 4px;
+  color: #e8eaed;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.node-palette button:hover {
+  border-color: #3b82f6;
+}
+
+.compliance-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 60;
+}
+
+.compliance-drawer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: min(480px, 92vw);
+  height: 100%;
+  background: #151820;
+  border-left: 1px solid #3d4663;
+  display: flex;
+  flex-direction: column;
+}
+
+.compliance-drawer header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid #2a2f3a;
+}
+
+.compliance-drawer nav {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #2a2f3a;
+}
+
+.compliance-drawer nav button {
+  background: transparent;
+  border: none;
+  color: #9aa3b2;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+
+.compliance-drawer nav button.active {
+  color: #e8eaed;
+  background: #2a3142;
+  border-radius: 4px;
+}
+
+.compliance-body {
+  padding: 16px;
+  overflow: auto;
+  font-size: 13px;
+}
+
+.compliance-body table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.compliance-body th,
+.compliance-body td {
+  border-bottom: 1px solid #2a2f3a;
+  padding: 8px 6px;
+  text-align: left;
+}
+
+.compliance-warnings {
+  color: #fbbf24;
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+
+.compliance-hint {
+  color: #6b7280;
+}
+
+.app--focus .toolbar button:not(.transport__play) {
+  opacity: 0.85;
+}
+
+.workspace--focus {
+  grid-template-columns: 1fr;
+}
+
+.toolbar__warn {
+  border-color: #f59e0b !important;
+  color: #fcd34d !important;
+}
+
+.model-browser__modes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.model-browser__modes button {
+  flex: 1;
+  background: #1a1f2b;
+  border: 1px solid #3d4663;
+  color: #9aa3b2;
+  border-radius: 6px;
+  padding: 6px;
+  cursor: pointer;
+}
+
+.model-browser__modes button.active {
+  background: #2a3142;
+  color: #e8eaed;
+}
+
+.model-browser__filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.model-browser__filters select {
+  background: #0f1115;
+  border: 1px solid #3d4663;
+  color: #e8eaed;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.model-browser__recovery {
+  background: #2a1f1f;
+  border: 1px solid #7f1d1d;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.model-card__rationale {
+  font-size: 12px;
+  color: #93c5fd;
+  margin: 4px 0 8px;
+}
+
+.provenance-entry {
+  margin-bottom: 16px;
+}
+
+.provenance-chain {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+.provenance-chain li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #2a2f3a;
+  font-size: 13px;
+}
+
+.provenance-models {
+  color: #9aa3b2;
+  font-size: 12px;
+}
+
+.disclosure-text {
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.pill--warning {
+  background: #78350f;
+  color: #fcd34d;
+}
+
+.pill--ai_transformed,
+.pill--ai_generated {
+  background: #312e81;
+  color: #c4b5fd;
+}
+
+.pill--human_recorded {
+  background: #14532d;
+  color: #86efac;
+}
+
+.pill--unknown {
+  background: #374151;
+  color: #d1d5db;
+}
+
+.node-helper__audition {
+  margin-top: 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.node-helper__text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e8eaed;
 }

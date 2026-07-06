@@ -1,5 +1,29 @@
 # GroovyUI Phase 0–1
 
+## [0.4.0] - 2026-07-06
+
+### Added (Phase 1 complete)
+
+- Provenance pipeline: parent lineage on cache writes, `GET /api/cache/{id}/provenance`, `POST /api/workflow/provenance`
+- SaveAudio exports `.provenance.json` sidecar alongside WAV
+- Model recommender agent (`POST /api/models/recommend`) + install recovery agent enhancements
+- `groovy-model` CLI (`install`, `list`)
+- Studio: Compliance Provenance + Disclosure tabs, Model Browser filters + Find models mode + install failure recovery UI
+- Focus mode (`F` / `\`), auto-render on Play when stale, Shift+R render all
+- Node helper Provenance tab
+
+## [0.3.0] - 2026-07-06
+
+### Added (Phase 1 MVP)
+
+- AI nodes: `SeparateStems`, `WhisperSTT`, `TTS`, `VoiceConvert` (dev inference stubs + worker dispatch)
+- `STEMS` cache bundle + core `StemPick` node
+- Templates: `stem-split-vocals`, `transcribe-dialogue`, `tts-greeting`, `voice-convert-demo` (5 total with Phase 0)
+- Compliance API (`POST /api/workflow/compliance`) + studio Compliance drawer (License tab)
+- Node palette — add Core/AI nodes from sidebar
+- Per-node audition in node helper Outputs tab
+- `groovy-verify` CLI — validates all workflow templates
+
 ## [0.2.0] - 2026-07-05
 
 ### Added (Phase 1 foundation)

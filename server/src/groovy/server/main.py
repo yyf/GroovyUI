@@ -15,7 +15,11 @@ from groovy.executor.engine import GROOVY_VERSION
 from groovy.node import NODE_REGISTRY, get_node_class
 from groovy.nodes.core import register_all as register_core
 from groovy.nodes.ai import register_all as register_ai
+from groovy.executor.provenance import summarize_workflow_outputs
 from groovy.registry import ModelRegistry
+from groovy.registry.agent.install_recovery import install_recovery
+from groovy.registry.agent.recommender import recommend_models
+from groovy.registry.compliance import summarize_compliance
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
 from pydantic import BaseModel
@@ -50,6 +54,18 @@ class ModelSearchRequest(BaseModel):
     task_type: str | None = None
     commercial_ok: bool | None = None
     node_type: str | None = None
+
+
+class ModelRecommendRequest(BaseModel):
+    prompt: str
+    commercial_ok: bool | None = None
+    max_results: int = 5
+
+
+class ProvenanceRequest(BaseModel):
+    workflow: dict[str, Any]
+    outputs: dict[str, Any] = {}
+    target_node_id: str | None = None
 
 
 class ExecuteRequest(BaseModel):
@@ -154,9 +170,20 @@ def install_model(model_id: str) -> dict[str, Any]:
     return state.model_dump()
 
 
+@app.post("/api/models/recommend")
+def recommend_models_endpoint(body: ModelRecommendRequest) -> dict[str, Any]:
+    return recommend_models(
+        _registry.catalog,
+        _registry.store,
+        prompt=body.prompt,
+        commercial_ok=body.commercial_ok,
+        max_results=body.max_results,
+    )
+
+
 @app.get("/api/models/{model_id}/recovery")
 def model_recovery(model_id: str) -> dict[str, Any]:
-    return _registry.installer.recovery_suggestions(model_id)
+    return install_recovery(_registry.catalog, _registry.store, _registry.installer, model_id)
 
 
 def _model_card(manifest) -> dict[str, Any]:
@@ -174,6 +201,30 @@ def validate_workflow_endpoint(body: ValidateRequest) -> dict[str, Any]:
     workflow = _workflow_from_dict(body.workflow)
     result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
     return result.model_dump()
+
+
+@app.post("/api/workflow/compliance")
+def workflow_compliance(body: ValidateRequest) -> dict[str, Any]:
+    workflow = _workflow_from_dict(body.workflow)
+    return summarize_compliance(workflow, _registry)
+
+
+@app.post("/api/workflow/provenance")
+def workflow_provenance(body: ProvenanceRequest) -> dict[str, Any]:
+    workflow = _workflow_from_dict(body.workflow)
+    return summarize_workflow_outputs(
+        _executor.cache,
+        body.outputs,
+        target_node_id=body.target_node_id,
+    )
+
+
+@app.get("/api/cache/{cache_id}/provenance")
+def cache_provenance(cache_id: str) -> dict[str, Any]:
+    record = _executor.cache.read_provenance(cache_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Provenance not found")
+    return record
 
 
 @app.post("/api/execute", status_code=202)

@@ -1,4 +1,4 @@
-import type { JobState, ModelCard, NodeSchema, Workflow } from "./types";
+import type { ComplianceSummary, JobState, ModelCard, NodeSchema, ProvenanceSummary, Workflow } from "./types";
 
 export const API = import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188";
 
@@ -38,7 +38,10 @@ export async function fetchCacheMeta(cacheId: string): Promise<Record<string, un
   return res.json();
 }
 
-export async function searchModels(query: string, filters?: { task_type?: string }): Promise<ModelCard[]> {
+export async function searchModels(
+  query: string,
+  filters?: { task_type?: string; commercial_ok?: boolean },
+): Promise<ModelCard[]> {
   const res = await fetch(`${API}/api/models/search`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -51,11 +54,27 @@ export async function searchModels(query: string, filters?: { task_type?: string
   return data.models;
 }
 
-export async function installModel(modelId: string): Promise<void> {
-  const res = await fetch(`${API}/api/models/${modelId}/install`, { method: "POST" });
+export async function recommendModels(
+  prompt: string,
+  filters?: { commercial_ok?: boolean },
+): Promise<{ results: Array<{ model: ModelCard; rationale: string }>; inferred_task?: string }> {
+  const res = await fetch(`${API}/api/models/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, ...filters }),
+  });
   if (!res.ok) {
-    throw new Error(`Install failed: ${modelId}`);
+    throw new Error(`Model recommend failed (${res.status})`);
   }
+  return res.json();
+}
+
+export async function fetchInstallRecovery(modelId: string): Promise<import("./types").InstallRecovery> {
+  const res = await fetch(`${API}/api/models/${modelId}/recovery`);
+  if (!res.ok) {
+    throw new Error("Recovery lookup failed");
+  }
+  return res.json();
 }
 
 export async function ensureWorkflowModels(workflow: Workflow): Promise<string[]> {
@@ -72,6 +91,45 @@ export async function ensureWorkflowModels(workflow: Workflow): Promise<string[]
     installed.push(modelId);
   }
   return installed;
+}
+
+export async function installModel(modelId: string): Promise<void> {
+  const res = await fetch(`${API}/api/models/${modelId}/install`, { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`Install failed: ${modelId}`);
+  }
+}
+
+export async function fetchCompliance(workflow: Workflow): Promise<ComplianceSummary> {
+  const res = await fetch(`${API}/api/workflow/compliance`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow }),
+  });
+  if (!res.ok) {
+    throw new Error("Compliance summary failed");
+  }
+  return res.json();
+}
+
+export async function fetchProvenance(
+  workflow: Workflow,
+  outputs: Record<string, import("./types").JobOutput>,
+  targetNodeId?: string | null,
+): Promise<ProvenanceSummary> {
+  const res = await fetch(`${API}/api/workflow/provenance`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workflow,
+      outputs,
+      target_node_id: targetNodeId ?? undefined,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error("Provenance summary failed");
+  }
+  return res.json();
 }
 
 export async function listTemplates(): Promise<Array<{ id: string; title: string; description: string }>> {

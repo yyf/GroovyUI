@@ -10,8 +10,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from groovy.executor.audio import AudioBuffer
+from groovy.executor.audio import AudioBuffer, StemsBuffer
 from groovy.executor.cache import CacheStore
+from groovy.executor.provenance import build_record, parent_refs, read_provenance
 from groovy.node import NODE_REGISTRY, get_node_class
 from groovy.schema.models import Link, NodeInstance, Workflow
 from groovy.schema.validate import validate_workflow
@@ -99,11 +100,7 @@ class Executor:
                     from groovy.executor.worker import run_ai_worker
 
                     raw_outputs = run_ai_worker(node.type, kwargs, self.project_dir)
-                    result: tuple[Any, ...] = ()
-                    for item in raw_outputs:
-                        if item.get("type") == "AUDIO" and item.get("cache_id"):
-                            buffer, _ = self.cache.load_audio(item["cache_id"])
-                            result = (*result, buffer)
+                    result = self._result_from_worker(raw_outputs)
                 else:
                     result = run_fn(**kwargs)
                 if not isinstance(result, tuple):
@@ -113,11 +110,29 @@ class Executor:
                 ctx.emit_progress(node_id, 1.0, f"Completed {node.type}")
 
                 cache_id = None
+                output_meta: dict[str, Any] | None = None
                 for item in result:
                     if isinstance(item, AudioBuffer):
                         cache_id = item.id
-                        outputs[node_id] = {"cache_id": cache_id, "type": "AUDIO"}
-                        self._write_provenance(ctx, node, item)
+                        output_meta = {"cache_id": cache_id, "type": "AUDIO"}
+                        outputs[node_id] = output_meta
+                        if not (
+                            getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
+                            and ctx.cache.read_provenance(cache_id)
+                        ):
+                            self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
+                        break
+                    if isinstance(item, StemsBuffer):
+                        output_meta = {
+                            "type": "STEMS",
+                            "stems_id": item.id,
+                            "stems": {name: buf.id for name, buf in item.stems.items()},
+                        }
+                        outputs[node_id] = output_meta
+                        break
+                    if isinstance(item, str):
+                        output_meta = {"type": "TEXT", "text": item}
+                        outputs[node_id] = output_meta
                         break
 
                 manifest_nodes.append(
@@ -125,7 +140,7 @@ class Executor:
                         "node_id": node_id,
                         "type": node.type,
                         "cache_hit": False,
-                        "output": {"cache_id": cache_id, "type": "AUDIO"} if cache_id else None,
+                        "output": output_meta,
                     }
                 )
 
@@ -149,18 +164,44 @@ class Executor:
         except Exception as exc:
             return ExecutionResult(job_id=job_id, status="failed", error=str(exc))
 
-    def _write_provenance(self, ctx: JobContext, node: NodeInstance, buffer: AudioBuffer) -> None:
-        node_cls = get_node_class(node.type)
-        record = {
-            "schema_version": "1.0.0",
-            "cache_id": buffer.id,
-            "content_hash": buffer.content_hash,
-            "created_at": datetime.now(UTC).isoformat(),
-            "contribution": {"class": getattr(node_cls, "PROVENANCE_CLASS", "unknown")},
-            "node": {"node_id": node.id, "node_type": node.type, "widgets_redacted": node.widgets},
-            "parents": [],
-        }
+    def _write_provenance(
+        self,
+        ctx: JobContext,
+        workflow: Workflow,
+        node: NodeInstance,
+        buffer: AudioBuffer,
+        kwargs: dict[str, Any],
+        node_cls: type,
+    ) -> None:
+        refs = parent_refs(kwargs)
+        parent_records = [read_provenance(ctx.cache, ref["cache_id"]) or {} for ref in refs]
+        record = build_record(
+            cache_id=buffer.id,
+            content_hash=buffer.content_hash,
+            node_id=node.id,
+            node_type=node.type,
+            widgets=dict(node.widgets),
+            node_cls=node_cls,
+            job_id=ctx.job_id,
+            workflow_id=workflow.id,
+            groovy_version=GROOVY_VERSION,
+            executor_version=EXECUTOR_VERSION,
+            parent_records=parent_records,
+            parent_refs_list=refs,
+        )
         ctx.cache.write_provenance(buffer.id, record)
+
+    def _result_from_worker(self, raw_outputs: list[dict[str, Any]]) -> tuple[Any, ...]:
+        result: list[Any] = []
+        for item in raw_outputs:
+            if item.get("type") == "AUDIO" and item.get("cache_id"):
+                buffer, _ = self.cache.load_audio(item["cache_id"])
+                result.append(buffer)
+            elif item.get("type") == "STEMS" and item.get("stems_id"):
+                result.append(self.cache.load_stems(item["stems_id"]))
+            elif item.get("type") == "TEXT":
+                result.append(str(item.get("text", "")))
+        return tuple(result)
 
 
 def _input_name(node_cls: type, index: int) -> str:

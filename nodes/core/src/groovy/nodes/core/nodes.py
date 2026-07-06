@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import soundfile as sf
-from groovy.executor.audio import AudioBuffer
+from groovy.executor.audio import AudioBuffer, StemsBuffer
 from groovy.node import GroovyNode, register_node
 from scipy import signal
 
@@ -17,6 +17,7 @@ def register_all() -> None:
         Mix,
         Normalize,
         Preview,
+        StemPick,
     )
 
 
@@ -94,6 +95,10 @@ class SaveAudio(GroovyNode):
         interleaved = pcm.T
         subtype = "FLOAT" if bit_depth == "float" else "PCM_24"
         sf.write(out_path, interleaved, audio.sample_rate, format=format.upper(), subtype=subtype)
+        try:
+            self._ctx.cache.export_provenance_sidecar(audio.id, out_path)
+        except FileNotFoundError:
+            pass
         return (str(out_path),)
 
 
@@ -252,6 +257,7 @@ class Normalize(GroovyNode):
 
 @register_node
 class Preview(GroovyNode):
+    PROVENANCE_PASSTHROUGH = True
     RETURN_TYPES = ("AUDIO",)
 
     @classmethod
@@ -260,3 +266,21 @@ class Preview(GroovyNode):
 
     def run(self, audio: AudioBuffer, **kwargs) -> tuple[AudioBuffer]:
         return (audio,)
+
+
+@register_node
+class StemPick(GroovyNode):
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"stems": ("STEMS",)},
+            "optional": {"stem": ("STRING", {"default": "vocals"})},
+        }
+
+    def run(self, stems: StemsBuffer, stem: str = "vocals", **kwargs) -> tuple[AudioBuffer]:
+        stem = str(kwargs.get("stem", stem))
+        if stem not in stems.stems:
+            raise ValueError(f"Unknown stem '{stem}'. Available: {', '.join(stems.stems)}")
+        return (stems.stems[stem],)

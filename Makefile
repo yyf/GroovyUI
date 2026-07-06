@@ -14,6 +14,7 @@ test:
 
 verify:
 	uv run pytest tests/golden/ -q
+	uv run groovy-verify
 
 lint:
 	uv run ruff check packages/ nodes/ server/ tests/

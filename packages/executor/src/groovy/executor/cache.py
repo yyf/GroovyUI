@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
-from groovy.executor.audio import AudioBuffer
+from groovy.executor.audio import AudioBuffer, StemsBuffer
 
 
 class CacheStore:
@@ -34,6 +34,30 @@ class CacheStore:
 
         return buffer
 
+    def write_stems(self, stems: StemsBuffer, stem_pcm: dict[str, np.ndarray]) -> StemsBuffer:
+        for name, buffer in stems.stems.items():
+            self.write_audio(buffer, stem_pcm[name])
+        meta_path = self.cache_dir / f"{stems.id}.stems.meta.json"
+        meta_path.write_text(json.dumps(stems.to_meta(), indent=2))
+        return stems
+
+    def load_stems(self, stems_id: str) -> StemsBuffer:
+        meta_path = self.cache_dir / f"{stems_id}.stems.meta.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Stems cache not found: {stems_id}")
+        meta = json.loads(meta_path.read_text())
+        stem_buffers: dict[str, AudioBuffer] = {}
+        for name, ref in meta["stems"].items():
+            buffer, _ = self.load_audio(ref["id"])
+            stem_buffers[name] = buffer
+        return StemsBuffer(
+            id=meta["id"],
+            sample_rate=meta["sample_rate"],
+            channels=meta["channels"],
+            frame_count=meta["frame_count"],
+            stems=stem_buffers,
+        )
+
     def read_meta(self, cache_id: str) -> dict:
         meta_path = self.cache_dir / f"{cache_id}.meta.json"
         if not meta_path.exists():
@@ -60,6 +84,20 @@ class CacheStore:
     def write_provenance(self, cache_id: str, record: dict) -> None:
         path = self.cache_dir / f"{cache_id}.provenance.json"
         path.write_text(json.dumps(record, indent=2))
+
+    def read_provenance(self, cache_id: str) -> dict | None:
+        path = self.cache_dir / f"{cache_id}.provenance.json"
+        if not path.exists():
+            return None
+        return json.loads(path.read_text())
+
+    def export_provenance_sidecar(self, cache_id: str, output_path: Path) -> Path:
+        record = self.read_provenance(cache_id)
+        if not record:
+            raise FileNotFoundError(f"No provenance for cache entry: {cache_id}")
+        sidecar = output_path.with_name(f"{output_path.stem}.provenance.json")
+        sidecar.write_text(json.dumps(record, indent=2))
+        return sidecar
 
     def preview_wav_bytes(self, cache_id: str) -> bytes:
         import io
