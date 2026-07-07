@@ -206,6 +206,175 @@
       "compatible_nodes": ["SeparateStems"],
       "install": { "dev_stub": true },
       "similar_models": ["uvr-mdx-net", "demucs-v4"]
+    },
+    {
+      "id": "basic-pitch",
+      "status": "published",
+      "trust": "verified",
+      "name": "Basic Pitch",
+      "description": "Monophonic audio-to-MIDI transcription for vocals and melody.",
+      "task_types": ["audio-to-midi"],
+      "tags": ["midi", "transcribe", "basic-pitch", "monophonic"],
+      "author": "Spotify",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 1,
+      "compatible_nodes": ["AudioToMIDI"],
+      "install": { "dev_stub": true },
+      "similar_models": []
+    },
+    {
+      "id": "rawnet2-asvspoof",
+      "status": "published",
+      "trust": "verified",
+      "name": "RawNet2 ASVspoof",
+      "description": "Spoof and deepfake speech detection (dev stub until weights verified).",
+      "task_types": ["deepfake-detection", "spoof-detection"],
+      "tags": ["deepfake", "spoof", "authenticity", "asvspoof"],
+      "author": "ASVspoof",
+      "license": {
+        "spdx": "TBD",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 0.5
+      },
+      "vram_gb_estimate": 2,
+      "compatible_nodes": ["DeepfakeDetect"],
+      "install": { "dev_stub": true },
+      "similar_models": []
+    },
+    {
+      "id": "musicgen-melody-small",
+      "status": "published",
+      "trust": "verified",
+      "name": "MusicGen Melody Small",
+      "description": "Conditional music generation from MIDI melody (dev stub).",
+      "task_types": ["midi-to-audio"],
+      "tags": ["musicgen", "melody", "midi-to-audio", "generation"],
+      "author": "Meta",
+      "license": {
+        "spdx": "CC-BY-NC-4.0",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 4,
+      "compatible_nodes": ["MIDIToAudio"],
+      "install": { "dev_stub": true },
+      "similar_models": ["ace-step"]
+    },
+    {
+      "id": "musicgen-small",
+      "status": "published",
+      "trust": "verified",
+      "name": "MusicGen Small",
+      "description": "Text-conditioned music generation (dev stub).",
+      "task_types": ["music-generation", "generation"],
+      "tags": ["musicgen", "generation", "text-to-music"],
+      "author": "Meta",
+      "license": {
+        "spdx": "CC-BY-NC-4.0",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 4,
+      "compatible_nodes": ["GenerateAudio"],
+      "install": { "dev_stub": true },
+      "similar_models": ["musicgen-melody-small", "stable-audio-open-1.0"]
+    },
+    {
+      "id": "diffsinger-opencpop",
+      "status": "published",
+      "trust": "verified",
+      "name": "DiffSinger OpenCPOP",
+      "description": "Singing voice synthesis from MIDI melody and lyrics (dev stub).",
+      "task_types": ["singing-synthesis", "midi-to-audio"],
+      "tags": ["diffsinger", "singing", "vocal", "midi"],
+      "author": "DiffSinger",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 4,
+      "compatible_nodes": ["SingFromMIDI"],
+      "install": { "dev_stub": true },
+      "similar_models": []
+    },
+    {
+      "id": "demucs-v4-objects",
+      "status": "published",
+      "trust": "verified",
+      "name": "Demucs v4 → Objects",
+      "description": "Stem separation mapped to spatial objects (aliases demucs-v4 weights).",
+      "task_types": ["scene-to-objects", "stem-separation"],
+      "tags": ["demucs", "stems", "oba", "spatial"],
+      "author": "Meta",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 6,
+      "compatible_nodes": ["SeparateToObjects"],
+      "install": { "dev_stub": true },
+      "similar_models": ["demucs-v4"]
+    },
+    {
+      "id": "object-placement-heuristic",
+      "status": "published",
+      "trust": "verified",
+      "name": "Heuristic Object Placer",
+      "description": "Spread spatial objects across the azimuth field without GPU.",
+      "task_types": ["object-placement"],
+      "tags": ["placement", "spatial", "heuristic"],
+      "author": "GroovyUI",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 0,
+      "compatible_nodes": ["ObjectPlacement"],
+      "install": { "dev_stub": true },
+      "similar_models": []
+    },
+    {
+      "id": "groovy-verify-weights",
+      "status": "published",
+      "trust": "verified",
+      "name": "Groovy Verify Weights",
+      "description": "Tiny bundled weights file for real install-path verification in CI.",
+      "task_types": ["verification"],
+      "tags": ["verify", "bundle", "ci"],
+      "author": "GroovyUI",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 0,
+      "compatible_nodes": [],
+      "install": {
+        "dev_stub": false,
+        "weights": [
+          {
+            "bundle": "hello_weights.bin",
+            "filename": "hello_weights.bin",
+            "sha256": "8319604c502600e28df191de7b48df61a28c63892d762c5910e5a724ad68ab45"
+          }
+        ]
+      },
+      "similar_models": []
     }
   ]
 }

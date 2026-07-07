@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "metadata": {
+    "title": "Surround downmix",
+    "author": "groovy",
+    "description": "Load 5.1 surround audio, ITU-R BS.775 downmix to stereo, transcode to FLAC, preview.",
+    "tags": ["multichannel", "immersive", "core"],
+    "created_at": "2026-07-06T12:00:00Z",
+    "modified_at": "2026-07-06T12:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": { "x": 0, "y": 0 },
+      "widgets": { "path": "assets/samples/surround_51.wav" }
+    },
+    {
+      "id": "n2",
+      "type": "ChannelConvert",
+      "pos": { "x": 300, "y": 0 },
+      "widgets": { "layout": "stereo" }
+    },
+    {
+      "id": "n3",
+      "type": "Transcode",
+      "pos": { "x": 600, "y": 0 },
+      "widgets": { "format": "flac", "path": "assets/exports/surround_stereo.flac" }
+    },
+    {
+      "id": "n4",
+      "type": "Preview",
+      "pos": { "x": 900, "y": 0 },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
+    { "id": "l3", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

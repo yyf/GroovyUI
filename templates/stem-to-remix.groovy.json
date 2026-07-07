@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "f4a5b6c7-d8e9-0123-fabc-444455556666",
+  "metadata": {
+    "title": "Stem to Remix",
+    "description": "Separate stems, transcribe vocals to MIDI, regenerate melody, preview.",
+    "tags": ["stems", "remix", "midi", "musicgen"],
+    "created_at": "2026-07-06T12:00:00Z",
+    "modified_at": "2026-07-06T12:00:00Z"
+  },
+  "nodes": [
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n2", "type": "SeparateStems", "pos": { "x": 240, "y": 0 }, "widgets": { "model": "demucs-v4" } },
+    { "id": "n3", "type": "StemPick", "pos": { "x": 480, "y": 0 }, "widgets": { "stem": "vocals" } },
+    { "id": "n4", "type": "AudioToMIDI", "pos": { "x": 720, "y": 0 }, "widgets": { "model": "basic-pitch" } },
+    { "id": "n5", "type": "MIDIToAudio", "pos": { "x": 960, "y": 0 }, "widgets": { "model": "musicgen-melody-small", "prompt": "electronic remix" } },
+    { "id": "n6", "type": "Preview", "pos": { "x": 1200, "y": 0 }, "widgets": {} }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "STEMS" },
+    { "id": "l3", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO" },
+    { "id": "l4", "from": ["n4", 0], "to": ["n5", 0], "type": "MIDI" },
+    { "id": "l5", "from": ["n5", 0], "to": ["n6", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

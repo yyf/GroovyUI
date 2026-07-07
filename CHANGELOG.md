@@ -1,4 +1,140 @@
-# GroovyUI Phase 0–1
+# GroovyUI Phase 0–2
+
+## [0.17.0] - 2026-07-06
+
+### Added (Phase 2 closeout)
+
+- **`MultichannelNormalize`** — EBU R128 / peak loudness on multichannel beds (no fold)
+- **`MIDINoteGate`** — MIDI note on/off → `AUTOMATION` gate curve
+- **`ChannelConvert`** — 7.1 → stereo ITU downmix
+- **`Transcode`** — optional **ffmpeg** backend for `mp3` / `aac` / `opus` export
+- **Subgraph collapse/expand** — grouped nodes collapse to proxy module node on canvas
+- **Community packs** — `groovy-install pack <id>`, `GET /api/packs`, `POST /api/packs/{id}/install`
+- **Template generator** agent — `POST /api/workflow/generate-template` + studio **Save as template**
+- **Registry freshness** agent — `GET /api/registry/freshness`
+- Studio toolbar: **Collapse group**, **Install pack**
+
+## [0.16.0] - 2026-07-06
+
+### Added (Phase 2.5 live control bridge)
+
+- **`MIDIInDevice`**, **`MIDIOutDevice`**, **`OSCInLive`** nodes (opt-in Live I/O tier)
+- **Settings → Live I/O** drawer — MIDI in/out + OSC toggles, device enumeration
+- Host API: `GET /api/midi/devices`, `GET|POST /api/settings/live-io`, `POST /api/midi/in/event`, `POST /api/midi/out/send`, `POST /api/osc/in`, `GET /api/osc/events`
+- WebSocket `/api/ws/midi/in`; OSC UDP listener on `127.0.0.1:9000` (allowlist `/groovy/*`)
+- Studio **Web MIDI** capture + OSC widget routing via live hub
+- Templates: `keyboard-to-music`, `transcribe-to-synth`, `ai-midi-to-hardware` (21 total)
+
+## [0.15.0] - 2026-07-06
+
+### Added (Phase 2.1 OBA completion)
+
+- **`ObjectMerge`** — combine beds + objects from two OBA scenes
+- **`ObjectAnimate`** — keyframed azimuth/gain dynamics; renderer honors interpolated motion
+- **`RenderObjectScene`** — `5.1` output layout (simple azimuth pan law)
+- **`MIDIToFloat`** — reads frame-indexed CC events from MIDI capture sidecar
+- Template: `surround-mix` (20 total)
+
+## [0.14.0] - 2026-07-06
+
+### Added (Phase 2.1 OBA + subgraph I/O)
+
+- **ModuleInlet / ModuleOutlet** — subgraph boundary nodes; `extractModule` records `inlets`/`outlets` (explicit or auto-detected)
+- **SeparateToObjects** — stems → OBA scene (`demucs-v4-objects` registry entry, aliases `demucs-v4`)
+- **ObjectPlacement** — heuristic azimuth spread (`object-placement-heuristic`)
+- Template: `stems-to-spatial` (17 total)
+
+## [0.13.0] - 2026-07-06
+
+### Added (Phase 2 immersive foundation)
+
+- **`AMBISONICS` socket** — `AmbisonicBuffer` cache type; `AmbisonicEncode`, `AmbisonicDecode`, `AmbisonicRotate` nodes (FOA AmbiX ACN/SN3D)
+- **`OBA` socket** — `ObjectScene` cache type; `ObjectFromAudio`, `RenderObjectScene` (deterministic stereo pan)
+- Templates: `ambisonic-vr-preview`, `object-spatial-demo` (16 total)
+- Immersive tier palette includes ambisonic + OBA nodes
+
+## [0.12.0] - 2026-07-06
+
+### Added (Phase 2 agents + batch + subgraph import)
+
+- **License scanner** agent + `POST /api/workflow/license-scan` — NC model flags + commercial-safe swap suggestions in Compliance drawer
+- **Batch mode** — `POST /api/batch/render` folder-in workflow runs; studio **Batch folder** toolbar
+- **Import module** — load `.module.json` subgraph exports into canvas
+- Dev plan + pre-execution research backlog for surround/immersive/spatial templates
+
+## [0.11.0] - 2026-07-06
+
+### Added (Phase 2 multichannel + modular)
+
+- **ComfyUI import** — `import_comfy_workflow` converter + `POST /api/workflow/import/comfy`; studio **Import ComfyUI** toolbar button
+- **ChannelConvert 5.1 downmix** — ITU-R BS.775 stereo fold when `channel_layout` is `5.1`
+- **Transcode** node — write FLAC/WAV export via soundfile while passing audio through
+- **Subgraph modules** — multi-select (Shift+drag), **Group**, **Export module** (`.module.json`)
+- Template: `surround-downmix` (14 total)
+- **Node helper format panel** — channels, layout, encoding scheme (5.1, Atmos bed, FOA/HOA, ADM BWF), ACN/SN3D when detected; LoadAudio probes source file via `GET /api/project/audio-meta`
+
+## [0.10.0] - 2026-07-06
+
+### Added (Phase 2 modular + executor)
+
+- **FloatRoute** control node — blend between two AUTOMATION curves
+- **Progressive node palette** — Core / Modular / Immersive / All tier filters
+- **Executor node cache skip** — unchanged nodes reuse prior outputs (`cache_hit` in manifest)
+- **Playback path glow** — active edges highlight during chain/node audition
+
+## [0.9.0] - 2026-07-06
+
+### Added (Phase 2 MIDI-AI)
+
+- **GenerateAudio** node — text-conditioned music generation (`musicgen-small`)
+- **SingFromMIDI** node — MIDI + lyrics singing synthesis (`diffsinger-opencpop`)
+- Templates: `text-to-music`, `sing-from-midi` (13 total)
+- Transport bar waveform scrubber preview above chain audio player
+- Model Browser filters: music-generation, singing-synthesis
+
+## [0.8.0] - 2026-07-06
+
+### Added (Phase 0/1 polish)
+
+- **Undo/redo** — workflow history with Cmd+Z / Cmd+Shift+Z
+- **Onboarding overlay** — first-run welcome; starts Hello Groovy template
+- **Drag-drop audio** — drop WAV/FLAC/MP3 onto canvas; `POST /api/project/upload`
+- **UX-6** — per-node headphone audition on canvas; double-click node to audition; Space to play chain
+- **Real bundle install** — `groovy-verify-weights` model copies bundled weights (non-stub install path)
+
+## [0.7.0] - 2026-07-06
+
+### Added (Phase 2 control I/O)
+
+- **Control I/O** — `AutomationBuffer` cache type; `ControlCurve`, `MIDIToFloat`, `AutomationApply`, `FloatMath`, `ChannelConvert` nodes
+- `AUTOMATION` socket wiring in executor and node-sdk
+- Template: `midi-automation-demo` (11 total)
+- **Workflow suggester** agent + `POST /api/workflow/suggest`; Cmd+K **Suggest workflow** tab in studio
+- **Registry curator** agent + `groovy-registry` CLI (`ingest`, `drafts`, `approve`) + registry API
+- **Node helper enricher** — plain-language descriptions on `GET /api/nodes/{type}`
+- UX-6: mini waveform thumbnail in node helper Outputs tab
+
+## [0.6.0] - 2026-07-06
+
+### Added (Phase 2 foundation)
+
+- **MIDIToAudio** node + `musicgen-melody-small` registry entry (dev stub)
+- **Prompt** and **LoadMIDI** core nodes; `TEXT` input socket wiring
+- Templates: `transcribe-and-regenerate`, `stem-to-remix` (10 total)
+- Cross-machine reproducibility golden test (`hello_groovy_pcm.sha256`)
+- Model install download pipeline with HuggingFace allowlist + checksum verify
+
+## [0.5.0] - 2026-07-06
+
+### Added (Phase 1.1)
+
+- **MIDI socket** — `MidiBuffer` cache type; `AudioToMIDI` node + `basic-pitch` registry entry
+- **Authenticity** — `VerifyProvenance`, `DeepfakeDetect`, `AuthenticitySummary` nodes; `AUTHENTICITY` socket
+- Templates: `authenticity-check`, `transcribe-to-midi` (8 total)
+- Compliance drawer **Authenticity** tab + `GET /api/authenticity/{id}`
+- `LoadAudio` imports sibling `.provenance.json` sidecars
+- Model Browser filters: audio-to-midi, deepfake-detection
+- CI runs `groovy-verify` after pytest
 
 ## [0.4.0] - 2026-07-06
 

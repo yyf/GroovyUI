@@ -12,6 +12,9 @@ class ModelRegistry:
         from pathlib import Path
 
         self.project_dir = Path(project_dir).resolve()
-        self.catalog = ModelCatalog()
+        overlay_path = self.project_dir / ".groovy" / "registry" / "catalog_overlay.json"
+        self.catalog = ModelCatalog(overlay_path=overlay_path)
         self.store = InstallStore(self.project_dir)
         self.installer = ModelInstaller(self.catalog, self.store, self.project_dir)
+        self.draft_dir = self.project_dir / ".groovy" / "registry" / "drafts"
+        self.overlay_path = overlay_path

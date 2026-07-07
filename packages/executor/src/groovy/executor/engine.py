@@ -10,8 +10,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from groovy.executor.ambisonics import AmbisonicBuffer
 from groovy.executor.audio import AudioBuffer, StemsBuffer
+from groovy.executor.authenticity import AuthenticityReport
+from groovy.executor.control import AutomationBuffer
 from groovy.executor.cache import CacheStore
+from groovy.executor.midi import MidiBuffer
+from groovy.executor.oba import ObjectScene
+from groovy.executor.osc_live import OscBuffer
+from groovy.executor.node_cache import compute_node_signature
 from groovy.executor.provenance import build_record, parent_refs, read_provenance
 from groovy.node import NODE_REGISTRY, get_node_class
 from groovy.schema.models import Link, NodeInstance, Workflow
@@ -95,6 +102,26 @@ class Executor:
                         raise RuntimeError(f"Missing upstream output for {node_id}")
                     kwargs[_input_name(node_cls, input_idx)] = src_outputs[src_out_idx]
 
+                signature = compute_node_signature(node.type, dict(node.widgets), kwargs)
+                cached_state = None if force_rebuild else ctx.cache.read_node_cache(workflow.id, node_id)
+                cache_hit = False
+                if cached_state and cached_state.get("signature") == signature and cached_state.get("output"):
+                    result = self._result_from_meta(cached_state["output"])
+                    if result is not None:
+                        node_outputs[node_id] = result
+                        outputs[node_id] = cached_state["output"]
+                        cache_hit = True
+                        ctx.emit_progress(node_id, 1.0, f"Cache hit {node.type}")
+                        manifest_nodes.append(
+                            {
+                                "node_id": node_id,
+                                "type": node.type,
+                                "cache_hit": True,
+                                "output": cached_state["output"],
+                            }
+                        )
+                        continue
+
                 run_fn = getattr(instance, node_cls.FUNCTION)
                 if node_cls.run_in_worker:
                     from groovy.executor.worker import run_ai_worker
@@ -112,6 +139,30 @@ class Executor:
                 cache_id = None
                 output_meta: dict[str, Any] | None = None
                 for item in result:
+                    if isinstance(item, AuthenticityReport):
+                        output_meta = {"type": "AUTHENTICITY", "authenticity_id": item.id}
+                        outputs[node_id] = output_meta
+                        break
+                    if isinstance(item, MidiBuffer):
+                        output_meta = {"type": "MIDI", "midi_id": item.id}
+                        outputs[node_id] = output_meta
+                        break
+                    if isinstance(item, AutomationBuffer):
+                        output_meta = {"type": "AUTOMATION", "automation_id": item.id}
+                        outputs[node_id] = output_meta
+                        break
+                    if isinstance(item, AmbisonicBuffer):
+                        output_meta = {"type": "AMBISONICS", "ambisonics_id": item.id}
+                        outputs[node_id] = output_meta
+                        break
+                    if isinstance(item, ObjectScene):
+                        output_meta = {"type": "OBA", "oba_id": item.id}
+                        outputs[node_id] = output_meta
+                        break
+                    if isinstance(item, OscBuffer):
+                        output_meta = {"type": "OSC", "osc_id": item.id}
+                        outputs[node_id] = output_meta
+                        break
                     if isinstance(item, AudioBuffer):
                         cache_id = item.id
                         output_meta = {"cache_id": cache_id, "type": "AUDIO"}
@@ -139,10 +190,14 @@ class Executor:
                     {
                         "node_id": node_id,
                         "type": node.type,
-                        "cache_hit": False,
+                        "cache_hit": cache_hit,
                         "output": output_meta,
                     }
                 )
+                if output_meta:
+                    ctx.cache.write_node_cache(
+                        workflow.id, node_id, signature=signature, output_meta=output_meta
+                    )
 
             manifest = {
                 "job_id": job_id,
@@ -199,9 +254,26 @@ class Executor:
                 result.append(buffer)
             elif item.get("type") == "STEMS" and item.get("stems_id"):
                 result.append(self.cache.load_stems(item["stems_id"]))
+            elif item.get("type") == "MIDI" and item.get("midi_id"):
+                result.append(self.cache.load_midi(item["midi_id"]))
+            elif item.get("type") == "AUTHENTICITY" and item.get("authenticity_id"):
+                result.append(self.cache.load_authenticity(item["authenticity_id"]))
+            elif item.get("type") == "AUTOMATION" and item.get("automation_id"):
+                result.append(self.cache.load_automation(item["automation_id"]))
+            elif item.get("type") == "AMBISONICS" and item.get("ambisonics_id"):
+                buffer, _ = self.cache.load_ambisonics(item["ambisonics_id"])
+                result.append(buffer)
+            elif item.get("type") == "OBA" and item.get("oba_id"):
+                result.append(self.cache.load_object_scene(item["oba_id"]))
+            elif item.get("type") == "OSC" and item.get("osc_id"):
+                result.append(self.cache.load_osc(item["osc_id"]))
             elif item.get("type") == "TEXT":
                 result.append(str(item.get("text", "")))
         return tuple(result)
+
+    def _result_from_meta(self, output_meta: dict[str, Any]) -> tuple[Any, ...] | None:
+        result = self._result_from_worker([output_meta])
+        return result if result else None
 
 
 def _input_name(node_cls: type, index: int) -> str:
@@ -212,9 +284,19 @@ def _input_name(node_cls: type, index: int) -> str:
             if not isinstance(spec, tuple) or not spec:
                 continue
             socket_type = spec[0]
-            if socket_type in {"AUDIO", "STEMS", "MIDI", "AUTHENTICITY"}:
+            if socket_type in {
+                "AUDIO",
+                "STEMS",
+                "MIDI",
+                "AUTHENTICITY",
+                "TEXT",
+                "AUTOMATION",
+                "AMBISONICS",
+                "OBA",
+                "OSC",
+            }:
                 names.append(name)
-            elif socket_type == "FLOAT" and section == "optional" and name.startswith("gain_"):
+            elif socket_type == "FLOAT":
                 names.append(name)
     if index < len(names):
         return names[index]

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchInstallRecovery, recommendModels, searchModels } from "../api";
-import type { InstallRecovery, ModelCard } from "../types";
+import { fetchInstallRecovery, recommendModels, searchModels, suggestWorkflows } from "../api";
+import type { InstallRecovery, ModelCard, Workflow } from "../types";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   onSelectModel?: (modelId: string) => void;
+  onApplyWorkflow?: (workflow: Workflow) => void;
+  initialMode?: "search" | "recommend" | "workflow";
 };
 
 const TASK_FILTERS = [
@@ -15,15 +17,29 @@ const TASK_FILTERS = [
   { value: "speech-to-text", label: "Speech-to-text" },
   { value: "text-to-speech", label: "Text-to-speech" },
   { value: "voice-conversion", label: "Voice conversion" },
+  { value: "audio-to-midi", label: "Audio to MIDI" },
+  { value: "music-generation", label: "Music generation" },
+  { value: "singing-synthesis", label: "Singing synthesis" },
+  { value: "deepfake-detection", label: "Deepfake detection" },
 ];
 
-export default function ModelBrowser({ open, onClose, onSelectModel }: Props) {
+export default function ModelBrowser({ open, onClose, onSelectModel, onApplyWorkflow, initialMode }: Props) {
   const [query, setQuery] = useState("");
-  const [mode, setMode] = useState<"search" | "recommend">("search");
+  const [mode, setMode] = useState<"search" | "recommend" | "workflow">(initialMode ?? "search");
   const [taskType, setTaskType] = useState("");
   const [commercialOnly, setCommercialOnly] = useState(false);
   const [models, setModels] = useState<ModelCard[]>([]);
   const [recommendations, setRecommendations] = useState<Array<{ model: ModelCard; rationale: string }>>([]);
+  const [workflowSuggestions, setWorkflowSuggestions] = useState<
+    Array<{
+      template_id: string;
+      title: string;
+      description: string;
+      rationale: string;
+      score: number;
+      workflow: Workflow;
+    }>
+  >([]);
   const [loading, setLoading] = useState(false);
   const [installing, setInstalling] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +50,13 @@ export default function ModelBrowser({ open, onClose, onSelectModel }: Props) {
     setError(null);
     setRecovery(null);
     try {
+      if (mode === "workflow") {
+        const data = await suggestWorkflows(query);
+        setWorkflowSuggestions(data.results);
+        setModels([]);
+        setRecommendations([]);
+        return;
+      }
       const filters = {
         task_type: taskType || undefined,
         commercial_ok: commercialOnly ? true : undefined,
@@ -42,19 +65,29 @@ export default function ModelBrowser({ open, onClose, onSelectModel }: Props) {
         const data = await recommendModels(query, filters);
         setRecommendations(data.results);
         setModels([]);
+        setWorkflowSuggestions([]);
       } else {
         const results = await searchModels(query, filters);
         setModels(results);
         setRecommendations([]);
+        setWorkflowSuggestions([]);
       }
     } catch (err) {
       setModels([]);
       setRecommendations([]);
-      setError(err instanceof Error ? err.message : "Model search failed");
+      setWorkflowSuggestions([]);
+      setError(err instanceof Error ? err.message : "Search failed");
     } finally {
       setLoading(false);
     }
   }, [query, mode, taskType, commercialOnly]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (initialMode) {
+      setMode(initialMode);
+    }
+  }, [open, initialMode]);
 
   useEffect(() => {
     if (!open) return;
@@ -101,7 +134,7 @@ export default function ModelBrowser({ open, onClose, onSelectModel }: Props) {
     <div className="model-browser-backdrop" onClick={onClose}>
       <div className="model-browser" onClick={(e) => e.stopPropagation()}>
         <header className="model-browser__header">
-          <h2>Model Browser</h2>
+          <h2>Command Palette</h2>
           <button type="button" className="model-browser__close" onClick={onClose}>
             ✕
           </button>
@@ -113,30 +146,41 @@ export default function ModelBrowser({ open, onClose, onSelectModel }: Props) {
           <button type="button" className={mode === "recommend" ? "active" : ""} onClick={() => setMode("recommend")}>
             Find models
           </button>
+          <button type="button" className={mode === "workflow" ? "active" : ""} onClick={() => setMode("workflow")}>
+            Suggest workflow
+          </button>
         </div>
         <input
           className="model-browser__search"
           placeholder={
-            mode === "recommend"
-              ? "Describe your task — e.g. commercial-friendly podcast denoise"
-              : "Search models — denoise, stems, voice clone…"
+            mode === "workflow"
+              ? "Describe your pipeline — e.g. denoise podcast then normalize"
+              : mode === "recommend"
+                ? "Describe your task — e.g. commercial-friendly podcast denoise"
+                : "Search models — denoise, stems, voice clone…"
           }
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
         <div className="model-browser__filters">
-          <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
-            {TASK_FILTERS.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-          <label>
-            <input type="checkbox" checked={commercialOnly} onChange={(e) => setCommercialOnly(e.target.checked)} />
-            Commercial OK
-          </label>
+          {mode !== "workflow" ? (
+            <>
+              <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
+                {TASK_FILTERS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+              <label>
+                <input type="checkbox" checked={commercialOnly} onChange={(e) => setCommercialOnly(e.target.checked)} />
+                Commercial OK
+              </label>
+            </>
+          ) : (
+            <p className="model-browser__hint">Suggestions are preview-only — click Apply to replace the canvas.</p>
+          )}
         </div>
         {recovery ? (
           <div className="model-browser__recovery">
@@ -165,39 +209,70 @@ export default function ModelBrowser({ open, onClose, onSelectModel }: Props) {
         <div className="model-browser__list">
           {loading ? <p className="model-browser__hint">Searching…</p> : null}
           {error ? <p className="model-browser__error">{error}</p> : null}
-          {!loading && !error && cards.length === 0 ? (
-            <p className="model-browser__hint">No models found.</p>
-          ) : null}
-          {cards.map(({ model, rationale }) => (
-            <article key={model.id} className="model-card">
-              <div className="model-card__row">
-                <strong>{model.name}</strong>
-                <span className={`pill pill--${model.install_status}`}>{model.install_status}</span>
-              </div>
-              <p className="model-card__desc">{model.description}</p>
-              {rationale ? <p className="model-card__rationale">{rationale}</p> : null}
-              <div className="model-card__meta">
-                <span>{model.license.spdx}</span>
-                <span>{model.vram_gb_estimate} GB VRAM</span>
-                <span>{model.task_types.join(", ")}</span>
-              </div>
-              <div className="model-card__actions">
-                {model.install_status === "ready" ? (
-                  <button type="button" onClick={() => onSelectModel?.(model.id)}>
-                    Use model
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={installing === model.id}
-                    onClick={() => void handleInstall(model.id)}
-                  >
-                    {installing === model.id ? "Installing…" : "Install"}
-                  </button>
-                )}
-              </div>
-            </article>
-          ))}
+          {mode === "workflow" ? (
+            <>
+              {!loading && !error && workflowSuggestions.length === 0 ? (
+                <p className="model-browser__hint">No workflow suggestions yet — try describing your task.</p>
+              ) : null}
+              {workflowSuggestions.map((item) => (
+                <article key={item.template_id} className="model-card">
+                  <div className="model-card__row">
+                    <strong>{item.title}</strong>
+                    <span className="pill">{item.template_id}</span>
+                  </div>
+                  <p className="model-card__desc">{item.description}</p>
+                  <p className="model-card__rationale">{item.rationale}</p>
+                  <div className="model-card__actions">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onApplyWorkflow?.(item.workflow);
+                        onClose();
+                      }}
+                    >
+                      Apply workflow
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </>
+          ) : (
+            <>
+              {!loading && !error && cards.length === 0 ? (
+                <p className="model-browser__hint">No models found.</p>
+              ) : null}
+              {cards.map(({ model, rationale }) => (
+                <article key={model.id} className="model-card">
+                  <div className="model-card__row">
+                    <strong>{model.name}</strong>
+                    <span className={`pill pill--${model.install_status}`}>{model.install_status}</span>
+                  </div>
+                  <p className="model-card__desc">{model.description}</p>
+                  {rationale ? <p className="model-card__rationale">{rationale}</p> : null}
+                  <div className="model-card__meta">
+                    <span>{model.license.spdx}</span>
+                    <span>{model.vram_gb_estimate} GB VRAM</span>
+                    <span>{model.task_types.join(", ")}</span>
+                  </div>
+                  <div className="model-card__actions">
+                    {model.install_status === "ready" ? (
+                      <button type="button" onClick={() => onSelectModel?.(model.id)}>
+                        Use model
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={installing === model.id}
+                        onClick={() => void handleInstall(model.id)}
+                      >
+                        {installing === model.id ? "Installing…" : "Install"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </>
+          )}
         </div>
       </div>
     </div>

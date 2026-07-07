@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchCacheMeta, fetchNodeSchema } from "../api";
+import { fetchAudioFileMeta, fetchCacheMeta, fetchNodeSchema, fetchWaveform } from "../api";
 import type { JobOutput, NodeSchema, Workflow, WorkflowNode } from "../types";
+import AudioFormatPanel from "./AudioFormatPanel";
+import WaveformMini from "./WaveformMini";
 
 type Tab = "config" | "inputs" | "outputs" | "provenance";
 
@@ -27,6 +29,8 @@ export default function NodeHelper({
   const [schema, setSchema] = useState<NodeSchema | null>(null);
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
   const [provenance, setProvenance] = useState<Record<string, unknown> | null>(null);
+  const [waveform, setWaveform] = useState<number[]>([]);
+  const [fileMeta, setFileMeta] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     setTab("config");
@@ -43,16 +47,35 @@ export default function NodeHelper({
     if (!output?.cache_id) {
       setMeta(null);
       setProvenance(null);
+      setWaveform([]);
       return;
     }
     fetchCacheMeta(output.cache_id)
       .then(setMeta)
       .catch(() => setMeta(null));
+    fetchWaveform(output.cache_id)
+      .then((data) => setWaveform(data.peaks))
+      .catch(() => setWaveform([]));
     fetch(`${import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188"}/api/cache/${output.cache_id}/provenance`)
       .then((res) => (res.ok ? res.json() : null))
       .then(setProvenance)
       .catch(() => setProvenance(null));
   }, [output?.cache_id]);
+
+  useEffect(() => {
+    if (!node || node.type !== "LoadAudio") {
+      setFileMeta(null);
+      return;
+    }
+    const path = typeof node.widgets.path === "string" ? node.widgets.path.trim() : "";
+    if (!path) {
+      setFileMeta(null);
+      return;
+    }
+    fetchAudioFileMeta(path)
+      .then(setFileMeta)
+      .catch(() => setFileMeta(null));
+  }, [node?.id, node?.type, node?.widgets.path]);
 
   if (!node) {
     return (
@@ -79,6 +102,7 @@ export default function NodeHelper({
         <h2>{node.type}</h2>
         <span className="node-helper__id">{node.id}</span>
       </header>
+      {schema?.description ? <p className="node-helper__desc">{schema.description}</p> : null}
       <nav className="node-helper__tabs">
         <button type="button" className={tab === "config" ? "active" : ""} onClick={() => setTab("config")}>
           Config
@@ -109,6 +133,7 @@ export default function NodeHelper({
             {schema.widgets.map((widget) => (
               <label key={widget.name} className="node-helper__field">
                 <span>{widget.name}</span>
+                {widget.description ? <small className="node-helper__hint">{widget.description}</small> : null}
                 <WidgetInput
                   spec={widget}
                   value={node.widgets[widget.name] ?? widget.default ?? ""}
@@ -122,6 +147,12 @@ export default function NodeHelper({
               </label>
             ))}
             {schema.widgets.length === 0 ? <p className="node-helper__hint">No configurable parameters.</p> : null}
+            {node.type === "LoadAudio" ? (
+              <AudioFormatPanel meta={fileMeta} title="Source file format" />
+            ) : null}
+            {node.type === "LoadAudio" && !fileMeta && node.widgets.path ? (
+              <p className="node-helper__hint">Could not read format metadata for this path.</p>
+            ) : null}
           </div>
         ) : null}
         {tab === "inputs" ? (
@@ -129,11 +160,15 @@ export default function NodeHelper({
             {upstream.length === 0 ? (
               <li className="node-helper__hint">No wired inputs.</li>
             ) : (
-              upstream.map((item) => (
-                <li key={`${item.sourceType}-${item.socket}`}>
-                  <strong>{item.type}</strong> ← {item.sourceType}
-                </li>
-              ))
+              upstream.map((item) => {
+                const inputDesc = schema?.inputs[item.socket]?.description;
+                return (
+                  <li key={`${item.sourceType}-${item.socket}`}>
+                    <strong>{item.type}</strong> ← {item.sourceType}
+                    {inputDesc ? <p className="node-helper__hint">{inputDesc}</p> : null}
+                  </li>
+                );
+              })
             )}
           </ul>
         ) : null}
@@ -154,6 +189,8 @@ export default function NodeHelper({
             ) : null}
             {meta ? (
               <>
+                {waveform.length > 0 ? <WaveformMini peaks={waveform} /> : null}
+                <AudioFormatPanel meta={meta} title="Output format" />
                 <p>
                   {String(meta.frame_count)} frames @ {String(meta.sample_rate)} Hz
                 </p>

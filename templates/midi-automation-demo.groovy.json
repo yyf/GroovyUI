@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a5b6c7d8-e9f0-1234-abcd-555566667777",
+  "metadata": {
+    "title": "MIDI Automation Demo",
+    "description": "Load MIDI CC curve, apply gain automation to dialogue audio.",
+    "tags": ["midi", "automation", "control"],
+    "created_at": "2026-07-06T12:00:00Z",
+    "modified_at": "2026-07-06T12:00:00Z"
+  },
+  "nodes": [
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n2", "type": "LoadMIDI", "pos": { "x": 0, "y": 120 }, "widgets": { "path": "assets/samples/automation_cc7.mid", "midi_kind": "control" } },
+    { "id": "n3", "type": "MIDIToFloat", "pos": { "x": 260, "y": 120 }, "widgets": { "cc": 7, "default_value": 0.75 } },
+    { "id": "n4", "type": "AutomationApply", "pos": { "x": 520, "y": 0 }, "widgets": { "gain": 1.0 } },
+    { "id": "n5", "type": "Preview", "pos": { "x": 780, "y": 0 }, "widgets": {} }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n4", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "MIDI" },
+    { "id": "l3", "from": ["n3", 0], "to": ["n4", 1], "type": "AUTOMATION" },
+    { "id": "l4", "from": ["n4", 0], "to": ["n5", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

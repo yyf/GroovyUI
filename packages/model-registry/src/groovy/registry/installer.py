@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 from groovy.registry.catalog import ModelCatalog
+from groovy.registry.download import DownloadError, copy_bundle_file, download_file
 from groovy.registry.models import InstallState, ModelManifest
 from groovy.registry.store import InstallStore
 
@@ -25,13 +26,31 @@ class ModelInstaller:
 
         try:
             self.store.mark_progress(model_id, "downloading", 0.2)
-            time.sleep(0.05)
-            self.store.mark_progress(model_id, "verifying", 0.7)
+            model_dir = self.project_dir / ".groovy" / "models" / model_id
+            model_dir.mkdir(parents=True, exist_ok=True)
             if manifest.install.dev_stub:
+                time.sleep(0.05)
+                self.store.mark_progress(model_id, "verifying", 0.7)
                 return self.store.mark_ready(model_id)
-            if not manifest.install.weights:
+            for weight in manifest.install.weights:
+                bundle = weight.get("bundle")
+                if bundle:
+                    filename = weight.get("filename") or str(bundle)
+                    dest = model_dir / filename
+                    copy_bundle_file(str(bundle), dest, expected_sha256=weight.get("sha256"))
+                    continue
+                url = weight.get("url")
+                if not url:
+                    continue
+                filename = weight.get("filename") or _filename_from_url(url)
+                dest = model_dir / filename
+                download_file(url, dest, expected_sha256=weight.get("sha256"))
+            self.store.mark_progress(model_id, "verifying", 0.9)
+            if manifest.install.weights or manifest.install.python_deps:
                 return self.store.mark_ready(model_id)
-            raise NotImplementedError("Weight download not implemented yet")
+            raise NotImplementedError("Weight download not configured")
+        except DownloadError as exc:
+            return self.store.mark_failed(model_id, str(exc))
         except Exception as exc:
             return self.store.mark_failed(model_id, str(exc))
 
@@ -45,6 +64,13 @@ class ModelInstaller:
             "summary": _human_error(state.error or ""),
             "similar_models": [_card(m, self.store.get(m.id)) for m in similar[:4]],
         }
+
+
+def _filename_from_url(url: str) -> str:
+    from urllib.parse import urlparse
+
+    path = urlparse(url).path
+    return Path(path).name or "weights.bin"
 
 
 def _human_error(error: str) -> str:

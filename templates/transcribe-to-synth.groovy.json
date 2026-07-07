@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a2b3c4d5-e6f7-8901-bcde-222233334455",
+  "metadata": {
+    "title": "Transcribe to Synth",
+    "description": "Transcribe audio to MIDI and forward the stream to an external synth (virtual out log).",
+    "tags": ["midi", "transcribe", "hardware", "live"],
+    "created_at": "2026-07-06T14:00:00Z",
+    "modified_at": "2026-07-06T14:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": { "x": 0, "y": 0 },
+      "widgets": { "path": "assets/samples/dialogue_48k.wav" }
+    },
+    {
+      "id": "n2",
+      "type": "AudioToMIDI",
+      "pos": { "x": 280, "y": 0 },
+      "widgets": { "model": "basic-pitch" }
+    },
+    {
+      "id": "n3",
+      "type": "MIDIOutDevice",
+      "pos": { "x": 560, "y": 0 },
+      "widgets": { "device_id": "virtual:out-demo", "mode": "stream", "channel": 1 }
+    }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "MIDI" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

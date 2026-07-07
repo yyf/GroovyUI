@@ -46,7 +46,17 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
     for key, value in kwargs.items():
         if hasattr(value, "stems"):
             out[key] = {"type": "STEMS", "stems_id": value.id}
-        elif hasattr(value, "id") and hasattr(value, "frame_count"):
+        elif hasattr(value, "record") and hasattr(value, "id"):
+            out[key] = {"type": "AUTHENTICITY", "authenticity_id": value.id}
+        elif hasattr(value, "midi_kind") and hasattr(value, "id"):
+            out[key] = {"type": "MIDI", "midi_id": value.id}
+        elif hasattr(value, "values") and hasattr(value, "frame_count") and hasattr(value, "id"):
+            out[key] = {"type": "AUTOMATION", "automation_id": value.id}
+        elif hasattr(value, "objects") and hasattr(value, "beds"):
+            out[key] = {"type": "OBA", "oba_id": value.id}
+        elif hasattr(value, "layout_order") and hasattr(value, "channel_ordering"):
+            out[key] = {"type": "AMBISONICS", "ambisonics_id": value.id}
+        elif hasattr(value, "id") and hasattr(value, "frame_count") and hasattr(value, "sample_rate"):
             out[key] = {"type": "AUDIO", "cache_id": value.id}
             out[f"{key}_id"] = value.id
         else:
@@ -55,6 +65,10 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
         out["audio_id"] = kwargs["audio"].id
     if "stems" in kwargs and hasattr(kwargs["stems"], "id"):
         out["stems_id"] = kwargs["stems"].id
+    if "midi" in kwargs and hasattr(kwargs["midi"], "midi_kind"):
+        out["midi_id"] = kwargs["midi"].id
+    if "reference_audio" in kwargs and hasattr(kwargs["reference_audio"], "id"):
+        out["audio_id"] = kwargs["reference_audio"].id
     return out
 
 

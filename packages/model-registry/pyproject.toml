@@ -8,6 +8,8 @@ dependencies = [
 
 [project.scripts]
 groovy-model = "groovy.registry.cli:main"
+groovy-registry = "groovy.registry.registry_cli:main"
+groovy-install = "groovy.registry.pack_cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -18,3 +20,4 @@ packages = ["src/groovy"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/groovy/registry/seed.json" = "groovy/registry/seed.json"
+"src/groovy/registry/bundles/hello_weights.bin" = "groovy/registry/bundles/hello_weights.bin"

@@ -8,16 +8,23 @@ from groovy.registry.models import ModelManifest
 
 
 class ModelCatalog:
-    def __init__(self, catalog_path: Path | None = None) -> None:
+    def __init__(self, catalog_path: Path | None = None, overlay_path: Path | None = None) -> None:
         if catalog_path is None:
             catalog_path = Path(resources.files("groovy.registry")) / "seed.json"
         data = json.loads(catalog_path.read_text())
         self._models: dict[str, ModelManifest] = {
             item["id"]: ModelManifest.model_validate(item) for item in data["models"]
         }
+        if overlay_path and overlay_path.exists():
+            overlay = json.loads(overlay_path.read_text())
+            for item in overlay.get("models", []):
+                self._models[item["id"]] = ModelManifest.model_validate(item)
 
-    def all(self) -> list[ModelManifest]:
-        return sorted(self._models.values(), key=lambda m: m.name.lower())
+    def all(self, *, include_drafts: bool = False) -> list[ModelManifest]:
+        return sorted(
+            [m for m in self._models.values() if include_drafts or m.status == "published"],
+            key=lambda m: m.name.lower(),
+        )
 
     def get(self, model_id: str) -> ModelManifest | None:
         return self._models.get(model_id)

@@ -10,6 +10,7 @@ dependencies = [
     "groovy-nodes-ai",
     "groovy-model-registry",
     "fastapi>=0.115",
+    "python-multipart>=0.0.9",
     "uvicorn[standard]>=0.32",
     "websockets>=13.0",
 ]

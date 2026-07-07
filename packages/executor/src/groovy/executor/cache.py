@@ -4,7 +4,13 @@ import json
 from pathlib import Path
 
 import numpy as np
+from groovy.executor.ambisonics import AmbisonicBuffer
 from groovy.executor.audio import AudioBuffer, StemsBuffer
+from groovy.executor.authenticity import AuthenticityReport
+from groovy.executor.control import AutomationBuffer
+from groovy.executor.midi import MidiBuffer
+from groovy.executor.oba import ObjectScene
+from groovy.executor.osc_live import OscBuffer
 
 
 class CacheStore:
@@ -73,6 +79,11 @@ class CacheStore:
             frame_count=meta["frame_count"],
             channel_layout=meta.get("channel_layout", "mono"),
             channel_map=meta.get("channel_map", []),
+            layout_order=meta.get("layout_order"),
+            encoding_scheme=meta.get("encoding_scheme"),
+            file_format=meta.get("file_format"),
+            file_subtype=meta.get("file_subtype"),
+            spatial_meta=meta.get("spatial_meta", {}),
             path=str(self.cache_dir / f"{cache_id}.f64"),
             source_node=meta.get("source_node"),
             source_node_type=meta.get("source_node_type"),
@@ -99,6 +110,84 @@ class CacheStore:
         sidecar.write_text(json.dumps(record, indent=2))
         return sidecar
 
+    def write_midi(self, midi: MidiBuffer, midi_bytes: bytes | None = None) -> MidiBuffer:
+        mid_path = self.cache_dir / f"{midi.id}.mid"
+        if midi_bytes is not None:
+            mid_path.write_bytes(midi_bytes)
+        midi.path = str(mid_path)
+        meta_path = self.cache_dir / f"{midi.id}.midi.meta.json"
+        meta_path.write_text(json.dumps(midi.to_meta(), indent=2))
+        return midi
+
+    def load_midi(self, midi_id: str) -> MidiBuffer:
+        meta_path = self.cache_dir / f"{midi_id}.midi.meta.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"MIDI cache not found: {midi_id}")
+        meta = json.loads(meta_path.read_text())
+        return MidiBuffer(
+            id=meta["id"],
+            sample_rate=meta["sample_rate"],
+            frame_count=meta["frame_count"],
+            ppq=meta.get("ppq", 480),
+            midi_kind=meta.get("midi_kind", "transcript"),
+            format=meta.get("format", "smf"),
+            tracks=meta.get("tracks", 1),
+            path=meta.get("path"),
+            tempo_bpm=meta.get("tempo_map", [{"bpm": 120}])[0].get("bpm", 120),
+            source_node=meta.get("source_node"),
+            source_node_type=meta.get("source_node_type"),
+        )
+
+    def write_authenticity(self, report: AuthenticityReport) -> AuthenticityReport:
+        meta_path = self.cache_dir / f"{report.id}.authenticity.json"
+        meta_path.write_text(json.dumps(report.to_meta(), indent=2))
+        return report
+
+    def load_authenticity(self, report_id: str) -> AuthenticityReport:
+        meta_path = self.cache_dir / f"{report_id}.authenticity.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Authenticity report not found: {report_id}")
+        meta = json.loads(meta_path.read_text())
+        record = {k: v for k, v in meta.items() if k not in {"id", "type"}}
+        return AuthenticityReport(id=meta["id"], record=record)
+
+    def write_automation(self, curve: AutomationBuffer) -> AutomationBuffer:
+        f64_path = self.cache_dir / f"{curve.id}.automation.f64"
+        curve.values.astype(np.float64).tofile(f64_path)
+        curve.path = str(f64_path)
+        meta_path = self.cache_dir / f"{curve.id}.automation.meta.json"
+        meta_path.write_text(json.dumps(curve.to_meta(), indent=2))
+        return curve
+
+    def load_automation(self, automation_id: str) -> AutomationBuffer:
+        meta_path = self.cache_dir / f"{automation_id}.automation.meta.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Automation cache not found: {automation_id}")
+        meta = json.loads(meta_path.read_text())
+        values = np.fromfile(self.cache_dir / f"{automation_id}.automation.f64", dtype=np.float64)
+        return AutomationBuffer(
+            id=meta["id"],
+            sample_rate=meta["sample_rate"],
+            frame_count=meta["frame_count"],
+            values=values,
+            path=str(self.cache_dir / f"{automation_id}.automation.f64"),
+            source_node_type=meta.get("source_node_type"),
+        )
+
+    def read_node_cache(self, workflow_id: str, node_id: str) -> dict[str, Any] | None:
+        path = self.cache_dir / "node_state" / workflow_id / f"{node_id}.json"
+        if not path.exists():
+            return None
+        return json.loads(path.read_text())
+
+    def write_node_cache(
+        self, workflow_id: str, node_id: str, *, signature: str, output_meta: dict[str, Any]
+    ) -> None:
+        state_dir = self.cache_dir / "node_state" / workflow_id
+        state_dir.mkdir(parents=True, exist_ok=True)
+        path = state_dir / f"{node_id}.json"
+        path.write_text(json.dumps({"signature": signature, "output": output_meta}, indent=2))
+
     def preview_wav_bytes(self, cache_id: str) -> bytes:
         import io
 
@@ -122,6 +211,73 @@ class CacheStore:
         peaks = peaks[:width]
         sr = self.read_meta(cache_id)["sample_rate"]
         return {"peaks": peaks, "duration": len(mono) / sr}
+
+    def write_ambisonics(self, buffer: AmbisonicBuffer, pcm: np.ndarray) -> AmbisonicBuffer:
+        f64_path = self.cache_dir / f"{buffer.id}.ambi.f64"
+        pcm = np.asarray(pcm, dtype=np.float64)
+        if pcm.ndim == 1:
+            pcm = pcm.reshape(1, -1)
+        pcm.tofile(f64_path)
+        buffer.path = str(f64_path)
+        meta_path = self.cache_dir / f"{buffer.id}.meta.json"
+        meta_path.write_text(json.dumps(buffer.to_meta(), indent=2))
+        return buffer
+
+    def load_ambisonics(self, ambisonics_id: str) -> tuple[AmbisonicBuffer, np.ndarray]:
+        meta = self.read_meta(ambisonics_id)
+        if meta.get("type") != "AMBISONICS":
+            raise ValueError(f"Cache entry is not ambisonics: {ambisonics_id}")
+        buffer = AmbisonicBuffer(
+            id=meta["id"],
+            sample_rate=meta["sample_rate"],
+            frame_count=meta["frame_count"],
+            layout_order=meta.get("layout_order", 1),
+            channels=meta.get("channels", 4),
+            path=str(self.cache_dir / f"{ambisonics_id}.ambi.f64"),
+            source_node_type=meta.get("source_node_type"),
+            spatial_meta=meta.get("spatial_meta", {}),
+        )
+        pcm = np.fromfile(buffer.path, dtype=np.float64).reshape(buffer.channels, buffer.frame_count)
+        return buffer, pcm
+
+    def write_object_scene(self, scene: ObjectScene) -> ObjectScene:
+        meta_path = self.cache_dir / f"{scene.id}.oba.json"
+        meta_path.write_text(json.dumps(scene.to_meta(), indent=2))
+        return scene
+
+    def load_object_scene(self, scene_id: str) -> ObjectScene:
+        meta_path = self.cache_dir / f"{scene_id}.oba.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Object scene not found: {scene_id}")
+        meta = json.loads(meta_path.read_text())
+        return ObjectScene(
+            id=meta["id"],
+            sample_rate=meta["sample_rate"],
+            frame_count=meta["frame_count"],
+            beds=meta.get("beds", []),
+            objects=meta.get("objects", []),
+            dynamics=meta.get("dynamics", []),
+            adm_path=meta.get("adm_path"),
+            source_node_type=meta.get("source_node_type"),
+        )
+
+    def write_osc(self, buffer: OscBuffer) -> OscBuffer:
+        meta_path = self.cache_dir / f"{buffer.id}.osc.json"
+        meta_path.write_text(json.dumps({**buffer.to_meta(), "events": buffer.events}, indent=2))
+        return buffer
+
+    def load_osc(self, osc_id: str) -> OscBuffer:
+        meta_path = self.cache_dir / f"{osc_id}.osc.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"OSC cache not found: {osc_id}")
+        meta = json.loads(meta_path.read_text())
+        return OscBuffer(
+            id=meta["id"],
+            sample_rate=meta["sample_rate"],
+            frame_count=meta["frame_count"],
+            events=meta.get("events", []),
+            source_node_type=meta.get("source_node_type"),
+        )
 
     def create_run_dir(self, job_id: str) -> Path:
         run_dir = self.runs_dir / job_id

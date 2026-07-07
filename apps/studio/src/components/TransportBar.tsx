@@ -1,8 +1,10 @@
 import type { Workflow } from "../types";
+import WaveformMini from "./WaveformMini";
 
 type Props = {
   workflow: Workflow;
   previewUrl: string | null;
+  waveformPeaks?: number[];
   running: boolean;
   currentNode?: string;
   progress?: number;
@@ -14,6 +16,7 @@ type Props = {
 export default function TransportBar({
   workflow,
   previewUrl,
+  waveformPeaks = [],
   running,
   currentNode,
   progress,
@@ -47,7 +50,14 @@ export default function TransportBar({
         )}
         {running ? <div className="transport__bar" style={{ width: `${pct ?? 8}%` }} /> : null}
       </div>
-      {previewUrl ? <audio controls src={previewUrl} className="transport__audio" /> : <span className="status">No render yet</span>}
+      {previewUrl ? (
+        <div className="transport__preview">
+          {waveformPeaks.length > 0 ? <WaveformMini peaks={waveformPeaks} /> : null}
+          <audio controls src={previewUrl} className="transport__audio" />
+        </div>
+      ) : (
+        <span className="status">No render yet</span>
+      )}
     </footer>
   );
 }

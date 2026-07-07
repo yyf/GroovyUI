@@ -7,8 +7,14 @@ from pathlib import Path
 from groovy.executor.cache import CacheStore
 from groovy.nodes.ai.inference import (
     require_model,
+    run_audio_to_midi,
+    run_deepfake_detect,
     run_denoise,
+    run_generate_audio,
+    run_midi_to_audio,
     run_separate_stems,
+    run_separate_to_objects,
+    run_sing_from_midi,
     run_tts,
     run_voice_convert,
     run_whisper_stt,
@@ -17,9 +23,15 @@ from groovy.nodes.ai.inference import (
 HANDLERS = {
     "Denoise": run_denoise,
     "SeparateStems": run_separate_stems,
+    "SeparateToObjects": run_separate_to_objects,
     "WhisperSTT": run_whisper_stt,
     "TTS": run_tts,
     "VoiceConvert": run_voice_convert,
+    "AudioToMIDI": run_audio_to_midi,
+    "DeepfakeDetect": run_deepfake_detect,
+    "MIDIToAudio": run_midi_to_audio,
+    "GenerateAudio": run_generate_audio,
+    "SingFromMIDI": run_sing_from_midi,
 }
 
 

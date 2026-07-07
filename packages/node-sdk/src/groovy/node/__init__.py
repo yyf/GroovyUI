@@ -69,7 +69,17 @@ class GroovyNode:
                                 "optional": section == "optional",
                             }
                         )
-                    elif socket_type in {"AUDIO", "STEMS", "MIDI", "AUTHENTICITY"}:
+                    elif socket_type in {
+                        "AUDIO",
+                        "STEMS",
+                        "MIDI",
+                        "AUTHENTICITY",
+                        "TEXT",
+                        "AUTOMATION",
+                        "AMBISONICS",
+                        "OBA",
+                        "OSC",
+                    }:
                         input_sockets.append(
                             {
                                 "name": name,
@@ -77,10 +87,8 @@ class GroovyNode:
                                 "optional": section == "optional",
                             }
                         )
-                    elif (
-                        socket_type == "FLOAT"
-                        and section == "optional"
-                        and name.startswith("gain_")
+                    elif socket_type == "FLOAT" and section == "optional" and (
+                        name.startswith("gain_") or name == "value"
                     ):
                         input_sockets.append(
                             {

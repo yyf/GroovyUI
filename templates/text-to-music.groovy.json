@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "b1c2d3e4-f5a6-7890-abcd-111122223333",
+  "metadata": {
+    "title": "Text to Music",
+    "description": "Generate music from a text prompt with MusicGen (dev stub).",
+    "tags": ["generation", "musicgen", "text"],
+    "created_at": "2026-07-06T12:30:00Z",
+    "modified_at": "2026-07-06T12:30:00Z"
+  },
+  "nodes": [
+    { "id": "n1", "type": "Prompt", "pos": { "x": 0, "y": 0 }, "widgets": { "text": "warm lo-fi beat with soft piano" } },
+    { "id": "n2", "type": "GenerateAudio", "pos": { "x": 260, "y": 0 }, "widgets": { "model": "musicgen-small" } },
+    { "id": "n3", "type": "Preview", "pos": { "x": 520, "y": 0 }, "widgets": {} }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "TEXT" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

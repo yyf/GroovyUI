@@ -4,12 +4,14 @@ import asyncio
 import json
 import os
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
+from groovy.executor.batch import run_batch_render
 from groovy.executor import Executor
 from groovy.executor.engine import GROOVY_VERSION
 from groovy.node import NODE_REGISTRY, get_node_class
@@ -17,11 +19,24 @@ from groovy.nodes.core import register_all as register_core
 from groovy.nodes.ai import register_all as register_ai
 from groovy.executor.provenance import summarize_workflow_outputs
 from groovy.registry import ModelRegistry
+from groovy.registry.catalog import ModelCatalog
 from groovy.registry.agent.install_recovery import install_recovery
+from groovy.registry.agent.node_enricher import enrich_node_schema
 from groovy.registry.agent.recommender import recommend_models
+from groovy.registry.agent.workflow_suggester import suggest_workflows
+from groovy.registry.agent.license_scanner import scan_workflow_licenses
+from groovy.registry.agent.curator import approve_draft, ingest_drafts, list_drafts
+from groovy.registry.agent.template_generator import generate_template_from_workflow
+from groovy.registry.agent.registry_freshness import scan_registry_freshness
+from groovy.registry.pack_installer import PackInstaller
+from groovy.registry.packs import list_packs
 from groovy.registry.compliance import summarize_compliance
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
+from groovy.schema.comfy_import import import_comfy_workflow
+from groovy.executor.live_midi import LiveIoState
+from groovy.executor.osc_live import OscCaptureStore
+from groovy.server.live_io_hub import MidiInHub, start_osc_listener
 from pydantic import BaseModel
 
 register_core()
@@ -34,7 +49,21 @@ PROJECT_DIR = Path(os.environ.get("GROOVY_PROJECT_DIR", str(DEFAULT_WORKSPACE)))
 HOST = os.environ.get("GROOVY_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GROOVY_PORT", "8188"))
 
-app = FastAPI(title="GroovyUI", version=GROOVY_VERSION)
+_live_io = LiveIoState(PROJECT_DIR)
+_midi_hub = MidiInHub()
+_osc_transport: asyncio.DatagramTransport | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _osc_transport
+    _osc_transport = await start_osc_listener(PROJECT_DIR, _live_io, _midi_hub)
+    yield
+    if _osc_transport is not None:
+        _osc_transport.close()
+
+
+app = FastAPI(title="GroovyUI", version=GROOVY_VERSION, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.environ.get("GROOVY_CORS_ORIGIN", "http://127.0.0.1:5173")],
@@ -47,6 +76,7 @@ _jobs: dict[str, dict[str, Any]] = {}
 _ws_subscribers: dict[str, set[WebSocket]] = {}
 _executor = Executor(PROJECT_DIR)
 _registry = ModelRegistry(PROJECT_DIR)
+_pack_installer = PackInstaller(PROJECT_DIR)
 
 
 class ModelSearchRequest(BaseModel):
@@ -78,6 +108,54 @@ class ValidateRequest(BaseModel):
     workflow: dict[str, Any]
 
 
+class WorkflowSuggestRequest(BaseModel):
+    prompt: str
+
+
+class ComfyImportRequest(BaseModel):
+    workflow: dict[str, Any]
+    title: str | None = None
+
+
+class BatchRenderRequest(BaseModel):
+    workflow: dict[str, Any]
+    input_dir: str
+    file_glob: str = "*.wav,*.flac"
+    load_node_id: str | None = None
+    target_nodes: list[str] | None = None
+
+
+class LiveIoSettingsRequest(BaseModel):
+    midi_input_enabled: bool | None = None
+    midi_output_enabled: bool | None = None
+    osc_live_enabled: bool | None = None
+    default_input_id: str | None = None
+    default_output_id: str | None = None
+
+
+class MidiInEventRequest(BaseModel):
+    device_id: str
+    event: dict[str, Any]
+
+
+class MidiOutSendRequest(BaseModel):
+    device_id: str
+    events: list[dict[str, Any]]
+
+
+class OscInRequest(BaseModel):
+    address: str
+    args: list[Any] = []
+    frame: int = 0
+
+
+class GenerateTemplateRequest(BaseModel):
+    workflow: dict[str, Any]
+    title: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+
+
 def _workflow_from_dict(data: dict[str, Any]) -> Workflow:
     return Workflow.model_validate(data)
 
@@ -99,15 +177,150 @@ def health() -> dict[str, str]:
     return {"status": "ok", "groovy_version": GROOVY_VERSION}
 
 
+@app.get("/api/midi/devices")
+def midi_devices(direction: str | None = None) -> dict[str, list[dict[str, str]]]:
+    devices = _live_io.list_devices(direction=direction)
+    return {"devices": [device.to_dict() for device in devices]}
+
+
+@app.get("/api/settings/live-io")
+def get_live_io_settings() -> dict[str, Any]:
+    return _live_io.settings.to_dict()
+
+
+@app.post("/api/settings/live-io")
+def update_live_io_settings(body: LiveIoSettingsRequest) -> dict[str, Any]:
+    data = body.model_dump(exclude_none=True)
+    for key, value in data.items():
+        setattr(_live_io.settings, key, value)
+    _live_io.save_settings()
+    return _live_io.settings.to_dict()
+
+
+@app.post("/api/midi/in/event")
+def midi_in_event(body: MidiInEventRequest) -> dict[str, str]:
+    if not _live_io.settings.midi_input_enabled:
+        raise HTTPException(status_code=403, detail="MIDI input is disabled")
+    _live_io.append_midi_input(body.device_id, body.event)
+    return {"status": "ok"}
+
+
+@app.post("/api/midi/out/send")
+def midi_out_send(body: MidiOutSendRequest) -> dict[str, Any]:
+    if not _live_io.settings.midi_output_enabled:
+        raise HTTPException(status_code=403, detail="MIDI output is disabled")
+    sent = 0
+    for event in body.events:
+        if event.get("type") == "sysex":
+            continue
+        _live_io.append_midi_output({**event, "device_id": body.device_id})
+        sent += 1
+    return {"status": "ok", "sent": sent}
+
+
+@app.get("/api/midi/out/log")
+def midi_out_log() -> dict[str, Any]:
+    return {"events": _live_io.midi_out_log()}
+
+
+@app.post("/api/osc/in")
+async def osc_in(body: OscInRequest) -> dict[str, str]:
+    if not _live_io.settings.osc_live_enabled:
+        raise HTTPException(status_code=403, detail="Live OSC is disabled")
+    store = OscCaptureStore(PROJECT_DIR)
+    if not store.append(body.address, body.args, frame=body.frame):
+        raise HTTPException(status_code=400, detail="OSC message rejected")
+    from groovy.executor.osc_live import parse_widget_target
+
+    target = parse_widget_target(body.address)
+    await _midi_hub.broadcast(
+        {
+            "type": "osc.message",
+            "address": body.address,
+            "args": body.args,
+            "target": {"node_id": target[0], "param": target[1]} if target else None,
+        }
+    )
+    return {"status": "ok"}
+
+
+@app.get("/api/osc/events")
+def osc_events() -> dict[str, Any]:
+    store = OscCaptureStore(PROJECT_DIR)
+    return {"events": store.events()}
+
+
+@app.get("/api/packs")
+def list_node_packs() -> dict[str, Any]:
+    return {"packs": [pack.to_dict() for pack in list_packs()]}
+
+
+@app.post("/api/packs/{pack_id}/install")
+def install_node_pack(pack_id: str) -> dict[str, Any]:
+    state = _pack_installer.install(pack_id, consent=True)
+    if state.status == "failed":
+        raise HTTPException(status_code=404, detail=state.error or "Install failed")
+    return state.to_dict()
+
+
+@app.get("/api/packs/installed")
+def list_installed_packs() -> dict[str, Any]:
+    return {"packs": _pack_installer.list_installed()}
+
+
+@app.get("/api/registry/freshness")
+def registry_freshness() -> dict[str, Any]:
+    return scan_registry_freshness(_registry.catalog, _registry.store)
+
+
+@app.post("/api/workflow/generate-template")
+def generate_template_endpoint(body: GenerateTemplateRequest) -> dict[str, Any]:
+    return generate_template_from_workflow(
+        body.workflow,
+        title=body.title,
+        description=body.description,
+        tags=body.tags,
+        known_node_types=set(NODE_REGISTRY.keys()),
+    )
+
+
+@app.post("/api/project/upload")
+async def upload_project_asset(file: UploadFile = File(...)) -> dict[str, str]:
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Missing filename")
+    safe_name = Path(file.filename).name
+    dest_dir = PROJECT_DIR / "assets" / "uploads"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / safe_name
+    dest.write_bytes(await file.read())
+    return {"path": f"assets/uploads/{safe_name}"}
+
+
+@app.get("/api/project/audio-meta")
+def project_audio_meta(path: str) -> dict[str, Any]:
+    from groovy.executor.audio_meta import probe_audio_file
+
+    try:
+        resolved = _executor.cache.resolve_project_path(path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not resolved.exists():
+        raise HTTPException(status_code=404, detail=f"FILE_NOT_FOUND: {path}")
+    return probe_audio_file(resolved)
+
+
 @app.get("/api/nodes")
 def list_nodes() -> dict[str, list[dict[str, Any]]]:
     return {"nodes": [get_node_class(t).describe() for t in sorted(NODE_REGISTRY)]}
 
 
 @app.get("/api/nodes/{node_type}")
-def get_node(node_type: str) -> dict[str, Any]:
+def get_node(node_type: str, enriched: bool = True) -> dict[str, Any]:
     try:
-        return get_node_class(node_type).describe()
+        schema = get_node_class(node_type).describe()
+        if enriched:
+            return enrich_node_schema(node_type, schema)
+        return schema
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -196,6 +409,44 @@ def _model_card(manifest) -> dict[str, Any]:
     }
 
 
+@app.post("/api/workflow/import/comfy")
+def import_comfy_workflow_endpoint(body: ComfyImportRequest) -> dict[str, Any]:
+    converted = import_comfy_workflow(body.workflow, title=body.title or "Imported from ComfyUI")
+    import_meta = converted.pop("import_meta", {})
+    workflow = _workflow_from_dict(converted)
+    validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    return {
+        "workflow": converted,
+        "validation": validation.model_dump(),
+        "import_meta": import_meta,
+    }
+
+
+@app.post("/api/workflow/suggest")
+def workflow_suggest(body: WorkflowSuggestRequest) -> dict[str, Any]:
+    return suggest_workflows(body.prompt, TEMPLATES_DIR)
+
+
+@app.post("/api/registry/ingest")
+def registry_ingest(force: bool = False) -> dict[str, Any]:
+    return ingest_drafts(_registry.draft_dir, skip_existing=not force)
+
+
+@app.get("/api/registry/drafts")
+def registry_drafts() -> dict[str, Any]:
+    return {"drafts": list_drafts(_registry.draft_dir)}
+
+
+@app.post("/api/registry/drafts/{model_id}/approve")
+def registry_approve_draft(model_id: str) -> dict[str, Any]:
+    try:
+        manifest = approve_draft(_registry.draft_dir, _registry.overlay_path, model_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    _registry.catalog = ModelCatalog(overlay_path=_registry.overlay_path)
+    return manifest.model_dump()
+
+
 @app.post("/api/workflow/validate")
 def validate_workflow_endpoint(body: ValidateRequest) -> dict[str, Any]:
     workflow = _workflow_from_dict(body.workflow)
@@ -207,6 +458,30 @@ def validate_workflow_endpoint(body: ValidateRequest) -> dict[str, Any]:
 def workflow_compliance(body: ValidateRequest) -> dict[str, Any]:
     workflow = _workflow_from_dict(body.workflow)
     return summarize_compliance(workflow, _registry)
+
+
+@app.post("/api/workflow/license-scan")
+def workflow_license_scan(body: ValidateRequest) -> dict[str, Any]:
+    workflow = _workflow_from_dict(body.workflow)
+    return scan_workflow_licenses(workflow, _registry)
+
+
+@app.post("/api/batch/render")
+def batch_render_endpoint(body: BatchRenderRequest) -> dict[str, Any]:
+    workflow = _workflow_from_dict(body.workflow)
+    try:
+        return run_batch_render(
+            _executor,
+            workflow,
+            input_dir=body.input_dir,
+            file_glob=body.file_glob,
+            load_node_id=body.load_node_id,
+            target_nodes=body.target_nodes,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/workflow/provenance")
@@ -225,6 +500,15 @@ def cache_provenance(cache_id: str) -> dict[str, Any]:
     if not record:
         raise HTTPException(status_code=404, detail="Provenance not found")
     return record
+
+
+@app.get("/api/authenticity/{report_id}")
+def get_authenticity(report_id: str) -> dict[str, Any]:
+    try:
+        report = _executor.cache.load_authenticity(report_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Authenticity report not found") from exc
+    return report.record
 
 
 @app.post("/api/execute", status_code=202)
@@ -322,6 +606,27 @@ def cache_waveform(cache_id: str, width: int = 512) -> dict[str, Any]:
         return _executor.cache.waveform_peaks(cache_id, width=width)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Cache not found") from exc
+
+
+@app.websocket("/api/ws/midi/in")
+async def midi_in_websocket(ws: WebSocket) -> None:
+    await _midi_hub.connect(ws)
+    try:
+        while True:
+            raw = await ws.receive_text()
+            msg = json.loads(raw)
+            if msg.get("type") == "midi.event":
+                if not _live_io.settings.midi_input_enabled:
+                    continue
+                device_id = str(msg.get("device_id", _live_io.settings.default_input_id or "virtual:in-demo"))
+                event = msg.get("event") or {}
+                _live_io.append_midi_input(device_id, event)
+            elif msg.get("type") == "ping":
+                await ws.send_text(json.dumps({"type": "pong"}))
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _midi_hub.disconnect(ws)
 
 
 @app.websocket("/api/ws")

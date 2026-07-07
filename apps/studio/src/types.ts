@@ -12,6 +12,33 @@ export type WorkflowLink = {
   type: string;
 };
 
+export type WorkflowGroup = {
+  id: string;
+  title: string;
+  node_ids: string[];
+  color?: string;
+  collapsed?: boolean;
+  proxy_pos?: { x: number; y: number };
+};
+
+export type ModulePort = {
+  id: string;
+  name: string;
+  type: string;
+  node_id: string;
+  slot: number;
+  direction: "in" | "out";
+};
+
+export type WorkflowModule = {
+  schema_version: string;
+  metadata: { title: string; description?: string };
+  nodes: WorkflowNode[];
+  links: WorkflowLink[];
+  inlets?: ModulePort[];
+  outlets?: ModulePort[];
+};
+
 export type Workflow = {
   schema_version: string;
   groovy_version: string;
@@ -19,7 +46,7 @@ export type Workflow = {
   metadata: { title: string; description?: string };
   nodes: WorkflowNode[];
   links: WorkflowLink[];
-  groups: unknown[];
+  groups: WorkflowGroup[];
   view?: { zoom: number; pan: { x: number; y: number } };
 };
 
@@ -28,6 +55,7 @@ export type NodeWidgetSpec = {
   type: string;
   default?: unknown;
   optional?: boolean;
+  description?: string;
 };
 
 export type ModelCard = {
@@ -47,8 +75,10 @@ export type ModelCard = {
 export type NodeSchema = {
   type: string;
   category: string;
-  inputs: Array<{ name: string; type: string; optional?: boolean }>;
-  outputs: Array<{ name: string; type: string }>;
+  description?: string;
+  enriched?: boolean;
+  inputs: Array<{ name: string; type: string; optional?: boolean; description?: string }>;
+  outputs: Array<{ name: string; type: string; description?: string }>;
   widgets: NodeWidgetSpec[];
 };
 
@@ -58,6 +88,9 @@ export type JobOutput = {
   text?: string;
   stems_id?: string;
   stems?: Record<string, string>;
+  midi_id?: string;
+  authenticity_id?: string;
+  automation_id?: string;
 };
 
 export type ComplianceSummary = {
@@ -72,6 +105,51 @@ export type ComplianceSummary = {
   }>;
   warnings: string[];
   commercial_ok: boolean;
+};
+
+export type LicenseSwapSuggestion = {
+  node_id: string;
+  node_type: string;
+  widget: string;
+  current_model_id: string;
+  current_license: string;
+  rationale: string;
+  alternatives: Array<{
+    model_id: string;
+    name: string;
+    license_spdx: string;
+    task_types: string[];
+    rationale: string;
+  }>;
+};
+
+export type LicenseScanSummary = ComplianceSummary & {
+  flags: Array<{
+    node_id: string;
+    node_type: string;
+    severity: string;
+    code: string;
+    message: string;
+    model_id?: string;
+  }>;
+  swap_suggestions: LicenseSwapSuggestion[];
+  scan_ok: boolean;
+  agent: string;
+};
+
+export type BatchRenderResult = {
+  input_dir: string;
+  file_glob: string;
+  load_node_id: string;
+  total: number;
+  completed: number;
+  failed: number;
+  runs: Array<{
+    input_path: string;
+    status: string;
+    job_id: string;
+    error?: string | null;
+  }>;
 };
 
 export type ProvenanceEntry = {

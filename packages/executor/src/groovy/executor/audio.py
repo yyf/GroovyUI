@@ -16,6 +16,11 @@ class AudioBuffer:
     frame_count: int
     channel_layout: str = "mono"
     channel_map: list[str] = field(default_factory=list)
+    layout_order: int | None = None
+    encoding_scheme: str | None = None
+    file_format: str | None = None
+    file_subtype: str | None = None
+    spatial_meta: dict = field(default_factory=dict)
     dtype: str = "float64"
     layout: str = "planar"
     path: str | None = None
@@ -43,10 +48,10 @@ class AudioBuffer:
         if pcm.ndim == 1:
             pcm = pcm.reshape(1, -1)
         channels, frame_count = pcm.shape
-        layout = channel_layout or ("mono" if channels == 1 else "stereo")
-        channel_map = (
-            ["FL", "FR"][:channels] if channels <= 2 else [f"ch{i}" for i in range(channels)]
-        )
+        from groovy.executor.audio_meta import channel_layout_for_channels, channel_map_for_layout
+
+        layout = channel_layout or channel_layout_for_channels(channels)
+        channel_map = channel_map_for_layout(layout, channels)
         content_hash = hashlib.sha256(pcm.tobytes()).hexdigest()
         return cls(
             id=str(uuid.uuid4()),
@@ -61,7 +66,7 @@ class AudioBuffer:
         )
 
     def to_meta(self) -> dict:
-        return {
+        meta = {
             "id": self.id,
             "sample_rate": self.sample_rate,
             "channels": self.channels,
@@ -75,6 +80,17 @@ class AudioBuffer:
             "created_at": datetime.now(UTC).isoformat(),
             "content_hash": self.content_hash,
         }
+        if self.layout_order is not None:
+            meta["layout_order"] = self.layout_order
+        if self.encoding_scheme:
+            meta["encoding_scheme"] = self.encoding_scheme
+        if self.file_format:
+            meta["file_format"] = self.file_format
+        if self.file_subtype:
+            meta["file_subtype"] = self.file_subtype
+        if self.spatial_meta:
+            meta["spatial_meta"] = self.spatial_meta
+        return meta
 
 
 @dataclass

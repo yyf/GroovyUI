@@ -1,11 +1,139 @@
-import type { ComplianceSummary, JobState, ModelCard, NodeSchema, ProvenanceSummary, Workflow } from "./types";
+import type {
+  BatchRenderResult,
+  ComplianceSummary,
+  JobState,
+  LicenseScanSummary,
+  ModelCard,
+  NodeSchema,
+  ProvenanceSummary,
+  Workflow,
+} from "./types";
 
 export const API = import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188";
+
+export type LiveIoSettings = {
+  midi_input_enabled: boolean;
+  midi_output_enabled: boolean;
+  osc_live_enabled: boolean;
+  default_input_id: string | null;
+  default_output_id: string | null;
+};
+
+export type MidiDevice = {
+  id: string;
+  name: string;
+  manufacturer: string;
+  direction: string;
+};
+
+export async function fetchLiveIoSettings(): Promise<LiveIoSettings> {
+  const res = await fetch(`${API}/api/settings/live-io`);
+  if (!res.ok) throw new Error("Failed to load live I/O settings");
+  return res.json();
+}
+
+export async function updateLiveIoSettings(patch: Partial<LiveIoSettings>): Promise<LiveIoSettings> {
+  const res = await fetch(`${API}/api/settings/live-io`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error("Failed to update live I/O settings");
+  return res.json();
+}
+
+export async function fetchMidiDevices(direction?: "in" | "out"): Promise<MidiDevice[]> {
+  const query = direction ? `?direction=${direction}` : "";
+  const res = await fetch(`${API}/api/midi/devices${query}`);
+  if (!res.ok) throw new Error("Failed to list MIDI devices");
+  const data = await res.json();
+  return data.devices;
+}
+
+export async function postMidiInEvent(
+  deviceId: string,
+  event: Record<string, unknown>,
+): Promise<void> {
+  const res = await fetch(`${API}/api/midi/in/event`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: deviceId, event }),
+  });
+  if (!res.ok) throw new Error("MIDI input rejected");
+}
+
+export async function generateTemplateFromWorkflow(
+  workflow: Workflow,
+  title?: string,
+): Promise<{ template: Workflow; template_id: string; suggested_readme: string }> {
+  const res = await fetch(`${API}/api/workflow/generate-template`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow, title }),
+  });
+  if (!res.ok) throw new Error("Template generation failed");
+  return res.json();
+}
+
+export type NodePack = {
+  id: string;
+  version: string;
+  name: string;
+  description: string;
+  trust_tier: string;
+};
+
+export async function listPacks(): Promise<NodePack[]> {
+  const res = await fetch(`${API}/api/packs`);
+  if (!res.ok) throw new Error("Failed to list packs");
+  const data = await res.json();
+  return data.packs;
+}
+
+export async function installPack(packId: string): Promise<void> {
+  const res = await fetch(`${API}/api/packs/${packId}/install`, { method: "POST" });
+  if (!res.ok) throw new Error(`Pack install failed: ${packId}`);
+}
+
+export async function fetchRegistryFreshness(): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API}/api/registry/freshness`);
+  if (!res.ok) throw new Error("Registry freshness scan failed");
+  return res.json();
+}
 
 export function wsUrl(): string {
   const url = new URL(API);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return `${url.origin}/api/ws`;
+}
+
+export async function importComfyWorkflow(
+  comfyJson: Record<string, unknown>,
+  title?: string,
+): Promise<{ workflow: Workflow; import_meta: Record<string, unknown>; validation: { valid: boolean } }> {
+  const res = await fetch(`${API}/api/workflow/import/comfy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow: comfyJson, title }),
+  });
+  if (!res.ok) {
+    throw new Error(`ComfyUI import failed (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function uploadProjectAudio(file: File): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/api/project/upload`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(`Upload failed (${res.status})`);
+  }
+  const data = await res.json();
+  return data.path as string;
 }
 
 export async function fetchHealth(): Promise<string> {
@@ -30,10 +158,27 @@ export async function fetchNodeSchema(nodeType: string): Promise<NodeSchema> {
   return res.json();
 }
 
+export async function fetchWaveform(cacheId: string, width = 128): Promise<{ peaks: number[]; duration: number }> {
+  const res = await fetch(`${API}/api/cache/${cacheId}/waveform?width=${width}`);
+  if (!res.ok) {
+    throw new Error(`Waveform not found: ${cacheId}`);
+  }
+  return res.json();
+}
+
 export async function fetchCacheMeta(cacheId: string): Promise<Record<string, unknown>> {
   const res = await fetch(`${API}/api/cache/${cacheId}/meta`);
   if (!res.ok) {
     throw new Error(`Cache not found: ${cacheId}`);
+  }
+  return res.json();
+}
+
+export async function fetchAudioFileMeta(path: string): Promise<Record<string, unknown> | null> {
+  const query = new URLSearchParams({ path });
+  const res = await fetch(`${API}/api/project/audio-meta?${query}`);
+  if (!res.ok) {
+    return null;
   }
   return res.json();
 }
@@ -112,6 +257,47 @@ export async function fetchCompliance(workflow: Workflow): Promise<ComplianceSum
   return res.json();
 }
 
+export async function fetchLicenseScan(workflow: Workflow): Promise<LicenseScanSummary> {
+  const res = await fetch(`${API}/api/workflow/license-scan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow }),
+  });
+  if (!res.ok) {
+    throw new Error("License scan failed");
+  }
+  return res.json();
+}
+
+export async function batchRenderWorkflow(
+  workflow: Workflow,
+  options: {
+    input_dir: string;
+    file_glob?: string;
+    load_node_id?: string;
+    target_nodes?: string[];
+  },
+): Promise<BatchRenderResult> {
+  const res = await fetch(`${API}/api/batch/render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow, ...options }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Batch render failed: ${detail}`);
+  }
+  return res.json();
+}
+
+export async function fetchAuthenticity(reportId: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API}/api/authenticity/${reportId}`);
+  if (!res.ok) {
+    throw new Error("Authenticity report not found");
+  }
+  return res.json();
+}
+
 export async function fetchProvenance(
   workflow: Workflow,
   outputs: Record<string, import("./types").JobOutput>,
@@ -128,6 +314,31 @@ export async function fetchProvenance(
   });
   if (!res.ok) {
     throw new Error("Provenance summary failed");
+  }
+  return res.json();
+}
+
+export async function suggestWorkflows(
+  prompt: string,
+): Promise<{
+  prompt: string;
+  mode: string;
+  results: Array<{
+    template_id: string;
+    title: string;
+    description: string;
+    rationale: string;
+    score: number;
+    workflow: Workflow;
+  }>;
+}> {
+  const res = await fetch(`${API}/api/workflow/suggest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+  if (!res.ok) {
+    throw new Error("Workflow suggest failed");
   }
   return res.json();
 }
