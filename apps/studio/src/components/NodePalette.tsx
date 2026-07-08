@@ -5,6 +5,18 @@ type NodeTypeInfo = { type: string; category: string };
 
 type PaletteTier = "core" | "modular" | "immersive" | "live" | "all";
 
+type GroupId =
+  | "core-io"
+  | "core-dsp"
+  | "ai"
+  | "authenticity"
+  | "control"
+  | "subgraph"
+  | "multichannel"
+  | "ambisonics"
+  | "oba"
+  | "live-io";
+
 type Props = {
   onAddNode: (nodeType: string) => void;
 };
@@ -39,6 +51,93 @@ const IMMERSIVE_NODES = new Set([
 
 const LIVE_NODES = new Set(["MIDIInDevice", "MIDIOutDevice", "OSCInLive"]);
 
+const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix", "StemPick"]);
+
+const AUTHENTICITY = new Set(["VerifyProvenance", "AuthenticitySummary", "DeepfakeDetect"]);
+
+const OBA_NODES = new Set([
+  "ObjectFromAudio",
+  "ObjectMerge",
+  "ObjectAnimate",
+  "RenderObjectScene",
+  "ObjectPlacement",
+  "SeparateToObjects",
+]);
+
+const TIERS: Array<{ id: PaletteTier; label: string; description: string }> = [
+  { id: "core", label: "Core", description: "Essential I/O, processing, and AI exploration." },
+  { id: "modular", label: "Modular", description: "Control wires, MIDI, automation, and subgraph boundaries." },
+  { id: "immersive", label: "Immersive", description: "Multichannel beds, ambisonics, and object-based spatial audio." },
+  { id: "live", label: "Live I/O", description: "Hardware MIDI devices and live OSC (opt-in)." },
+  { id: "all", label: "All", description: "Full node catalog across every tier." },
+];
+
+const GROUP_ORDER: GroupId[] = [
+  "core-io",
+  "core-dsp",
+  "ai",
+  "authenticity",
+  "control",
+  "subgraph",
+  "multichannel",
+  "ambisonics",
+  "oba",
+  "live-io",
+];
+
+const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteTier[] }> = {
+  "core-io": {
+    title: "I/O",
+    hint: "Load, save, mix, preview",
+    tiers: ["core", "all"],
+  },
+  "core-dsp": {
+    title: "Processing",
+    hint: "Level, trim, resample",
+    tiers: ["core", "all"],
+  },
+  ai: {
+    title: "AI models",
+    hint: "Denoise, stems, TTS, music",
+    tiers: ["core", "all"],
+  },
+  authenticity: {
+    title: "Authenticity",
+    hint: "Provenance verify, deepfake check",
+    tiers: ["core", "all"],
+  },
+  control: {
+    title: "Control & MIDI",
+    hint: "Curves, gates, float math",
+    tiers: ["modular", "all"],
+  },
+  subgraph: {
+    title: "Subgraph I/O",
+    hint: "Module inlets and outlets",
+    tiers: ["modular", "all"],
+  },
+  multichannel: {
+    title: "Multichannel",
+    hint: "Layouts, loudness, transcode",
+    tiers: ["immersive", "all"],
+  },
+  ambisonics: {
+    title: "Ambisonics",
+    hint: "FOA encode, decode, rotate",
+    tiers: ["immersive", "all"],
+  },
+  oba: {
+    title: "Object-based audio",
+    hint: "Scenes, placement, render",
+    tiers: ["immersive", "all"],
+  },
+  "live-io": {
+    title: "Hardware & OSC",
+    hint: "MIDI in/out, live OSC",
+    tiers: ["live", "all"],
+  },
+};
+
 function tierForNode(node: NodeTypeInfo): PaletteTier[] {
   const tiers: PaletteTier[] = ["all"];
   if (node.category.includes("Core") && !MODULAR_NODES.has(node.type) && !IMMERSIVE_NODES.has(node.type)) {
@@ -62,6 +161,21 @@ function tierForNode(node: NodeTypeInfo): PaletteTier[] {
   return tiers;
 }
 
+function paletteGroup(node: NodeTypeInfo): GroupId {
+  if (AUTHENTICITY.has(node.type)) return "authenticity";
+  if (node.category.includes("AI")) {
+    return OBA_NODES.has(node.type) ? "oba" : "ai";
+  }
+  if (LIVE_NODES.has(node.type) || node.category.includes("Live")) return "live-io";
+  if (node.type.startsWith("Ambisonic")) return "ambisonics";
+  if (OBA_NODES.has(node.type)) return "oba";
+  if (IMMERSIVE_NODES.has(node.type) || node.category.includes("Immersive")) return "multichannel";
+  if (node.type === "ModuleInlet" || node.type === "ModuleOutlet") return "subgraph";
+  if (MODULAR_NODES.has(node.type) || node.type.includes("Float")) return "control";
+  if (CORE_IO.has(node.type)) return "core-io";
+  return "core-dsp";
+}
+
 export default function NodePalette({ onAddNode }: Props) {
   const [nodes, setNodes] = useState<NodeTypeInfo[]>([]);
   const [tier, setTier] = useState<PaletteTier>("core");
@@ -79,64 +193,81 @@ export default function NodePalette({ onAddNode }: Props) {
       .catch(() => setNodes([]));
   }, []);
 
-  const filtered = useMemo(() => {
-    if (tier === "all") return nodes;
-    return nodes.filter((node) => tierForNode(node).includes(tier));
+  const tierMeta = TIERS.find((item) => item.id === tier) ?? TIERS[0];
+
+  const groupedSections = useMemo(() => {
+    const tierNodes =
+      tier === "all" ? nodes : nodes.filter((node) => tierForNode(node).includes(tier));
+
+    const buckets = new Map<GroupId, NodeTypeInfo[]>();
+    for (const node of tierNodes) {
+      const group = paletteGroup(node);
+      const meta = GROUP_META[group];
+      if (!meta.tiers.includes(tier)) continue;
+      const list = buckets.get(group) ?? [];
+      list.push(node);
+      buckets.set(group, list);
+    }
+
+    return GROUP_ORDER.map((groupId) => {
+      const items = buckets.get(groupId) ?? [];
+      items.sort((a, b) => a.type.localeCompare(b.type));
+      return { groupId, meta: GROUP_META[groupId], items };
+    }).filter((section) => section.items.length > 0);
   }, [nodes, tier]);
 
-  const core = filtered.filter((n) => n.category.includes("Core"));
-  const ai = filtered.filter((n) => n.category.includes("AI"));
-  const live = filtered.filter((n) => n.category.includes("Live"));
+  const totalCount = groupedSections.reduce((sum, section) => sum + section.items.length, 0);
 
   return (
     <aside className="node-palette">
-      <h2>Nodes</h2>
-      <div className="node-palette__tiers">
-        {(
-          [
-            ["core", "Core"],
-            ["modular", "Modular"],
-            ["immersive", "Immersive"],
-            ["live", "Live I/O"],
-            ["all", "All"],
-          ] as const
-        ).map(([value, label]) => (
+      <nav className="node-palette__tiers" aria-label="Node palette tier">
+        {TIERS.map((item) => (
           <button
-            key={value}
+            key={item.id}
             type="button"
-            className={tier === value ? "active" : ""}
-            onClick={() => setTier(value)}
+            className={`node-palette__tier${tier === item.id ? " node-palette__tier--active" : ""}`}
+            onClick={() => setTier(item.id)}
+            aria-current={tier === item.id ? "true" : undefined}
           >
-            {label}
+            <span className="node-palette__tier-label">{item.label}</span>
           </button>
         ))}
+      </nav>
+
+      <div className="node-palette__tier-panel">
+        <header className="node-palette__tier-head">
+          <div className="node-palette__tier-title-row">
+            <h2 className="node-palette__tier-title">{tierMeta.label}</h2>
+            <span className="node-palette__tier-count">{totalCount}</span>
+          </div>
+          <p className="node-palette__tier-desc">{tierMeta.description}</p>
+        </header>
+
+        <div className="node-palette__groups">
+          {groupedSections.length === 0 ? (
+            <p className="node-palette__empty">No nodes in this tier.</p>
+          ) : (
+            groupedSections.map(({ groupId, meta, items }) => (
+              <section key={groupId} className="node-palette__group">
+                <div className="node-palette__group-head">
+                  <h3 className="node-palette__group-title">{meta.title}</h3>
+                  <span className="node-palette__group-count">{items.length}</span>
+                </div>
+                <p className="node-palette__group-hint">{meta.hint}</p>
+                <ul className="node-palette__list">
+                  {items.map((node) => (
+                    <li key={node.type}>
+                      <button type="button" className="node-palette__node" onClick={() => onAddNode(node.type)}>
+                        {node.type}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          )}
+        </div>
       </div>
-      <section>
-        <h3>Core</h3>
-        {core.map((n) => (
-          <button key={n.type} type="button" onClick={() => onAddNode(n.type)}>
-            {n.type}
-          </button>
-        ))}
-      </section>
-      <section>
-        <h3>AI</h3>
-        {ai.map((n) => (
-          <button key={n.type} type="button" onClick={() => onAddNode(n.type)}>
-            {n.type}
-          </button>
-        ))}
-      </section>
-      {live.length > 0 ? (
-        <section>
-          <h3>Live I/O</h3>
-          {live.map((n) => (
-            <button key={n.type} type="button" onClick={() => onAddNode(n.type)}>
-              {n.type}
-            </button>
-          ))}
-        </section>
-      ) : null}
     </aside>
   );
 }

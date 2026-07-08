@@ -42,12 +42,54 @@ VIRTUAL_OUTPUT = MidiDeviceInfo(
 
 
 @dataclass
+class AudioDeviceInfo:
+    id: str
+    name: str
+    manufacturer: str = ""
+    direction: str = "in"
+    channels: int = 0
+    sample_rate: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "manufacturer": self.manufacturer,
+            "direction": self.direction,
+            "channels": self.channels,
+            "sample_rate": self.sample_rate,
+        }
+
+
+VIRTUAL_AUDIO_INPUT = AudioDeviceInfo(
+    id="virtual:audio:in-demo",
+    name="Virtual Audio In (demo)",
+    manufacturer="GroovyUI",
+    direction="in",
+    channels=2,
+    sample_rate=48000.0,
+)
+VIRTUAL_AUDIO_OUTPUT = AudioDeviceInfo(
+    id="virtual:audio:out-demo",
+    name="Virtual Audio Out (preview route)",
+    manufacturer="GroovyUI",
+    direction="out",
+    channels=2,
+    sample_rate=48000.0,
+)
+
+
+@dataclass
 class LiveIoSettings:
     midi_input_enabled: bool = False
     midi_output_enabled: bool = False
     osc_live_enabled: bool = False
     default_input_id: str | None = VIRTUAL_INPUT.id
     default_output_id: str | None = VIRTUAL_OUTPUT.id
+    audio_input_enabled: bool = False
+    audio_output_enabled: bool = False
+    default_audio_input_id: str | None = VIRTUAL_AUDIO_INPUT.id
+    default_audio_output_id: str | None = VIRTUAL_AUDIO_OUTPUT.id
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -56,6 +98,10 @@ class LiveIoSettings:
             "osc_live_enabled": self.osc_live_enabled,
             "default_input_id": self.default_input_id,
             "default_output_id": self.default_output_id,
+            "audio_input_enabled": self.audio_input_enabled,
+            "audio_output_enabled": self.audio_output_enabled,
+            "default_audio_input_id": self.default_audio_input_id,
+            "default_audio_output_id": self.default_audio_output_id,
         }
 
     @classmethod
@@ -66,6 +112,10 @@ class LiveIoSettings:
             osc_live_enabled=bool(data.get("osc_live_enabled", False)),
             default_input_id=data.get("default_input_id", VIRTUAL_INPUT.id),
             default_output_id=data.get("default_output_id", VIRTUAL_OUTPUT.id),
+            audio_input_enabled=bool(data.get("audio_input_enabled", False)),
+            audio_output_enabled=bool(data.get("audio_output_enabled", False)),
+            default_audio_input_id=data.get("default_audio_input_id", VIRTUAL_AUDIO_INPUT.id),
+            default_audio_output_id=data.get("default_audio_output_id", VIRTUAL_AUDIO_OUTPUT.id),
         )
 
 
@@ -127,6 +177,48 @@ class LiveIoState:
                             name=name,
                             manufacturer="rtmidi",
                             direction="out",
+                        )
+                    )
+        except Exception:
+            pass
+        if direction:
+            devices = [device for device in devices if device.direction == direction]
+        return devices
+
+    def list_audio_devices(self, direction: str | None = None) -> list[AudioDeviceInfo]:
+        devices: list[AudioDeviceInfo] = []
+        if direction in (None, "in"):
+            devices.append(VIRTUAL_AUDIO_INPUT)
+        if direction in (None, "out"):
+            devices.append(VIRTUAL_AUDIO_OUTPUT)
+        try:
+            import sounddevice as sd
+
+            hostapis = sd.query_hostapis()
+            for index, info in enumerate(sd.query_devices()):
+                hostapi = hostapis[info["hostapi"]]["name"] if info.get("hostapi") is not None else "sounddevice"
+                name = str(info.get("name", f"Device {index}"))
+                default_rate = float(info.get("default_samplerate") or 48000.0)
+                if int(info.get("max_input_channels", 0)) > 0 and direction in (None, "in"):
+                    devices.append(
+                        AudioDeviceInfo(
+                            id=f"sounddevice:in:{index}",
+                            name=name,
+                            manufacturer=hostapi,
+                            direction="in",
+                            channels=int(info["max_input_channels"]),
+                            sample_rate=default_rate,
+                        )
+                    )
+                if int(info.get("max_output_channels", 0)) > 0 and direction in (None, "out"):
+                    devices.append(
+                        AudioDeviceInfo(
+                            id=f"sounddevice:out:{index}",
+                            name=name,
+                            manufacturer=hostapi,
+                            direction="out",
+                            channels=int(info["max_output_channels"]),
+                            sample_rate=default_rate,
                         )
                     )
         except Exception:

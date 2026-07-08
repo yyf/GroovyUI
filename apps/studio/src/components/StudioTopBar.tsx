@@ -1,0 +1,83 @@
+import type { Workflow } from "../types";
+import StudioSettingsMenu, { type StudioSettingsMenuProps } from "./StudioSettingsMenu";
+import TemplateSelector from "./TemplateSelector";
+import WorkflowGenerateButton from "./WorkflowGenerateButton";
+
+type Props = {
+  templates: Array<{ id: string; title: string }>;
+  selectedTemplateId: string;
+  onSelectTemplate: (templateId: string) => void;
+  onApplyWorkflow: (workflow: Workflow) => void;
+  complianceWarnings: number;
+  onModelBrowser: () => void;
+  onCompliance: () => void;
+  workflowBarOpen: boolean;
+  onToggleWorkflowBar: () => void;
+  settings: Omit<
+    StudioSettingsMenuProps,
+    "onModelBrowser" | "onCompliance" | "complianceWarnings" | "workflowBarOpen" | "onToggleWorkflowBar"
+  >;
+};
+
+export default function StudioTopBar({
+  templates,
+  selectedTemplateId,
+  onSelectTemplate,
+  onApplyWorkflow,
+  complianceWarnings,
+  onModelBrowser,
+  onCompliance,
+  workflowBarOpen,
+  onToggleWorkflowBar,
+  settings,
+}: Props) {
+  const open = workflowBarOpen;
+
+  return (
+    <header className={`top-bar${open ? " top-bar--open" : ""}`}>
+      <div className="top-bar__brand" aria-label="GroovyUI">
+        GroovyUI
+      </div>
+
+      <div className="top-bar__content">
+        {open ? (
+          <>
+            <div className="top-bar__drawer">
+              <TemplateSelector templates={templates} selectedId={selectedTemplateId} onSelect={onSelectTemplate} />
+              <WorkflowGenerateButton onApply={onApplyWorkflow} />
+            </div>
+            <div className="top-bar__tools">
+              <button type="button" className="top-bar__tool" onClick={onModelBrowser}>
+                Models
+              </button>
+              <button
+                type="button"
+                className={`top-bar__tool${complianceWarnings > 0 ? " top-bar__tool--warn" : ""}`}
+                onClick={onCompliance}
+                title="License, provenance, authenticity, and disclosure"
+              >
+                Compliance{complianceWarnings > 0 ? ` (${complianceWarnings})` : ""}
+              </button>
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        className="top-bar__tab top-bar__tab--center"
+        onClick={onToggleWorkflowBar}
+        aria-expanded={open}
+        title={open ? "Hide workflow bar" : "Show workflow bar"}
+      >
+        <span className="top-bar__tab-label">Workflow</span>
+      </button>
+
+      <StudioSettingsMenu
+        {...settings}
+        workflowBarOpen={workflowBarOpen}
+        onToggleWorkflowBar={onToggleWorkflowBar}
+      />
+    </header>
+  );
+}

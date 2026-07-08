@@ -51,6 +51,34 @@ def test_midi_in_device_demo_events(project_dir: Path) -> None:
     assert len(events) >= 2
 
 
+def test_audio_devices_api() -> None:
+    client = TestClient(app)
+    response = client.get("/api/audio/devices", params={"direction": "in"})
+    assert response.status_code == 200
+    devices = response.json()["devices"]
+    assert any(device["id"] == "virtual:audio:in-demo" for device in devices)
+    assert all(device["direction"] == "in" for device in devices)
+
+
+def test_audio_settings_roundtrip(project_dir: Path) -> None:
+    state = LiveIoState(project_dir)
+    state.settings.audio_input_enabled = True
+    state.settings.default_audio_output_id = "virtual:audio:out-demo"
+    state.save_settings()
+    reloaded = LiveIoState(project_dir)
+    assert reloaded.settings.audio_input_enabled is True
+    assert reloaded.settings.default_audio_output_id == "virtual:audio:out-demo"
+
+
+def test_live_io_settings_api_includes_audio() -> None:
+    client = TestClient(app)
+    response = client.get("/api/settings/live-io")
+    assert response.status_code == 200
+    data = response.json()
+    assert "audio_input_enabled" in data
+    assert "default_audio_input_id" in data
+
+
 def test_midi_devices_api() -> None:
     client = TestClient(app)
     response = client.get("/api/midi/devices", params={"direction": "in"})

@@ -17,7 +17,52 @@ export type LiveIoSettings = {
   osc_live_enabled: boolean;
   default_input_id: string | null;
   default_output_id: string | null;
+  audio_input_enabled: boolean;
+  audio_output_enabled: boolean;
+  default_audio_input_id: string | null;
+  default_audio_output_id: string | null;
 };
+
+export type AudioDevice = {
+  id: string;
+  name: string;
+  manufacturer: string;
+  direction: string;
+  channels: number;
+  sample_rate: number;
+};
+
+const VIRTUAL_AUDIO_INPUT: AudioDevice = {
+  id: "virtual:audio:in-demo",
+  name: "Virtual Audio In (demo)",
+  manufacturer: "GroovyUI",
+  direction: "in",
+  channels: 2,
+  sample_rate: 48000,
+};
+
+const VIRTUAL_AUDIO_OUTPUT: AudioDevice = {
+  id: "virtual:audio:out-demo",
+  name: "Virtual Audio Out (preview route)",
+  manufacturer: "GroovyUI",
+  direction: "out",
+  channels: 2,
+  sample_rate: 48000,
+};
+
+export function normalizeLiveIoSettings(raw: Partial<LiveIoSettings>): LiveIoSettings {
+  return {
+    midi_input_enabled: raw.midi_input_enabled ?? false,
+    midi_output_enabled: raw.midi_output_enabled ?? false,
+    osc_live_enabled: raw.osc_live_enabled ?? false,
+    default_input_id: raw.default_input_id ?? "virtual:in-demo",
+    default_output_id: raw.default_output_id ?? "virtual:out-demo",
+    audio_input_enabled: raw.audio_input_enabled ?? false,
+    audio_output_enabled: raw.audio_output_enabled ?? false,
+    default_audio_input_id: raw.default_audio_input_id ?? VIRTUAL_AUDIO_INPUT.id,
+    default_audio_output_id: raw.default_audio_output_id ?? VIRTUAL_AUDIO_OUTPUT.id,
+  };
+}
 
 export type MidiDevice = {
   id: string;
@@ -29,7 +74,7 @@ export type MidiDevice = {
 export async function fetchLiveIoSettings(): Promise<LiveIoSettings> {
   const res = await fetch(`${API}/api/settings/live-io`);
   if (!res.ok) throw new Error("Failed to load live I/O settings");
-  return res.json();
+  return normalizeLiveIoSettings(await res.json());
 }
 
 export async function updateLiveIoSettings(patch: Partial<LiveIoSettings>): Promise<LiveIoSettings> {
@@ -39,7 +84,7 @@ export async function updateLiveIoSettings(patch: Partial<LiveIoSettings>): Prom
     body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error("Failed to update live I/O settings");
-  return res.json();
+  return normalizeLiveIoSettings(await res.json());
 }
 
 export async function fetchMidiDevices(direction?: "in" | "out"): Promise<MidiDevice[]> {
@@ -48,6 +93,25 @@ export async function fetchMidiDevices(direction?: "in" | "out"): Promise<MidiDe
   if (!res.ok) throw new Error("Failed to list MIDI devices");
   const data = await res.json();
   return data.devices;
+}
+
+export async function fetchAudioDevices(direction?: "in" | "out"): Promise<AudioDevice[]> {
+  const query = direction ? `?direction=${direction}` : "";
+  try {
+    const res = await fetch(`${API}/api/audio/devices${query}`);
+    if (res.status === 404) {
+      if (direction === "in") return [VIRTUAL_AUDIO_INPUT];
+      if (direction === "out") return [VIRTUAL_AUDIO_OUTPUT];
+      return [VIRTUAL_AUDIO_INPUT, VIRTUAL_AUDIO_OUTPUT];
+    }
+    if (!res.ok) throw new Error("Failed to list audio devices");
+    const data = await res.json();
+    return data.devices;
+  } catch {
+    if (direction === "in") return [VIRTUAL_AUDIO_INPUT];
+    if (direction === "out") return [VIRTUAL_AUDIO_OUTPUT];
+    return [VIRTUAL_AUDIO_INPUT, VIRTUAL_AUDIO_OUTPUT];
+  }
 }
 
 export async function postMidiInEvent(
@@ -156,6 +220,19 @@ export async function fetchNodeSchema(nodeType: string): Promise<NodeSchema> {
     throw new Error(`Unknown node type: ${nodeType}`);
   }
   return res.json();
+}
+
+export async function fetchAllNodeSchemas(): Promise<Record<string, NodeSchema>> {
+  const res = await fetch(`${API}/api/nodes`);
+  if (!res.ok) {
+    throw new Error("Failed to load node schemas");
+  }
+  const data = await res.json();
+  const map: Record<string, NodeSchema> = {};
+  for (const schema of data.nodes as NodeSchema[]) {
+    map[schema.type] = schema;
+  }
+  return map;
 }
 
 export async function fetchModelCard(modelId: string): Promise<ModelCard> {

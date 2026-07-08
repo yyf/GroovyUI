@@ -37,7 +37,7 @@ export default function OnboardingOverlay({ open, onClose, onStartHello }: Props
             <strong>Start simple</strong> — try the Hello Groovy template (Load → Normalize → Preview).
           </li>
           <li>
-            <strong>Press Play</strong> — GroovyUI renders stale nodes automatically, then auditions the chain.
+            <strong>Press Play</strong> — Audition the selected node after you render it.
           </li>
           <li>
             <strong>Cmd+K</strong> — search models, get recommendations, or suggest a workflow.

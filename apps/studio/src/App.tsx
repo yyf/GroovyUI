@@ -3,6 +3,7 @@ import {
   Background,
   Controls,
   ReactFlow,
+  ReactFlowProvider,
   type Connection,
   type EdgeChange,
   type Node,
@@ -17,7 +18,7 @@ import {
   ensureWorkflowModels,
   executeWorkflow,
   fetchCompliance,
-  fetchHealth,
+  fetchAllNodeSchemas,
   generateTemplateFromWorkflow,
   listPacks,
   installPack,
@@ -28,6 +29,7 @@ import {
   uploadProjectAudio,
 } from "./api";
 import ComplianceDrawer from "./components/ComplianceDrawer";
+import FlowViewportBridge from "./components/FlowViewportBridge";
 import SettingsDrawer from "./components/SettingsDrawer";
 import GroovyFlowNode from "./components/GroovyFlowNode";
 import ModuleGroupNode from "./components/ModuleGroupNode";
@@ -35,14 +37,16 @@ import ModelBrowser from "./components/ModelBrowser";
 import NodeHelper from "./components/NodeHelper";
 import NodePalette, { defaultWidgetsForNode } from "./components/NodePalette";
 import OnboardingOverlay, { isOnboardingComplete } from "./components/OnboardingOverlay";
+import SidePanel from "./components/SidePanel";
+import StudioTopBar from "./components/StudioTopBar";
 import TransportBar from "./components/TransportBar";
 import { AuditionContext } from "./context/AuditionContext";
 import { useLiveIo } from "./hooks/useLiveIo";
 import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
-import type { JobState, NodeRenderStatus, Workflow } from "./types";
+import type { JobState, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import {
-  addLink,
+  connectNodes,
   addNodeToWorkflow,
   applyDroppedAudio,
   createGroup,
@@ -77,18 +81,18 @@ const DEFAULT_TEMPLATE = "podcast-denoise";
 export default function App() {
   const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory();
   const [templates, setTemplates] = useState<Array<{ id: string; title: string }>>([]);
+  const [nodeSchemas, setNodeSchemas] = useState<Record<string, NodeSchema>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const comfyImportRef = useRef<HTMLInputElement>(null);
   const moduleImportRef = useRef<HTMLInputElement>(null);
   const clipboardRef = useRef<WorkflowClipboard | null>(null);
+  const flowCenterRef = useRef(() => ({ x: 320, y: 200 }));
   const pendingSelectionRef = useRef<Set<string> | null>(null);
   const pasteCountRef = useRef(0);
   const [nodeStatus, setNodeStatus] = useState<Record<string, NodeRenderStatus>>({});
   const [lastJob, setLastJob] = useState<JobState | null>(null);
   const [status, setStatus] = useState("Loading template…");
-  const [preview, setPreview] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
-  const [health, setHealth] = useState("…");
   const [progress, setProgress] = useState<number | undefined>();
   const [currentNode, setCurrentNode] = useState<string | undefined>();
   const [modelBrowserOpen, setModelBrowserOpen] = useState(false);
@@ -97,7 +101,9 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [complianceWarnings, setComplianceWarnings] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
-  const [nodePreviewUrl, setNodePreviewUrl] = useState<string | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helperOpen, setHelperOpen] = useState(false);
+  const [workflowBarOpen, setWorkflowBarOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboardingComplete());
   const [dropHint, setDropHint] = useState(false);
   const [transportWaveform, setTransportWaveform] = useState<number[]>([]);
@@ -124,8 +130,8 @@ export default function App() {
   useLiveIo({ enabled: true, onOscWidget });
 
   const flowNodes = useMemo(
-    () => (workflow ? workflowToFlowNodes(workflow, nodeStatus, lastJob?.outputs) : []),
-    [workflow, nodeStatus, lastJob?.outputs],
+    () => (workflow ? workflowToFlowNodes(workflow, nodeStatus, lastJob?.outputs, nodeSchemas) : []),
+    [workflow, nodeStatus, lastJob?.outputs, nodeSchemas],
   );
   const flowEdges = useMemo(
     () => (workflow ? workflowToFlowEdges(workflow, activeEdgeIds) : []),
@@ -137,7 +143,6 @@ export default function App() {
   const loadTemplate = useCallback(
     async (templateId: string) => {
       setStatus("Loading template…");
-      setPreview(null);
       setLastJob(null);
       setNodeStatus({});
       clipboardRef.current = null;
@@ -151,9 +156,9 @@ export default function App() {
   );
 
   useEffect(() => {
-    fetchHealth()
-      .then(setHealth)
-      .catch(() => setHealth("offline"));
+    fetchAllNodeSchemas()
+      .then(setNodeSchemas)
+      .catch(() => setNodeSchemas({}));
     listTemplates()
       .then(setTemplates)
       .catch(() => setTemplates([]));
@@ -186,7 +191,6 @@ export default function App() {
           return removeNodesFromWorkflow(prev, new Set(removedIds));
         });
         setLastJob(null);
-        setPreview(null);
         setNodeStatus((prev) => {
           const next = { ...prev };
           for (const id of removedIds) delete next[id];
@@ -209,7 +213,6 @@ export default function App() {
         return removeLinks(prev, new Set(removedIds));
       });
       setLastJob(null);
-      setPreview(null);
     },
     [setWorkflow],
   );
@@ -219,6 +222,18 @@ export default function App() {
     [nodes],
   );
   const selectedNodeId = selectedNodeIds[0] ?? null;
+
+  const openInspector = useCallback(() => {
+    if (!focusMode) setHelperOpen(true);
+  }, [focusMode]);
+
+  const registerFlowCenter = useCallback((getter: () => { x: number; y: number }) => {
+    flowCenterRef.current = getter;
+  }, []);
+
+  useEffect(() => {
+    if (selectedNodeId) openInspector();
+  }, [selectedNodeId, openInspector]);
 
   const updateWidget = useCallback(
     (nodeId: string, name: string, value: unknown) => {
@@ -251,12 +266,11 @@ export default function App() {
       if (!connection.source || !connection.target) return;
       setWorkflow((prev) => {
         if (!prev) return prev;
-        return addLink(prev, connection.source, connection.target);
+        return connectNodes(prev, connection, nodeSchemas);
       });
       setLastJob(null);
-      setPreview(null);
     },
-    [setWorkflow],
+    [setWorkflow, nodeSchemas],
   );
 
   const runRender = useCallback(
@@ -265,6 +279,10 @@ export default function App() {
       const target = renderAll
         ? resolveTargetNode(workflow, selectedNodeId)
         : (targetNodeId ?? resolveTargetNode(workflow, selectedNodeId));
+      if (!target) {
+        setStatus("No render target — add a Preview node or select one");
+        return;
+      }
       const targets = renderAll ? workflow.nodes.map((n) => n.id) : [target];
       setRunning(true);
       setStatus("Rendering…");
@@ -318,10 +336,6 @@ export default function App() {
             }
           }
           setNodeStatus((prev) => ({ ...prev, ...cached }));
-          const cacheId = outputs[target]?.cache_id;
-          if (cacheId) {
-            setPreview(previewUrl(cacheId));
-          }
           setStatus("Complete");
         } else {
           setStatus(`Failed: ${formatJobError(job.error)}`);
@@ -339,29 +353,27 @@ export default function App() {
 
   const auditionNode = useCallback(
     (nodeId: string) => {
+      if (!workflow) return;
+      setNodes((current) => current.map((node) => ({ ...node, selected: node.id === nodeId })));
       const cacheId = lastJob?.outputs?.[nodeId]?.cache_id;
       if (!cacheId) return;
-      setNodePreviewUrl(previewUrl(cacheId));
+      setActiveEdgeIds(edgeIdsOnPathToNode(workflow, nodeId));
       setTimeout(() => {
-        document.querySelector<HTMLAudioElement>(".node-audition")?.play();
+        document.querySelector<HTMLAudioElement>(".transport__audio")?.play();
       }, 0);
     },
-    [lastJob],
+    [lastJob, workflow, setNodes],
   );
 
-  const playChain = useCallback(() => {
-    const hasStale = workflow?.nodes.some((n) => nodeStatus[n.id] === "stale" || !nodeStatus[n.id]);
-    if (preview && !running && !hasStale) {
-      const audio = document.querySelector<HTMLAudioElement>(".transport__audio");
-      if (workflow) {
-        const target = resolveTargetNode(workflow, selectedNodeId);
-        setActiveEdgeIds(edgeIdsOnPathToNode(workflow, target));
-      }
-      void audio?.play();
+  const playSelectedNode = useCallback(() => {
+    if (running || !workflow || !selectedNodeId) return;
+    if (!lastJob?.outputs?.[selectedNodeId]?.cache_id) {
+      setStatus("Render this node first");
       return;
     }
-    void runRender();
-  }, [preview, running, runRender, workflow, nodeStatus, selectedNodeId]);
+    setActiveEdgeIds(edgeIdsOnPathToNode(workflow, selectedNodeId));
+    void document.querySelector<HTMLAudioElement>(".transport__audio")?.play();
+  }, [running, workflow, selectedNodeId, lastJob?.outputs]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -380,7 +392,6 @@ export default function App() {
           undo();
         }
         setLastJob(null);
-        setPreview(null);
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
@@ -401,7 +412,6 @@ export default function App() {
         pendingSelectionRef.current = new Set(newNodeIds);
         setWorkflow(next);
         setLastJob(null);
-        setPreview(null);
         setStatus(`Pasted ${newNodeIds.length} node(s)`);
         return;
       }
@@ -412,18 +422,12 @@ export default function App() {
         pendingSelectionRef.current = new Set(newNodeIds);
         setWorkflow(next);
         setLastJob(null);
-        setPreview(null);
         setStatus(`Duplicated ${newNodeIds.length} node(s)`);
         return;
       }
       if (event.key === "f" || event.key === "\\") {
         event.preventDefault();
         setFocusMode((prev) => !prev);
-        return;
-      }
-      if (event.key === " " && !running) {
-        event.preventDefault();
-        playChain();
         return;
       }
       if (event.shiftKey && event.key.toLowerCase() === "r") {
@@ -433,7 +437,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [running, runRender, undo, redo, playChain, workflow, selectedNodeIds, setWorkflow]);
+  }, [running, runRender, undo, redo, workflow, selectedNodeIds, setWorkflow]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -480,7 +484,6 @@ export default function App() {
           return next;
         });
         setLastJob(null);
-        setPreview(null);
         setStatus(`Loaded ${file.name}`);
       } catch (err) {
         setStatus(`Upload failed: ${formatJobError(String(err))}`);
@@ -546,7 +549,6 @@ export default function App() {
         const result = await importComfyWorkflow(comfyJson, file.name.replace(/\.json$/i, ""));
         resetHistory(result.workflow);
         setLastJob(null);
-        setPreview(null);
         setNodeStatus({});
         const unmapped = (result.import_meta.unmapped_node_types as string[] | undefined) ?? [];
         setStatus(
@@ -629,37 +631,36 @@ export default function App() {
     },
     [setNodes],
   );
-  const chainPreview =
-    preview ??
-    (lastJob?.outputs && workflow
-      ? (() => {
-          const target = resolveTargetNode(workflow, selectedNodeId);
-          const cacheId = lastJob.outputs?.[target]?.cache_id;
-          return cacheId ? previewUrl(cacheId) : null;
-        })()
-      : null);
+  const transportEmptyHint = !selectedNodeId
+    ? "Select a node"
+    : !selectedNodePreview
+      ? "Render to preview this node"
+      : "No render yet";
 
   useEffect(() => {
-    if (!chainPreview) {
+    document.querySelector<HTMLAudioElement>(".transport__audio")?.pause();
+  }, [selectedNodeId]);
+
+  useEffect(() => {
+    if (!selectedNodePreview) {
       setTransportWaveform([]);
       return;
     }
-    const match = chainPreview.match(/\/api\/cache\/([^/?]+)\/preview/);
+    const match = selectedNodePreview.match(/\/api\/cache\/([^/?]+)\/preview/);
     if (!match) {
       setTransportWaveform([]);
       return;
     }
-    fetchWaveform(match[1], 256)
+    fetchWaveform(match[1], 512)
       .then((data) => setTransportWaveform(data.peaks))
       .catch(() => setTransportWaveform([]));
-  }, [chainPreview]);
+  }, [selectedNodePreview]);
 
   useEffect(() => {
     const onAudioEvent = (event: Event) => {
-      if (!workflow) return;
+      if (!workflow || !selectedNodeId) return;
       if (event.type === "play") {
-        const nodeId = resolveTargetNode(workflow, selectedNodeId);
-        setActiveEdgeIds(edgeIdsOnPathToNode(workflow, nodeId));
+        setActiveEdgeIds(edgeIdsOnPathToNode(workflow, selectedNodeId));
       } else {
         setActiveEdgeIds(new Set());
       }
@@ -668,22 +669,32 @@ export default function App() {
       }
     };
     const transport = document.querySelector<HTMLAudioElement>(".transport__audio");
-    const audition = document.querySelector<HTMLAudioElement>(".node-audition");
-    for (const audio of [transport, audition]) {
-      if (!audio) continue;
-      audio.addEventListener("play", onAudioEvent);
-      audio.addEventListener("pause", onAudioEvent);
-      audio.addEventListener("ended", onAudioEvent);
-    }
+    if (!transport) return;
+    transport.addEventListener("play", onAudioEvent);
+    transport.addEventListener("pause", onAudioEvent);
+    transport.addEventListener("ended", onAudioEvent);
     return () => {
-      for (const audio of [transport, audition]) {
-        if (!audio) continue;
-        audio.removeEventListener("play", onAudioEvent);
-        audio.removeEventListener("pause", onAudioEvent);
-        audio.removeEventListener("ended", onAudioEvent);
-      }
+      transport.removeEventListener("play", onAudioEvent);
+      transport.removeEventListener("pause", onAudioEvent);
+      transport.removeEventListener("ended", onAudioEvent);
     };
-  }, [workflow, selectedNodeId, chainPreview]);
+  }, [workflow, selectedNodeId, selectedNodePreview]);
+
+  const selectedTemplateId = useMemo(
+    () => templates.find((t) => t.title === workflow?.metadata.title)?.id ?? DEFAULT_TEMPLATE,
+    [templates, workflow?.metadata.title],
+  );
+
+  const applyWorkflow = useCallback(
+    (next: Workflow) => {
+      resetHistory(next);
+      setLastJob(null);
+      setNodeStatus({});
+      setStatus("Workflow applied — ready to render");
+      setLoadError(null);
+    },
+    [resetHistory],
+  );
 
   if (loadError) {
     return (
@@ -705,108 +716,79 @@ export default function App() {
   return (
     <AuditionContext.Provider value={auditionNode}>
       <div className={`app ${focusMode ? "app--focus" : ""}`}>
-        <header className="toolbar">
-          <h1>GroovyUI Studio</h1>
-          <select
-            className="toolbar__select"
-            value={templates.find((t) => t.title === workflow.metadata.title)?.id ?? DEFAULT_TEMPLATE}
-            onChange={(e) => void loadTemplate(e.target.value)}
-          >
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.title}
-              </option>
-            ))}
-          </select>
-          <button type="button" onClick={() => setModelBrowserOpen(true)}>
-            Model Browser
-          </button>
-          <button type="button" onClick={() => setSettingsOpen(true)}>
-            Settings
-          </button>
-          <button
-            type="button"
-            className={complianceWarnings > 0 ? "toolbar__warn" : ""}
-            onClick={() => setComplianceOpen(true)}
-          >
-            Compliance{complianceWarnings > 0 ? ` (${complianceWarnings})` : ""}
-          </button>
-          <button type="button" onClick={() => downloadWorkflow(workflow)}>
-            Save workflow
-          </button>
-          <button
-            type="button"
-            disabled={selectedNodeIds.length < 2}
-            onClick={handleGroupSelection}
-            title="Group selected nodes (Shift- or ⌘/Ctrl-click, or drag a box on the canvas)"
-          >
-            Group ({selectedNodeIds.length})
-          </button>
-          <button
-            type="button"
-            disabled={selectedNodeIds.length === 0}
-            onClick={handleExportModule}
-          >
-            Export module
-          </button>
-          <button
-            type="button"
-            disabled={!activeGroup}
-            onClick={handleToggleGroupCollapse}
-            title="Collapse or expand the selected group"
-          >
-            {activeGroup?.collapsed ? "Expand group" : "Collapse group"}
-          </button>
-          <button type="button" onClick={() => void handleSaveAsTemplate()}>
-            Save as template
-          </button>
-          <button type="button" onClick={() => void handleInstallPack()}>
-            Install pack
-          </button>
-          <button type="button" onClick={() => comfyImportRef.current?.click()}>
-            Import ComfyUI
-          </button>
-          <button type="button" onClick={() => moduleImportRef.current?.click()}>
-            Import module
-          </button>
-          <button type="button" disabled={running} onClick={() => void handleBatchRender()}>
-            Batch folder
-          </button>
-          <input
-            ref={comfyImportRef}
-            type="file"
-            accept=".json,application/json"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void handleComfyImport(file);
-              event.target.value = "";
-            }}
-          />
-          <input
-            ref={moduleImportRef}
-            type="file"
-            accept=".json,application/json"
-            hidden
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void handleModuleImport(file);
-              event.target.value = "";
-            }}
-          />
-          <span className="status">
-            {status} · API {health}
-          </span>
-        </header>
-        <div className={`workspace workspace--with-palette ${focusMode ? "workspace--focus" : ""}`}>
+        <StudioTopBar
+          templates={templates}
+          selectedTemplateId={selectedTemplateId}
+          onSelectTemplate={(id) => void loadTemplate(id)}
+          onApplyWorkflow={applyWorkflow}
+          complianceWarnings={complianceWarnings}
+          onModelBrowser={() => setModelBrowserOpen(true)}
+          onCompliance={() => setComplianceOpen(true)}
+          workflowBarOpen={workflowBarOpen}
+          onToggleWorkflowBar={() => setWorkflowBarOpen((prev) => !prev)}
+          settings={{
+            selectedCount: selectedNodeIds.length,
+            groupCollapsed: activeGroup ? (activeGroup.collapsed ?? false) : null,
+            paletteOpen,
+            helperOpen,
+            running,
+            onOpenIoSettings: () => setSettingsOpen(true),
+            onSaveWorkflow: () => downloadWorkflow(workflow),
+            onSaveAsTemplate: () => void handleSaveAsTemplate(),
+            onGroup: handleGroupSelection,
+            onExportModule: handleExportModule,
+            onToggleGroupCollapse: handleToggleGroupCollapse,
+            onInstallPack: () => void handleInstallPack(),
+            onImportComfy: () => comfyImportRef.current?.click(),
+            onImportModule: () => moduleImportRef.current?.click(),
+            onBatchRender: () => void handleBatchRender(),
+            onTogglePalette: () => setPaletteOpen((prev) => !prev),
+            onToggleHelper: () => setHelperOpen((prev) => !prev),
+          }}
+        />
+        <input
+          ref={comfyImportRef}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void handleComfyImport(file);
+            event.target.value = "";
+          }}
+        />
+        <input
+          ref={moduleImportRef}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void handleModuleImport(file);
+            event.target.value = "";
+          }}
+        />
+        <div
+          className={[
+            "workspace",
+            paletteOpen && !focusMode ? "workspace--palette-open" : "",
+            helperOpen && !focusMode ? "workspace--helper-open" : "",
+            focusMode ? "workspace--focus" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           {!focusMode ? (
-            <NodePalette
-              onAddNode={(nodeType) => {
-                void defaultWidgetsForNode(nodeType).then((widgets) => {
-                  setWorkflow((prev) => (prev ? addNodeToWorkflow(prev, nodeType, widgets) : prev));
-                });
-              }}
-            />
+            <SidePanel side="left" label="Nodes" open={paletteOpen} onToggle={() => setPaletteOpen((prev) => !prev)}>
+              <NodePalette
+                onAddNode={(nodeType) => {
+                  void defaultWidgetsForNode(nodeType).then((widgets) => {
+                    const center = flowCenterRef.current();
+                    setWorkflow((prev) => (prev ? addNodeToWorkflow(prev, nodeType, widgets, center) : prev));
+                  });
+                }}
+              />
+            </SidePanel>
           ) : null}
           <div
             className={`canvas${dropHint ? " canvas--drop" : ""}`}
@@ -822,62 +804,69 @@ export default function App() {
             }}
           >
             {dropHint ? <div className="canvas__drop-hint">Drop audio to load</div> : null}
-            <ReactFlow
-              nodes={nodes}
-              edges={flowEdges}
-              nodeTypes={nodeTypes}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              onNodeDragStop={onNodeDragStop}
-              onNodeDoubleClick={(_, node) => auditionNode(node.id)}
-              fitView
-              deleteKeyCode={["Backspace", "Delete"]}
-              panOnDrag={[1, 2]}
-              panActivationKeyCode="Space"
-              selectionOnDrag
-              selectionKeyCode={null}
-              multiSelectionKeyCode={["Shift", "Meta", "Control"]}
-            >
-              <Background gap={16} color="#2a2f3a" />
-              <Controls />
-            </ReactFlow>
+            <ReactFlowProvider>
+              <ReactFlow
+                nodes={nodes}
+                edges={flowEdges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onConnect={onConnect}
+                onNodeDragStop={onNodeDragStop}
+                onNodeClick={() => openInspector()}
+                onNodeDoubleClick={(_, node) => auditionNode(node.id)}
+                fitView
+                deleteKeyCode={["Backspace", "Delete"]}
+                panOnDrag={[1, 2]}
+                panActivationKeyCode="Space"
+                selectionOnDrag
+                selectionKeyCode={null}
+                multiSelectionKeyCode={["Shift", "Meta", "Control"]}
+                proOptions={{ hideAttribution: true }}
+              >
+                <FlowViewportBridge canvasSelector=".canvas" onCenterReady={registerFlowCenter} />
+                <Background gap={20} color="#1a1a1a" size={1} />
+                <Controls className="flow-controls" showInteractive={false} />
+              </ReactFlow>
+            </ReactFlowProvider>
           </div>
           {!focusMode ? (
-            <NodeHelper
-              node={selectedNode}
-              workflow={workflow}
-              output={selectedOutput}
-              previewUrl={selectedNodePreview}
-              comparePair={comparePair}
-              compareNote={compareNote}
-              compareMissingRender={compareMissingRender}
-              chainHops={chainHops}
-              onSelectCompareHop={focusCompareHop}
-              showCompare={selectedNodeIds.length === 2}
-              onWidgetChange={updateWidget}
-              onBrowseModel={(nodeId, widget) => {
-                setModelPickTarget({ nodeId, widget });
-                setModelBrowserOpen(true);
-              }}
-              onAudition={() => {
-                if (selectedNodeId) auditionNode(selectedNodeId);
-              }}
-              onCompareAudition={(nodeId) => auditionNode(nodeId)}
-            />
+            <SidePanel side="right" label="Inspector" open={helperOpen} onToggle={() => setHelperOpen((prev) => !prev)}>
+              <NodeHelper
+                node={selectedNode}
+                workflow={workflow}
+                output={selectedOutput}
+                previewUrl={selectedNodePreview}
+                comparePair={comparePair}
+                compareNote={compareNote}
+                compareMissingRender={compareMissingRender}
+                chainHops={chainHops}
+                onSelectCompareHop={focusCompareHop}
+                showCompare={selectedNodeIds.length === 2}
+                onWidgetChange={updateWidget}
+                onBrowseModel={(nodeId, widget) => {
+                  setModelPickTarget({ nodeId, widget });
+                  setModelBrowserOpen(true);
+                }}
+                onAudition={() => {
+                  if (selectedNodeId) auditionNode(selectedNodeId);
+                }}
+                onCompareAudition={(nodeId) => auditionNode(nodeId)}
+              />
+            </SidePanel>
           ) : null}
         </div>
-        {nodePreviewUrl ? <audio className="node-audition" src={nodePreviewUrl} hidden /> : null}
         <TransportBar
-          workflow={workflow}
-          previewUrl={chainPreview}
+          previewUrl={selectedNodePreview}
           waveformPeaks={transportWaveform}
+          emptyHint={transportEmptyHint}
           running={running}
+          statusMessage={status}
           currentNode={currentNode}
           progress={progress}
           onRender={() => void runRender()}
           onRenderAll={() => void runRender(undefined, true)}
-          onPlay={playChain}
+          onPlay={playSelectedNode}
         />
         <ModelBrowser
           open={modelBrowserOpen}
@@ -886,14 +875,7 @@ export default function App() {
             setModelPickTarget(null);
           }}
           onSelectModel={handleModelSelect}
-          onApplyWorkflow={(next: Workflow) => {
-            resetHistory(next);
-            setLastJob(null);
-            setPreview(null);
-            setNodeStatus({});
-            setStatus("Workflow applied — ready to render");
-            setLoadError(null);
-          }}
+          onApplyWorkflow={applyWorkflow}
         />
         <ComplianceDrawer
           open={complianceOpen}

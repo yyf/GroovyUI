@@ -132,6 +132,10 @@ class LiveIoSettingsRequest(BaseModel):
     osc_live_enabled: bool | None = None
     default_input_id: str | None = None
     default_output_id: str | None = None
+    audio_input_enabled: bool | None = None
+    audio_output_enabled: bool | None = None
+    default_audio_input_id: str | None = None
+    default_audio_output_id: str | None = None
 
 
 class MidiInEventRequest(BaseModel):
@@ -194,6 +198,12 @@ def health() -> dict[str, str | bool]:
 @app.get("/api/midi/devices")
 def midi_devices(direction: str | None = None) -> dict[str, list[dict[str, str]]]:
     devices = _live_io.list_devices(direction=direction)
+    return {"devices": [device.to_dict() for device in devices]}
+
+
+@app.get("/api/audio/devices")
+def audio_devices(direction: str | None = None) -> dict[str, list[dict[str, Any]]]:
+    devices = _live_io.list_audio_devices(direction=direction)
     return {"devices": [device.to_dict() for device in devices]}
 
 

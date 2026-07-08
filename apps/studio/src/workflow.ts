@@ -1,12 +1,75 @@
 import type { Edge, Node } from "@xyflow/react";
 import type { JobOutput, NodeRenderStatus, NodeSchema, Workflow, WorkflowGroup, WorkflowLink, WorkflowModule, WorkflowNode } from "./types";
 import type { GroovyGroupNodeData } from "./components/ModuleGroupNode";
-import type { GroovyNodeData } from "./components/GroovyFlowNode";
+import type { GroovyNodeData, NodeSocketSpec } from "./components/GroovyFlowNode";
 import { edgeTypeClass, socketTypeColor } from "./socketTypes";
 
 export function previewCacheId(output?: JobOutput): string | null {
   if (!output?.cache_id) return null;
   return output.cache_id;
+}
+
+const WIREABLE_INPUT_TYPES = new Set([
+  "AUDIO",
+  "STEMS",
+  "MIDI",
+  "TEXT",
+  "AUTOMATION",
+  "AMBISONICS",
+  "OBA",
+  "OSC",
+  "AUTHENTICITY",
+]);
+
+/** Whether an input socket should appear as a canvas handle (optional floats stay in the inspector). */
+export function isWireableInput(socket: { type: string; optional?: boolean }): boolean {
+  if (!socket.optional) return true;
+  return WIREABLE_INPUT_TYPES.has(socket.type);
+}
+
+/** Infer minimum socket counts from workflow links when schemas are not loaded yet. */
+export function inferNodeSocketCounts(
+  workflow: Workflow,
+  nodeId: string,
+): { inputs: number; outputs: number } {
+  let inputs = 0;
+  let outputs = 0;
+  for (const link of workflow.links) {
+    if (link.to[0] === nodeId) {
+      inputs = Math.max(inputs, link.to[1] + 1);
+    }
+    if (link.from[0] === nodeId) {
+      outputs = Math.max(outputs, link.from[1] + 1);
+    }
+  }
+  return { inputs, outputs: Math.max(outputs, 1) };
+}
+
+function schemaInputSockets(schema: NodeSchema): NodeSocketSpec[] {
+  return schema.inputs
+    .map((socket, slot) => ({
+      name: socket.name,
+      type: socket.type,
+      optional: socket.optional,
+      slot,
+    }))
+    .filter((socket) => isWireableInput(socket));
+}
+
+function placeholderInputSockets(count: number): NodeSocketSpec[] {
+  return Array.from({ length: count }, (_, slot) => ({
+    name: slot === 0 ? "in" : `in_${slot}`,
+    type: "AUDIO",
+    slot,
+  }));
+}
+
+function placeholderOutputSockets(count: number): NodeSocketSpec[] {
+  return Array.from({ length: count }, (_, slot) => ({
+    name: slot === 0 ? "out" : `out_${slot}`,
+    type: "AUDIO",
+    slot,
+  }));
 }
 
 /** Preserve React Flow interaction state when syncing derived nodes from workflow. */
@@ -151,21 +214,40 @@ export function workflowToFlowNodes(
   workflow: Workflow,
   nodeStatus: Record<string, NodeRenderStatus>,
   outputs?: Record<string, JobOutput>,
+  schemas?: Record<string, NodeSchema>,
 ): Node<GroovyNodeData | GroovyGroupNodeData>[] {
   const hidden = collapsedMemberIds(workflow);
   const nodes: Node<GroovyNodeData | GroovyGroupNodeData>[] = workflow.nodes
     .filter((node) => !hidden.has(node.id))
-    .map((n: WorkflowNode) => ({
-      id: n.id,
-      type: "groovy",
-      position: n.pos ?? { x: 0, y: 0 },
-      data: {
-        label: n.type,
-        status: nodeStatus[n.id] ?? "idle",
-        nodeId: n.id,
-        canAudition: !!previewCacheId(outputs?.[n.id]),
-      },
-    }));
+    .map((n: WorkflowNode) => {
+      const schema = schemas?.[n.type];
+      const linkCounts = inferNodeSocketCounts(workflow, n.id);
+      const inputs: NodeSocketSpec[] = schema
+        ? schemaInputSockets(schema)
+        : linkCounts.inputs > 0
+          ? placeholderInputSockets(linkCounts.inputs)
+          : [];
+      const outputSockets: NodeSocketSpec[] = schema
+        ? schema.outputs.map((socket, slot) => ({
+            name: socket.name,
+            type: socket.type,
+            slot,
+          }))
+        : placeholderOutputSockets(linkCounts.outputs);
+      return {
+        id: n.id,
+        type: "groovy",
+        position: n.pos ?? { x: 0, y: 0 },
+        data: {
+          label: n.type,
+          status: nodeStatus[n.id] ?? "idle",
+          nodeId: n.id,
+          canAudition: !!previewCacheId(outputs?.[n.id]),
+          inputs,
+          outputs: outputSockets,
+        },
+      };
+    });
 
   for (const group of workflow.groups) {
     if (!group.collapsed) continue;
@@ -195,6 +277,8 @@ export function workflowToFlowEdges(workflow: Workflow, activeEdgeIds?: Set<stri
       id: l.id,
       source: l.from[0],
       target: l.to[0],
+      sourceHandle: String(l.from[1]),
+      targetHandle: String(l.to[1]),
       label: l.type,
       className: [typeClass, active ? "groovy-edge--active" : ""].filter(Boolean).join(" "),
       animated: active,
@@ -607,6 +691,32 @@ export function importModule(
   };
 }
 
+export function connectNodes(
+  workflow: Workflow,
+  connection: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null },
+  schemas: Record<string, NodeSchema>,
+): Workflow {
+  const sourceSlot = Number.parseInt(connection.sourceHandle ?? "0", 10);
+  const targetSlot = Number.parseInt(connection.targetHandle ?? "0", 10);
+  const sourceNode = workflow.nodes.find((node) => node.id === connection.source);
+  const targetNode = workflow.nodes.find((node) => node.id === connection.target);
+  const targetSchema = targetNode ? schemas[targetNode.type] : undefined;
+  const sourceSchema = sourceNode ? schemas[sourceNode.type] : undefined;
+  const linkType =
+    targetSchema?.inputs[targetSlot]?.type ?? sourceSchema?.outputs[sourceSlot]?.type ?? "AUDIO";
+
+  const links = workflow.links.filter(
+    (link) => !(link.to[0] === connection.target && link.to[1] === targetSlot),
+  );
+  const link: WorkflowLink = {
+    id: `l_${connection.source}_${connection.target}_${targetSlot}_${Date.now()}`,
+    from: [connection.source, sourceSlot],
+    to: [connection.target, targetSlot],
+    type: linkType,
+  };
+  return { ...workflow, links: [...links, link] };
+}
+
 export function addLink(workflow: Workflow, sourceId: string, targetId: string, type = "AUDIO"): Workflow {
   const link: WorkflowLink = {
     id: `l_${sourceId}_${targetId}_${Date.now()}`,
@@ -725,18 +835,74 @@ export function collectModelRefs(workflow: Workflow): string[] {
   return [...ids];
 }
 
+const DEFAULT_NODE_SIZE = { width: 140, height: 48 };
+const NODE_PLACEMENT_GAP = 24;
+
+type Rect = { x: number; y: number; w: number; h: number };
+
+function rectsOverlap(a: Rect, b: Rect): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function nodeRect(node: WorkflowNode, size = DEFAULT_NODE_SIZE): Rect {
+  return {
+    x: node.pos?.x ?? 0,
+    y: node.pos?.y ?? 0,
+    w: size.width,
+    h: size.height,
+  };
+}
+
+/** Find top-left position near viewport center without overlapping existing nodes. */
+export function findOpenNodePosition(
+  workflow: Workflow,
+  center: { x: number; y: number },
+  size = DEFAULT_NODE_SIZE,
+): { x: number; y: number } {
+  const obstacles = workflow.nodes.map((node) => nodeRect(node, size));
+  const stepX = size.width + NODE_PLACEMENT_GAP;
+  const stepY = size.height + NODE_PLACEMENT_GAP;
+  const offsets: Array<{ dx: number; dy: number }> = [{ dx: 0, dy: 0 }];
+
+  for (let ring = 1; ring < 24; ring++) {
+    for (let dy = -ring; dy <= ring; dy++) {
+      for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.abs(dx) === ring || Math.abs(dy) === ring) {
+          offsets.push({ dx, dy });
+        }
+      }
+    }
+  }
+
+  for (const { dx, dy } of offsets) {
+    const x = center.x - size.width / 2 + dx * stepX;
+    const y = center.y - size.height / 2 + dy * stepY;
+    const candidate = { x, y, w: size.width, h: size.height };
+    if (!obstacles.some((obstacle) => rectsOverlap(candidate, obstacle))) {
+      return { x, y };
+    }
+  }
+
+  return {
+    x: center.x - size.width / 2,
+    y: center.y - size.height / 2 + workflow.nodes.length * 16,
+  };
+}
+
 export function addNodeToWorkflow(
   workflow: Workflow,
   nodeType: string,
   widgets: Record<string, unknown>,
+  center?: { x: number; y: number },
 ): Workflow {
   const id = `n${workflow.nodes.length + 1}`;
-  const maxX = workflow.nodes.reduce((acc, n) => Math.max(acc, n.pos?.x ?? 0), 0);
+  const anchor = center ?? { x: 320, y: 200 };
+  const pos = findOpenNodePosition(workflow, anchor);
   return {
     ...workflow,
     nodes: [
       ...workflow.nodes,
-      { id, type: nodeType, pos: { x: maxX + 220, y: 80 }, widgets },
+      { id, type: nodeType, pos, widgets },
     ],
   };
 }

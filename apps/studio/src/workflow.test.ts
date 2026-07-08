@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { Workflow } from "./types";
 import {
+  connectNodes,
   duplicateSelection,
+  inferNodeSocketCounts,
+  isWireableInput,
   extractSelection,
+  findOpenNodePosition,
   mergeFlowEdges,
   mergeFlowNodes,
   pasteSelection,
   removeNodesFromWorkflow,
   wiredInputsForNode,
   workflowToFlowEdges,
+  workflowToFlowNodes,
 } from "./workflow";
 
 function sampleWorkflow(): Workflow {
@@ -95,6 +100,126 @@ describe("workflowToFlowEdges", () => {
     const edges = workflowToFlowEdges(sampleWorkflow());
     expect(edges[0]?.label).toBe("AUDIO");
     expect(edges[0]?.className).toContain("groovy-edge--type-audio");
+  });
+});
+
+describe("workflowToFlowNodes", () => {
+  it("shows only wireable Mix inputs with stable slot ids", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [{ id: "mix", type: "Mix", pos: { x: 0, y: 0 }, widgets: {} }],
+      links: [],
+    };
+    const schemas: Record<string, import("./types").NodeSchema> = {
+      Mix: {
+        type: "Mix",
+        category: "GroovyUI/Core",
+        inputs: [
+          { name: "a", type: "AUDIO" },
+          { name: "b", type: "AUDIO" },
+          { name: "gain_a", type: "FLOAT", optional: true },
+          { name: "gain_b", type: "FLOAT", optional: true },
+        ],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [],
+      },
+    };
+    const nodes = workflowToFlowNodes(workflow, {}, undefined, schemas);
+    const mix = nodes.find((node) => node.id === "mix");
+    expect(mix?.data.inputs).toEqual([
+      { name: "a", type: "AUDIO", optional: undefined, slot: 0 },
+      { name: "b", type: "AUDIO", optional: undefined, slot: 1 },
+    ]);
+  });
+});
+
+describe("inferNodeSocketCounts", () => {
+  it("derives handle counts from link slot indices", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "n2", type: "LoadAudio", pos: { x: 0, y: 120 }, widgets: {} },
+        { id: "n3", type: "Mix", pos: { x: 240, y: 0 }, widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n3", 0], type: "AUDIO" },
+        { id: "l2", from: ["n2", 0], to: ["n3", 1], type: "AUDIO" },
+      ],
+    };
+    expect(inferNodeSocketCounts(workflow, "n3")).toEqual({ inputs: 2, outputs: 1 });
+    expect(inferNodeSocketCounts(workflow, "n1")).toEqual({ inputs: 0, outputs: 1 });
+  });
+});
+
+describe("isWireableInput", () => {
+  it("hides optional float gain sockets from the canvas", () => {
+    expect(isWireableInput({ type: "AUDIO" })).toBe(true);
+    expect(isWireableInput({ type: "FLOAT", optional: true })).toBe(false);
+    expect(isWireableInput({ type: "MIDI", optional: true })).toBe(true);
+  });
+});
+
+describe("connectNodes", () => {
+  const schemas: Record<string, import("./types").NodeSchema> = {
+    Mix: {
+      type: "Mix",
+      category: "GroovyUI/Core",
+      inputs: [
+        { name: "a", type: "AUDIO" },
+        { name: "b", type: "AUDIO" },
+        { name: "gain_a", type: "FLOAT", optional: true },
+        { name: "gain_b", type: "FLOAT", optional: true },
+      ],
+      outputs: [{ name: "output_0", type: "AUDIO" }],
+      widgets: [],
+    },
+    LoadAudio: {
+      type: "LoadAudio",
+      category: "GroovyUI/Core",
+      inputs: [],
+      outputs: [{ name: "output_0", type: "AUDIO" }],
+      widgets: [],
+    },
+  };
+
+  it("wires second Mix input to slot 1", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "n2", type: "LoadAudio", pos: { x: 0, y: 120 }, widgets: { path: "b.wav" } },
+        { id: "n3", type: "Mix", pos: { x: 240, y: 0 }, widgets: {} },
+      ],
+      links: [],
+    };
+    const next = connectNodes(
+      connectNodes(workflow, { source: "n1", target: "n3", sourceHandle: "0", targetHandle: "0" }, schemas),
+      { source: "n2", target: "n3", sourceHandle: "0", targetHandle: "1" },
+      schemas,
+    );
+    expect(next.links).toHaveLength(2);
+    expect(next.links.find((link) => link.to[1] === 1)?.from).toEqual(["n2", 0]);
+  });
+});
+
+describe("findOpenNodePosition", () => {
+  it("places at center when canvas is empty at that point", () => {
+    const pos = findOpenNodePosition(sampleWorkflow(), { x: 100, y: 100 });
+    expect(pos).toEqual({ x: 30, y: 76 });
+  });
+
+  it("offsets when center overlaps an existing node", () => {
+    const pos = findOpenNodePosition(sampleWorkflow(), { x: 10, y: 10 });
+    expect(pos.x !== 10 || pos.y !== 10).toBe(true);
+    const workflow = { ...sampleWorkflow(), nodes: [...sampleWorkflow().nodes, { id: "n4", type: "Mix", pos, widgets: {} }] };
+    const overlaps = workflow.nodes.some(
+      (node, index, all) =>
+        index < all.length - 1 &&
+        Math.abs((node.pos?.x ?? 0) - pos.x) < 140 &&
+        Math.abs((node.pos?.y ?? 0) - pos.y) < 48,
+    );
+    expect(overlaps).toBe(false);
   });
 });
 
