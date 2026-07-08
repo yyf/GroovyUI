@@ -3,8 +3,10 @@ import StudioSettingsMenu, { type StudioSettingsMenuProps } from "./StudioSettin
 import TemplateSelector from "./TemplateSelector";
 import WorkflowGenerateButton from "./WorkflowGenerateButton";
 
+import type { TemplateListItem } from "../api";
+
 type Props = {
-  templates: Array<{ id: string; title: string }>;
+  templates: TemplateListItem[];
   selectedTemplateId: string;
   onSelectTemplate: (templateId: string) => void;
   onApplyWorkflow: (workflow: Workflow) => void;

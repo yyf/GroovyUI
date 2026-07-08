@@ -117,12 +117,43 @@ class SaveAudio(GroovyNode):
     def INPUT_TYPES(cls):
         return {
             "required": {"audio": ("AUDIO",)},
-            "optional": {},
+            "optional": {
+                "path": (
+                    "STRING",
+                    {
+                        "default": "exports",
+                        "description": "Folder under the project directory (e.g. exports/podcast)",
+                    },
+                ),
+                "filename": (
+                    "STRING",
+                    {
+                        "default": "output.wav",
+                        "description": "File name including extension",
+                    },
+                ),
+                "format": ("STRING", {"default": "wav"}),
+                "bit_depth": ("STRING", {"default": "float"}),
+            },
         }
+
+    @staticmethod
+    def _resolve_output_relative(path: str, filename: str) -> str:
+        folder = (path or "").strip().strip("/")
+        name = (filename or "").strip().lstrip("/")
+        if not name:
+            name = "output.wav"
+        # Legacy workflows stored the full relative path in filename only.
+        if "/" in name and (not folder or folder == "exports"):
+            return name
+        if folder:
+            return f"{folder}/{name}"
+        return name
 
     def run(
         self,
         audio: AudioBuffer,
+        path: str = "exports",
         filename: str = "output.wav",
         format: str = "wav",
         bit_depth: str = "float",
@@ -130,14 +161,18 @@ class SaveAudio(GroovyNode):
     ) -> tuple[str]:
         if not self._ctx:
             raise RuntimeError("Node context not bound")
-        filename = kwargs.get("filename", filename)
-        out_path = self._ctx.cache.resolve_project_path(filename)
+        folder = str(kwargs.get("path", path))
+        name = str(kwargs.get("filename", filename))
+        fmt = str(kwargs.get("format", format))
+        depth = str(kwargs.get("bit_depth", bit_depth))
+        relative = self._resolve_output_relative(folder, name)
+        out_path = self._ctx.cache.resolve_project_path(relative)
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         _, pcm = self._ctx.cache.load_audio(audio.id)
         interleaved = pcm.T
-        subtype = "FLOAT" if bit_depth == "float" else "PCM_24"
-        sf.write(out_path, interleaved, audio.sample_rate, format=format.upper(), subtype=subtype)
+        subtype = "FLOAT" if depth == "float" else "PCM_24"
+        sf.write(out_path, interleaved, audio.sample_rate, format=fmt.upper(), subtype=subtype)
         try:
             self._ctx.cache.export_provenance_sidecar(audio.id, out_path)
         except FileNotFoundError:

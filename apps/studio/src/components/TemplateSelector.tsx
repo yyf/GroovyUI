@@ -1,16 +1,23 @@
-import { useEffect, useRef, useState } from "react";
-
-type Template = { id: string; title: string };
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { TemplateListItem } from "../api";
 
 type Props = {
-  templates: Template[];
+  templates: TemplateListItem[];
   selectedId: string;
   onSelect: (templateId: string) => void;
 };
 
+function groupTemplates(templates: TemplateListItem[]) {
+  const bundled = templates.filter((template) => template.source !== "user");
+  const user = templates.filter((template) => template.source === "user");
+  return { bundled, user };
+}
+
 export default function TemplateSelector({ templates, selectedId, onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const { bundled, user } = useMemo(() => groupTemplates(templates), [templates]);
+  const selected = templates.find((template) => template.id === selectedId);
 
   useEffect(() => {
     if (!open) return;
@@ -28,6 +35,23 @@ export default function TemplateSelector({ templates, selectedId, onSelect }: Pr
     };
   }, [open]);
 
+  const renderOption = (template: TemplateListItem) => (
+    <li key={template.id}>
+      <button
+        type="button"
+        role="option"
+        aria-selected={template.id === selectedId}
+        className={`template-select__option${template.id === selectedId ? " template-select__option--active" : ""}`}
+        onClick={() => {
+          setOpen(false);
+          if (template.id !== selectedId) onSelect(template.id);
+        }}
+      >
+        {template.title}
+      </button>
+    </li>
+  );
+
   return (
     <div className="template-select" ref={rootRef}>
       <button
@@ -36,27 +60,28 @@ export default function TemplateSelector({ templates, selectedId, onSelect }: Pr
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-haspopup="listbox"
+        title={selected?.description || undefined}
       >
-        Workflow template
+        {selected?.title ?? "Workflow template"}
       </button>
       {open ? (
         <ul className="template-select__menu" role="listbox" aria-label="Workflow template">
-          {templates.map((template) => (
-            <li key={template.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={template.id === selectedId}
-                className={`template-select__option${template.id === selectedId ? " template-select__option--active" : ""}`}
-                onClick={() => {
-                  setOpen(false);
-                  if (template.id !== selectedId) onSelect(template.id);
-                }}
-              >
-                {template.title}
-              </button>
-            </li>
-          ))}
+          <li className="template-select__group" role="presentation">
+            <span className="template-select__group-label">Default templates</span>
+            <ul className="template-select__group-list">
+              {bundled.length > 0 ? bundled.map(renderOption) : (
+                <li className="template-select__empty">No default templates</li>
+              )}
+            </ul>
+          </li>
+          <li className="template-select__group" role="presentation">
+            <span className="template-select__group-label">Your templates</span>
+            <ul className="template-select__group-list">
+              {user.length > 0 ? user.map(renderOption) : (
+                <li className="template-select__empty">Save a workflow as template to add it here</li>
+              )}
+            </ul>
+          </li>
         </ul>
       ) : null}
     </div>

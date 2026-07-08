@@ -19,14 +19,15 @@ import {
   executeWorkflow,
   fetchCompliance,
   fetchAllNodeSchemas,
-  generateTemplateFromWorkflow,
   listPacks,
   installPack,
   fetchTemplate,
   fetchWaveform,
   listTemplates,
+  saveUserTemplate,
   previewUrl,
   uploadProjectAudio,
+  type TemplateListItem,
 } from "./api";
 import ComplianceDrawer from "./components/ComplianceDrawer";
 import FlowViewportBridge from "./components/FlowViewportBridge";
@@ -62,6 +63,7 @@ import {
   listDistinctChainHops,
   mergeFlowNodes,
   previewCacheId,
+  savedFilePath,
   duplicateSelection,
   extractSelection,
   pasteSelection,
@@ -80,7 +82,8 @@ const DEFAULT_TEMPLATE = "podcast-denoise";
 
 export default function App() {
   const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory();
-  const [templates, setTemplates] = useState<Array<{ id: string; title: string }>>([]);
+  const [templates, setTemplates] = useState<TemplateListItem[]>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState(DEFAULT_TEMPLATE);
   const [nodeSchemas, setNodeSchemas] = useState<Record<string, NodeSchema>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const comfyImportRef = useRef<HTMLInputElement>(null);
@@ -149,6 +152,7 @@ export default function App() {
       pasteCountRef.current = 0;
       const data = await fetchTemplate(templateId);
       resetHistory(data);
+      setActiveTemplateId(templateId);
       setStatus("Ready");
       setLoadError(null);
     },
@@ -330,13 +334,21 @@ export default function App() {
               out?.midi_id ||
               out?.authenticity_id ||
               out?.automation_id ||
-              out?.type === "TEXT"
+              out?.type === "TEXT" ||
+              out?.type === "STRING"
             ) {
               cached[nodeId] = "cached";
             }
           }
           setNodeStatus((prev) => ({ ...prev, ...cached }));
-          setStatus("Complete");
+          const saved = targets
+            .map((nodeId) => {
+              const node = workflow.nodes.find((n) => n.id === nodeId);
+              const path = savedFilePath(outputs[nodeId]);
+              return node?.type === "SaveAudio" && path ? path : null;
+            })
+            .find(Boolean);
+          setStatus(saved ? `Saved to ${saved}` : "Complete");
         } else {
           setStatus(`Failed: ${formatJobError(job.error)}`);
         }
@@ -518,11 +530,14 @@ export default function App() {
     if (!workflow) return;
     try {
       const title = window.prompt("Template title", workflow.metadata.title) ?? workflow.metadata.title;
-      const result = await generateTemplateFromWorkflow(workflow, title);
-      downloadTemplateJson(result.template, `${result.template_id}.groovy.json`);
-      setStatus(`Template generated: ${result.template_id}`);
+      const saved = await saveUserTemplate(workflow, title);
+      downloadTemplateJson(saved.template, `${saved.template_id}.groovy.json`);
+      const nextTemplates = await listTemplates();
+      setTemplates(nextTemplates);
+      setActiveTemplateId(saved.template_id);
+      setStatus(`Template saved: ${saved.template_id}`);
     } catch (err) {
-      setStatus(`Template generation failed: ${String(err)}`);
+      setStatus(`Template save failed: ${String(err)}`);
     }
   }, [workflow]);
 
@@ -631,11 +646,16 @@ export default function App() {
     },
     [setNodes],
   );
+  const selectedSavedPath = savedFilePath(selectedOutput);
   const transportEmptyHint = !selectedNodeId
     ? "Select a node"
-    : !selectedNodePreview
-      ? "Render to preview this node"
-      : "No render yet";
+    : selectedNode?.type === "SaveAudio"
+      ? selectedSavedPath
+        ? `Saved to ${selectedSavedPath}`
+        : "Render to write audio file"
+      : !selectedNodePreview
+        ? "Render to preview this node"
+        : "No render yet";
 
   useEffect(() => {
     document.querySelector<HTMLAudioElement>(".transport__audio")?.pause();
@@ -680,10 +700,7 @@ export default function App() {
     };
   }, [workflow, selectedNodeId, selectedNodePreview]);
 
-  const selectedTemplateId = useMemo(
-    () => templates.find((t) => t.title === workflow?.metadata.title)?.id ?? DEFAULT_TEMPLATE,
-    [templates, workflow?.metadata.title],
-  );
+  const selectedTemplateId = activeTemplateId;
 
   const applyWorkflow = useCallback(
     (next: Workflow) => {

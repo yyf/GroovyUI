@@ -11,7 +11,7 @@ import {
 } from "../api";
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowNode } from "../types";
 import type { CompareHop } from "../workflow";
-import { wiredInputsForNode } from "../workflow";
+import { joinSaveAudioPath, wiredInputsForNode } from "../workflow";
 import AudioFormatPanel from "./AudioFormatPanel";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
@@ -273,7 +273,7 @@ export default function NodeHelper({
             ) : null}
             {schema.widgets.map((widget) => (
               <label key={widget.name} className="node-helper__field">
-                <span>{widget.name}</span>
+                <span>{widgetLabel(widget.name, node.type)}</span>
                 {widget.description ? <small className="node-helper__hint">{widget.description}</small> : null}
                 <WidgetInput
                   spec={widget}
@@ -287,7 +287,15 @@ export default function NodeHelper({
                 />
               </label>
             ))}
-            {schema.widgets.length === 0 ? <p className="node-helper__hint">No configurable parameters.</p> : null}
+            {node.type === "SaveAudio" ? (
+              <p className="node-helper__hint">
+                Writes to <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code> under the
+                project folder.
+              </p>
+            ) : null}
+            {schema.widgets.length === 0 && node.type !== "SaveAudio" ? (
+              <p className="node-helper__hint">No configurable parameters.</p>
+            ) : null}
             {node.type === "LoadAudio" ? (
               <AudioFormatPanel meta={fileMeta} title="Source file format" />
             ) : null}
@@ -613,14 +621,23 @@ function OutputSnapshot({
   waveform: number[];
 }) {
   if (output.type !== socketType && socketType !== "AUDIO") {
-    return <p className="node-helper__hint">No render for this socket yet.</p>;
+    if (socketType === "STRING" && (output.type === "STRING" || output.type === "TEXT")) {
+      // SaveAudio path output (STRING) or legacy TEXT path payloads
+    } else {
+      return <p className="node-helper__hint">No render for this socket yet.</p>;
+    }
   }
 
   return (
     <div className="node-helper__output-snapshot">
       <p className="node-helper__socket-wire">
-        <SocketTypeBadge type={output.type} /> cached
+        <SocketTypeBadge type={socketType} /> {output.type === "STRING" ? "written" : "cached"}
       </p>
+      {output.type === "STRING" && output.path ? (
+        <p className="node-helper__text">
+          <code>{output.path}</code>
+        </p>
+      ) : null}
       {output.type === "TEXT" && output.text ? <p className="node-helper__text">{output.text}</p> : null}
       {output.type === "STEMS" && output.stems ? (
         <ul className="node-helper__list">
@@ -650,8 +667,18 @@ function formatNarrative(narrative: string): string {
   return narrative.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1");
 }
 
+function widgetLabel(name: string, nodeType: string): string {
+  if (nodeType === "SaveAudio") {
+    if (name === "path") return "Output folder";
+    if (name === "filename") return "File name";
+    if (name === "format") return "Format";
+    if (name === "bit_depth") return "Bit depth";
+  }
+  return name;
+}
+
 type WidgetInputProps = {
-  spec: { name: string; type: string; default?: unknown };
+  spec: { name: string; type: string; default?: unknown; description?: string };
   value: unknown;
   onChange: (value: unknown) => void;
   onBrowse?: () => void;

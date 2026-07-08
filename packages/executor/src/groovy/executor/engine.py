@@ -182,7 +182,10 @@ class Executor:
                         outputs[node_id] = output_meta
                         break
                     if isinstance(item, str):
-                        output_meta = {"type": "TEXT", "text": item}
+                        if node.type == "SaveAudio":
+                            output_meta = {"type": "STRING", "path": item}
+                        else:
+                            output_meta = {"type": "TEXT", "text": item}
                         outputs[node_id] = output_meta
                         break
 
@@ -269,6 +272,8 @@ class Executor:
                 result.append(self.cache.load_osc(item["osc_id"]))
             elif item.get("type") == "TEXT":
                 result.append(str(item.get("text", "")))
+            elif item.get("type") == "STRING" and item.get("path"):
+                result.append(str(item["path"]))
         return tuple(result)
 
     def _result_from_meta(self, output_meta: dict[str, Any]) -> tuple[Any, ...] | None:

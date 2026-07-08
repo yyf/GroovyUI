@@ -9,6 +9,28 @@ export function previewCacheId(output?: JobOutput): string | null {
   return output.cache_id;
 }
 
+export function savedFilePath(output?: JobOutput): string | null {
+  if (output?.type === "STRING" && output.path) return output.path;
+  if (output?.type === "TEXT" && output.text && /\.(wav|flac|aiff|mp3|ogg|opus)$/i.test(output.text)) {
+    return output.text;
+  }
+  return null;
+}
+
+/** Join SaveAudio path + filename widgets into a project-relative output path. */
+export function joinSaveAudioPath(
+  path: unknown,
+  filename: unknown,
+): string {
+  const folder = typeof path === "string" ? path.trim().replace(/^\/+|\/+$/g, "") : "";
+  const name = typeof filename === "string" ? filename.trim().replace(/^\/+/, "") : "";
+  const file = name || "output.wav";
+  if (file.includes("/") && (!folder || folder === "exports")) {
+    return file;
+  }
+  return folder ? `${folder}/${file}` : file;
+}
+
 const WIREABLE_INPUT_TYPES = new Set([
   "AUDIO",
   "STEMS",

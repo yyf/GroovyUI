@@ -57,8 +57,8 @@ def generate_template_from_workflow(
         },
         "nodes": [node.model_dump() for node in workflow.nodes],
         "links": [link.model_dump() for link in workflow.links],
-        "groups": workflow.groups,
-        "view": workflow.view or {"zoom": 1.0, "pan": {"x": 0, "y": 0}},
+        "groups": [group.model_dump() for group in workflow.groups],
+        "view": workflow.view.model_dump() if workflow.view else {"zoom": 1.0, "pan": {"x": 0, "y": 0}},
     }
     validation = None
     if known_node_types is not None:

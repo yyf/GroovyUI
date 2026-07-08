@@ -132,6 +132,41 @@ body {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
 }
 
+.template-select__group {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.template-select__group + .template-select__group {
+  border-top: 1px solid var(--border-dim);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.template-select__group-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 12px 4px;
+}
+
+.template-select__group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.template-select__empty {
+  padding: 6px 12px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .template-select__option {
   display: block;
   width: 100%;

@@ -47,6 +47,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_WORKSPACE = REPO_ROOT / "workspace"
 TEMPLATES_DIR = REPO_ROOT / "templates"
 PROJECT_DIR = Path(os.environ.get("GROOVY_PROJECT_DIR", str(DEFAULT_WORKSPACE))).resolve()
+USER_TEMPLATES_DIR = PROJECT_DIR / "templates"
 HOST = os.environ.get("GROOVY_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GROOVY_PORT", "8188"))
 
@@ -172,6 +173,59 @@ class CompareAnalyzeRequest(BaseModel):
 
 def _workflow_from_dict(data: dict[str, Any]) -> Workflow:
     return Workflow.model_validate(data)
+
+
+def _template_meta(path: Path, source: str) -> dict[str, str]:
+    data = json.loads(path.read_text())
+    meta = data.get("metadata", {})
+    template_id = path.name.removesuffix(".groovy.json")
+    return {
+        "id": template_id,
+        "title": str(meta.get("title", template_id)),
+        "description": str(meta.get("description", "")),
+        "source": source,
+    }
+
+
+def _list_all_templates() -> list[dict[str, str]]:
+    templates: list[dict[str, str]] = []
+    seen: set[str] = set()
+    if TEMPLATES_DIR.is_dir():
+        for path in sorted(TEMPLATES_DIR.glob("*.groovy.json")):
+            entry = _template_meta(path, "bundled")
+            templates.append(entry)
+            seen.add(entry["id"])
+    if USER_TEMPLATES_DIR.is_dir():
+        for path in sorted(USER_TEMPLATES_DIR.glob("*.groovy.json")):
+            entry = _template_meta(path, "user")
+            if entry["id"] in seen:
+                continue
+            templates.append(entry)
+            seen.add(entry["id"])
+    return templates
+
+
+def _resolve_template_path(template_id: str) -> Path | None:
+    user_path = USER_TEMPLATES_DIR / f"{template_id}.groovy.json"
+    if user_path.exists():
+        return user_path
+    bundled_path = TEMPLATES_DIR / f"{template_id}.groovy.json"
+    if bundled_path.exists():
+        return bundled_path
+    return None
+
+
+def _unique_user_template_path(template_id: str) -> Path:
+    USER_TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
+    candidate = USER_TEMPLATES_DIR / f"{template_id}.groovy.json"
+    if not candidate.exists():
+        return candidate
+    index = 2
+    while True:
+        candidate = USER_TEMPLATES_DIR / f"{template_id}-{index}.groovy.json"
+        if not candidate.exists():
+            return candidate
+        index += 1
 
 
 @app.get("/")
@@ -349,27 +403,36 @@ def get_node(node_type: str, enriched: bool = True) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@app.post("/api/templates")
+def save_user_template(body: GenerateTemplateRequest) -> dict[str, Any]:
+    result = generate_template_from_workflow(
+        body.workflow,
+        title=body.title,
+        description=body.description,
+        tags=body.tags,
+        known_node_types=set(NODE_REGISTRY.keys()),
+    )
+    template_id = str(result["template_id"])
+    path = _unique_user_template_path(template_id)
+    path.write_text(json.dumps(result["template"], indent=2) + "\n")
+    actual_id = path.name.removesuffix(".groovy.json")
+    return {
+        **result,
+        "template_id": actual_id,
+        "source": "user",
+        "path": str(path.relative_to(PROJECT_DIR)),
+    }
+
+
 @app.get("/api/templates")
 def list_templates() -> dict[str, list[dict[str, str]]]:
-    templates: list[dict[str, str]] = []
-    for path in sorted(TEMPLATES_DIR.glob("*.groovy.json")):
-        data = json.loads(path.read_text())
-        meta = data.get("metadata", {})
-        template_id = path.name.removesuffix(".groovy.json")
-        templates.append(
-            {
-                "id": template_id,
-                "title": str(meta.get("title", template_id)),
-                "description": str(meta.get("description", "")),
-            }
-        )
-    return {"templates": templates}
+    return {"templates": _list_all_templates()}
 
 
 @app.get("/api/templates/{template_id}")
 def get_template(template_id: str) -> dict[str, Any]:
-    path = TEMPLATES_DIR / f"{template_id}.groovy.json"
-    if not path.exists():
+    path = _resolve_template_path(template_id)
+    if path is None:
         raise HTTPException(status_code=404, detail="Template not found")
     return json.loads(path.read_text())
 

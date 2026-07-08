@@ -100,7 +100,13 @@ def _widgets_from_comfy(node: dict[str, Any], groovy_type: str) -> dict[str, Any
     if groovy_type == "LoadAudio" and widgets_values:
         widgets["path"] = str(widgets_values[0])
     elif groovy_type == "SaveAudio" and widgets_values:
-        widgets["path"] = str(widgets_values[0])
+        full = str(widgets_values[0])
+        if "/" in full:
+            parent, _, leaf = full.rpartition("/")
+            widgets["path"] = parent or "exports"
+            widgets["filename"] = leaf
+        else:
+            widgets["filename"] = full
     elif groovy_type == "Normalize":
         widgets.setdefault("target_lufs", -16.0)
     elif groovy_type in {"Denoise", "SeparateStems", "WhisperSTT", "TTS", "VoiceConvert"}:

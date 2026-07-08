@@ -86,6 +86,7 @@ export type JobOutput = {
   cache_id?: string;
   type: string;
   text?: string;
+  path?: string;
   stems_id?: string;
   stems?: Record<string, string>;
   midi_id?: string;

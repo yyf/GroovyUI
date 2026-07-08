@@ -8,6 +8,7 @@ import type {
   ProvenanceSummary,
   Workflow,
 } from "./types";
+import { applyNodeSchemaFallbacks } from "./nodeSchemaFallbacks";
 
 export const API = import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188";
 
@@ -219,7 +220,7 @@ export async function fetchNodeSchema(nodeType: string): Promise<NodeSchema> {
   if (!res.ok) {
     throw new Error(`Unknown node type: ${nodeType}`);
   }
-  return res.json();
+  return applyNodeSchemaFallbacks(await res.json());
 }
 
 export async function fetchAllNodeSchemas(): Promise<Record<string, NodeSchema>> {
@@ -230,7 +231,8 @@ export async function fetchAllNodeSchemas(): Promise<Record<string, NodeSchema>>
   const data = await res.json();
   const map: Record<string, NodeSchema> = {};
   for (const schema of data.nodes as NodeSchema[]) {
-    map[schema.type] = schema;
+    const merged = applyNodeSchemaFallbacks(schema);
+    map[merged.type] = merged;
   }
   return map;
 }
@@ -491,13 +493,37 @@ export async function suggestWorkflows(
   return res.json();
 }
 
-export async function listTemplates(): Promise<Array<{ id: string; title: string; description: string }>> {
+export type TemplateListItem = {
+  id: string;
+  title: string;
+  description: string;
+  source: "bundled" | "user";
+};
+
+export async function listTemplates(): Promise<TemplateListItem[]> {
   const res = await fetch(`${API}/api/templates`);
   if (!res.ok) {
     throw new Error("Failed to list templates");
   }
   const data = await res.json();
-  return data.templates;
+  return (data.templates as TemplateListItem[]).map((template) => ({
+    ...template,
+    source: template.source === "user" ? "user" : "bundled",
+  }));
+}
+
+export async function saveUserTemplate(
+  workflow: Workflow,
+  title?: string,
+  description?: string,
+): Promise<{ template: Workflow; template_id: string; source: "user" }> {
+  const res = await fetch(`${API}/api/templates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow, title, description }),
+  });
+  if (!res.ok) throw new Error("Failed to save template");
+  return res.json();
 }
 
 export function previewUrl(cacheId: string): string {

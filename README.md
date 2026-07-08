@@ -2,7 +2,7 @@
 
 Node-graph studio for AI audio — patch models together, render sample-accurate previews, share workflows as JSON.
 
-**v0.18.0** — Phases 0–2 + 2.5 complete (modular synth, multichannel/OBA, live MIDI bridge). Phase 3 export is next.
+**v0.18.0** — Phases 0–2 + 2.5 complete (modular synth, multichannel/OBA, live MIDI bridge). **Phase 2.6 signal integrity** is next, then Phase 3 export.
 
 ## Quick start
 
