@@ -25,4 +25,6 @@ jobs:
       - run: uv run pytest tests/ -q
       - run: uv run groovy-verify
       - run: |
+          if command -v pnpm >/dev/null 2>&1; then pnpm --filter @groovy/studio test; else cd apps/studio && npm test; fi
+      - run: |
           if command -v pnpm >/dev/null 2>&1; then pnpm lint:studio; else cd apps/studio && npm run lint; fi

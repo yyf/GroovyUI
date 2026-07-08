@@ -36,6 +36,7 @@ from groovy.schema.validate import validate_workflow
 from groovy.schema.comfy_import import import_comfy_workflow
 from groovy.executor.live_midi import LiveIoState
 from groovy.executor.osc_live import OscCaptureStore
+from groovy.server.compare import analyze_ab_pair
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
 from pydantic import BaseModel
 
@@ -156,6 +157,15 @@ class GenerateTemplateRequest(BaseModel):
     tags: list[str] | None = None
 
 
+class CompareAnalyzeRequest(BaseModel):
+    cache_id_a: str
+    cache_id_b: str
+    model_id: str = "groovy-signal-diff"
+    label_a: str = "A"
+    label_b: str = "B"
+    question: str | None = None
+
+
 def _workflow_from_dict(data: dict[str, Any]) -> Workflow:
     return Workflow.model_validate(data)
 
@@ -173,8 +183,12 @@ def root() -> dict[str, str]:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "groovy_version": GROOVY_VERSION}
+def health() -> dict[str, str | bool]:
+    return {
+        "status": "ok",
+        "groovy_version": GROOVY_VERSION,
+        "compare_api": True,
+    }
 
 
 @app.get("/api/midi/devices")
@@ -606,6 +620,31 @@ def cache_waveform(cache_id: str, width: int = 512) -> dict[str, Any]:
         return _executor.cache.waveform_peaks(cache_id, width=width)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Cache not found") from exc
+
+
+@app.post("/api/compare/analyze")
+def compare_analyze(body: CompareAnalyzeRequest) -> dict[str, Any]:
+    manifest = _registry.catalog.get(body.model_id)
+    if not manifest:
+        raise HTTPException(status_code=404, detail=f"Model not found: {body.model_id}")
+    try:
+        return analyze_ab_pair(
+            _executor.cache,
+            _registry,
+            cache_id_a=body.cache_id_a,
+            cache_id_b=body.cache_id_b,
+            label_a=body.label_a,
+            label_b=body.label_b,
+            model_id=body.model_id,
+            question=body.question,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{exc}. Re-render the workflow (Shift+R) if clips were cleared.",
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.websocket("/api/ws/midi/in")

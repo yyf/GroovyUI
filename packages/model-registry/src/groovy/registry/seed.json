@@ -375,6 +375,46 @@
         ]
       },
       "similar_models": []
+    },
+    {
+      "id": "groovy-signal-diff",
+      "status": "published",
+      "trust": "verified",
+      "name": "Groovy Signal Diff",
+      "description": "Compare loudness, dynamics, duration, and waveform shape between two rendered clips.",
+      "task_types": ["audio-compare"],
+      "tags": ["compare", "ab", "loudness", "waveform", "analysis"],
+      "author": "GroovyUI",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 0,
+      "compatible_nodes": [],
+      "install": { "dev_stub": true },
+      "similar_models": ["whisper-ab-compare"]
+    },
+    {
+      "id": "whisper-ab-compare",
+      "status": "published",
+      "trust": "verified",
+      "name": "Whisper A/B Compare",
+      "description": "Transcribe both clips and summarize spoken differences alongside signal metrics.",
+      "task_types": ["audio-compare"],
+      "tags": ["compare", "ab", "transcribe", "stt", "analysis"],
+      "author": "GroovyUI",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 2,
+      "compatible_nodes": [],
+      "install": { "dev_stub": true },
+      "similar_models": ["groovy-signal-diff", "whisper-large-v3-turbo", "whisper-small-en"]
     }
   ]
 }

@@ -21,6 +21,7 @@ const TASK_FILTERS = [
   { value: "music-generation", label: "Music generation" },
   { value: "singing-synthesis", label: "Singing synthesis" },
   { value: "deepfake-detection", label: "Deepfake detection" },
+  { value: "audio-compare", label: "A/B compare" },
 ];
 
 export default function ModelBrowser({ open, onClose, onSelectModel, onApplyWorkflow, initialMode }: Props) {

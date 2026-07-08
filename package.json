@@ -1,0 +1,13 @@
+{
+  "name": "groovy-ui",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev:studio": "pnpm --filter @groovy/studio dev",
+    "build:studio": "pnpm --filter @groovy/studio build",
+    "lint:studio": "pnpm --filter @groovy/studio lint"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

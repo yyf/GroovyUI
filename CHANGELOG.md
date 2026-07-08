@@ -1,5 +1,37 @@
 # GroovyUI Phase 0–2
 
+## [0.18.0] - 2026-07-08
+
+**Phase 2 hardening complete** — studio graph UX, A/B compare, typed sockets, template CI gate.
+
+### Added
+
+- **A/B waveform compare** — shift-select two rendered nodes; overlay waveforms in NodeHelper
+- **A/B signal analysis** — `POST /api/compare/analyze` with PCM metrics + optional model narrative (`groovy-signal-diff`, `whisper-ab-compare`)
+- **Chain hop compare** — auto-redirect when selections share cache (e.g. Normalize → Preview passthrough)
+- Template: `ab-compare-demo` (22 total)
+- **Canvas copy/paste** — Cmd/Ctrl+C/V duplicates selected nodes + internal wires; Cmd/Ctrl+D quick duplicate
+- **Box select** — drag on empty canvas to marquee-select (left-drag); middle/right-drag or Space+drag to pan
+- **Node helper I/O** — Inputs/Outputs tabs list all schema sockets with color type badges; selected MODEL_REF shows registry card
+- **Typed connection labels** — edge wires use color-coded socket type labels (AUDIO, MIDI, TEXT, etc.)
+- Studio vitest suite for workflow graph helpers (`pnpm --filter @groovy/studio test` or `just test-studio`)
+- `tests/test_all_templates.py` — validates all `templates/*.groovy.json` via `groovy-verify`
+
+### Fixed
+
+- **Edge connections** — derive `edges` from workflow instead of fighting React Flow internal state
+- **Node deletion** — Delete/Backspace syncs removals to workflow (nodes, links, groups)
+- **Multi-select** — Shift/Cmd/Ctrl additive selection without conflicting with marquee select
+- **LoadAudio path input** — widget edits no longer clear selection or wipe text after one character
+- **Node sync** — preserve React Flow measured dimensions during workflow updates
+- Podcast template default sample: `male-1.wav`
+
+### Fixed (0.18.0 follow-up)
+
+- **Node helper crash on select** — `useMemo` for input wiring ran after early return (Rules of Hooks violation); blank UI on node click
+- **A/B analyze "Not Found"** — removed pre-install call that could fail; `groovy-signal-diff` runs without model weights; clearer errors when API route or cache is missing
+- **Whisper A/B compare** — no longer requires separately installing `whisper-large-v3-turbo`
+
 ## [0.17.0] - 2026-07-06
 
 ### Added (Phase 2 closeout)

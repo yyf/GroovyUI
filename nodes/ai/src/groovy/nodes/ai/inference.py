@@ -176,8 +176,18 @@ def separate_stems_audio(
 
 
 def transcribe_audio(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> str:
-    _ = pcm, sample_rate
-    return f"[dev transcript via {model_id}] Sample dialogue placeholder."
+    if pcm.ndim == 1:
+        mono = pcm.astype(np.float64)
+    else:
+        mono = pcm.mean(axis=0).astype(np.float64)
+    duration = len(mono) / max(sample_rate, 1)
+    peak = float(np.max(np.abs(mono))) if mono.size else 0.0
+    rms = float(np.sqrt(np.mean(np.square(mono)))) if mono.size else 0.0
+    fingerprint = int(np.sum((mono[: min(len(mono), 4096)] * 1_000_000).astype(np.int64)) % 1_000_000)
+    return (
+        f"[dev transcript via {model_id}] "
+        f"dur={duration:.2f}s peak={peak:.3f} rms={rms:.3f} fp={fingerprint}"
+    )
 
 
 def synthesize_speech(text: str, *, sample_rate: int, model_id: str) -> np.ndarray:

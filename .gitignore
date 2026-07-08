@@ -23,12 +23,15 @@ workspace/
 *.wav
 !tests/fixtures/*.wav
 !workspace/assets/samples/dialogue_48k.wav
+!workspace/assets/samples/male-1.wav
 
 # IDE / OS
 .DS_Store
 .idea/
 .vscode/
+.cursor/
 *.swp
+*.tsbuildinfo
 
 # Env
 .env

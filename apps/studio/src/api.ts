@@ -158,6 +158,14 @@ export async function fetchNodeSchema(nodeType: string): Promise<NodeSchema> {
   return res.json();
 }
 
+export async function fetchModelCard(modelId: string): Promise<ModelCard> {
+  const res = await fetch(`${API}/api/models/${modelId}`);
+  if (!res.ok) {
+    throw new Error(`Model not found: ${modelId}`);
+  }
+  return res.json();
+}
+
 export async function fetchWaveform(cacheId: string, width = 128): Promise<{ peaks: number[]; duration: number }> {
   const res = await fetch(`${API}/api/cache/${cacheId}/waveform?width=${width}`);
   if (!res.ok) {
@@ -294,6 +302,69 @@ export async function fetchAuthenticity(reportId: string): Promise<Record<string
   const res = await fetch(`${API}/api/authenticity/${reportId}`);
   if (!res.ok) {
     throw new Error("Authenticity report not found");
+  }
+  return res.json();
+}
+
+export type AbCompareResult = {
+  mode: "signal" | "transcript";
+  model_id: string;
+  transcription_model?: string;
+  verdict: "no_difference" | "subtle" | "moderate" | "substantial";
+  verdict_summary: string;
+  difference_count: number;
+  differences: string[];
+  narrative: string;
+  facts: string[];
+  transcript_a?: string;
+  transcript_b?: string;
+  clip_a: Record<string, unknown>;
+  clip_b: Record<string, unknown>;
+  comparison: Record<string, unknown>;
+};
+
+export async function fetchCompareModels(): Promise<ModelCard[]> {
+  return searchModels("", { task_type: "audio-compare" });
+}
+
+function formatApiError(detail: unknown, fallback: string): string {
+  if (typeof detail === "string") {
+    if (detail === "Not Found") {
+      return "API route not found — restart groovy-server (uv run groovy-server) and try again.";
+    }
+    return detail;
+  }
+  if (Array.isArray(detail)) {
+    return detail.map((item) => String(item)).join("; ");
+  }
+  return fallback;
+}
+
+export async function analyzeAbCompare(params: {
+  cache_id_a: string;
+  cache_id_b: string;
+  model_id: string;
+  label_a: string;
+  label_b: string;
+  question?: string;
+}): Promise<AbCompareResult> {
+  const res = await fetch(`${API}/api/compare/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    let detail = "A/B analysis failed";
+    try {
+      const data = await res.json();
+      detail = formatApiError(data.detail, detail);
+    } catch {
+      const text = await res.text();
+      detail = text.includes("Not Found")
+        ? "API route not found — restart groovy-server (uv run groovy-server) and try again."
+        : text || detail;
+    }
+    throw new Error(detail);
   }
   return res.json();
 }

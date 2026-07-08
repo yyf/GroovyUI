@@ -13,7 +13,11 @@ TASK_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\b(transcrib|speech.to.text|stt|subtitle)\b", re.I), "speech-to-text", "speech transcription"),
     (re.compile(r"\b(tts|text.to.speech|voiceover|narrat)\b", re.I), "text-to-speech", "text-to-speech synthesis"),
     (re.compile(r"\b(voice.?clone|convert|rvc|speaker)\b", re.I), "voice-conversion", "voice conversion"),
-    (re.compile(r"\b(deepfake|spoof|authentic)\b", re.I), "deepfake-detection", "authenticity checking"),
+    (re.compile(r"\b(audio.?to.?midi|midi.?transcrib|basic.?pitch)\b", re.I), "audio-to-midi", "audio to MIDI transcription"),
+    (re.compile(r"\b(midi.?to.?audio|musicgen|regenerat)\b", re.I), "midi-to-audio", "MIDI-conditioned generation"),
+    (re.compile(r"\b(text.?to.?music|generate.?music|soundscape)\b", re.I), "music-generation", "text-to-music generation"),
+    (re.compile(r"\b(sing|vocal|diffsinger|singing)\b", re.I), "singing-synthesis", "singing from MIDI"),
+    (re.compile(r"\b(deepfake|spoof|authentic|synthetic.?speech)\b", re.I), "deepfake-detection", "deepfake detection"),
 ]
 
 COMMERCIAL_HINTS = re.compile(r"\b(commercial|client|broadcast|monetiz)\b", re.I)

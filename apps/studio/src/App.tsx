@@ -4,10 +4,10 @@ import {
   Controls,
   ReactFlow,
   type Connection,
-  type Edge,
+  type EdgeChange,
   type Node,
+  type NodeChange,
   type NodeTypes,
-  useEdgesState,
   useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -40,6 +40,7 @@ import { AuditionContext } from "./context/AuditionContext";
 import { useLiveIo } from "./hooks/useLiveIo";
 import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
 import type { JobState, NodeRenderStatus, Workflow } from "./types";
+import type { WorkflowClipboard } from "./workflow";
 import {
   addLink,
   addNodeToWorkflow,
@@ -53,12 +54,21 @@ import {
   groupForSelection,
   edgeIdsOnPathToNode,
   formatJobError,
+  flowNodesSyncKey,
+  listDistinctChainHops,
+  mergeFlowNodes,
   previewCacheId,
+  duplicateSelection,
+  extractSelection,
+  pasteSelection,
   removeLinks,
+  removeNodesFromWorkflow,
+  resolveComparePair,
   resolveTargetNode,
   syncPositions,
   toggleGroupCollapsed,
-  workflowToFlow,
+  workflowToFlowEdges,
+  workflowToFlowNodes,
 } from "./workflow";
 
 const nodeTypes: NodeTypes = { groovy: GroovyFlowNode, groovyGroup: ModuleGroupNode };
@@ -68,10 +78,11 @@ export default function App() {
   const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory();
   const [templates, setTemplates] = useState<Array<{ id: string; title: string }>>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const comfyImportRef = useRef<HTMLInputElement>(null);
   const moduleImportRef = useRef<HTMLInputElement>(null);
+  const clipboardRef = useRef<WorkflowClipboard | null>(null);
+  const pendingSelectionRef = useRef<Set<string> | null>(null);
+  const pasteCountRef = useRef(0);
   const [nodeStatus, setNodeStatus] = useState<Record<string, NodeRenderStatus>>({});
   const [lastJob, setLastJob] = useState<JobState | null>(null);
   const [status, setStatus] = useState("Loading template…");
@@ -112,15 +123,16 @@ export default function App() {
 
   useLiveIo({ enabled: true, onOscWidget });
 
-  const flow = useMemo(
-    () =>
-      workflow
-        ? workflowToFlow(workflow, nodeStatus, lastJob?.outputs, activeEdgeIds)
-        : { nodes: [], edges: [] },
-    [workflow, nodeStatus, lastJob?.outputs, activeEdgeIds],
+  const flowNodes = useMemo(
+    () => (workflow ? workflowToFlowNodes(workflow, nodeStatus, lastJob?.outputs) : []),
+    [workflow, nodeStatus, lastJob?.outputs],
   );
-  const [nodes, setNodes, onNodesChange] = useNodesState(flow.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(flow.edges);
+  const flowEdges = useMemo(
+    () => (workflow ? workflowToFlowEdges(workflow, activeEdgeIds) : []),
+    [workflow, activeEdgeIds],
+  );
+  const flowNodeSyncKey = useMemo(() => flowNodesSyncKey(flowNodes), [flowNodes]);
+  const [nodes, setNodes, applyNodeChanges] = useNodesState<Node>([]);
 
   const loadTemplate = useCallback(
     async (templateId: string) => {
@@ -128,6 +140,8 @@ export default function App() {
       setPreview(null);
       setLastJob(null);
       setNodeStatus({});
+      clipboardRef.current = null;
+      pasteCountRef.current = 0;
       const data = await fetchTemplate(templateId);
       resetHistory(data);
       setStatus("Ready");
@@ -150,12 +164,61 @@ export default function App() {
   }, [loadTemplate]);
 
   useEffect(() => {
-    setNodes(flow.nodes);
-  }, [flow.nodes, setNodes]);
+    setNodes((current) => {
+      let merged = mergeFlowNodes(current, flowNodes);
+      const pending = pendingSelectionRef.current;
+      if (pending) {
+        pendingSelectionRef.current = null;
+        merged = merged.map((node) => ({ ...node, selected: pending.has(node.id) }));
+      }
+      return merged;
+    });
+  }, [flowNodeSyncKey, flowNodes, setNodes]);
 
-  useEffect(() => {
-    setEdges(flow.edges);
-  }, [flow.edges, setEdges]);
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const removedIds = changes
+        .filter((change): change is NodeChange & { type: "remove"; id: string } => change.type === "remove")
+        .map((change) => change.id);
+      if (removedIds.length > 0) {
+        setWorkflow((prev) => {
+          if (!prev) return prev;
+          return removeNodesFromWorkflow(prev, new Set(removedIds));
+        });
+        setLastJob(null);
+        setPreview(null);
+        setNodeStatus((prev) => {
+          const next = { ...prev };
+          for (const id of removedIds) delete next[id];
+          return next;
+        });
+      }
+      applyNodeChanges(changes);
+    },
+    [applyNodeChanges, setWorkflow],
+  );
+
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      const removedIds = changes
+        .filter((change): change is EdgeChange & { type: "remove"; id: string } => change.type === "remove")
+        .map((change) => change.id);
+      if (removedIds.length === 0) return;
+      setWorkflow((prev) => {
+        if (!prev) return prev;
+        return removeLinks(prev, new Set(removedIds));
+      });
+      setLastJob(null);
+      setPreview(null);
+    },
+    [setWorkflow],
+  );
+
+  const selectedNodeIds = useMemo(
+    () => nodes.filter((node) => node.selected).map((node) => node.id),
+    [nodes],
+  );
+  const selectedNodeId = selectedNodeIds[0] ?? null;
 
   const updateWidget = useCallback(
     (nodeId: string, name: string, value: unknown) => {
@@ -169,8 +232,6 @@ export default function App() {
         };
       });
       setNodeStatus((prev) => ({ ...prev, [nodeId]: "stale" }));
-      setLastJob(null);
-      setPreview(null);
     },
     [setWorkflow],
   );
@@ -191,19 +252,6 @@ export default function App() {
       setWorkflow((prev) => {
         if (!prev) return prev;
         return addLink(prev, connection.source, connection.target);
-      });
-      setLastJob(null);
-      setPreview(null);
-    },
-    [setWorkflow],
-  );
-
-  const onEdgesDelete = useCallback(
-    (deleted: Edge[]) => {
-      const ids = new Set(deleted.map((edge) => edge.id));
-      setWorkflow((prev) => {
-        if (!prev) return prev;
-        return removeLinks(prev, ids);
       });
       setLastJob(null);
       setPreview(null);
@@ -335,6 +383,39 @@ export default function App() {
         setPreview(null);
         return;
       }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
+        if (!workflow || selectedNodeIds.length === 0) return;
+        event.preventDefault();
+        clipboardRef.current = extractSelection(workflow, selectedNodeIds);
+        pasteCountRef.current = 0;
+        setStatus(`Copied ${clipboardRef.current.nodes.length} node(s)`);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "v") {
+        const clip = clipboardRef.current;
+        if (!clip?.nodes.length || !workflow) return;
+        event.preventDefault();
+        pasteCountRef.current += 1;
+        const offset = { x: 48 * pasteCountRef.current, y: 48 * pasteCountRef.current };
+        const { workflow: next, newNodeIds } = pasteSelection(workflow, clip, offset);
+        pendingSelectionRef.current = new Set(newNodeIds);
+        setWorkflow(next);
+        setLastJob(null);
+        setPreview(null);
+        setStatus(`Pasted ${newNodeIds.length} node(s)`);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
+        if (!workflow || selectedNodeIds.length === 0) return;
+        event.preventDefault();
+        const { workflow: next, newNodeIds } = duplicateSelection(workflow, selectedNodeIds);
+        pendingSelectionRef.current = new Set(newNodeIds);
+        setWorkflow(next);
+        setLastJob(null);
+        setPreview(null);
+        setStatus(`Duplicated ${newNodeIds.length} node(s)`);
+        return;
+      }
       if (event.key === "f" || event.key === "\\") {
         event.preventDefault();
         setFocusMode((prev) => !prev);
@@ -352,7 +433,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [running, runRender, undo, redo, playChain]);
+  }, [running, runRender, undo, redo, playChain, workflow, selectedNodeIds, setWorkflow]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -523,6 +604,31 @@ export default function App() {
   const selectedOutput = selectedNodeId && lastJob?.outputs ? lastJob.outputs[selectedNodeId] : undefined;
   const selectedPreviewId = previewCacheId(selectedOutput);
   const selectedNodePreview = selectedPreviewId ? previewUrl(selectedPreviewId) : null;
+  const compareResolution = useMemo(
+    () =>
+      workflow && selectedNodeIds.length === 2
+        ? resolveComparePair(workflow, lastJob?.outputs, selectedNodeIds)
+        : null,
+    [workflow, selectedNodeIds, lastJob?.outputs],
+  );
+  const comparePair = compareResolution?.pair.length ? compareResolution.pair : null;
+  const compareNote = compareResolution?.note ?? null;
+  const compareMissingRender = compareResolution?.missingRender ?? false;
+  const chainHops = useMemo(
+    () => (workflow ? listDistinctChainHops(workflow, lastJob?.outputs) : []),
+    [workflow, lastJob?.outputs],
+  );
+  const focusCompareHop = useCallback(
+    (nodeIdA: string, nodeIdB: string) => {
+      setNodes((current) =>
+        current.map((node) => ({
+          ...node,
+          selected: node.id === nodeIdA || node.id === nodeIdB,
+        })),
+      );
+    },
+    [setNodes],
+  );
   const chainPreview =
     preview ??
     (lastJob?.outputs && workflow
@@ -632,7 +738,7 @@ export default function App() {
             type="button"
             disabled={selectedNodeIds.length < 2}
             onClick={handleGroupSelection}
-            title="Group selected nodes (Shift+click to multi-select)"
+            title="Group selected nodes (Shift- or ⌘/Ctrl-click, or drag a box on the canvas)"
           >
             Group ({selectedNodeIds.length})
           </button>
@@ -718,27 +824,20 @@ export default function App() {
             {dropHint ? <div className="canvas__drop-hint">Drop audio to load</div> : null}
             <ReactFlow
               nodes={nodes}
-              edges={edges}
+              edges={flowEdges}
               nodeTypes={nodeTypes}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               onConnect={onConnect}
-              onEdgesDelete={onEdgesDelete}
-              onSelectionChange={({ nodes: selected }) => {
-                const ids = selected.map((node) => node.id);
-                setSelectedNodeIds(ids);
-                setSelectedNodeId(ids[0] ?? null);
-              }}
-              onPaneClick={() => {
-                setSelectedNodeId(null);
-                setSelectedNodeIds([]);
-              }}
               onNodeDragStop={onNodeDragStop}
               onNodeDoubleClick={(_, node) => auditionNode(node.id)}
               fitView
               deleteKeyCode={["Backspace", "Delete"]}
+              panOnDrag={[1, 2]}
+              panActivationKeyCode="Space"
               selectionOnDrag
-              multiSelectionKeyCode="Shift"
+              selectionKeyCode={null}
+              multiSelectionKeyCode={["Shift", "Meta", "Control"]}
             >
               <Background gap={16} color="#2a2f3a" />
               <Controls />
@@ -750,6 +849,12 @@ export default function App() {
               workflow={workflow}
               output={selectedOutput}
               previewUrl={selectedNodePreview}
+              comparePair={comparePair}
+              compareNote={compareNote}
+              compareMissingRender={compareMissingRender}
+              chainHops={chainHops}
+              onSelectCompareHop={focusCompareHop}
+              showCompare={selectedNodeIds.length === 2}
               onWidgetChange={updateWidget}
               onBrowseModel={(nodeId, widget) => {
                 setModelPickTarget({ nodeId, widget });
@@ -758,6 +863,7 @@ export default function App() {
               onAudition={() => {
                 if (selectedNodeId) auditionNode(selectedNodeId);
               }}
+              onCompareAudition={(nodeId) => auditionNode(nodeId)}
             />
           ) : null}
         </div>

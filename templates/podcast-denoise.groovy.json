@@ -11,7 +11,7 @@
     "modified_at": "2026-07-05T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
     { "id": "n2", "type": "Denoise", "pos": { "x": 260, "y": 0 }, "widgets": { "model": "deepfilternet-v3", "strength": 1.0 } },
     { "id": "n3", "type": "Normalize", "pos": { "x": 520, "y": 0 }, "widgets": { "mode": "lufs", "target_lufs": -16.0 } },
     { "id": "n4", "type": "Preview", "pos": { "x": 780, "y": 0 }, "widgets": {} }
