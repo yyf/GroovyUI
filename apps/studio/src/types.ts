@@ -195,3 +195,16 @@ export type JobState = {
 };
 
 export type NodeRenderStatus = "idle" | "running" | "cached" | "stale";
+
+export type WorkflowValidationIssue = {
+  code: string;
+  message: string;
+  node_id?: string | null;
+  link_id?: string | null;
+};
+
+export type WorkflowValidationResult = {
+  valid: boolean;
+  errors: WorkflowValidationIssue[];
+  warnings: WorkflowValidationIssue[];
+};

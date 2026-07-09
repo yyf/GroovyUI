@@ -19,6 +19,7 @@ import {
   executeWorkflow,
   fetchCompliance,
   fetchAllNodeSchemas,
+  fetchWorkflowValidation,
   listPacks,
   installPack,
   fetchTemplate,
@@ -33,6 +34,7 @@ import ComplianceDrawer from "./components/ComplianceDrawer";
 import FlowViewportBridge from "./components/FlowViewportBridge";
 import SettingsDrawer from "./components/SettingsDrawer";
 import GroovyFlowNode from "./components/GroovyFlowNode";
+import type { GroovyNodeData } from "./components/GroovyFlowNode";
 import ModuleGroupNode from "./components/ModuleGroupNode";
 import ModelBrowser from "./components/ModelBrowser";
 import NodeHelper from "./components/NodeHelper";
@@ -42,6 +44,7 @@ import SidePanel from "./components/SidePanel";
 import StudioTopBar from "./components/StudioTopBar";
 import TransportBar from "./components/TransportBar";
 import { AuditionContext } from "./context/AuditionContext";
+import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
 import { useLiveIo } from "./hooks/useLiveIo";
 import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
 import type { JobState, NodeRenderStatus, NodeSchema, Workflow } from "./types";
@@ -62,6 +65,7 @@ import {
   flowNodesSyncKey,
   listDistinctChainHops,
   mergeFlowNodes,
+  nodeIssuesFromValidation,
   previewCacheId,
   savedFilePath,
   duplicateSelection,
@@ -84,6 +88,7 @@ export default function App() {
   const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory();
   const [templates, setTemplates] = useState<TemplateListItem[]>([]);
   const [activeTemplateId, setActiveTemplateId] = useState(DEFAULT_TEMPLATE);
+  const [viewportFitKey, setViewportFitKey] = useState(0);
   const [nodeSchemas, setNodeSchemas] = useState<Record<string, NodeSchema>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const comfyImportRef = useRef<HTMLInputElement>(null);
@@ -91,8 +96,11 @@ export default function App() {
   const clipboardRef = useRef<WorkflowClipboard | null>(null);
   const flowCenterRef = useRef(() => ({ x: 320, y: 200 }));
   const pendingSelectionRef = useRef<Set<string> | null>(null);
+  const workflowRef = useRef(workflow);
+  workflowRef.current = workflow;
   const pasteCountRef = useRef(0);
   const [nodeStatus, setNodeStatus] = useState<Record<string, NodeRenderStatus>>({});
+  const [nodeIssues, setNodeIssues] = useState<Record<string, string>>({});
   const [lastJob, setLastJob] = useState<JobState | null>(null);
   const [status, setStatus] = useState("Loading template…");
   const [running, setRunning] = useState(false);
@@ -133,8 +141,8 @@ export default function App() {
   useLiveIo({ enabled: true, onOscWidget });
 
   const flowNodes = useMemo(
-    () => (workflow ? workflowToFlowNodes(workflow, nodeStatus, lastJob?.outputs, nodeSchemas) : []),
-    [workflow, nodeStatus, lastJob?.outputs, nodeSchemas],
+    () => (workflow ? workflowToFlowNodes(workflow, nodeStatus, lastJob?.outputs, nodeSchemas, nodeIssues) : []),
+    [workflow, nodeStatus, lastJob?.outputs, nodeSchemas, nodeIssues],
   );
   const flowEdges = useMemo(
     () => (workflow ? workflowToFlowEdges(workflow, activeEdgeIds) : []),
@@ -142,6 +150,14 @@ export default function App() {
   );
   const flowNodeSyncKey = useMemo(() => flowNodesSyncKey(flowNodes), [flowNodes]);
   const [nodes, setNodes, applyNodeChanges] = useNodesState<Node>([]);
+  const displayNodes = useMemo(() => {
+    let merged = mergeFlowNodes(nodes, flowNodes);
+    const pending = pendingSelectionRef.current;
+    if (pending) {
+      merged = merged.map((node) => ({ ...node, selected: pending.has(node.id) }));
+    }
+    return merged;
+  }, [nodes, flowNodes, flowNodeSyncKey]);
 
   const loadTemplate = useCallback(
     async (templateId: string) => {
@@ -153,11 +169,22 @@ export default function App() {
       const data = await fetchTemplate(templateId);
       resetHistory(data);
       setActiveTemplateId(templateId);
+      setViewportFitKey((key) => key + 1);
       setStatus("Ready");
       setLoadError(null);
     },
     [resetHistory],
   );
+
+  useEffect(() => {
+    if (!workflow) {
+      setNodeIssues({});
+      return;
+    }
+    fetchWorkflowValidation(workflow)
+      .then((result) => setNodeIssues(nodeIssuesFromValidation(workflow, result)))
+      .catch(() => setNodeIssues({}));
+  }, [workflow]);
 
   useEffect(() => {
     fetchAllNodeSchemas()
@@ -310,8 +337,10 @@ export default function App() {
         }
 
         setStatus("Rendering…");
+        let lastRunningNode: string | undefined;
         const job = await executeWorkflow(workflow, targets, (update) => {
           if (update.current_node) {
+            lastRunningNode = update.current_node;
             setCurrentNode(update.current_node);
             setNodeStatus((prev) => ({
               ...prev,
@@ -350,7 +379,11 @@ export default function App() {
             .find(Boolean);
           setStatus(saved ? `Saved to ${saved}` : "Complete");
         } else {
-          setStatus(`Failed: ${formatJobError(job.error)}`);
+          const message = formatJobError(job.error);
+          setStatus(`Failed: ${message}`);
+          if (lastRunningNode) {
+            setNodeIssues((prev) => ({ ...prev, [lastRunningNode!]: message }));
+          }
         }
       } catch (err) {
         setStatus(`Error: ${formatJobError(String(err))}`);
@@ -386,6 +419,30 @@ export default function App() {
     setActiveEdgeIds(edgeIdsOnPathToNode(workflow, selectedNodeId));
     void document.querySelector<HTMLAudioElement>(".transport__audio")?.play();
   }, [running, workflow, selectedNodeId, lastJob?.outputs]);
+
+  const augmentMinimalPatchForNode = useCallback(
+    (patch: MinimalPatch, nodeId: string, schema: NodeSchema | undefined) => {
+      setWorkflow((prev) => {
+        if (!prev) return prev;
+        const { workflow: next, focusNodeId, changed } = augmentNodeWithExample(
+          prev,
+          nodeId,
+          schema,
+          patch,
+        );
+        if (!changed) {
+          setStatus("Node already wired");
+          return prev;
+        }
+        pendingSelectionRef.current = new Set([focusNodeId]);
+        setLastJob(null);
+        setActiveEdgeIds(new Set());
+        setStatus(`Wired example I/O for ${patch.workflow.metadata.title}`);
+        return next;
+      });
+    },
+    [setWorkflow],
+  );
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -437,6 +494,20 @@ export default function App() {
         setStatus(`Duplicated ${newNodeIds.length} node(s)`);
         return;
       }
+      if (event.key === "Tab" && selectedNodeIds.length === 1 && selectedNodeId && workflow) {
+        const workflowNode = workflow.nodes.find((node) => node.id === selectedNodeId);
+        const rfNode = nodes.find((node) => node.id === selectedNodeId);
+        const nodeType =
+          workflowNode?.type ?? (rfNode?.data as GroovyNodeData | undefined)?.label ?? null;
+        if (nodeType) {
+          const patch = getMinimalPatch(nodeType, nodeSchemas);
+          if (patch) {
+            event.preventDefault();
+            augmentMinimalPatchForNode(patch, selectedNodeId, nodeSchemas[nodeType]);
+            return;
+          }
+        }
+      }
       if (event.key === "f" || event.key === "\\") {
         event.preventDefault();
         setFocusMode((prev) => !prev);
@@ -449,7 +520,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [running, runRender, undo, redo, workflow, selectedNodeIds, setWorkflow]);
+  }, [running, runRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -801,7 +872,13 @@ export default function App() {
                 onAddNode={(nodeType) => {
                   void defaultWidgetsForNode(nodeType).then((widgets) => {
                     const center = flowCenterRef.current();
-                    setWorkflow((prev) => (prev ? addNodeToWorkflow(prev, nodeType, widgets, center) : prev));
+                    setWorkflow((prev) => {
+                      if (!prev) return prev;
+                      const { workflow: next, nodeId } = addNodeToWorkflow(prev, nodeType, widgets, center);
+                      pendingSelectionRef.current = new Set([nodeId]);
+                      return next;
+                    });
+                    setLastJob(null);
                   });
                 }}
               />
@@ -823,7 +900,7 @@ export default function App() {
             {dropHint ? <div className="canvas__drop-hint">Drop audio to load</div> : null}
             <ReactFlowProvider>
               <ReactFlow
-                nodes={nodes}
+                nodes={displayNodes}
                 edges={flowEdges}
                 nodeTypes={nodeTypes}
                 onNodesChange={onNodesChange}
@@ -832,7 +909,6 @@ export default function App() {
                 onNodeDragStop={onNodeDragStop}
                 onNodeClick={() => openInspector()}
                 onNodeDoubleClick={(_, node) => auditionNode(node.id)}
-                fitView
                 deleteKeyCode={["Backspace", "Delete"]}
                 panOnDrag={[1, 2]}
                 panActivationKeyCode="Space"
@@ -841,7 +917,12 @@ export default function App() {
                 multiSelectionKeyCode={["Shift", "Meta", "Control"]}
                 proOptions={{ hideAttribution: true }}
               >
-                <FlowViewportBridge canvasSelector=".canvas" onCenterReady={registerFlowCenter} />
+                <FlowViewportBridge
+                  canvasSelector=".canvas"
+                  onCenterReady={registerFlowCenter}
+                  nodeSyncKey={flowNodeSyncKey}
+                  fitViewKey={viewportFitKey}
+                />
                 <Background gap={20} color="#1a1a1a" size={1} />
                 <Controls className="flow-controls" showInteractive={false} />
               </ReactFlow>

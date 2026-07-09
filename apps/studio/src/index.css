@@ -16,6 +16,9 @@
   --gradient-panel: linear-gradient(180deg, #101010 0%, #060606 100%);
   --gradient-accent: linear-gradient(180deg, #e8e8e8 0%, #9a9a9a 50%, #c8c8c8 100%);
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --selection-border: rgba(186, 210, 244, 0.78);
+  --selection-glow: rgba(96, 165, 250, 0.34);
+  --selection-fill: #171c24;
   background: var(--bg-void);
   color: var(--text-primary);
 }
@@ -1308,7 +1311,7 @@ body {
   background: var(--bg-elevated);
   border: 1px solid var(--border-silver);
   border-radius: 2px;
-  padding: 8px 12px 8px 14px;
+  padding: 8px 12px;
   font-size: 11px;
   color: var(--text-primary);
   min-width: 110px;
@@ -1317,7 +1320,7 @@ body {
 }
 
 .groovy-node__body {
-  padding-right: 4px;
+  padding: 0;
 }
 
 .groovy-node__socket-list {
@@ -1342,9 +1345,52 @@ body {
   flex-shrink: 0;
 }
 
+.groovy-node--issue {
+  border-color: #f87171;
+  background: linear-gradient(180deg, #2a1518 0%, var(--bg-elevated) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(248, 113, 113, 0.35),
+    0 0 0 3px rgba(248, 113, 113, 0.2),
+    0 0 16px rgba(248, 113, 113, 0.18);
+}
+
+.groovy-node--issue .groovy-node__title {
+  color: #fecaca;
+}
+
+.groovy-node__issue {
+  margin: 6px 0 0;
+  font-size: 10px;
+  line-height: 1.35;
+  color: #fca5a5;
+}
+
 .groovy-node--selected {
-  border-color: var(--border-bright);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+  border-color: var(--selection-border);
+  background: linear-gradient(180deg, var(--selection-fill) 0%, var(--bg-elevated) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 0 0 3px var(--selection-glow),
+    0 0 20px rgba(96, 165, 250, 0.22);
+}
+
+.groovy-node--selected .groovy-node__title {
+  color: #fff;
+}
+
+.groovy-node--selected.groovy-node--running {
+  border-color: rgba(200, 220, 255, 0.85);
+}
+
+.groovy-node--selected.groovy-node--cached {
+  border-color: rgba(210, 228, 255, 0.82);
+}
+
+.groovy-node--selected.groovy-node--stale {
+  opacity: 1;
+  border-color: var(--selection-border);
 }
 
 .groovy-node--running {
@@ -1371,8 +1417,11 @@ body {
 }
 
 .groovy-group-node--selected {
-  border-color: #93c5fd;
-  box-shadow: 0 0 0 1px #60a5fa;
+  border-color: rgba(147, 197, 253, 0.95);
+  background: rgba(36, 48, 68, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.35),
+    0 0 16px rgba(96, 165, 250, 0.22);
 }
 
 .groovy-group-node__title {
@@ -1656,6 +1705,15 @@ body {
   padding: 0;
   border: none;
   background: transparent;
+}
+
+.react-flow__node.selected .groovy-node--selected {
+  z-index: 2;
+}
+
+.react-flow__nodesselection-rect {
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px dashed rgba(147, 197, 253, 0.55);
 }
 
 .react-flow__attribution {

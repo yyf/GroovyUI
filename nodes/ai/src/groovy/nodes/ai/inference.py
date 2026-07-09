@@ -105,7 +105,7 @@ def run_whisper_stt(cache: CacheStore, kwargs: dict) -> list[dict]:
 
 
 def run_tts(cache: CacheStore, kwargs: dict) -> list[dict]:
-    text = str(kwargs.get("text", "Hello from GroovyUI."))
+    text = str(kwargs.get("transcript") or kwargs.get("text") or "Hello from GroovyUI.")
     model_id = str(kwargs.get("model", "f5-tts-base"))
     sample_rate = 48000
     pcm = synthesize_speech(text, sample_rate=sample_rate, model_id=model_id)

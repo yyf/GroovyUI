@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import type { JobOutput, NodeRenderStatus, NodeSchema, Workflow, WorkflowGroup, WorkflowLink, WorkflowModule, WorkflowNode } from "./types";
+import type { JobOutput, NodeRenderStatus, NodeSchema, Workflow, WorkflowGroup, WorkflowLink, WorkflowModule, WorkflowNode, WorkflowValidationResult } from "./types";
 import type { GroovyGroupNodeData } from "./components/ModuleGroupNode";
 import type { GroovyNodeData, NodeSocketSpec } from "./components/GroovyFlowNode";
 import { edgeTypeClass, socketTypeColor } from "./socketTypes";
@@ -43,8 +43,12 @@ const WIREABLE_INPUT_TYPES = new Set([
   "AUTHENTICITY",
 ]);
 
+/** Widget-only params — never auto-wired or shown as canvas handles. */
+const WIDGET_ONLY_INPUT_TYPES = new Set(["MODEL_REF", "STRING", "INT", "FLOAT", "BOOLEAN", "BOOL"]);
+
 /** Whether an input socket should appear as a canvas handle (optional floats stay in the inspector). */
 export function isWireableInput(socket: { type: string; optional?: boolean }): boolean {
+  if (WIDGET_ONLY_INPUT_TYPES.has(socket.type)) return false;
   if (!socket.optional) return true;
   return WIREABLE_INPUT_TYPES.has(socket.type);
 }
@@ -99,9 +103,13 @@ export function mergeFlowNodes<T extends Node>(current: T[], next: T[]): T[] {
   if (next.length === 0 && current.length > 0) {
     return current;
   }
+  const currentById = new Map(current.map((node) => [node.id, node]));
   const merged: T[] = [];
+  const seen = new Set<string>();
   for (const fresh of next) {
-    const existing = current.find((node) => node.id === fresh.id);
+    if (seen.has(fresh.id)) continue;
+    seen.add(fresh.id);
+    const existing = currentById.get(fresh.id);
     if (!existing) {
       merged.push(fresh);
       continue;
@@ -232,11 +240,38 @@ export function rewriteLinksForCollapsedGroups(workflow: Workflow): WorkflowLink
   return rewritten;
 }
 
+/** Map validation errors/warnings onto affected node ids for canvas highlighting. */
+export function nodeIssuesFromValidation(
+  workflow: Workflow,
+  result: WorkflowValidationResult,
+): Record<string, string> {
+  const issues: Record<string, string> = {};
+  const linkById = new Map(workflow.links.map((link) => [link.id, link]));
+  const add = (nodeId: string, message: string) => {
+    issues[nodeId] = issues[nodeId] ? `${issues[nodeId]} · ${message}` : message;
+  };
+  for (const item of [...result.errors, ...result.warnings]) {
+    if (item.node_id) {
+      add(item.node_id, item.message);
+      continue;
+    }
+    if (item.link_id) {
+      const edge = linkById.get(item.link_id);
+      if (edge) {
+        add(String(edge.from[0]), item.message);
+        add(String(edge.to[0]), item.message);
+      }
+    }
+  }
+  return issues;
+}
+
 export function workflowToFlowNodes(
   workflow: Workflow,
   nodeStatus: Record<string, NodeRenderStatus>,
   outputs?: Record<string, JobOutput>,
   schemas?: Record<string, NodeSchema>,
+  nodeIssues?: Record<string, string>,
 ): Node<GroovyNodeData | GroovyGroupNodeData>[] {
   const hidden = collapsedMemberIds(workflow);
   const nodes: Node<GroovyNodeData | GroovyGroupNodeData>[] = workflow.nodes
@@ -265,6 +300,7 @@ export function workflowToFlowNodes(
           status: nodeStatus[n.id] ?? "idle",
           nodeId: n.id,
           canAudition: !!previewCacheId(outputs?.[n.id]),
+          issue: nodeIssues?.[n.id],
           inputs,
           outputs: outputSockets,
         },
@@ -911,21 +947,53 @@ export function findOpenNodePosition(
   };
 }
 
+export function nextWorkflowNodeId(workflow: Workflow): string {
+  let max = 0;
+  for (const node of workflow.nodes) {
+    const match = /^n(\d+)$/.exec(node.id);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  return `n${max + 1}`;
+}
+
+/** Map patch-local node ids to workflow-unique ids (never collides with existing nodes). */
+export function allocatePatchNodeIdMap(
+  workflow: Workflow,
+  patchWorkflow: Workflow,
+): Map<string, string> {
+  const taken = new Set(workflow.nodes.map((node) => node.id));
+  const idMap = new Map<string, string>();
+  let seq = 0;
+  for (const node of patchWorkflow.nodes) {
+    let candidate: string;
+    do {
+      seq += 1;
+      candidate = `ex${Date.now().toString(36)}${seq.toString(36)}_${node.id}`;
+    } while (taken.has(candidate));
+    taken.add(candidate);
+    idMap.set(node.id, candidate);
+  }
+  return idMap;
+}
+
 export function addNodeToWorkflow(
   workflow: Workflow,
   nodeType: string,
   widgets: Record<string, unknown>,
   center?: { x: number; y: number },
-): Workflow {
-  const id = `n${workflow.nodes.length + 1}`;
+): { workflow: Workflow; nodeId: string } {
+  const id = nextWorkflowNodeId(workflow);
   const anchor = center ?? { x: 320, y: 200 };
   const pos = findOpenNodePosition(workflow, anchor);
   return {
-    ...workflow,
-    nodes: [
-      ...workflow.nodes,
-      { id, type: nodeType, pos, widgets },
-    ],
+    nodeId: id,
+    workflow: {
+      ...workflow,
+      nodes: [
+        ...workflow.nodes,
+        { id, type: nodeType, pos, widgets },
+      ],
+    },
   };
 }
 
@@ -951,7 +1019,7 @@ export function applyDroppedAudio(workflow: Workflow, path: string): Workflow {
   if (loadNode) {
     return setLoadAudioPath(workflow, loadNode.id, path);
   }
-  const id = `n${workflow.nodes.length + 1}`;
+  const id = nextWorkflowNodeId(workflow);
   return {
     ...workflow,
     nodes: [

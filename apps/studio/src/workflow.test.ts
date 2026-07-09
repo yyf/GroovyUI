@@ -11,6 +11,7 @@ import {
   mergeFlowNodes,
   pasteSelection,
   removeNodesFromWorkflow,
+  nodeIssuesFromValidation,
   wiredInputsForNode,
   workflowToFlowEdges,
   workflowToFlowNodes,
@@ -54,6 +55,16 @@ describe("mergeFlowNodes", () => {
     expect(merged[0]?.data).toEqual({ label: "Load" });
     expect(merged[0]?.width).toBe(180);
     expect(merged[0]?.selected).toBe(true);
+  });
+
+  it("dedupes duplicate ids from the next snapshot", () => {
+    const next = [
+      { id: "n1", type: "groovy", position: { x: 0, y: 0 }, data: { label: "First" } },
+      { id: "n1", type: "groovy", position: { x: 10, y: 0 }, data: { label: "Second" } },
+    ];
+    const merged = mergeFlowNodes([], next);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.data).toEqual({ label: "First" });
   });
 });
 
@@ -158,6 +169,10 @@ describe("isWireableInput", () => {
     expect(isWireableInput({ type: "FLOAT", optional: true })).toBe(false);
     expect(isWireableInput({ type: "MIDI", optional: true })).toBe(true);
   });
+
+  it("treats model refs as widget-only", () => {
+    expect(isWireableInput({ type: "MODEL_REF" })).toBe(false);
+  });
 });
 
 describe("connectNodes", () => {
@@ -220,6 +235,32 @@ describe("findOpenNodePosition", () => {
         Math.abs((node.pos?.y ?? 0) - pos.y) < 48,
     );
     expect(overlaps).toBe(false);
+  });
+});
+
+describe("nodeIssuesFromValidation", () => {
+  it("maps link errors onto endpoint nodes", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+        { id: "l2", from: ["n2", 0], to: ["n3", 0], type: "AUDIO" },
+        { id: "bad", from: ["n1", 0], to: ["n3", 0], type: "AUDIO" },
+      ],
+    };
+    const issues = nodeIssuesFromValidation(workflow, {
+      valid: false,
+      errors: [
+        {
+          code: "MULTIPLE_INPUTS",
+          message: "Input slot n3[0] already connected",
+          link_id: "bad",
+        },
+      ],
+      warnings: [],
+    });
+    expect(issues.n1).toContain("already connected");
+    expect(issues.n3).toContain("already connected");
   });
 });
 

@@ -14,6 +14,7 @@ import {
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowNode } from "../types";
 import type { CompareHop } from "../workflow";
 import { joinSaveAudioPath, wiredInputsForNode } from "../workflow";
+import { hasMinimalPatch } from "../nodeMinimalPatches";
 import AudioFormatPanel from "./AudioFormatPanel";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
@@ -206,6 +207,9 @@ export default function NodeHelper({
           />
         ) : null}
         {schema?.description ? <p className="node-helper__desc">{schema.description}</p> : null}
+        {hasMinimalPatch(node.type) ? (
+          <p className="node-helper__hint">Press <kbd>Tab</kbd> to wire missing example inputs and outputs for this node.</p>
+        ) : null}
         <nav className="node-helper__tabs">
         <button type="button" className={tab === "config" ? "active" : ""} onClick={() => setTab("config")}>
           Config
