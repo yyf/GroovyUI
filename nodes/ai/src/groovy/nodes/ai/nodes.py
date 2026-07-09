@@ -81,7 +81,7 @@ class WhisperSTT(GroovyNode):
     run_in_worker = True
     PROVENANCE_CLASS = "ai_transformed"
     COMPATIBLE_MODELS = ["whisper-large-v3-turbo", "whisper-small-en"]
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = ("TEXT",)
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -112,10 +112,12 @@ class TTS(GroovyNode):
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "text": ("STRING", {"default": "Hello from GroovyUI."}),
                 "model": ("MODEL_REF", {"default": "f5-tts-base"}),
             },
-            "optional": {},
+            "optional": {
+                "transcript": ("TEXT",),
+                "text": ("STRING", {"default": "Hello from GroovyUI."}),
+            },
         }
 
     def run(self, **kwargs):

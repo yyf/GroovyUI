@@ -17,6 +17,7 @@ export type GroovyNodeData = {
   status: NodeRenderStatus;
   nodeId: string;
   canAudition?: boolean;
+  issue?: string;
   inputs?: NodeSocketSpec[];
   outputs?: NodeSocketSpec[];
 };
@@ -55,8 +56,9 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      className={`groovy-node groovy-node--${nodeData.status}${selected ? " groovy-node--selected" : ""}`}
+      className={`groovy-node groovy-node--${nodeData.status}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}`}
       style={{ minHeight }}
+      title={nodeData.issue ?? undefined}
     >
       {inputs.map((socket, index) => (
         <Handle
@@ -102,6 +104,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             ))}
           </ul>
         ) : null}
+        {nodeData.issue ? <p className="groovy-node__issue">{nodeData.issue}</p> : null}
       </div>
       {outputs.map((socket, index) => (
         <Handle

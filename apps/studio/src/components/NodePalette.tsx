@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { API, fetchNodeSchema } from "../api";
+import { DEFAULT_LOAD_AUDIO_PATH } from "../sampleDefaults";
 
 type NodeTypeInfo = { type: string; category: string };
 
@@ -277,6 +278,9 @@ export async function defaultWidgetsForNode(nodeType: string): Promise<Record<st
   const widgets: Record<string, unknown> = {};
   for (const w of schema.widgets ?? []) {
     if (w.default !== undefined) widgets[w.name] = w.default;
+  }
+  if (nodeType === "LoadAudio" && !widgets.path) {
+    widgets.path = DEFAULT_LOAD_AUDIO_PATH;
   }
   return widgets;
 }

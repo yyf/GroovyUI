@@ -7,6 +7,7 @@ import type {
   NodeSchema,
   ProvenanceSummary,
   Workflow,
+  WorkflowValidationResult,
 } from "./types";
 import { applyNodeSchemaFallbacks } from "./nodeSchemaFallbacks";
 
@@ -359,6 +360,18 @@ export async function installModel(modelId: string): Promise<void> {
   if (!res.ok) {
     throw new Error(`Install failed: ${modelId}`);
   }
+}
+
+export async function fetchWorkflowValidation(workflow: Workflow): Promise<WorkflowValidationResult> {
+  const res = await fetch(`${API}/api/workflow/validate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow }),
+  });
+  if (!res.ok) {
+    throw new Error("Workflow validation failed");
+  }
+  return res.json();
 }
 
 export async function fetchCompliance(workflow: Workflow): Promise<ComplianceSummary> {
