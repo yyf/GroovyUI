@@ -1,5 +1,27 @@
 # GroovyUI Phase 0–2
 
+## [0.19.0] - 2026-07-09
+
+**Phase 2.6 signal integrity** — patch-bay trust layer before export (v1 + expansion).
+
+### Added
+
+- **`groovy.executor.signal_integrity`** — manifest audit helpers (`audit_manifest`, `audit_output_contract`, `attach_signal_metadata`)
+- **`groovy.executor.template_integrity_registry`** — auto-built specs for all 22 bundled templates
+- **Render manifest enrichment** — per-hop `sample_rate`, `channel_layout`, `frame_count`, `content_hash` on AUDIO/STEMS outputs (including cache hits)
+- **`tests/test_signal_integrity.py`** — Mix SR/layout rejection, fan-in layout preservation, module I/O passthrough, SaveAudio round-trip, manifest fields
+- **`tests/test_template_signal_integrity.py`** — L1–L3 for **all 22** templates; A/B spot check for `ab-compare-demo`
+- **`GET /api/jobs/{job_id}/manifest`** — render manifest for studio debugging
+- **`GET /api/cache/{cache_id}/metrics`** — peak, LUFS, SR, layout per cached AUDIO clip
+- **Node Helper** — per-node signal metrics (peak, LUFS, SR, layout) on Outputs tab
+
+### Phase 2.6 gate (complete)
+
+- All **22 bundled templates** pass L1–L3 in CI (L0 unchanged via `groovy-verify`)
+- SR/layout mismatch without Resample/ChannelConvert surfaces executor error
+- SaveAudio round-trip + provenance sidecar fidelity
+- Cross-machine golden (`hello-groovy`) unchanged
+
 ## [0.18.0] - 2026-07-08
 
 **Phase 2 hardening complete** — studio graph UX, A/B compare, typed sockets, template CI gate.

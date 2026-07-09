@@ -231,10 +231,9 @@ body {
   align-items: center;
   padding: 0 12px;
   border-right: 1px solid var(--border-dim);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--text-secondary);
 }
 

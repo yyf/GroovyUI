@@ -3,11 +3,13 @@ import {
   analyzeAbCompare,
   fetchAudioFileMeta,
   fetchCacheMeta,
+  fetchCacheMetrics,
   fetchCompareModels,
   fetchModelCard,
   fetchNodeSchema,
   fetchWaveform,
   type AbCompareResult,
+  type CacheSignalMetrics,
 } from "../api";
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowNode } from "../types";
 import type { CompareHop } from "../workflow";
@@ -60,6 +62,7 @@ export default function NodeHelper({
   const [tab, setTab] = useState<Tab>("config");
   const [schema, setSchema] = useState<NodeSchema | null>(null);
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
+  const [signalMetrics, setSignalMetrics] = useState<CacheSignalMetrics | null>(null);
   const [provenance, setProvenance] = useState<Record<string, unknown> | null>(null);
   const [waveform, setWaveform] = useState<number[]>([]);
   const [fileMeta, setFileMeta] = useState<Record<string, unknown> | null>(null);
@@ -93,6 +96,7 @@ export default function NodeHelper({
   useEffect(() => {
     if (!output?.cache_id) {
       setMeta(null);
+      setSignalMetrics(null);
       setProvenance(null);
       setWaveform([]);
       return;
@@ -100,6 +104,9 @@ export default function NodeHelper({
     fetchCacheMeta(output.cache_id)
       .then(setMeta)
       .catch(() => setMeta(null));
+    fetchCacheMetrics(output.cache_id)
+      .then(setSignalMetrics)
+      .catch(() => setSignalMetrics(null));
     fetchWaveform(output.cache_id)
       .then((data) => setWaveform(data.peaks))
       .catch(() => setWaveform([]));
@@ -341,7 +348,13 @@ export default function NodeHelper({
                   </div>
                   {socket.description ? <p className="node-helper__hint">{socket.description}</p> : null}
                   {output && (index === 0 || output.type === socket.type) ? (
-                    <OutputSnapshot output={output} socketType={socket.type} meta={meta} waveform={waveform} />
+                    <OutputSnapshot
+                      output={output}
+                      socketType={socket.type}
+                      meta={meta}
+                      signalMetrics={signalMetrics}
+                      waveform={waveform}
+                    />
                   ) : (
                     <p className="node-helper__hint">Render to populate this output.</p>
                   )}
@@ -609,15 +622,22 @@ function ComparePanel({
   );
 }
 
+function formatPeakDb(peak: number): string {
+  if (peak <= 0) return "−∞ dBFS";
+  return `${(20 * Math.log10(peak)).toFixed(1)} dBFS`;
+}
+
 function OutputSnapshot({
   output,
   socketType,
   meta,
+  signalMetrics,
   waveform,
 }: {
   output: JobOutput;
   socketType: string;
   meta: Record<string, unknown> | null;
+  signalMetrics: CacheSignalMetrics | null;
   waveform: number[];
 }) {
   if (output.type !== socketType && socketType !== "AUDIO") {
@@ -650,6 +670,26 @@ function OutputSnapshot({
         <>
           {waveform.length > 0 ? <WaveformMini peaks={waveform} /> : null}
           <AudioFormatPanel meta={meta} title="Output format" />
+          {signalMetrics ? (
+            <dl className="node-helper__meta-grid">
+              <div className="node-helper__meta-row">
+                <dt>Peak</dt>
+                <dd>{formatPeakDb(signalMetrics.peak)}</dd>
+              </div>
+              <div className="node-helper__meta-row">
+                <dt>LUFS</dt>
+                <dd>{signalMetrics.lufs != null ? `${signalMetrics.lufs.toFixed(1)} LUFS` : "—"}</dd>
+              </div>
+              <div className="node-helper__meta-row">
+                <dt>Sample rate</dt>
+                <dd>{signalMetrics.sample_rate} Hz</dd>
+              </div>
+              <div className="node-helper__meta-row">
+                <dt>Layout</dt>
+                <dd>{signalMetrics.channel_layout}</dd>
+              </div>
+            </dl>
+          ) : null}
           <p className="node-helper__hint">
             {String(meta.frame_count)} frames @ {String(meta.sample_rate)} Hz
           </p>

@@ -668,6 +668,33 @@ def get_job(job_id: str) -> dict[str, Any]:
     return _jobs[job_id]
 
 
+@app.get("/api/jobs/{job_id}/manifest")
+def get_job_manifest(job_id: str) -> dict[str, Any]:
+    job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    manifest_path = job.get("manifest_path")
+    if not manifest_path:
+        raise HTTPException(status_code=404, detail="Manifest not available for this job")
+    path = Path(manifest_path)
+    if not path.is_absolute():
+        path = PROJECT_DIR / path
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Manifest file not found")
+    return json.loads(path.read_text())
+
+
+@app.get("/api/cache/{cache_id}/metrics")
+def cache_metrics(cache_id: str) -> dict[str, Any]:
+    from groovy.executor.ab_compare import measure_clip
+
+    try:
+        metrics = measure_clip(_executor.cache, cache_id, label=cache_id)
+        return metrics.to_dict()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Cache not found") from exc
+
+
 @app.get("/api/cache/{cache_id}/meta")
 def cache_meta(cache_id: str) -> dict[str, Any]:
     try:

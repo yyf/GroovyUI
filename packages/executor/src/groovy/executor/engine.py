@@ -20,6 +20,7 @@ from groovy.executor.oba import ObjectScene
 from groovy.executor.osc_live import OscBuffer
 from groovy.executor.node_cache import compute_node_signature
 from groovy.executor.provenance import build_record, parent_refs, read_provenance
+from groovy.executor.signal_integrity import attach_signal_metadata
 from groovy.node import NODE_REGISTRY, get_node_class
 from groovy.schema.models import Link, NodeInstance, Workflow
 from groovy.schema.validate import validate_workflow
@@ -112,12 +113,13 @@ class Executor:
                         outputs[node_id] = cached_state["output"]
                         cache_hit = True
                         ctx.emit_progress(node_id, 1.0, f"Cache hit {node.type}")
+                        manifest_output = attach_signal_metadata(self.cache, cached_state["output"])
                         manifest_nodes.append(
                             {
                                 "node_id": node_id,
                                 "type": node.type,
                                 "cache_hit": True,
-                                "output": cached_state["output"],
+                                "output": manifest_output,
                             }
                         )
                         continue
@@ -189,12 +191,13 @@ class Executor:
                         outputs[node_id] = output_meta
                         break
 
+                manifest_output = attach_signal_metadata(self.cache, output_meta)
                 manifest_nodes.append(
                     {
                         "node_id": node_id,
                         "type": node.type,
                         "cache_hit": cache_hit,
-                        "output": output_meta,
+                        "output": manifest_output,
                     }
                 )
                 if output_meta:
