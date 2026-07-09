@@ -261,6 +261,35 @@ export async function fetchCacheMeta(cacheId: string): Promise<Record<string, un
   return res.json();
 }
 
+export type CacheSignalMetrics = {
+  cache_id: string;
+  label: string;
+  duration_sec: number;
+  sample_rate: number;
+  channels: number;
+  channel_layout: string;
+  peak: number;
+  rms: number;
+  lufs: number | null;
+  source_node_type: string | null;
+};
+
+export async function fetchCacheMetrics(cacheId: string): Promise<CacheSignalMetrics> {
+  const res = await fetch(`${API}/api/cache/${cacheId}/metrics`);
+  if (!res.ok) {
+    throw new Error(`Metrics not found: ${cacheId}`);
+  }
+  return res.json();
+}
+
+export async function fetchJobManifest(jobId: string): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API}/api/jobs/${jobId}/manifest`);
+  if (!res.ok) {
+    throw new Error(`Manifest not found for job ${jobId}`);
+  }
+  return res.json();
+}
+
 export async function fetchAudioFileMeta(path: string): Promise<Record<string, unknown> | null> {
   const query = new URLSearchParams({ path });
   const res = await fetch(`${API}/api/project/audio-meta?${query}`);

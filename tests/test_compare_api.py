@@ -94,3 +94,34 @@ def test_compare_analyze_whisper_stub(api_client: TestClient, tmp_path: Path) ->
     )
     assert analysis.status_code == 200, analysis.text
     assert analysis.json()["mode"] == "transcript"
+
+
+def test_job_manifest_api(api_client: TestClient, tmp_path: Path) -> None:
+    outputs = _render_demo(api_client, tmp_path)
+    workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
+    for node in workflow.nodes:
+        if node.type == "LoadAudio":
+            node.widgets["path"] = "assets/samples/male-1.wav"
+
+    executor = Executor(tmp_path)
+    result = executor.execute(workflow, target_nodes=["n4"])
+    assert result.status == "completed", result.error
+    job_id = "manifest-test-job"
+    main._jobs[job_id] = {
+        "status": "completed",
+        "progress": 1.0,
+        "outputs": result.outputs,
+        "manifest_path": result.manifest_path,
+        "error": None,
+    }
+
+    manifest = api_client.get(f"/api/jobs/{job_id}/manifest")
+    assert manifest.status_code == 200
+    body = manifest.json()
+    assert body["job_id"] == result.job_id
+    assert any(node["node_id"] == "n4" for node in body["nodes"])
+
+    metrics = api_client.get(f"/api/cache/{outputs['n3']['cache_id']}/metrics")
+    assert metrics.status_code == 200
+    assert metrics.json()["sample_rate"] == 48000
+    assert "peak" in metrics.json()
