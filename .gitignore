@@ -22,6 +22,7 @@ workspace/
 .groovy/
 *.wav
 !tests/fixtures/*.wav
+!tests/golden/fixtures/*.wav
 !workspace/assets/samples/dialogue_48k.wav
 !workspace/assets/samples/male-1.wav
 
