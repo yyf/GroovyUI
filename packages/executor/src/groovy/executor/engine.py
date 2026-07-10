@@ -15,6 +15,7 @@ from groovy.executor.audio import AudioBuffer, StemsBuffer
 from groovy.executor.authenticity import AuthenticityReport
 from groovy.executor.control import AutomationBuffer
 from groovy.executor.cache import CacheStore
+from groovy.executor.cancel import JobCancelled
 from groovy.executor.midi import MidiBuffer
 from groovy.executor.oba import ObjectScene
 from groovy.executor.osc_live import OscBuffer
@@ -35,10 +36,15 @@ class JobContext:
     cache: CacheStore
     job_id: str
     on_progress: Callable[[str, str, float, str], None] | None = None
+    cancel_check: Callable[[], bool] | None = None
 
     def emit_progress(self, node_id: str, fraction: float, message: str) -> None:
         if self.on_progress:
             self.on_progress(self.job_id, node_id, fraction, message)
+
+    def check_cancelled(self) -> None:
+        if self.cancel_check and self.cancel_check():
+            raise JobCancelled()
 
 
 @dataclass
@@ -62,6 +68,7 @@ class Executor:
         target_nodes: list[str] | None = None,
         force_rebuild: bool = False,
         on_progress: Callable[[str, str, float, str], None] | None = None,
+        cancel_check: Callable[[], bool] | None = None,
     ) -> ExecutionResult:
         validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
         if not validation.valid:
@@ -74,6 +81,7 @@ class Executor:
             cache=self.cache,
             job_id=job_id,
             on_progress=on_progress,
+            cancel_check=cancel_check,
         )
 
         node_by_id = {n.id: n for n in workflow.nodes}
@@ -89,9 +97,17 @@ class Executor:
 
         try:
             node_outputs: dict[str, tuple[Any, ...]] = {}
-            for node_id in order:
+            total_nodes = len(order)
+            for node_index, node_id in enumerate(order):
+                ctx.check_cancelled()
                 node = node_by_id[node_id]
-                ctx.emit_progress(node_id, 0.0, f"Running {node.type}...")
+
+                def overall_fraction(local: float) -> float:
+                    if total_nodes <= 0:
+                        return 1.0
+                    return min(1.0, (node_index + local) / total_nodes)
+
+                ctx.emit_progress(node_id, overall_fraction(0.0), f"Running {node.type}...")
                 node_cls = get_node_class(node.type)
                 instance = node_cls()
                 instance.bind_context(ctx)
@@ -101,19 +117,38 @@ class Executor:
                     src_outputs = node_outputs.get(src_id)
                     if src_outputs is None:
                         raise RuntimeError(f"Missing upstream output for {node_id}")
+                    if src_out_idx >= len(src_outputs):
+                        src_type = node_by_id[src_id].type
+                        raise RuntimeError(
+                            f"{node.type} needs output slot {src_out_idx} from {src_type}, "
+                            f"but only {len(src_outputs)} slot(s) are available. "
+                            "Re-render the workflow (Shift+R) to refresh cached stems."
+                        )
                     kwargs[_input_name(node_cls, input_idx)] = src_outputs[src_out_idx]
 
                 signature = compute_node_signature(node.type, dict(node.widgets), kwargs)
                 cached_state = None if force_rebuild else ctx.cache.read_node_cache(workflow.id, node_id)
                 cache_hit = False
-                if cached_state and cached_state.get("signature") == signature and cached_state.get("output"):
-                    result = self._result_from_meta(cached_state["output"])
+                cached_output_meta = (
+                    self._normalize_output_meta(node_cls, cached_state.get("output"))
+                    if cached_state
+                    else None
+                )
+                if cached_state and cached_state.get("signature") == signature and cached_output_meta:
+                    result = self._result_from_meta(cached_output_meta, node_cls=node_cls)
                     if result is not None:
                         node_outputs[node_id] = result
-                        outputs[node_id] = cached_state["output"]
+                        outputs[node_id] = cached_output_meta
                         cache_hit = True
-                        ctx.emit_progress(node_id, 1.0, f"Cache hit {node.type}")
-                        manifest_output = attach_signal_metadata(self.cache, cached_state["output"])
+                        ctx.emit_progress(node_id, overall_fraction(1.0), f"Cache hit {node.type}")
+                        manifest_output = attach_signal_metadata(self.cache, cached_output_meta)
+                        if cached_state.get("output", {}).get("type") == "STEMS":
+                            ctx.cache.write_node_cache(
+                                workflow.id,
+                                node_id,
+                                signature=signature,
+                                output_meta=cached_output_meta,
+                            )
                         manifest_nodes.append(
                             {
                                 "node_id": node_id,
@@ -128,7 +163,12 @@ class Executor:
                 if node_cls.run_in_worker:
                     from groovy.executor.worker import run_ai_worker
 
-                    raw_outputs = run_ai_worker(node.type, kwargs, self.project_dir)
+                    raw_outputs = run_ai_worker(
+                        node.type,
+                        kwargs,
+                        self.project_dir,
+                        cancel_check=ctx.cancel_check,
+                    )
                     result = self._result_from_worker(raw_outputs)
                 else:
                     result = run_fn(**kwargs)
@@ -136,62 +176,20 @@ class Executor:
                     result = (result,)
 
                 node_outputs[node_id] = result
-                ctx.emit_progress(node_id, 1.0, f"Completed {node.type}")
+                ctx.emit_progress(node_id, overall_fraction(1.0), f"Completed {node.type}")
 
-                cache_id = None
-                output_meta: dict[str, Any] | None = None
-                for item in result:
-                    if isinstance(item, AuthenticityReport):
-                        output_meta = {"type": "AUTHENTICITY", "authenticity_id": item.id}
-                        outputs[node_id] = output_meta
-                        break
-                    if isinstance(item, MidiBuffer):
-                        output_meta = {"type": "MIDI", "midi_id": item.id}
-                        outputs[node_id] = output_meta
-                        break
-                    if isinstance(item, AutomationBuffer):
-                        output_meta = {"type": "AUTOMATION", "automation_id": item.id}
-                        outputs[node_id] = output_meta
-                        break
-                    if isinstance(item, AmbisonicBuffer):
-                        output_meta = {"type": "AMBISONICS", "ambisonics_id": item.id}
-                        outputs[node_id] = output_meta
-                        break
-                    if isinstance(item, ObjectScene):
-                        output_meta = {"type": "OBA", "oba_id": item.id}
-                        outputs[node_id] = output_meta
-                        break
-                    if isinstance(item, OscBuffer):
-                        output_meta = {"type": "OSC", "osc_id": item.id}
-                        outputs[node_id] = output_meta
-                        break
-                    if isinstance(item, AudioBuffer):
-                        cache_id = item.id
-                        output_meta = {"cache_id": cache_id, "type": "AUDIO"}
-                        outputs[node_id] = output_meta
-                        if not (
-                            getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
-                            and ctx.cache.read_provenance(cache_id)
-                        ):
-                            self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
-                        break
-                    if isinstance(item, StemsBuffer):
-                        output_meta = {
-                            "type": "STEMS",
-                            "stems_id": item.id,
-                            "stems": {name: buf.id for name, buf in item.stems.items()},
-                        }
-                        outputs[node_id] = output_meta
-                        break
-                    if isinstance(item, str):
-                        if node.type == "SaveAudio":
-                            output_meta = {"type": "STRING", "path": item}
-                        else:
-                            output_meta = {"type": "TEXT", "text": item}
-                        outputs[node_id] = output_meta
-                        break
+                output_meta = self._output_meta_from_result(
+                    result,
+                    node=node,
+                    node_cls=node_cls,
+                    ctx=ctx,
+                    workflow=workflow,
+                    kwargs=kwargs,
+                )
+                if output_meta:
+                    outputs[node_id] = output_meta
 
-                manifest_output = attach_signal_metadata(self.cache, output_meta)
+                manifest_output = attach_signal_metadata(self.cache, output_meta) if output_meta else None
                 manifest_nodes.append(
                     {
                         "node_id": node_id,
@@ -222,8 +220,15 @@ class Executor:
                 outputs=outputs,
                 manifest_path=str(manifest_path),
             )
+        except JobCancelled as exc:
+            return ExecutionResult(
+                job_id=job_id,
+                status="cancelled",
+                outputs=outputs,
+                error=exc.message,
+            )
         except Exception as exc:
-            return ExecutionResult(job_id=job_id, status="failed", error=str(exc))
+            return ExecutionResult(job_id=job_id, status="failed", error=str(exc), outputs=outputs)
 
     def _write_provenance(
         self,
@@ -252,6 +257,41 @@ class Executor:
         )
         ctx.cache.write_provenance(buffer.id, record)
 
+    def _normalize_output_meta(
+        self,
+        node_cls: type,
+        output_meta: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if not output_meta:
+            return None
+
+        return_types = getattr(node_cls, "RETURN_TYPES", ())
+        if len(return_types) <= 1:
+            return output_meta
+
+        if output_meta.get("type") == "MULTI":
+            slots = output_meta.get("outputs") or []
+            if len(slots) == len(return_types):
+                return output_meta
+            return None
+
+        if output_meta.get("type") == "STEMS" and output_meta.get("stems_id"):
+            stems = self.cache.load_stems(str(output_meta["stems_id"]))
+            names = getattr(node_cls, "OUTPUT_NAMES", ()) or tuple(stems.stems.keys())
+            slots: list[dict[str, Any]] = []
+            for name in names:
+                buf = stems.stems.get(name)
+                if buf is not None:
+                    slots.append({"type": "AUDIO", "cache_id": buf.id, "name": name})
+            if len(slots) == len(return_types):
+                return {"type": "MULTI", "outputs": slots}
+            return None
+
+        if output_meta.get("type") == "AUDIO":
+            return None
+
+        return output_meta
+
     def _result_from_worker(self, raw_outputs: list[dict[str, Any]]) -> tuple[Any, ...]:
         result: list[Any] = []
         for item in raw_outputs:
@@ -279,9 +319,82 @@ class Executor:
                 result.append(str(item["path"]))
         return tuple(result)
 
-    def _result_from_meta(self, output_meta: dict[str, Any]) -> tuple[Any, ...] | None:
-        result = self._result_from_worker([output_meta])
+    def _result_from_meta(
+        self,
+        output_meta: dict[str, Any],
+        *,
+        node_cls: type | None = None,
+    ) -> tuple[Any, ...] | None:
+        meta = self._normalize_output_meta(node_cls, output_meta) if node_cls else output_meta
+        if not meta:
+            return None
+        if meta.get("type") == "MULTI":
+            slots: list[Any] = []
+            for slot in meta.get("outputs", []):
+                loaded = self._result_from_worker([slot])
+                if loaded:
+                    slots.append(loaded[0])
+            return tuple(slots) if slots else None
+        result = self._result_from_worker([meta])
         return result if result else None
+
+    def _output_meta_from_result(
+        self,
+        result: tuple[Any, ...],
+        *,
+        node: NodeInstance,
+        node_cls: type,
+        ctx: JobContext,
+        workflow: Workflow,
+        kwargs: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        audio_items = [item for item in result if isinstance(item, AudioBuffer)]
+        if len(audio_items) > 1:
+            names = getattr(node_cls, "OUTPUT_NAMES", None) or tuple(
+                f"output_{index}" for index in range(len(audio_items))
+            )
+            slots: list[dict[str, Any]] = []
+            for index, item in enumerate(audio_items):
+                name = names[index] if index < len(names) else f"output_{index}"
+                slots.append({"type": "AUDIO", "cache_id": item.id, "name": name})
+                if not (
+                    getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
+                    and ctx.cache.read_provenance(item.id)
+                ):
+                    self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
+            return {"type": "MULTI", "outputs": slots}
+
+        for item in result:
+            if isinstance(item, AuthenticityReport):
+                return {"type": "AUTHENTICITY", "authenticity_id": item.id}
+            if isinstance(item, MidiBuffer):
+                return {"type": "MIDI", "midi_id": item.id}
+            if isinstance(item, AutomationBuffer):
+                return {"type": "AUTOMATION", "automation_id": item.id}
+            if isinstance(item, AmbisonicBuffer):
+                return {"type": "AMBISONICS", "ambisonics_id": item.id}
+            if isinstance(item, ObjectScene):
+                return {"type": "OBA", "oba_id": item.id}
+            if isinstance(item, OscBuffer):
+                return {"type": "OSC", "osc_id": item.id}
+            if isinstance(item, AudioBuffer):
+                if not (
+                    getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
+                    and ctx.cache.read_provenance(item.id)
+                ):
+                    self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
+                return {"cache_id": item.id, "type": "AUDIO"}
+            if isinstance(item, StemsBuffer):
+                return {
+                    "type": "STEMS",
+                    "stems_id": item.id,
+                    "stems": {name: buf.id for name, buf in item.stems.items()},
+                }
+            if isinstance(item, str):
+                if node.type == "SaveAudio":
+                    return {"type": "STRING", "path": item}
+                return {"type": "TEXT", "text": item}
+        return None
 
 
 def _input_name(node_cls: type, index: int) -> str:

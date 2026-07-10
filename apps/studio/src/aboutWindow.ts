@@ -55,7 +55,7 @@ export function openAboutWindow(): void {
   <p class="sub">General-purpose graph tools spread audio across scattered custom nodes. GroovyUI fills that gap with an audio-native registry, typed signal flow, provenance, and modular-synth ergonomics in one workflow.</p>
   <table>
     <tr><td>Rendering</td><td>Sample-accurate offline · cached audition</td></tr>
-    <tr><td>Signals</td><td>Audio, MIDI, stems, control, immersive layouts</td></tr>
+    <tr><td>Signals</td><td>Audio, MIDI, stems, and control</td></tr>
     <tr><td>License</td><td>Apache 2.0 (core packages)</td></tr>
   </table>`;
   popupShell("GroovyUI — About", body, 400);

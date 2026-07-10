@@ -45,6 +45,24 @@ def attach_signal_metadata(cache: CacheStore, output_meta: dict[str, Any] | None
             "content_hash": meta.get("content_hash"),
         }
 
+    if output_type == "MULTI" and output_meta.get("outputs"):
+        enriched_slots: list[dict[str, Any]] = []
+        for slot in output_meta["outputs"]:
+            if slot.get("type") == "AUDIO" and slot.get("cache_id"):
+                meta = cache.read_meta(slot["cache_id"])
+                enriched_slots.append(
+                    {
+                        **slot,
+                        "sample_rate": meta.get("sample_rate"),
+                        "channel_layout": meta.get("channel_layout"),
+                        "frame_count": meta.get("frame_count"),
+                        "content_hash": meta.get("content_hash"),
+                    }
+                )
+            else:
+                enriched_slots.append(slot)
+        return {**output_meta, "outputs": enriched_slots}
+
     if output_type == "STEMS" and output_meta.get("stems_id"):
         stems_meta_path = cache.cache_dir / f"{output_meta['stems_id']}.stems.meta.json"
         if stems_meta_path.exists():
@@ -199,24 +217,41 @@ def audit_output_contract(
 
     if spec.expect_stems_node:
         stems_out = outputs_by_node.get(spec.expect_stems_node)
-        if not stems_out or stems_out.get("type") != "STEMS":
-            errors.append(f"{spec.expect_stems_node}: expected STEMS output")
-        elif spec.expect_stem_keys:
-            stem_keys = set(stems_out.get("stems", {}).keys())
-            missing = spec.expect_stem_keys - stem_keys
-            if missing:
-                errors.append(f"{spec.expect_stems_node}: missing stem keys {sorted(missing)}")
-
-        stem_pick = next((n for n in workflow.nodes if n.type == "StemPick"), None)
-        if stem_pick and stems_out and load_meta:
-            picked = stem_pick.widgets.get("stem", "vocals")
-            stem_cache_id = stems_out.get("stems", {}).get(picked)
-            if stem_cache_id:
-                stem_meta = cache.read_meta(stem_cache_id)
+        if stems_out and stems_out.get("type") == "MULTI":
+            names = {slot.get("name") for slot in stems_out.get("outputs", [])}
+            if spec.expect_stem_keys:
+                missing = spec.expect_stem_keys - names
+                if missing:
+                    errors.append(f"{spec.expect_stems_node}: missing stem outputs {sorted(missing)}")
+            vocals = next(
+                (slot for slot in stems_out.get("outputs", []) if slot.get("name") == "vocals"),
+                None,
+            )
+            if vocals and vocals.get("cache_id") and load_meta:
+                stem_meta = cache.read_meta(vocals["cache_id"])
                 if stem_meta.get("sample_rate") != load_meta.get("sample_rate"):
                     errors.append(
-                        f"stem {picked} SR {stem_meta.get('sample_rate')} != load SR {load_meta.get('sample_rate')}"
+                        f"vocals SR {stem_meta.get('sample_rate')} != load SR {load_meta.get('sample_rate')}"
                     )
+        elif stems_out and stems_out.get("type") == "STEMS":
+            if spec.expect_stem_keys:
+                stem_keys = set(stems_out.get("stems", {}).keys())
+                missing = spec.expect_stem_keys - stem_keys
+                if missing:
+                    errors.append(f"{spec.expect_stems_node}: missing stem keys {sorted(missing)}")
+
+            stem_pick = next((n for n in workflow.nodes if n.type == "StemPick"), None)
+            if stem_pick and load_meta:
+                picked = stem_pick.widgets.get("stem", "vocals")
+                stem_cache_id = stems_out.get("stems", {}).get(picked)
+                if stem_cache_id:
+                    stem_meta = cache.read_meta(stem_cache_id)
+                    if stem_meta.get("sample_rate") != load_meta.get("sample_rate"):
+                        errors.append(
+                            f"stem {picked} SR {stem_meta.get('sample_rate')} != load SR {load_meta.get('sample_rate')}"
+                        )
+        elif spec.expect_stem_keys:
+            errors.append(f"{spec.expect_stems_node}: expected MULTI or STEMS output")
 
     if spec.expect_terminal_layout and audio_terminal:
         terminal_out = outputs_by_node.get(audio_terminal)

@@ -4,9 +4,133 @@ import type { GroovyGroupNodeData } from "./components/ModuleGroupNode";
 import type { GroovyNodeData, NodeSocketSpec } from "./components/GroovyFlowNode";
 import { edgeTypeClass, socketTypeColor } from "./socketTypes";
 
+export function previewOutputSlot(workflow: Workflow, nodeId: string): number {
+  const outbound = workflow.links.filter((link) => link.from[0] === nodeId);
+  if (!outbound.length) return 0;
+  const previewLink = outbound.find((link) => {
+    const target = workflow.nodes.find((node) => node.id === link.to[0]);
+    return target?.type === "Preview";
+  });
+  return previewLink?.from[1] ?? outbound[0].from[1];
+}
+
+const LISTEN_UPSTREAM_SOCKETS = new Set(["AUDIO", "MIDI"]);
+
+function listenOutputFromInboundLinks(
+  workflow: Workflow,
+  nodeId: string,
+  outputs: Record<string, JobOutput>,
+): JobOutput | undefined {
+  for (const link of workflow.links) {
+    if (link.to[0] !== nodeId) continue;
+    if (!LISTEN_UPSTREAM_SOCKETS.has(link.type)) continue;
+    const slotOutput = jobOutputAtSlot(outputs[link.from[0]], link.from[1]);
+    if (slotOutput && previewListenId(slotOutput, 0)) return slotOutput;
+  }
+  return undefined;
+}
+
+/** Job output slot to audition for a node (direct render or wired upstream). */
+export function resolveNodeListenOutput(
+  workflow: Workflow,
+  nodeId: string,
+  outputs?: Record<string, JobOutput>,
+): JobOutput | undefined {
+  if (!outputs) return undefined;
+
+  const node = workflow.nodes.find((entry) => entry.id === nodeId);
+  if (node?.type === "Preview") {
+    const wired = listenOutputFromInboundLinks(workflow, nodeId, outputs);
+    if (wired) return wired;
+  }
+
+  const direct = outputs[nodeId];
+  if (previewListenId(direct, 0)) {
+    return jobOutputAtSlot(direct, 0);
+  }
+
+  if (direct?.type === "MULTI") {
+    const slot = previewOutputSlot(workflow, nodeId);
+    const slotOutput = jobOutputAtSlot(direct, slot);
+    if (slotOutput && previewListenId(slotOutput, 0)) return slotOutput;
+  }
+
+  return listenOutputFromInboundLinks(workflow, nodeId, outputs);
+}
+
+export function resolveNodeListenId(
+  workflow: Workflow,
+  nodeId: string,
+  outputs?: Record<string, JobOutput>,
+): string | null {
+  const listenOutput = resolveNodeListenOutput(workflow, nodeId, outputs);
+  if (!listenOutput) return null;
+  return previewCacheId(listenOutput) ?? previewMidiId(listenOutput);
+}
+
+export function nodeHasListenableOutput(
+  workflow: Workflow,
+  nodeId: string,
+  outputs?: Record<string, JobOutput>,
+): boolean {
+  return resolveNodeListenId(workflow, nodeId, outputs) != null;
+}
+
+export function cachedStatusFromOutputs(
+  workflow: Workflow,
+  outputs: Record<string, JobOutput>,
+): Record<string, NodeRenderStatus> {
+  const cached: Record<string, NodeRenderStatus> = {};
+  for (const node of workflow.nodes) {
+    const out = outputs[node.id];
+    if (
+      nodeHasListenableOutput(workflow, node.id, outputs) ||
+      out?.cache_id ||
+      out?.stems_id ||
+      out?.midi_id ||
+      out?.authenticity_id ||
+      out?.automation_id ||
+      out?.type === "MULTI" ||
+      out?.type === "TEXT" ||
+      out?.type === "STRING"
+    ) {
+      cached[node.id] = "cached";
+    }
+  }
+  return cached;
+}
+
 export function previewCacheId(output?: JobOutput): string | null {
   if (!output?.cache_id) return null;
   return output.cache_id;
+}
+
+const STEM_SLOT_NAMES = ["vocals", "drums", "bass", "other"] as const;
+
+export function jobOutputAtSlot(output?: JobOutput, slot = 0): JobOutput | undefined {
+  if (!output) return undefined;
+  if (output.type === "MULTI" && output.outputs?.length) {
+    return output.outputs[slot];
+  }
+  if (output.type === "STEMS" && output.stems) {
+    const name = STEM_SLOT_NAMES[slot];
+    const cacheId = name ? output.stems[name] : undefined;
+    if (cacheId) return { type: "AUDIO", cache_id: cacheId, name };
+    return undefined;
+  }
+  return slot === 0 ? output : undefined;
+}
+
+export function previewMidiId(output?: JobOutput): string | null {
+  if (output?.type === "MIDI" && output.midi_id) return output.midi_id;
+  if (output?.midi_id && !output.cache_id) return output.midi_id;
+  return null;
+}
+
+/** Cache id used for offline preview/listen (audio WAV or synthesized MIDI audition). */
+export function previewListenId(output?: JobOutput, slot = 0): string | null {
+  const slotOutput = jobOutputAtSlot(output, slot);
+  return previewCacheId(slotOutput) ?? previewMidiId(slotOutput);
 }
 
 export function savedFilePath(output?: JobOutput): string | null {
@@ -299,7 +423,7 @@ export function workflowToFlowNodes(
           label: n.type,
           status: nodeStatus[n.id] ?? "idle",
           nodeId: n.id,
-          canAudition: !!previewCacheId(outputs?.[n.id]),
+          canAudition: nodeHasListenableOutput(workflow, n.id, outputs),
           issue: nodeIssues?.[n.id],
           inputs,
           outputs: outputSockets,
@@ -454,20 +578,30 @@ export function topologicalNodeOrder(workflow: Workflow): string[] {
   return order;
 }
 
+function listenCacheId(
+  workflow: Workflow,
+  nodeId: string,
+  outputs: Record<string, JobOutput>,
+): string | null {
+  return resolveNodeListenId(workflow, nodeId, outputs);
+}
+
 function hopDiffers(
+  workflow: Workflow,
   nodeA: string,
   nodeB: string,
   outputs: Record<string, JobOutput>,
 ): [string, string] | null {
-  const outputA = outputs[nodeA];
-  const outputB = outputs[nodeB];
-  if (outputA?.cache_id && outputB?.cache_id && outputA.cache_id !== outputB.cache_id) {
+  const cacheA = listenCacheId(workflow, nodeA, outputs);
+  const cacheB = listenCacheId(workflow, nodeB, outputs);
+  if (cacheA && cacheB && cacheA !== cacheB) {
     return [nodeA, nodeB];
   }
   return null;
 }
 
 function findDistinctHop(
+  workflow: Workflow,
   order: string[],
   outputs: Record<string, JobOutput>,
   selectedA: string,
@@ -480,11 +614,11 @@ function findDistinctHop(
   const hi = Math.max(indexA, indexB);
 
   for (let index = hi - 1; index >= lo; index--) {
-    const hop = hopDiffers(order[index], order[index + 1], outputs);
+    const hop = hopDiffers(workflow, order[index], order[index + 1], outputs);
     if (hop) return hop;
   }
   for (let index = lo; index > 0; index--) {
-    const hop = hopDiffers(order[index - 1], order[index], outputs);
+    const hop = hopDiffers(workflow, order[index - 1], order[index], outputs);
     if (hop) return hop;
   }
   for (let index = order.length - 2; index >= 0; index--) {
@@ -492,9 +626,9 @@ function findDistinctHop(
     const right = order[index + 1];
     if (
       (left === selectedA || left === selectedB || right === selectedA || right === selectedB) &&
-      hopDiffers(left, right, outputs)
+      hopDiffers(workflow, left, right, outputs)
     ) {
-      return hopDiffers(left, right, outputs);
+      return hopDiffers(workflow, left, right, outputs);
     }
   }
   return null;
@@ -522,7 +656,7 @@ export function listDistinctChainHops(
   for (let index = 0; index < order.length - 1; index++) {
     const nodeA = order[index];
     const nodeB = order[index + 1];
-    if (!hopDiffers(nodeA, nodeB, outputs)) continue;
+    if (!hopDiffers(workflow, nodeA, nodeB, outputs)) continue;
     const left = workflow.nodes.find((node) => node.id === nodeA);
     const right = workflow.nodes.find((node) => node.id === nodeB);
     hops.push({
@@ -545,8 +679,8 @@ export function resolveComparePair(
   const nodeB = workflow.nodes.find((node) => node.id === secondId);
   if (!nodeA || !nodeB) return null;
 
-  const outputA = outputs[firstId];
-  const outputB = outputs[secondId];
+  const outputA = resolveNodeListenOutput(workflow, firstId, outputs);
+  const outputB = resolveNodeListenOutput(workflow, secondId, outputs);
   if (!outputA?.cache_id || !outputB?.cache_id) {
     return {
       pair: [],
@@ -567,13 +701,13 @@ export function resolveComparePair(
   }
 
   const order = topologicalNodeOrder(workflow);
-  const hop = findDistinctHop(order, outputs, firstId, secondId);
+  const hop = findDistinctHop(workflow, order, outputs, firstId, secondId);
   if (hop) {
     const [hopA, hopB] = hop;
     const hopNodeA = workflow.nodes.find((node) => node.id === hopA);
     const hopNodeB = workflow.nodes.find((node) => node.id === hopB);
-    const hopOutputA = outputs[hopA];
-    const hopOutputB = outputs[hopB];
+    const hopOutputA = resolveNodeListenOutput(workflow, hopA, outputs);
+    const hopOutputB = resolveNodeListenOutput(workflow, hopB, outputs);
     if (!hopNodeA || !hopNodeB || !hopOutputA?.cache_id || !hopOutputB?.cache_id) {
       return null;
     }
@@ -999,9 +1133,31 @@ export function addNodeToWorkflow(
 
 export function formatJobError(error: string | null | undefined): string {
   if (!error) return "unknown error";
-  const runtime = error.match(/RuntimeError:\s*(.+)/);
-  if (runtime) return runtime[1].trim();
-  const lines = error.trim().split("\n").filter(Boolean);
+  const fileNotFound = error.match(/FILE_NOT_FOUND:[^\n]*/);
+  if (fileNotFound) {
+    return fileNotFound[0].replace(/\s+/g, " ").trim();
+  }
+  const unsupported = error.match(/UNSUPPORTED_FORMAT:[^\n]*/);
+  if (unsupported) {
+    return unsupported[0].replace(/\s+/g, " ").trim();
+  }
+  const runtime = error.match(/RuntimeError:\s*(.+)/s);
+  if (runtime?.[1]?.trim() && runtime[1].trim() !== "runtime.") {
+    return runtime[1].trim();
+  }
+  const importErr = error.match(
+    /(?:ImportError|ModuleNotFoundError):(?:[^\n]|\n(?!Traceback|  File ))+/,
+  );
+  if (importErr) {
+    return importErr[0].replace(/\s+/g, " ").trim();
+  }
+  const lines = error.trim().split("\n").map((l) => l.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (line.startsWith("Traceback") || line.startsWith("File ")) continue;
+    if (line === "runtime." || line === "runtime" || line === "ImportError:") continue;
+    if (line.length > 12) return line;
+  }
   return lines[lines.length - 1] ?? error;
 }
 

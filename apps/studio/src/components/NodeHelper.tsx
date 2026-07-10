@@ -13,8 +13,9 @@ import {
 } from "../api";
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowNode } from "../types";
 import type { CompareHop } from "../workflow";
-import { joinSaveAudioPath, wiredInputsForNode } from "../workflow";
+import { joinSaveAudioPath, jobOutputAtSlot, wiredInputsForNode } from "../workflow";
 import { hasMinimalPatch } from "../nodeMinimalPatches";
+import { inferenceParamsForModel } from "../modelInferenceParams";
 import AudioFormatPanel from "./AudioFormatPanel";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
@@ -42,6 +43,8 @@ type Props = {
   onBrowseModel?: (nodeId: string, widgetName: string) => void;
   onAudition?: () => void;
   onCompareAudition?: (nodeId: string) => void;
+  renderIssue?: string | null;
+  renderIssueDetail?: string | null;
 };
 
 export default function NodeHelper({
@@ -59,6 +62,8 @@ export default function NodeHelper({
   onBrowseModel,
   onAudition,
   onCompareAudition,
+  renderIssue,
+  renderIssueDetail,
 }: Props) {
   const [tab, setTab] = useState<Tab>("config");
   const [schema, setSchema] = useState<NodeSchema | null>(null);
@@ -67,11 +72,14 @@ export default function NodeHelper({
   const [provenance, setProvenance] = useState<Record<string, unknown> | null>(null);
   const [waveform, setWaveform] = useState<number[]>([]);
   const [fileMeta, setFileMeta] = useState<Record<string, unknown> | null>(null);
+  const [fileMetaError, setFileMetaError] = useState<string | null>(null);
   const [compareWaveforms, setCompareWaveforms] = useState<[number[], number[]]>([[], []]);
   const [modelCard, setModelCard] = useState<ModelCard | null>(null);
 
   const selectedModelId = useMemo(() => {
     if (!node) return null;
+    const direct = node.widgets.model;
+    if (typeof direct === "string" && direct.trim()) return direct.trim();
     for (const widget of schema?.widgets ?? []) {
       if (widget.type !== "MODEL_REF") continue;
       const value = node.widgets[widget.name];
@@ -95,41 +103,50 @@ export default function NodeHelper({
   }, [node?.id, node?.type]);
 
   useEffect(() => {
-    if (!output?.cache_id) {
+    const primary = jobOutputAtSlot(output, 0);
+    if (!primary?.cache_id) {
       setMeta(null);
       setSignalMetrics(null);
       setProvenance(null);
       setWaveform([]);
       return;
     }
-    fetchCacheMeta(output.cache_id)
+    fetchCacheMeta(primary.cache_id)
       .then(setMeta)
       .catch(() => setMeta(null));
-    fetchCacheMetrics(output.cache_id)
+    fetchCacheMetrics(primary.cache_id)
       .then(setSignalMetrics)
       .catch(() => setSignalMetrics(null));
-    fetchWaveform(output.cache_id)
+    fetchWaveform(primary.cache_id)
       .then((data) => setWaveform(data.peaks))
       .catch(() => setWaveform([]));
-    fetch(`${import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188"}/api/cache/${output.cache_id}/provenance`)
+    fetch(`${import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188"}/api/cache/${primary.cache_id}/provenance`)
       .then((res) => (res.ok ? res.json() : null))
       .then(setProvenance)
       .catch(() => setProvenance(null));
-  }, [output?.cache_id]);
+  }, [output]);
 
   useEffect(() => {
     if (!node || node.type !== "LoadAudio") {
       setFileMeta(null);
+      setFileMetaError(null);
       return;
     }
     const path = typeof node.widgets.path === "string" ? node.widgets.path.trim() : "";
     if (!path) {
       setFileMeta(null);
+      setFileMetaError("No audio path set — choose a file under assets/samples/ or upload audio.");
       return;
     }
     fetchAudioFileMeta(path)
-      .then(setFileMeta)
-      .catch(() => setFileMeta(null));
+      .then(({ meta, error }) => {
+        setFileMeta(meta);
+        setFileMetaError(error);
+      })
+      .catch(() => {
+        setFileMeta(null);
+        setFileMetaError(`Could not read metadata for ${path}`);
+      });
   }, [node?.id, node?.type, node?.widgets.path]);
 
   useEffect(() => {
@@ -166,6 +183,15 @@ export default function NodeHelper({
     [schema, node, workflow],
   );
 
+  const modelParamRows = useMemo(() => {
+    if (!selectedModelId || !schema) return [];
+    const params = modelCard?.inference_params?.length
+      ? modelCard.inference_params
+      : inferenceParamsForModel(selectedModelId);
+    const widgetNames = new Set(schema.widgets.map((widget) => widget.name));
+    return params.filter((param) => !widgetNames.has(param.name));
+  }, [modelCard, schema, selectedModelId]);
+
   if (!node) {
     return (
       <aside className="node-helper node-helper--compare-only">
@@ -194,6 +220,18 @@ export default function NodeHelper({
         <h2>{node.type}</h2>
         <span className="node-helper__id">{node.id}</span>
       </header>
+      {renderIssue ? (
+        <div className="node-helper__render-error" role="alert">
+          <strong>Render failed</strong>
+          <p>{renderIssue}</p>
+          {renderIssueDetail && renderIssueDetail !== renderIssue ? (
+            <details className="node-helper__render-error-details">
+              <summary>Full error</summary>
+              <pre>{renderIssueDetail}</pre>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
       <div className="node-helper__scroll">
         {showCompare ? (
           <ComparePanel
@@ -229,7 +267,7 @@ export default function NodeHelper({
           type="button"
           className={tab === "provenance" ? "active" : ""}
           onClick={() => setTab("provenance")}
-          disabled={!output?.cache_id}
+          disabled={!jobOutputAtSlot(output, 0)?.cache_id && !output?.cache_id}
         >
           Provenance
         </button>
@@ -237,22 +275,26 @@ export default function NodeHelper({
       <div className="node-helper__body">
         {tab === "config" && schema ? (
           <div className="node-helper__widgets">
-            {modelCard ? (
+            {modelCard || selectedModelId ? (
               <section className="node-helper__model-panel">
                 <h4 className="node-helper__compare-subtitle">Selected model</h4>
-                <p className="node-helper__model-name">{modelCard.name}</p>
-                <p className="node-helper__hint">{modelCard.description}</p>
-                <div className="node-helper__model-tags">
-                  {modelCard.task_types.map((task) => (
-                    <span key={task} className="node-helper__model-tag">
-                      {task}
-                    </span>
-                  ))}
-                </div>
-                <p className="node-helper__hint">
-                  Install: {modelCard.install_status}
-                  {modelCard.license?.spdx ? ` · ${modelCard.license.spdx}` : ""}
-                </p>
+                <p className="node-helper__model-name">{modelCard?.name ?? selectedModelId}</p>
+                {modelCard?.description ? <p className="node-helper__hint">{modelCard.description}</p> : null}
+                {modelCard ? (
+                  <>
+                    <div className="node-helper__model-tags">
+                      {modelCard.task_types.map((task) => (
+                        <span key={task} className="node-helper__model-tag">
+                          {task}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="node-helper__hint">
+                      Install: {modelCard.install_status}
+                      {modelCard.license?.spdx ? ` · ${modelCard.license.spdx}` : ""}
+                    </p>
+                  </>
+                ) : null}
               </section>
             ) : null}
             {schema.inputs.length > 0 ? (
@@ -298,20 +340,43 @@ export default function NodeHelper({
                 />
               </label>
             ))}
+            {modelParamRows.length > 0 ? (
+              <section className="node-helper__model-params">
+                <h4 className="node-helper__compare-subtitle">Model parameters</h4>
+                {modelParamRows.map((param) => (
+                  <label key={param.name} className="node-helper__field">
+                    <span>{widgetLabel(param.name, node.type)}</span>
+                    {param.description ? <small className="node-helper__hint">{param.description}</small> : null}
+                    <WidgetInput
+                      spec={param}
+                      value={node.widgets[param.name] ?? param.default ?? ""}
+                      onChange={(value) => onWidgetChange(node.id, param.name, value)}
+                    />
+                  </label>
+                ))}
+              </section>
+            ) : null}
             {node.type === "SaveAudio" ? (
               <p className="node-helper__hint">
                 Writes to <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code> under the
                 project folder.
               </p>
             ) : null}
-            {schema.widgets.length === 0 && node.type !== "SaveAudio" ? (
+            {node.type === "LoadAudio" ? (
+              <p className="node-helper__hint">
+                Project-relative path under <code>workspace/</code> (e.g. <code>assets/samples/male-1.wav</code>).
+                A bare filename like <code>male-1.wav</code> also checks <code>assets/samples/</code> and{" "}
+                <code>assets/uploads/</code>. Drop audio onto the canvas to upload.
+              </p>
+            ) : null}
+            {schema.widgets.length === 0 && modelParamRows.length === 0 && node.type !== "SaveAudio" ? (
               <p className="node-helper__hint">No configurable parameters.</p>
             ) : null}
             {node.type === "LoadAudio" ? (
               <AudioFormatPanel meta={fileMeta} title="Source file format" />
             ) : null}
-            {node.type === "LoadAudio" && !fileMeta && node.widgets.path ? (
-              <p className="node-helper__hint">Could not read format metadata for this path.</p>
+            {node.type === "LoadAudio" && fileMetaError ? (
+              <pre className="node-helper__render-error-inline node-helper__path-error">{fileMetaError}</pre>
             ) : null}
           </div>
         ) : null}
@@ -344,26 +409,25 @@ export default function NodeHelper({
         {tab === "outputs" && schema ? (
           <div className="node-helper__outputs">
             <ul className="node-helper__socket-detail-list">
-              {schema.outputs.map((socket, index) => (
+              {schema.outputs.map((socket, index) => {
+                const slotOutput = jobOutputAtSlot(output, index);
+                return (
                 <li key={socket.name} className="node-helper__socket-detail">
                   <div className="node-helper__socket-detail-head">
                     <SocketTypeBadge type={socket.type} />
                     <strong className="node-helper__socket-name">{socket.name}</strong>
                   </div>
                   {socket.description ? <p className="node-helper__hint">{socket.description}</p> : null}
-                  {output && (index === 0 || output.type === socket.type) ? (
+                  {slotOutput ? (
                     <OutputSnapshot
-                      output={output}
+                      output={slotOutput}
                       socketType={socket.type}
-                      meta={meta}
-                      signalMetrics={signalMetrics}
-                      waveform={waveform}
                     />
                   ) : (
                     <p className="node-helper__hint">Render to populate this output.</p>
                   )}
                 </li>
-              ))}
+              )})}
             </ul>
             {previewUrl ? (
               <button type="button" className="node-helper__audition" onClick={onAudition}>
@@ -634,19 +698,38 @@ function formatPeakDb(peak: number): string {
 function OutputSnapshot({
   output,
   socketType,
-  meta,
-  signalMetrics,
-  waveform,
 }: {
   output: JobOutput;
   socketType: string;
-  meta: Record<string, unknown> | null;
-  signalMetrics: CacheSignalMetrics | null;
-  waveform: number[];
 }) {
+  const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
+  const [signalMetrics, setSignalMetrics] = useState<CacheSignalMetrics | null>(null);
+  const [waveform, setWaveform] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (!output.cache_id) {
+      setMeta(null);
+      setSignalMetrics(null);
+      setWaveform([]);
+      return;
+    }
+    fetchCacheMeta(output.cache_id)
+      .then(setMeta)
+      .catch(() => setMeta(null));
+    fetchCacheMetrics(output.cache_id)
+      .then(setSignalMetrics)
+      .catch(() => setSignalMetrics(null));
+    fetchWaveform(output.cache_id)
+      .then((data) => setWaveform(data.peaks))
+      .catch(() => setWaveform([]));
+  }, [output.cache_id]);
   if (output.type !== socketType && socketType !== "AUDIO") {
     if (socketType === "STRING" && (output.type === "STRING" || output.type === "TEXT")) {
       // SaveAudio path output (STRING) or legacy TEXT path payloads
+    } else if (socketType === "MIDI" && output.type === "MIDI") {
+      // AudioToMIDI and other MIDI outputs
+    } else if (socketType === "TEXT" && output.type === "TEXT") {
+      // Prompt node text output
     } else {
       return <p className="node-helper__hint">No render for this socket yet.</p>;
     }
@@ -660,6 +743,11 @@ function OutputSnapshot({
       {output.type === "STRING" && output.path ? (
         <p className="node-helper__text">
           <code>{output.path}</code>
+        </p>
+      ) : null}
+      {output.type === "MIDI" && output.midi_id ? (
+        <p className="node-helper__text">
+          MIDI cache <code>{output.midi_id.slice(0, 8)}…</code>
         </p>
       ) : null}
       {output.type === "TEXT" && output.text ? <p className="node-helper__text">{output.text}</p> : null}
@@ -722,11 +810,26 @@ function widgetLabel(name: string, nodeType: string): string {
 }
 
 type WidgetInputProps = {
-  spec: { name: string; type: string; default?: unknown; description?: string };
+  spec: {
+    name: string;
+    type: string;
+    default?: unknown;
+    description?: string;
+    min?: number;
+    max?: number;
+    step?: number;
+  };
   value: unknown;
   onChange: (value: unknown) => void;
   onBrowse?: () => void;
 };
+
+function clampNumber(value: number, min?: number, max?: number): number {
+  let next = value;
+  if (min != null) next = Math.max(min, next);
+  if (max != null) next = Math.min(max, next);
+  return next;
+}
 
 function WidgetInput({ spec, value, onChange, onBrowse }: WidgetInputProps) {
   if (spec.type === "MODEL_REF") {
@@ -739,13 +842,31 @@ function WidgetInput({ spec, value, onChange, onBrowse }: WidgetInputProps) {
       </div>
     );
   }
+  if (spec.type === "BOOLEAN" || spec.type === "BOOL") {
+    return (
+      <label className="node-helper__checkbox">
+        <input
+          type="checkbox"
+          checked={Boolean(value)}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <span>{Boolean(value) ? "On" : "Off"}</span>
+      </label>
+    );
+  }
   if (spec.type === "FLOAT" || spec.type === "INT") {
     return (
       <input
         type="number"
-        step={spec.type === "FLOAT" ? "any" : "1"}
+        step={spec.step ?? (spec.type === "FLOAT" ? "any" : "1")}
+        min={spec.min}
+        max={spec.max}
         value={typeof value === "number" ? value : Number(value)}
-        onChange={(e) => onChange(spec.type === "INT" ? parseInt(e.target.value, 10) : parseFloat(e.target.value))}
+        onChange={(e) => {
+          const parsed = spec.type === "INT" ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
+          if (!Number.isFinite(parsed)) return;
+          onChange(clampNumber(parsed, spec.min, spec.max));
+        }}
       />
     );
   }

@@ -4,25 +4,27 @@
   "id": "e3f4a5b6-c7d8-9012-efab-333344445555",
   "metadata": {
     "title": "Transcribe and Regenerate",
-    "description": "Transcribe audio to MIDI, then regenerate audio with MusicGen Melody (dev stub).",
-    "tags": ["midi", "musicgen", "regenerate"],
+    "author": "groovy",
+    "description": "Patch AI like a modular synth: Basic Pitch transcribes melody to MIDI, MusicGen Melody regenerates audio from MIDI + prompt. Requires inference deps (uv sync --group inference).",
+    "tags": ["featured", "midi", "musicgen", "modular", "regenerate"],
     "created_at": "2026-07-06T12:00:00Z",
-    "modified_at": "2026-07-06T12:00:00Z"
+    "modified_at": "2026-07-09T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
-    { "id": "n2", "type": "AudioToMIDI", "pos": { "x": 260, "y": 0 }, "widgets": { "model": "basic-pitch" } },
-    { "id": "n3", "type": "Prompt", "pos": { "x": 260, "y": 120 }, "widgets": { "text": "warm regenerated melody", "language": "en" } },
-    { "id": "n4", "type": "MIDIToAudio", "pos": { "x": 520, "y": 0 }, "widgets": { "model": "musicgen-melody-small", "prompt": "warm regenerated melody" } },
-    { "id": "n5", "type": "Normalize", "pos": { "x": 780, "y": 0 }, "widgets": { "mode": "lufs", "target_lufs": -16.0 } },
-    { "id": "n6", "type": "Preview", "pos": { "x": 1040, "y": 0 }, "widgets": {} }
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 40 }, "widgets": { "path": "assets/samples/male-1.wav" } },
+    { "id": "n2", "type": "AudioToMIDI", "pos": { "x": 280, "y": 40 }, "widgets": { "model": "basic-pitch" } },
+    { "id": "n3", "type": "Prompt", "pos": { "x": 280, "y": 200 }, "widgets": { "text": "warm acoustic guitar melody", "language": "en" } },
+    { "id": "n4", "type": "MIDIToAudio", "pos": { "x": 560, "y": 40 }, "widgets": { "model": "musicgen-melody-small", "prompt": "warm acoustic guitar melody" } },
+    { "id": "n5", "type": "Normalize", "pos": { "x": 840, "y": 40 }, "widgets": { "mode": "lufs", "target_lufs": -16.0 } },
+    { "id": "n6", "type": "Preview", "pos": { "x": 1100, "y": 40 }, "widgets": {} }
   ],
   "links": [
     { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
     { "id": "l2", "from": ["n2", 0], "to": ["n4", 0], "type": "MIDI" },
     { "id": "l3", "from": ["n3", 0], "to": ["n4", 1], "type": "TEXT" },
-    { "id": "l4", "from": ["n4", 0], "to": ["n5", 0], "type": "AUDIO" },
-    { "id": "l5", "from": ["n5", 0], "to": ["n6", 0], "type": "AUDIO" }
+    { "id": "l4", "from": ["n1", 0], "to": ["n4", 2], "type": "AUDIO" },
+    { "id": "l5", "from": ["n4", 0], "to": ["n5", 0], "type": "AUDIO" },
+    { "id": "l6", "from": ["n5", 0], "to": ["n6", 0], "type": "AUDIO" }
   ],
   "groups": [],
   "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }

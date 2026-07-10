@@ -41,28 +41,24 @@ export default function StudioTopBar({
         GroovyUI
       </div>
 
-      <div className="top-bar__content">
-        {open ? (
-          <>
-            <div className="top-bar__drawer">
-              <TemplateSelector templates={templates} selectedId={selectedTemplateId} onSelect={onSelectTemplate} />
-              <WorkflowGenerateButton onApply={onApplyWorkflow} />
-            </div>
-            <div className="top-bar__tools">
-              <button type="button" className="top-bar__tool" onClick={onModelBrowser}>
-                Models
-              </button>
-              <button
-                type="button"
-                className={`top-bar__tool${complianceWarnings > 0 ? " top-bar__tool--warn" : ""}`}
-                onClick={onCompliance}
-                title="License, provenance, authenticity, and disclosure"
-              >
-                Compliance{complianceWarnings > 0 ? ` (${complianceWarnings})` : ""}
-              </button>
-            </div>
-          </>
-        ) : null}
+      <div className={`top-bar__content${open ? "" : " top-bar__content--collapsed"}`}>
+        <div className="top-bar__drawer">
+          <TemplateSelector templates={templates} selectedId={selectedTemplateId} onSelect={onSelectTemplate} />
+          <WorkflowGenerateButton onApply={onApplyWorkflow} />
+        </div>
+        <div className="top-bar__tools">
+          <button type="button" className="top-bar__tool" onClick={onModelBrowser}>
+            Models
+          </button>
+          <button
+            type="button"
+            className={`top-bar__tool${complianceWarnings > 0 ? " top-bar__tool--warn" : ""}`}
+            onClick={onCompliance}
+            title="License, provenance, authenticity, and disclosure"
+          >
+            Compliance{complianceWarnings > 0 ? ` (${complianceWarnings})` : ""}
+          </button>
+        </div>
       </div>
 
       <button

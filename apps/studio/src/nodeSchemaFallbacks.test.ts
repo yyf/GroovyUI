@@ -29,4 +29,17 @@ describe("applyNodeSchemaFallbacks", () => {
     expect(merged.widgets.filter((w) => w.name === "path")).toHaveLength(1);
     expect(merged.widgets.find((w) => w.name === "path")?.default).toBe("custom");
   });
+
+  it("upgrades legacy SeparateStems STEMS output to four AUDIO sockets", () => {
+    const legacy: NodeSchema = {
+      type: "SeparateStems",
+      category: "GroovyUI/AI",
+      inputs: [{ name: "audio", type: "AUDIO" }],
+      outputs: [{ name: "output_0", type: "STEMS" }],
+      widgets: [{ name: "model", type: "MODEL_REF", default: "demucs-v4" }],
+    };
+    const merged = applyNodeSchemaFallbacks(legacy);
+    expect(merged.outputs.map((socket) => socket.name)).toEqual(["vocals", "drums", "bass", "other"]);
+    expect(merged.outputs.every((socket) => socket.type === "AUDIO")).toBe(true);
+  });
 });

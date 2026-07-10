@@ -22,9 +22,21 @@ uv run --package groovy-server groovy-server
 cd apps/studio && npm run dev
 ```
 
-Open http://127.0.0.1:5173 — load a template (22 bundled), install a model (**Cmd+K**), **Render chain**.
+Open http://127.0.0.1:5173 — default template **Transcribe and Regenerate** (modular AI patch demo). Install models (**Cmd+K**), **Render chain**.
 
-Sample audio: `workspace/assets/samples/male-1.wav` and `dialogue_48k.wav` (used by bundled templates).
+### Real AI inference (featured templates)
+
+**Transcribe and Regenerate** (Basic Pitch + MusicGen Melody) and **Stem Split Vocals** (Demucs) use real offline inference:
+
+```bash
+./scripts/setup-inference.sh
+```
+
+Then in the studio, install models from **Model Browser** (Cmd+K): `basic-pitch`, `musicgen-melody-small`, `demucs-v4`. First run may download weights from Hugging Face / Meta (needs `torch`, `torchaudio`, `transformers`, `demucs`).
+
+CI uses `GROOVY_INFERENCE_STUB=1` so tests stay fast without GPU weights.
+
+Sample audio: bundled in `assets/samples/` (auto-copied into `workspace/assets/samples/` on server start).
 
 With [just](https://github.com/casey/just): `just install`, `just test`, `just verify`, `just dev`.
 

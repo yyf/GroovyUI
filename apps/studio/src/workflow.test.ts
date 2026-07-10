@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Workflow } from "./types";
+import type { JobOutput, Workflow } from "./types";
 import {
   connectNodes,
   duplicateSelection,
@@ -7,11 +7,20 @@ import {
   isWireableInput,
   extractSelection,
   findOpenNodePosition,
+  formatJobError,
   mergeFlowEdges,
   mergeFlowNodes,
+  previewCacheId,
+  previewMidiId,
+  previewListenId,
   pasteSelection,
   removeNodesFromWorkflow,
   nodeIssuesFromValidation,
+  resolveNodeListenId,
+  resolveComparePair,
+  nodeHasListenableOutput,
+  cachedStatusFromOutputs,
+  jobOutputAtSlot,
   wiredInputsForNode,
   workflowToFlowEdges,
   workflowToFlowNodes,
@@ -315,5 +324,158 @@ describe("removeNodesFromWorkflow", () => {
     const next = removeNodesFromWorkflow(workflow, new Set(["proxy_g1"]));
     expect(next.nodes.map((node) => node.id)).toEqual(["n3"]);
     expect(next.links).toEqual([]);
+  });
+});
+
+describe("formatJobError", () => {
+  it("extracts FILE_NOT_FOUND with context", () => {
+    const err = "FileNotFoundError: FILE_NOT_FOUND: foo.wav\nResolved to: /tmp/workspace/foo.wav";
+    expect(formatJobError(err)).toContain("FILE_NOT_FOUND: foo.wav");
+  });
+
+  it("extracts ImportError instead of trailing runtime.", () => {
+    const err = `ImportError: 
+MusicgenMelodyProcessor requires the torchaudio library but it was not found in your environment. Please install it and restart your
+runtime.`;
+    expect(formatJobError(err)).toContain("torchaudio");
+    expect(formatJobError(err)).not.toBe("runtime.");
+  });
+});
+
+describe("resolveNodeListenId", () => {
+  const workflow = sampleWorkflow();
+
+  it("auditions Preview via upstream SeparateStems slot", () => {
+    const outputs: Record<string, JobOutput> = {
+      n2: {
+        type: "MULTI",
+        outputs: [
+          { type: "AUDIO", cache_id: "vocals", name: "vocals" },
+          { type: "AUDIO", cache_id: "drums", name: "drums" },
+        ],
+      },
+    };
+    expect(resolveNodeListenId(workflow, "n3", outputs)).toBe("vocals");
+  });
+
+  it("prefers wired upstream slot over stale Preview cache entry", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", widgets: { path: "a.wav" } },
+        { id: "n2", type: "SeparateStems", widgets: { model: "demucs-v4" } },
+        { id: "p2", type: "Preview", widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+        { id: "l2", from: ["n2", 1], to: ["p2", 0], type: "AUDIO" },
+      ],
+    };
+    const outputs: Record<string, JobOutput> = {
+      n2: {
+        type: "MULTI",
+        outputs: [
+          { type: "AUDIO", cache_id: "vocals", name: "vocals" },
+          { type: "AUDIO", cache_id: "drums", name: "drums" },
+        ],
+      },
+      p2: { type: "AUDIO", cache_id: "vocals" },
+    };
+    expect(resolveNodeListenId(workflow, "p2", outputs)).toBe("drums");
+  });
+
+  it("auditions SeparateStems via wired preview branch", () => {
+    const outputs: Record<string, JobOutput> = {
+      n2: {
+        type: "MULTI",
+        outputs: [
+          { type: "AUDIO", cache_id: "vocals", name: "vocals" },
+          { type: "AUDIO", cache_id: "drums", name: "drums" },
+        ],
+      },
+      n3: { type: "AUDIO", cache_id: "vocals" },
+    };
+    expect(resolveNodeListenId(workflow, "n2", outputs)).toBe("vocals");
+    expect(nodeHasListenableOutput(workflow, "n2", outputs)).toBe(true);
+  });
+
+  it("marks wired Preview cached when only upstream rendered", () => {
+    const outputs: Record<string, JobOutput> = {
+      n2: {
+        type: "MULTI",
+        outputs: [{ type: "AUDIO", cache_id: "vocals", name: "vocals" }],
+      },
+    };
+    const cached = cachedStatusFromOutputs(workflow, outputs);
+    expect(cached.n3).toBe("cached");
+  });
+  it("resolves compare pair for preview nodes wired to stem slots", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", widgets: { path: "a.wav" } },
+        { id: "n2", type: "SeparateStems", widgets: { model: "demucs-v4" } },
+        { id: "p1", type: "Preview", widgets: {} },
+        { id: "p2", type: "Preview", widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+        { id: "l2", from: ["n2", 0], to: ["p1", 0], type: "AUDIO" },
+        { id: "l3", from: ["n2", 1], to: ["p2", 0], type: "AUDIO" },
+      ],
+    };
+    const outputs: Record<string, JobOutput> = {
+      n2: {
+        type: "MULTI",
+        outputs: [
+          { type: "AUDIO", cache_id: "vocals", name: "vocals" },
+          { type: "AUDIO", cache_id: "drums", name: "drums" },
+        ],
+      },
+    };
+    const resolution = resolveComparePair(workflow, outputs, ["p1", "p2"]);
+    expect(resolution?.missingRender).toBe(false);
+    expect(resolution?.pair[0]?.output.cache_id).toBe("vocals");
+    expect(resolution?.pair[1]?.output.cache_id).toBe("drums");
+  });
+
+  it("resolves STEMS bundle slots for listen", () => {
+    const stems = {
+      type: "STEMS" as const,
+      stems_id: "bundle",
+      stems: { vocals: "v", drums: "d", bass: "b", other: "o" },
+    };
+    expect(jobOutputAtSlot(stems, 0)?.cache_id).toBe("v");
+    expect(jobOutputAtSlot(stems, 1)?.cache_id).toBe("d");
+    expect(resolveNodeListenId(sampleWorkflow(), "n3", { n2: stems })).toBe("v");
+  });
+});
+
+describe("preview ids", () => {
+  it("resolves audio cache id", () => {
+    expect(previewCacheId({ type: "AUDIO", cache_id: "abc" })).toBe("abc");
+    expect(previewCacheId({ type: "MIDI", midi_id: "mid" })).toBeNull();
+  });
+
+  it("resolves midi id for MIDI outputs", () => {
+    expect(previewMidiId({ type: "MIDI", midi_id: "mid-1" })).toBe("mid-1");
+    expect(previewMidiId({ type: "AUDIO", cache_id: "abc" })).toBeNull();
+  });
+
+  it("prefers audio cache for listen when both exist", () => {
+    expect(previewListenId({ type: "AUDIO", cache_id: "a", midi_id: "m" })).toBe("a");
+    expect(previewListenId({ type: "MIDI", midi_id: "m" })).toBe("m");
+  });
+
+  it("resolves multi-output slot for listen", () => {
+    const multi = {
+      type: "MULTI" as const,
+      outputs: [
+        { type: "AUDIO" as const, cache_id: "vocals", name: "vocals" },
+        { type: "AUDIO" as const, cache_id: "drums", name: "drums" },
+      ],
+    };
+    expect(previewListenId(multi, 0)).toBe("vocals");
+    expect(previewListenId(multi, 1)).toBe("drums");
   });
 });

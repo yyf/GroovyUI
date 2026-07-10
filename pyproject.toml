@@ -40,6 +40,9 @@ dev = [
     "httpx>=0.27",
     "ruff>=0.8",
 ]
+inference = [
+    "groovy-nodes-ai[inference]",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

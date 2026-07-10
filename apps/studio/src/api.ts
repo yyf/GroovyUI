@@ -1,6 +1,7 @@
 import type {
   BatchRenderResult,
   ComplianceSummary,
+  JobOutput,
   JobState,
   LicenseScanSummary,
   ModelCard,
@@ -254,6 +255,28 @@ export async function fetchWaveform(cacheId: string, width = 128): Promise<{ pea
   return res.json();
 }
 
+export type MidiRollData = {
+  midi_id: string;
+  duration: number;
+  notes: {
+    start: number;
+    end: number;
+    pitch: number;
+    velocity: number;
+    drum?: boolean;
+  }[];
+  min_pitch: number;
+  max_pitch: number;
+};
+
+export async function fetchMidiRoll(midiId: string): Promise<MidiRollData> {
+  const res = await fetch(`${API}/api/cache/${midiId}/midi-roll`);
+  if (!res.ok) {
+    throw new Error(`MIDI roll not found: ${midiId}`);
+  }
+  return res.json();
+}
+
 export async function fetchCacheMeta(cacheId: string): Promise<Record<string, unknown>> {
   const res = await fetch(`${API}/api/cache/${cacheId}/meta`);
   if (!res.ok) {
@@ -291,13 +314,36 @@ export async function fetchJobManifest(jobId: string): Promise<Record<string, un
   return res.json();
 }
 
-export async function fetchAudioFileMeta(path: string): Promise<Record<string, unknown> | null> {
+export function formatApiDetail(detail: unknown, fallback: string): string {
+  if (typeof detail === "string") {
+    return detail;
+  }
+  if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string") {
+    return detail.message;
+  }
+  if (Array.isArray(detail)) {
+    return detail.map((item) => String(item)).join("; ");
+  }
+  return fallback;
+}
+
+export async function fetchAudioFileMeta(
+  path: string,
+): Promise<{ meta: Record<string, unknown> | null; error: string | null }> {
   const query = new URLSearchParams({ path });
   const res = await fetch(`${API}/api/project/audio-meta?${query}`);
   if (!res.ok) {
-    return null;
+    let detail = `File not found: ${path}`;
+    try {
+      const body = await res.json();
+      detail = formatApiDetail(body.detail, detail);
+    } catch {
+      // ignore
+    }
+    return { meta: null, error: detail };
   }
-  return res.json();
+  const meta = await res.json();
+  return { meta, error: null };
 }
 
 export async function searchModels(
@@ -455,6 +501,9 @@ function formatApiError(detail: unknown, fallback: string): string {
     }
     return detail;
   }
+  if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string") {
+    return detail.message;
+  }
   if (Array.isArray(detail)) {
     return detail.map((item) => String(item)).join("; ");
   }
@@ -574,11 +623,24 @@ export function previewUrl(cacheId: string): string {
 
 export type JobProgressHandler = (job: JobState) => void;
 
+export type WorkflowExecution = {
+  jobId: string;
+  promise: Promise<JobState>;
+  cancel: () => Promise<void>;
+};
+
+export async function cancelJob(jobId: string): Promise<void> {
+  const res = await fetch(`${API}/api/jobs/${jobId}/cancel`, { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`Cancel failed: ${res.status}`);
+  }
+}
+
 export async function executeWorkflow(
   workflow: Workflow,
   targetNodes: string[],
   onProgress: JobProgressHandler,
-): Promise<JobState> {
+): Promise<WorkflowExecution> {
   const res = await fetch(`${API}/api/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -589,7 +651,7 @@ export async function executeWorkflow(
   }
   const { job_id } = await res.json();
 
-  return new Promise((resolve, reject) => {
+  const promise = new Promise<JobState>((resolve, reject) => {
     let settled = false;
     const finish = (job: JobState) => {
       if (settled) return;
@@ -609,7 +671,7 @@ export async function executeWorkflow(
       try {
         const job = await pollJob(job_id);
         onProgress(job);
-        if (job.status === "completed" || job.status === "failed") {
+        if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") {
           finish(job);
         }
       } catch (err) {
@@ -636,6 +698,7 @@ export async function executeWorkflow(
             status: "running",
             progress: msg.progress,
             current_node: msg.node_id,
+            message: msg.message,
           });
         } else if (msg.type === "job.complete") {
           onProgress({
@@ -652,6 +715,11 @@ export async function executeWorkflow(
           const message = msg.error?.message ?? "Execution failed";
           onProgress({ status: "failed", error: message });
           finish({ status: "failed", error: message });
+        } else if (msg.type === "job.cancelled") {
+          const message = msg.error?.message ?? "Cancelled";
+          const outputs = msg.outputs as Record<string, JobOutput> | undefined;
+          onProgress({ status: "cancelled", error: message, outputs });
+          finish({ status: "cancelled", error: message, outputs });
         }
       } catch {
         // ignore malformed messages
@@ -662,6 +730,12 @@ export async function executeWorkflow(
       // polling remains the fallback
     };
   });
+
+  return {
+    jobId: job_id,
+    promise,
+    cancel: () => cancelJob(job_id),
+  };
 }
 
 async function pollJob(jobId: string): Promise<JobState> {

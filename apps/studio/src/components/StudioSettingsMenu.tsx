@@ -2,44 +2,28 @@ import { useEffect, useRef, useState } from "react";
 import { openAboutWindow, openApiStatusWindow } from "../aboutWindow";
 
 export type StudioSettingsMenuProps = {
-  selectedCount: number;
   groupCollapsed: boolean | null;
   paletteOpen: boolean;
   helperOpen: boolean;
   workflowBarOpen: boolean;
-  running: boolean;
   onOpenIoSettings: () => void;
   onSaveWorkflow: () => void;
   onSaveAsTemplate: () => void;
-  onGroup: () => void;
-  onExportModule: () => void;
   onToggleGroupCollapse: () => void;
-  onInstallPack: () => void;
-  onImportComfy: () => void;
-  onImportModule: () => void;
-  onBatchRender: () => void;
   onTogglePalette: () => void;
   onToggleHelper: () => void;
   onToggleWorkflowBar: () => void;
 };
 
 export default function StudioSettingsMenu({
-  selectedCount,
   groupCollapsed,
   paletteOpen,
   helperOpen,
   workflowBarOpen,
-  running,
   onOpenIoSettings,
   onSaveWorkflow,
   onSaveAsTemplate,
-  onGroup,
-  onExportModule,
   onToggleGroupCollapse,
-  onInstallPack,
-  onImportComfy,
-  onImportModule,
-  onBatchRender,
   onTogglePalette,
   onToggleHelper,
   onToggleWorkflowBar,
@@ -55,9 +39,12 @@ export default function StudioSettingsMenu({
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("keydown", onKey);
+    const frame = window.requestAnimationFrame(() => {
+      window.addEventListener("mousedown", onPointer);
+      window.addEventListener("keydown", onKey);
+    });
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("mousedown", onPointer);
       window.removeEventListener("keydown", onKey);
     };
@@ -105,18 +92,9 @@ export default function StudioSettingsMenu({
             <span className="studio-menu__heading">Workflow</span>
             {item("Save workflow", onSaveWorkflow)}
             {item("Save as template", onSaveAsTemplate)}
-            {item(`Group selection (${selectedCount})`, onGroup, { disabled: selectedCount < 2 })}
-            {item("Export module", onExportModule, { disabled: selectedCount === 0 })}
             {groupCollapsed != null
               ? item(groupCollapsed ? "Expand group" : "Collapse group", onToggleGroupCollapse)
               : null}
-          </div>
-          <div className="studio-menu__section">
-            <span className="studio-menu__heading">Import</span>
-            {item("Import ComfyUI", onImportComfy)}
-            {item("Import module", onImportModule)}
-            {item("Install pack", onInstallPack)}
-            {item("Batch folder", onBatchRender, { disabled: running })}
           </div>
           <div className="studio-menu__section studio-menu__section--tail">
             {item("About GroovyUI", () => openAboutWindow())}

@@ -56,6 +56,19 @@ export type NodeWidgetSpec = {
   default?: unknown;
   optional?: boolean;
   description?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+export type InferenceParamSpec = {
+  name: string;
+  type: string;
+  default?: unknown;
+  min?: number;
+  max?: number;
+  step?: number;
+  description?: string;
 };
 
 export type ModelCard = {
@@ -70,6 +83,7 @@ export type ModelCard = {
   install_status: string;
   install_progress?: number;
   install_error?: string | null;
+  inference_params?: InferenceParamSpec[];
 };
 
 export type NodeSchema = {
@@ -85,6 +99,7 @@ export type NodeSchema = {
 export type JobOutput = {
   cache_id?: string;
   type: string;
+  name?: string;
   text?: string;
   path?: string;
   stems_id?: string;
@@ -92,6 +107,7 @@ export type JobOutput = {
   midi_id?: string;
   authenticity_id?: string;
   automation_id?: string;
+  outputs?: JobOutput[];
 };
 
 export type ComplianceSummary = {
@@ -186,9 +202,10 @@ export type InstallRecovery = {
 };
 
 export type JobState = {
-  status: "running" | "completed" | "failed";
+  status: "running" | "completed" | "failed" | "cancelled";
   progress?: number;
   current_node?: string;
+  message?: string;
   outputs?: Record<string, JobOutput>;
   error?: string | null;
   manifest_path?: string;

@@ -138,6 +138,76 @@ class CacheStore:
             source_node_type=meta.get("source_node_type"),
         )
 
+    def midi_roll(self, midi_id: str) -> dict:
+        midi = self.load_midi(midi_id)
+        mid_path = self.cache_dir / f"{midi_id}.mid"
+        if not mid_path.exists():
+            raise FileNotFoundError(f"MIDI file not found: {midi_id}")
+        duration = midi.frame_count / max(midi.sample_rate, 1)
+        notes: list[dict] = []
+        try:
+            from pretty_midi import PrettyMIDI
+
+            pm = PrettyMIDI(str(mid_path))
+            duration = max(duration, float(pm.get_end_time()))
+            for instrument in pm.instruments:
+                for note in instrument.notes:
+                    notes.append(
+                        {
+                            "start": round(note.start, 4),
+                            "end": round(note.end, 4),
+                            "pitch": int(note.pitch),
+                            "velocity": int(note.velocity),
+                            "drum": bool(instrument.is_drum),
+                        }
+                    )
+        except ImportError:
+            pass
+        pitches = [note["pitch"] for note in notes]
+        min_pitch = max(0, (min(pitches) if pitches else 60) - 2)
+        max_pitch = min(127, (max(pitches) if pitches else 72) + 2)
+        if min_pitch >= max_pitch:
+            max_pitch = min(127, min_pitch + 12)
+        return {
+            "midi_id": midi_id,
+            "duration": duration,
+            "notes": notes,
+            "min_pitch": min_pitch,
+            "max_pitch": max_pitch,
+        }
+
+    def midi_preview_wav_bytes(self, midi_id: str, *, sample_rate: int = 48_000) -> bytes:
+        """Offline audition: synthesize cached SMF to WAV (not realtime / not a DAW feature)."""
+        import io
+
+        import soundfile as sf
+
+        midi = self.load_midi(midi_id)
+        mid_path = self.cache_dir / f"{midi_id}.mid"
+        if not mid_path.exists():
+            raise FileNotFoundError(f"MIDI file not found: {midi_id}")
+
+        pcm: np.ndarray | None = None
+        try:
+            from pretty_midi import PrettyMIDI
+
+            audio = PrettyMIDI(str(mid_path)).synthesize(fs=sample_rate)
+            if audio.size:
+                pcm = np.asarray(audio, dtype=np.float64).reshape(1, -1)
+        except ImportError:
+            pass
+
+        if pcm is None:
+            duration = max(0.25, midi.frame_count / max(midi.sample_rate, 1))
+            pcm = np.zeros((1, int(duration * sample_rate)), dtype=np.float64)
+
+        buf = io.BytesIO()
+        sf.write(buf, pcm.reshape(-1), sample_rate, format="WAV", subtype="FLOAT")
+        return buf.getvalue()
+
+    def is_midi_cache(self, cache_id: str) -> bool:
+        return (self.cache_dir / f"{cache_id}.midi.meta.json").exists()
+
     def write_authenticity(self, report: AuthenticityReport) -> AuthenticityReport:
         meta_path = self.cache_dir / f"{report.id}.authenticity.json"
         meta_path.write_text(json.dumps(report.to_meta(), indent=2))
@@ -197,7 +267,11 @@ class CacheStore:
         interleaved = pcm.T.reshape(-1)
         buf = io.BytesIO()
         sf.write(
-            buf, interleaved, self.read_meta(cache_id)["sample_rate"], format="WAV", subtype="FLOAT"
+            buf,
+            interleaved,
+            self.read_meta(cache_id)["sample_rate"],
+            format="WAV",
+            subtype="PCM_16",
         )
         return buf.getvalue()
 

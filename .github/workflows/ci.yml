@@ -23,6 +23,8 @@ jobs:
       - run: |
           if command -v pnpm >/dev/null 2>&1; then pnpm install; else cd apps/studio && npm install; fi
       - run: uv run pytest tests/ -q
+        env:
+          GROOVY_INFERENCE_STUB: "1"
       - run: uv run groovy-verify
       - run: |
           if command -v pnpm >/dev/null 2>&1; then pnpm --filter @groovy/studio test; else cd apps/studio && npm test; fi

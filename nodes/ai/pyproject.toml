@@ -6,8 +6,26 @@ dependencies = [
     "groovy-node-sdk",
     "groovy-executor",
     "groovy-model-registry",
-    "numpy>=2.0",
+    "numpy>=2.0,<2.4",
     "scipy>=1.14",
+]
+
+[project.optional-dependencies]
+inference = [
+    "numpy>=2.0,<2.4",
+    "onnxruntime>=1.17.0",
+    "librosa>=0.10.2",
+    "mir_eval>=0.7",
+    "numba>=0.60",
+    "llvmlite>=0.43",
+    "resampy>=0.4.3",
+    "pretty-midi>=0.2.10",
+    "soundfile>=0.12.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "transformers>=4.40.0",
+    "accelerate>=0.28.0",
+    "demucs>=4.0.0",
 ]
 
 [project.scripts]
