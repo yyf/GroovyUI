@@ -17,6 +17,16 @@ class InstallSpec(BaseModel):
     dev_stub: bool = False
 
 
+class InferenceParam(BaseModel):
+    name: str
+    type: str = "FLOAT"
+    default: str | int | float | bool | None = None
+    min: float | None = None
+    max: float | None = None
+    step: float | None = None
+    description: str = ""
+
+
 class ModelManifest(BaseModel):
     id: str
     status: str = "published"
@@ -31,6 +41,7 @@ class ModelManifest(BaseModel):
     compatible_nodes: list[str] = Field(default_factory=list)
     install: InstallSpec = Field(default_factory=InstallSpec)
     similar_models: list[str] = Field(default_factory=list)
+    inference_params: list[InferenceParam] = Field(default_factory=list)
 
 
 class InstallState(BaseModel):

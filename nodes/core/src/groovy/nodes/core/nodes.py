@@ -16,6 +16,7 @@ from groovy.executor.audio_meta import (
 from groovy.executor.authenticity import AuthenticityReport, verify_provenance_for_audio
 from groovy.executor.control import AutomationBuffer
 from groovy.executor.midi import MidiBuffer
+from groovy.executor.project_paths import resolve_project_media_path
 from groovy.node import GroovyNode, register_node
 from groovy.nodes.core.immersive import register_immersive
 from groovy.nodes.core.live_io import register_live_io
@@ -77,11 +78,15 @@ class LoadAudio(GroovyNode):
         path = str(kwargs.get("path", ""))
         start_frame = int(kwargs.get("start_frame", 0))
         end_frame = int(kwargs.get("end_frame", -1))
-        resolved = self._ctx.cache.resolve_project_path(path)
-        if not resolved.exists():
-            raise FileNotFoundError(f"FILE_NOT_FOUND: {path}")
+        resolved, canonical_path = resolve_project_media_path(self._ctx.cache, path)
 
-        pcm, sample_rate = sf.read(resolved, dtype="float64", always_2d=True)
+        try:
+            pcm, sample_rate = sf.read(resolved, dtype="float64", always_2d=True)
+        except Exception as exc:
+            raise RuntimeError(
+                f"UNSUPPORTED_FORMAT: {canonical_path} — {exc}. "
+                "Try WAV/FLAC/AIFF; MP3/OGG may need conversion."
+            ) from exc
         pcm = pcm.T  # planar channels x frames
 
         start = max(0, start_frame)
@@ -96,7 +101,7 @@ class LoadAudio(GroovyNode):
             channel_layout=channel_layout_for_channels(pcm.shape[0]),
         )
         apply_file_probe(buffer, probe)
-        meta_extra: dict = {"source_path": path}
+        meta_extra: dict = {"source_path": canonical_path}
         sidecar = resolved.with_name(f"{resolved.stem}.provenance.json")
         if sidecar.exists():
             meta_extra["imported_provenance"] = json.loads(sidecar.read_text())
@@ -527,9 +532,7 @@ class LoadMIDI(GroovyNode):
             raise RuntimeError("Node context not bound")
         path = str(kwargs.get("path", path))
         midi_kind = str(kwargs.get("midi_kind", midi_kind))
-        resolved = self._ctx.cache.resolve_project_path(path)
-        if not resolved.exists():
-            raise FileNotFoundError(f"FILE_NOT_FOUND: {path}")
+        resolved, _canonical_path = resolve_project_media_path(self._ctx.cache, path)
         midi = MidiBuffer.create(
             sample_rate=48000,
             frame_count=48000,

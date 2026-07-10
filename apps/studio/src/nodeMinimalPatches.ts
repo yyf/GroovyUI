@@ -272,35 +272,19 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
   },
   SeparateStems: {
     title: "Separate Stems",
-    description: "Demucs stem split with vocal pick.",
+    description: "Demucs stem split — vocals output wired to preview.",
     focusNodeId: "n2",
     nodes: [
       load("n1", 0),
-      { id: "n2", type: "SeparateStems", x: 260, widgets: { model: "demucs-v4" } },
-      { id: "n3", type: "StemPick", x: 520, widgets: { stem: "vocals" } },
-      preview("n4", 780),
+      {
+        id: "n2",
+        type: "SeparateStems",
+        x: 260,
+        widgets: { model: "demucs-v4", shifts: 1, overlap: 0.25, segment: 0, split: true },
+      },
+      preview("n3", 520),
     ],
-    links: [
-      link("l1", "n1", "n2", "AUDIO"),
-      link("l2", "n2", "n3", "STEMS"),
-      link("l3", "n3", "n4", "AUDIO"),
-    ],
-  },
-  StemPick: {
-    title: "Stem Pick",
-    description: "Pick one stem from a Demucs separation.",
-    focusNodeId: "n3",
-    nodes: [
-      load("n1", 0),
-      { id: "n2", type: "SeparateStems", x: 260, widgets: { model: "demucs-v4" } },
-      { id: "n3", type: "StemPick", x: 520, widgets: { stem: "vocals" } },
-      preview("n4", 780),
-    ],
-    links: [
-      link("l1", "n1", "n2", "AUDIO"),
-      link("l2", "n2", "n3", "STEMS"),
-      link("l3", "n3", "n4", "AUDIO"),
-    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO", 0, 0)],
   },
   WhisperSTT: {
     title: "Whisper STT",
@@ -695,12 +679,6 @@ function appendSourceForInput(
     return;
   }
   if (input.type === "STEMS") {
-    const loadId = nextAugmentPatchNodeId(patchNodes, reservedIds);
-    patchNodes.push({ id: loadId, type: "LoadAudio", x: sourceX - PATCH_X_STEP, y: sourceY, widgets: { path: SAMPLE } });
-    const stemsId = nextAugmentPatchNodeId(patchNodes, reservedIds);
-    patchNodes.push({ id: stemsId, type: "SeparateStems", x: sourceX, y: sourceY, widgets: { model: "demucs-v4" } });
-    links.push(link(`l${linkIndex.value++}`, loadId, stemsId, "AUDIO"));
-    links.push(link(`l${linkIndex.value++}`, stemsId, focusNodeId, "STEMS", 0, input.slot));
     return;
   }
   if (input.type === "AMBISONICS") {

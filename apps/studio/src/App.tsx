@@ -13,17 +13,15 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
-  batchRenderWorkflow,
-  importComfyWorkflow,
   ensureWorkflowModels,
   executeWorkflow,
   fetchCompliance,
   fetchAllNodeSchemas,
   fetchWorkflowValidation,
-  listPacks,
-  installPack,
   fetchTemplate,
+  fetchModelCard,
   fetchWaveform,
+  fetchMidiRoll,
   listTemplates,
   saveUserTemplate,
   previewUrl,
@@ -43,6 +41,7 @@ import OnboardingOverlay, { isOnboardingComplete } from "./components/Onboarding
 import SidePanel from "./components/SidePanel";
 import StudioTopBar from "./components/StudioTopBar";
 import TransportBar from "./components/TransportBar";
+import RenderActivityBar from "./components/RenderActivityBar";
 import { AuditionContext } from "./context/AuditionContext";
 import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
 import { useLiveIo } from "./hooks/useLiveIo";
@@ -50,15 +49,12 @@ import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
 import type { JobState, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import {
+  cachedStatusFromOutputs,
   connectNodes,
   addNodeToWorkflow,
   applyDroppedAudio,
-  createGroup,
-  downloadModule,
   downloadTemplateJson,
   downloadWorkflow,
-  importModule,
-  extractModule,
   groupForSelection,
   edgeIdsOnPathToNode,
   formatJobError,
@@ -67,6 +63,7 @@ import {
   mergeFlowNodes,
   nodeIssuesFromValidation,
   previewCacheId,
+  previewMidiId,
   savedFilePath,
   duplicateSelection,
   extractSelection,
@@ -74,6 +71,8 @@ import {
   removeLinks,
   removeNodesFromWorkflow,
   resolveComparePair,
+  resolveNodeListenId,
+  resolveNodeListenOutput,
   resolveTargetNode,
   syncPositions,
   toggleGroupCollapsed,
@@ -82,7 +81,7 @@ import {
 } from "./workflow";
 
 const nodeTypes: NodeTypes = { groovy: GroovyFlowNode, groovyGroup: ModuleGroupNode };
-const DEFAULT_TEMPLATE = "podcast-denoise";
+const DEFAULT_TEMPLATE = "transcribe-and-regenerate";
 
 export default function App() {
   const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory();
@@ -91,8 +90,6 @@ export default function App() {
   const [viewportFitKey, setViewportFitKey] = useState(0);
   const [nodeSchemas, setNodeSchemas] = useState<Record<string, NodeSchema>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
-  const comfyImportRef = useRef<HTMLInputElement>(null);
-  const moduleImportRef = useRef<HTMLInputElement>(null);
   const clipboardRef = useRef<WorkflowClipboard | null>(null);
   const flowCenterRef = useRef(() => ({ x: 320, y: 200 }));
   const pendingSelectionRef = useRef<Set<string> | null>(null);
@@ -101,11 +98,17 @@ export default function App() {
   const pasteCountRef = useRef(0);
   const [nodeStatus, setNodeStatus] = useState<Record<string, NodeRenderStatus>>({});
   const [nodeIssues, setNodeIssues] = useState<Record<string, string>>({});
+  const [failedNodeId, setFailedNodeId] = useState<string | null>(null);
   const [lastJob, setLastJob] = useState<JobState | null>(null);
   const [status, setStatus] = useState("Loading template…");
   const [running, setRunning] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [progress, setProgress] = useState<number | undefined>();
   const [currentNode, setCurrentNode] = useState<string | undefined>();
+  const [renderMessage, setRenderMessage] = useState<string | undefined>();
+  const [renderStartedAt, setRenderStartedAt] = useState<number | undefined>();
+  const [lastProgressAt, setLastProgressAt] = useState<number | undefined>();
+  const activeExecutionRef = useRef<{ cancel: () => Promise<void> } | null>(null);
   const [modelBrowserOpen, setModelBrowserOpen] = useState(false);
   const [modelPickTarget, setModelPickTarget] = useState<{ nodeId: string; widget: string } | null>(null);
   const [complianceOpen, setComplianceOpen] = useState(false);
@@ -114,11 +117,18 @@ export default function App() {
   const [focusMode, setFocusMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);
-  const [workflowBarOpen, setWorkflowBarOpen] = useState(false);
+  const [workflowBarOpen, setWorkflowBarOpen] = useState(true);
   const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboardingComplete());
   const [dropHint, setDropHint] = useState(false);
   const [transportWaveform, setTransportWaveform] = useState<number[]>([]);
+  const [transportMidiRoll, setTransportMidiRoll] = useState<{
+    duration: number;
+    notes: { start: number; end: number; pitch: number; velocity: number; drum?: boolean }[];
+    minPitch: number;
+    maxPitch: number;
+  } | null>(null);
   const [activeEdgeIds, setActiveEdgeIds] = useState<Set<string>>(new Set());
+  const [auditionNonce, setAuditionNonce] = useState(0);
 
   const onOscWidget = useCallback(
     (target: { node_id: string; param: string }, value: number) => {
@@ -307,18 +317,34 @@ export default function App() {
   const runRender = useCallback(
     async (targetNodeId?: string, renderAll = false) => {
       if (!workflow) return;
-      const target = renderAll
-        ? resolveTargetNode(workflow, selectedNodeId)
-        : (targetNodeId ?? resolveTargetNode(workflow, selectedNodeId));
-      if (!target) {
+      const previewNodes = workflow.nodes.filter((n) => n.type === "Preview").map((n) => n.id);
+      const previewTarget =
+        previewNodes[0] ??
+        workflow.nodes[workflow.nodes.length - 1]?.id;
+      const singleTarget = targetNodeId ?? resolveTargetNode(workflow, selectedNodeId);
+      const targets = renderAll
+        ? previewNodes.length > 0
+          ? previewNodes
+          : previewTarget
+            ? [previewTarget]
+            : []
+        : singleTarget
+          ? [singleTarget]
+          : [];
+      if (!targets.length) {
         setStatus("No render target — add a Preview node or select one");
         return;
       }
-      const targets = renderAll ? workflow.nodes.map((n) => n.id) : [target];
       setRunning(true);
+      setCancelling(false);
       setStatus("Rendering…");
       setProgress(0);
       setCurrentNode(undefined);
+      setRenderMessage(undefined);
+      const startedAt = Date.now();
+      setRenderStartedAt(startedAt);
+      setLastProgressAt(startedAt);
+      setFailedNodeId(null);
       setNodeStatus((prev) => {
         const next = { ...prev };
         for (const node of workflow.nodes) {
@@ -338,7 +364,8 @@ export default function App() {
 
         setStatus("Rendering…");
         let lastRunningNode: string | undefined;
-        const job = await executeWorkflow(workflow, targets, (update) => {
+        const execution = await executeWorkflow(workflow, targets, (update) => {
+          setLastProgressAt(Date.now());
           if (update.current_node) {
             lastRunningNode = update.current_node;
             setCurrentNode(update.current_node);
@@ -347,29 +374,22 @@ export default function App() {
               [update.current_node!]: "running",
             }));
           }
+          if (update.message) {
+            setRenderMessage(update.message);
+          }
           if (update.progress != null) {
             setProgress(update.progress);
           }
         });
+        activeExecutionRef.current = execution;
+        const job = await execution.promise;
+        activeExecutionRef.current = null;
 
         setLastJob(job);
         if (job.status === "completed") {
+          setFailedNodeId(null);
           const outputs = job.outputs ?? {};
-          const cached: Record<string, NodeRenderStatus> = {};
-          for (const [nodeId, out] of Object.entries(outputs)) {
-            if (
-              out?.cache_id ||
-              out?.stems_id ||
-              out?.midi_id ||
-              out?.authenticity_id ||
-              out?.automation_id ||
-              out?.type === "TEXT" ||
-              out?.type === "STRING"
-            ) {
-              cached[nodeId] = "cached";
-            }
-          }
-          setNodeStatus((prev) => ({ ...prev, ...cached }));
+          setNodeStatus((prev) => ({ ...prev, ...cachedStatusFromOutputs(workflow, outputs) }));
           const saved = targets
             .map((nodeId) => {
               const node = workflow.nodes.find((n) => n.id === nodeId);
@@ -378,46 +398,70 @@ export default function App() {
             })
             .find(Boolean);
           setStatus(saved ? `Saved to ${saved}` : "Complete");
+        } else if (job.status === "cancelled") {
+          const outputs = job.outputs ?? {};
+          setNodeStatus((prev) => ({ ...prev, ...cachedStatusFromOutputs(workflow, outputs) }));
+          setStatus("Cancelled — completed nodes kept");
         } else {
           const message = formatJobError(job.error);
           setStatus(`Failed: ${message}`);
+          if (job.outputs && Object.keys(job.outputs).length > 0) {
+            setNodeStatus((prev) => ({
+              ...prev,
+              ...cachedStatusFromOutputs(workflow, job.outputs ?? {}),
+            }));
+          }
           if (lastRunningNode) {
+            setFailedNodeId(lastRunningNode);
             setNodeIssues((prev) => ({ ...prev, [lastRunningNode!]: message }));
           }
         }
       } catch (err) {
         setStatus(`Error: ${formatJobError(String(err))}`);
       } finally {
+        activeExecutionRef.current = null;
         setRunning(false);
+        setCancelling(false);
         setCurrentNode(undefined);
+        setRenderMessage(undefined);
+        setRenderStartedAt(undefined);
+        setLastProgressAt(undefined);
         setProgress(undefined);
       }
     },
     [workflow, selectedNodeId],
   );
 
+  const cancelRender = useCallback(() => {
+    const active = activeExecutionRef.current;
+    if (!active || cancelling) return;
+    setCancelling(true);
+    setStatus("Stopping render…");
+    void active.cancel().catch(() => {
+      setCancelling(false);
+      setStatus("Could not stop render");
+    });
+  }, [cancelling]);
+
   const auditionNode = useCallback(
     (nodeId: string) => {
       if (!workflow) return;
       setNodes((current) => current.map((node) => ({ ...node, selected: node.id === nodeId })));
-      const cacheId = lastJob?.outputs?.[nodeId]?.cache_id;
-      if (!cacheId) return;
+      if (!resolveNodeListenId(workflow, nodeId, lastJob?.outputs)) return;
       setActiveEdgeIds(edgeIdsOnPathToNode(workflow, nodeId));
-      setTimeout(() => {
-        document.querySelector<HTMLAudioElement>(".transport__audio")?.play();
-      }, 0);
+      setAuditionNonce((nonce) => nonce + 1);
     },
-    [lastJob, workflow, setNodes],
+    [lastJob?.outputs, workflow, setNodes],
   );
 
   const playSelectedNode = useCallback(() => {
     if (running || !workflow || !selectedNodeId) return;
-    if (!lastJob?.outputs?.[selectedNodeId]?.cache_id) {
+    if (!resolveNodeListenId(workflow, selectedNodeId, lastJob?.outputs)) {
       setStatus("Render this node first");
       return;
     }
     setActiveEdgeIds(edgeIdsOnPathToNode(workflow, selectedNodeId));
-    void document.querySelector<HTMLAudioElement>(".transport__audio")?.play();
+    setAuditionNonce((nonce) => nonce + 1);
   }, [running, workflow, selectedNodeId, lastJob?.outputs]);
 
   const augmentMinimalPatchForNode = useCallback(
@@ -513,6 +557,11 @@ export default function App() {
         setFocusMode((prev) => !prev);
         return;
       }
+      if (event.key === "Escape" && running && activeExecutionRef.current) {
+        event.preventDefault();
+        cancelRender();
+        return;
+      }
       if (event.shiftKey && event.key.toLowerCase() === "r") {
         event.preventDefault();
         if (!running) void runRender(undefined, true);
@@ -520,7 +569,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [running, runRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode]);
+  }, [running, runRender, cancelRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -532,7 +581,15 @@ export default function App() {
   const handleModelSelect = useCallback(
     (modelId: string) => {
       if (modelPickTarget) {
-        updateWidget(modelPickTarget.nodeId, modelPickTarget.widget, modelId);
+        const { nodeId, widget } = modelPickTarget;
+        updateWidget(nodeId, widget, modelId);
+        void fetchModelCard(modelId)
+          .then((card) => {
+            for (const param of card.inference_params ?? []) {
+              updateWidget(nodeId, param.name, param.default ?? "");
+            }
+          })
+          .catch(() => undefined);
         setModelPickTarget(null);
       }
       setModelBrowserOpen(false);
@@ -575,17 +632,6 @@ export default function App() {
     [workflow, setWorkflow],
   );
 
-  const handleExportModule = useCallback(() => {
-    if (!workflow || selectedNodeIds.length === 0) return;
-    downloadModule(extractModule(workflow, selectedNodeIds));
-  }, [workflow, selectedNodeIds]);
-
-  const handleGroupSelection = useCallback(() => {
-    if (!workflow || selectedNodeIds.length < 2) return;
-    const title = window.prompt("Group title", "Module") ?? "Module";
-    setWorkflow(createGroup(workflow, selectedNodeIds, title));
-  }, [workflow, selectedNodeIds, setWorkflow]);
-
   const activeGroup = useMemo(
     () => (workflow ? groupForSelection(workflow, selectedNodeIds) : null),
     [workflow, selectedNodeIds],
@@ -612,86 +658,33 @@ export default function App() {
     }
   }, [workflow]);
 
-  const handleInstallPack = useCallback(async () => {
-    try {
-      const packs = await listPacks();
-      const packId = window.prompt(
-        `Install community pack:\n${packs.map((pack) => pack.id).join("\n")}`,
-        packs[0]?.id ?? "",
-      );
-      if (!packId) return;
-      await installPack(packId);
-      setStatus(`Installed pack: ${packId}`);
-    } catch (err) {
-      setStatus(`Pack install failed: ${String(err)}`);
-    }
-  }, []);
-
-  const handleComfyImport = useCallback(
-    async (file: File) => {
-      try {
-        const text = await file.text();
-        const comfyJson = JSON.parse(text) as Record<string, unknown>;
-        const result = await importComfyWorkflow(comfyJson, file.name.replace(/\.json$/i, ""));
-        resetHistory(result.workflow);
-        setLastJob(null);
-        setNodeStatus({});
-        const unmapped = (result.import_meta.unmapped_node_types as string[] | undefined) ?? [];
-        setStatus(
-          unmapped.length
-            ? `Imported — ${unmapped.length} unmapped node type(s): ${unmapped.join(", ")}`
-            : "Imported from ComfyUI — ready to render",
-        );
-        setLoadError(null);
-      } catch (err) {
-        setStatus(`ComfyUI import failed: ${String(err)}`);
-      }
-    },
-    [resetHistory],
-  );
-
-  const handleModuleImport = useCallback(
-    async (file: File) => {
-      if (!workflow) return;
-      try {
-        const text = await file.text();
-        const module = JSON.parse(text) as import("./types").WorkflowModule;
-        setWorkflow(importModule(workflow, module));
-        setStatus(`Imported module: ${module.metadata.title}`);
-      } catch (err) {
-        setStatus(`Module import failed: ${String(err)}`);
-      }
-    },
-    [workflow, setWorkflow],
-  );
-
-  const handleBatchRender = useCallback(async () => {
-    if (!workflow) return;
-    const inputDir = window.prompt("Input folder (relative to project)", "assets/samples") ?? "";
-    if (!inputDir) return;
-    setStatus("Batch render running…");
-    setRunning(true);
-    try {
-      const loadNode = workflow.nodes.find((node) => node.type === "LoadAudio");
-      const previewNode = workflow.nodes.find((node) => node.type === "Preview");
-      const result = await batchRenderWorkflow(workflow, {
-        input_dir: inputDir,
-        file_glob: "*.wav,*.flac",
-        load_node_id: loadNode?.id,
-        target_nodes: previewNode ? [previewNode.id] : undefined,
-      });
-      setStatus(`Batch done — ${result.completed}/${result.total} completed`);
-    } catch (err) {
-      setStatus(`Batch failed: ${String(err)}`);
-    } finally {
-      setRunning(false);
-    }
-  }, [workflow]);
+  const currentNodeLabel = useMemo(() => {
+    if (!workflow || !currentNode) return undefined;
+    const node = workflow.nodes.find((n) => n.id === currentNode);
+    return node?.type ?? currentNode;
+  }, [workflow, currentNode]);
 
   const selectedNode = workflow?.nodes.find((n) => n.id === selectedNodeId) ?? null;
   const selectedOutput = selectedNodeId && lastJob?.outputs ? lastJob.outputs[selectedNodeId] : undefined;
-  const selectedPreviewId = previewCacheId(selectedOutput);
-  const selectedNodePreview = selectedPreviewId ? previewUrl(selectedPreviewId) : null;
+  const selectedListenOutput =
+    workflow && selectedNodeId
+      ? resolveNodeListenOutput(workflow, selectedNodeId, lastJob?.outputs)
+      : undefined;
+  const selectedMidiId = previewMidiId(selectedListenOutput) ?? previewMidiId(selectedOutput);
+  const selectedPreviewId = previewCacheId(selectedListenOutput) ?? previewCacheId(selectedOutput);
+  const selectedListenId =
+    workflow && selectedNodeId
+      ? resolveNodeListenId(workflow, selectedNodeId, lastJob?.outputs)
+      : null;
+  const selectedNodePreview = selectedListenId ? previewUrl(selectedListenId) : null;
+  const previewKind =
+    selectedMidiId || selectedOutput?.type === "MIDI"
+      ? "midi"
+      : selectedPreviewId
+        ? "audio"
+        : selectedNode?.type === "AudioToMIDI" || selectedNode?.type === "LoadMIDI"
+          ? "midi"
+          : null;
   const compareResolution = useMemo(
     () =>
       workflow && selectedNodeIds.length === 2
@@ -724,16 +717,35 @@ export default function App() {
       ? selectedSavedPath
         ? `Saved to ${selectedSavedPath}`
         : "Render to write audio file"
-      : !selectedNodePreview
-        ? "Render to preview this node"
-        : "No render yet";
+      : selectedMidiId || selectedNodePreview
+        ? ""
+        : previewKind === "midi"
+          ? "Render to preview MIDI"
+          : "Render to preview this node";
 
   useEffect(() => {
     document.querySelector<HTMLAudioElement>(".transport__audio")?.pause();
   }, [selectedNodeId]);
 
   useEffect(() => {
-    if (!selectedNodePreview) {
+    if (!selectedMidiId) {
+      setTransportMidiRoll(null);
+      return;
+    }
+    fetchMidiRoll(selectedMidiId)
+      .then((data) =>
+        setTransportMidiRoll({
+          duration: data.duration,
+          notes: data.notes,
+          minPitch: data.min_pitch,
+          maxPitch: data.max_pitch,
+        }),
+      )
+      .catch(() => setTransportMidiRoll(null));
+  }, [selectedMidiId]);
+
+  useEffect(() => {
+    if (!selectedNodePreview || previewKind === "midi") {
       setTransportWaveform([]);
       return;
     }
@@ -745,7 +757,7 @@ export default function App() {
     fetchWaveform(match[1], 512)
       .then((data) => setTransportWaveform(data.peaks))
       .catch(() => setTransportWaveform([]));
-  }, [selectedNodePreview]);
+  }, [selectedNodePreview, previewKind]);
 
   useEffect(() => {
     const onAudioEvent = (event: Event) => {
@@ -815,45 +827,15 @@ export default function App() {
           workflowBarOpen={workflowBarOpen}
           onToggleWorkflowBar={() => setWorkflowBarOpen((prev) => !prev)}
           settings={{
-            selectedCount: selectedNodeIds.length,
             groupCollapsed: activeGroup ? (activeGroup.collapsed ?? false) : null,
             paletteOpen,
             helperOpen,
-            running,
             onOpenIoSettings: () => setSettingsOpen(true),
             onSaveWorkflow: () => downloadWorkflow(workflow),
             onSaveAsTemplate: () => void handleSaveAsTemplate(),
-            onGroup: handleGroupSelection,
-            onExportModule: handleExportModule,
             onToggleGroupCollapse: handleToggleGroupCollapse,
-            onInstallPack: () => void handleInstallPack(),
-            onImportComfy: () => comfyImportRef.current?.click(),
-            onImportModule: () => moduleImportRef.current?.click(),
-            onBatchRender: () => void handleBatchRender(),
             onTogglePalette: () => setPaletteOpen((prev) => !prev),
             onToggleHelper: () => setHelperOpen((prev) => !prev),
-          }}
-        />
-        <input
-          ref={comfyImportRef}
-          type="file"
-          accept=".json,application/json"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void handleComfyImport(file);
-            event.target.value = "";
-          }}
-        />
-        <input
-          ref={moduleImportRef}
-          type="file"
-          accept=".json,application/json"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) void handleModuleImport(file);
-            event.target.value = "";
           }}
         />
         <div
@@ -933,7 +915,7 @@ export default function App() {
               <NodeHelper
                 node={selectedNode}
                 workflow={workflow}
-                output={selectedOutput}
+                output={selectedListenOutput ?? selectedOutput}
                 previewUrl={selectedNodePreview}
                 comparePair={comparePair}
                 compareNote={compareNote}
@@ -950,21 +932,38 @@ export default function App() {
                   if (selectedNodeId) auditionNode(selectedNodeId);
                 }}
                 onCompareAudition={(nodeId) => auditionNode(nodeId)}
+                renderIssue={selectedNodeId ? nodeIssues[selectedNodeId] : null}
+                renderIssueDetail={
+                  failedNodeId === selectedNodeId && lastJob?.status === "failed"
+                    ? lastJob.error ?? null
+                    : null
+                }
               />
             </SidePanel>
           ) : null}
         </div>
+        <RenderActivityBar
+          running={running}
+          nodeLabel={currentNodeLabel}
+          message={renderMessage}
+          progress={progress}
+          startedAt={renderStartedAt}
+          lastProgressAt={lastProgressAt}
+          cancelling={cancelling}
+          onCancel={cancelRender}
+        />
         <TransportBar
           previewUrl={selectedNodePreview}
+          previewKind={previewKind}
           waveformPeaks={transportWaveform}
+          midiRoll={transportMidiRoll}
           emptyHint={transportEmptyHint}
           running={running}
           statusMessage={status}
-          currentNode={currentNode}
-          progress={progress}
           onRender={() => void runRender()}
           onRenderAll={() => void runRender(undefined, true)}
           onPlay={playSelectedNode}
+          auditionNonce={auditionNonce}
         />
         <ModelBrowser
           open={modelBrowserOpen}

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import WaveformMini from "./WaveformMini";
+import MidiRollMini, { type MidiRollNote } from "./MidiRollMini";
 
 function formatTimeTag(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return "00:00:00";
@@ -10,38 +11,76 @@ function formatTimeTag(seconds: number): string {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 }
 
+function cacheIdFromPreviewUrl(url: string): string | null {
+  const match = url.match(/\/api\/cache\/([^/?]+)\/preview/);
+  return match?.[1] ?? null;
+}
+
+function waitForAudioReady(audio: HTMLAudioElement): Promise<void> {
+  if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve, reject) => {
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error("Preview audio failed to load"));
+    };
+    const cleanup = () => {
+      audio.removeEventListener("canplaythrough", onReady);
+      audio.removeEventListener("canplay", onReady);
+      audio.removeEventListener("error", onError);
+    };
+    audio.addEventListener("canplaythrough", onReady);
+    audio.addEventListener("canplay", onReady);
+    audio.addEventListener("error", onError);
+  });
+}
+
 type Props = {
   previewUrl: string | null;
+  previewKind?: "audio" | "midi" | null;
   waveformPeaks?: number[];
+  midiRoll?: {
+    duration: number;
+    notes: MidiRollNote[];
+    minPitch: number;
+    maxPitch: number;
+  } | null;
   emptyHint?: string;
   running: boolean;
   statusMessage?: string;
-  currentNode?: string;
-  progress?: number;
   onRender: () => void;
   onRenderAll?: () => void;
   onPlay: () => void;
+  auditionNonce?: number;
 };
 
 export default function TransportBar({
   previewUrl,
+  previewKind = null,
   waveformPeaks = [],
+  midiRoll = null,
   emptyHint = "No render yet",
   running,
   statusMessage,
-  currentNode,
-  progress,
   onRender,
   onRenderAll,
   onPlay,
+  auditionNonce = 0,
 }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const loadedCacheIdRef = useRef<string | null>(null);
   const rafRef = useRef<number>(0);
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const pct = progress != null ? Math.round(progress * 100) : null;
+  const isMidiVisual = previewKind === "midi";
+  const hasPreview = Boolean(previewUrl);
   const statusFailed = Boolean(
     statusMessage?.toLowerCase().includes("fail") || statusMessage?.toLowerCase().startsWith("error"),
   );
@@ -87,13 +126,65 @@ export default function TransportBar({
     rafRef.current = requestAnimationFrame(tick);
   }, [stopRaf, syncProgress]);
 
+  const loadPreviewSource = useCallback(async (url: string) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const cacheId = cacheIdFromPreviewUrl(url);
+    if (cacheId && loadedCacheIdRef.current === cacheId && audio.src) {
+      return;
+    }
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = url;
+    audio.load();
+    await waitForAudioReady(audio);
+    if (cacheId) loadedCacheIdRef.current = cacheId;
+  }, []);
+
+  const playAudio = useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio || !previewUrl) return;
+    try {
+      await loadPreviewSource(previewUrl);
+      await audio.play();
+    } catch {
+      // Browser may block autoplay without a direct gesture; ignore.
+    }
+  }, [loadPreviewSource, previewUrl]);
+
+  useLayoutEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (!previewUrl) {
+      loadedCacheIdRef.current = null;
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+      return;
+    }
+    const cacheId = cacheIdFromPreviewUrl(previewUrl);
+    if (cacheId && loadedCacheIdRef.current === cacheId && audio.src) {
+      return;
+    }
+    audio.pause();
+    audio.currentTime = 0;
+    audio.src = previewUrl;
+    audio.load();
+    if (cacheId) loadedCacheIdRef.current = cacheId;
+  }, [previewUrl]);
+
   useEffect(() => {
     setPlaybackProgress(0);
     setPlaybackTime(0);
     setDuration(0);
     setIsPlaying(false);
     stopRaf();
-  }, [previewUrl, stopRaf]);
+  }, [previewUrl, previewKind, midiRoll, stopRaf]);
+
+  useEffect(() => {
+    if (!auditionNonce) return;
+    void playAudio();
+  }, [auditionNonce, playAudio]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -163,14 +254,15 @@ export default function TransportBar({
   }, [stopRaf]);
 
   const togglePlayPause = useCallback(() => {
-    if (running || !previewUrl) return;
+    if (running || !hasPreview) return;
     const audio = audioRef.current;
     if (audio && !audio.paused && !audio.ended) {
       audio.pause();
       return;
     }
     onPlay();
-  }, [running, previewUrl, onPlay]);
+    void playAudio();
+  }, [running, hasPreview, onPlay, playAudio]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -185,17 +277,12 @@ export default function TransportBar({
     return () => window.removeEventListener("keydown", onKey);
   }, [running, togglePlayPause]);
 
-  const transportDisabled = running || !previewUrl;
+  const transportDisabled = running || !hasPreview;
   const canPause = Boolean(previewUrl) && isPlaying && !running;
   const canStop = Boolean(previewUrl) && (isPlaying || playbackProgress > 0) && !running;
 
   const statusLine =
-    running && currentNode ? (
-      <p className="transport__status">
-        {currentNode}
-        {pct != null ? ` · ${pct}%` : ""}
-      </p>
-    ) : statusMessage && statusMessage !== "Ready" ? (
+    !running && statusMessage && statusMessage !== "Ready" ? (
       <p className={`transport__status${statusFailed ? " transport__status--error" : ""}`}>{statusMessage}</p>
     ) : null;
 
@@ -207,7 +294,10 @@ export default function TransportBar({
             <button
               type="button"
               className="transport__play"
-              onClick={onPlay}
+              onClick={() => {
+                onPlay();
+                void playAudio();
+              }}
               disabled={transportDisabled}
               title="Play selected node (Space)"
             >
@@ -250,7 +340,21 @@ export default function TransportBar({
 
         <div className="transport__stage">
           <div className="transport__wave-wrap">
-            {previewUrl ? (
+            {isMidiVisual ? (
+              <div className={previewUrl ? undefined : "transport__wave-empty"}>
+                <MidiRollMini
+                  duration={midiRoll?.duration ?? 1}
+                  notes={midiRoll?.notes ?? []}
+                  minPitch={midiRoll?.minPitch ?? 60}
+                  maxPitch={midiRoll?.maxPitch ?? 72}
+                  progress={playbackProgress}
+                  onSeek={previewUrl ? handleSeek : undefined}
+                  fitContainer
+                  className="transport__midi-roll"
+                />
+                {!previewUrl ? <p className="transport__empty">{emptyHint}</p> : null}
+              </div>
+            ) : previewUrl ? (
               <WaveformMini
                 peaks={waveformPeaks}
                 progress={playbackProgress}
@@ -264,7 +368,7 @@ export default function TransportBar({
                 <p className="transport__empty">{emptyHint}</p>
               </div>
             )}
-            {previewUrl ? (
+            {hasPreview ? (
               <div className="transport__time-tag" aria-live="off">
                 <span className="transport__time-current">{formatTimeTag(playbackTime)}</span>
                 <span className="transport__time-sep">/</span>
@@ -273,7 +377,7 @@ export default function TransportBar({
             ) : null}
             {statusLine ? <div className="transport__status-overlay">{statusLine}</div> : null}
           </div>
-          {previewUrl ? <audio ref={audioRef} src={previewUrl} className="transport__audio" preload="metadata" /> : null}
+          <audio ref={audioRef} className="transport__audio" preload="auto" />
         </div>
       </div>
     </footer>

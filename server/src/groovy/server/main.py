@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -36,7 +37,7 @@ from groovy.schema.validate import validate_workflow
 from groovy.schema.comfy_import import import_comfy_workflow
 from groovy.executor.live_midi import LiveIoState
 from groovy.executor.osc_live import OscCaptureStore
-from groovy.server.compare import analyze_ab_pair
+from groovy.server.bootstrap import ensure_project_samples
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
 from pydantic import BaseModel
 
@@ -59,6 +60,7 @@ _osc_transport: asyncio.DatagramTransport | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _osc_transport
+    ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
     _osc_transport = await start_osc_listener(PROJECT_DIR, _live_io, _midi_hub)
     yield
     if _osc_transport is not None:
@@ -75,6 +77,7 @@ app.add_middleware(
 )
 
 _jobs: dict[str, dict[str, Any]] = {}
+_job_cancel_flags: dict[str, threading.Event] = {}
 _ws_subscribers: dict[str, set[WebSocket]] = {}
 _executor = Executor(PROJECT_DIR)
 _registry = ModelRegistry(PROJECT_DIR)
@@ -377,14 +380,29 @@ async def upload_project_asset(file: UploadFile = File(...)) -> dict[str, str]:
 @app.get("/api/project/audio-meta")
 def project_audio_meta(path: str) -> dict[str, Any]:
     from groovy.executor.audio_meta import probe_audio_file
+    from groovy.executor.project_paths import resolve_project_media_path
+    from groovy.server.bootstrap import ensure_project_samples
 
+    ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
     try:
-        resolved = _executor.cache.resolve_project_path(path)
+        resolved, canonical_path = resolve_project_media_path(_executor.cache, path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if not resolved.exists():
-        raise HTTPException(status_code=404, detail=f"FILE_NOT_FOUND: {path}")
-    return probe_audio_file(resolved)
+    try:
+        meta = probe_audio_file(resolved)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"UNSUPPORTED_FORMAT: {canonical_path} — {exc}. "
+                "Try WAV/FLAC/AIFF; some MP3/OGG files may need conversion."
+            ),
+        ) from exc
+    meta["canonical_path"] = canonical_path
+    meta["project_dir"] = str(_executor.cache.project_dir)
+    return meta
 
 
 @app.get("/api/nodes")
@@ -600,9 +618,19 @@ def get_authenticity(report_id: str) -> dict[str, Any]:
 
 @app.post("/api/execute", status_code=202)
 async def execute(body: ExecuteRequest) -> dict[str, str]:
+    ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
     workflow = _workflow_from_dict(body.workflow)
     job_id = str(uuid.uuid4())
-    _jobs[job_id] = {"status": "running", "progress": 0.0, "outputs": {}, "error": None}
+    cancel_flag = threading.Event()
+    _job_cancel_flags[job_id] = cancel_flag
+    _jobs[job_id] = {
+        "status": "running",
+        "progress": 0.0,
+        "outputs": {},
+        "error": None,
+        "message": "Queued",
+        "started_at": asyncio.get_event_loop().time(),
+    }
 
     async def run_job() -> None:
         loop = asyncio.get_event_loop()
@@ -610,6 +638,7 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
         def on_progress(_executor_job_id: str, node_id: str, fraction: float, message: str) -> None:
             _jobs[job_id]["current_node"] = node_id
             _jobs[job_id]["progress"] = fraction
+            _jobs[job_id]["message"] = message
             asyncio.run_coroutine_threadsafe(
                 _broadcast(
                     job_id,
@@ -631,8 +660,10 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
                 target_nodes=body.target_nodes,
                 force_rebuild=body.force_rebuild,
                 on_progress=on_progress,
+                cancel_check=cancel_flag.is_set,
             ),
         )
+        _job_cancel_flags.pop(job_id, None)
         if result.status == "completed":
             _jobs[job_id].update(
                 {
@@ -640,14 +671,40 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
                     "progress": 1.0,
                     "outputs": result.outputs,
                     "manifest_path": result.manifest_path,
+                    "message": "Complete",
                 }
             )
             await _broadcast(
                 job_id,
                 {"type": "job.complete", "job_id": job_id, "outputs": result.outputs},
             )
+        elif result.status == "cancelled":
+            _jobs[job_id].update(
+                {
+                    "status": "cancelled",
+                    "outputs": result.outputs,
+                    "error": result.error,
+                    "message": result.error or "Cancelled",
+                }
+            )
+            await _broadcast(
+                job_id,
+                {
+                    "type": "job.cancelled",
+                    "job_id": job_id,
+                    "outputs": result.outputs,
+                    "error": {"code": "CANCELLED", "message": result.error or "Cancelled"},
+                },
+            )
         else:
-            _jobs[job_id].update({"status": "failed", "error": result.error})
+            _jobs[job_id].update(
+                {
+                    "status": "failed",
+                    "error": result.error,
+                    "outputs": result.outputs,
+                    "message": result.error,
+                }
+            )
             await _broadcast(
                 job_id,
                 {
@@ -659,6 +716,20 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
 
     asyncio.create_task(run_job())
     return {"job_id": job_id}
+
+
+@app.post("/api/jobs/{job_id}/cancel")
+async def cancel_job(job_id: str) -> dict[str, Any]:
+    job = _jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job["status"] != "running":
+        return {"ok": True, "status": job["status"]}
+    flag = _job_cancel_flags.get(job_id)
+    if flag:
+        flag.set()
+    job["message"] = "Cancelling…"
+    return {"ok": True, "status": "running"}
 
 
 @app.get("/api/jobs/{job_id}")
@@ -707,7 +778,10 @@ def cache_meta(cache_id: str) -> dict[str, Any]:
 def cache_preview(cache_id: str, format: str = "wav") -> Response:
     try:
         if format == "wav":
-            data = _executor.cache.preview_wav_bytes(cache_id)
+            if _executor.cache.is_midi_cache(cache_id):
+                data = _executor.cache.midi_preview_wav_bytes(cache_id)
+            else:
+                data = _executor.cache.preview_wav_bytes(cache_id)
             return Response(content=data, media_type="audio/wav")
         raise HTTPException(status_code=400, detail="Unsupported format")
     except FileNotFoundError as exc:
@@ -720,6 +794,14 @@ def cache_waveform(cache_id: str, width: int = 512) -> dict[str, Any]:
         return _executor.cache.waveform_peaks(cache_id, width=width)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Cache not found") from exc
+
+
+@app.get("/api/cache/{cache_id}/midi-roll")
+def cache_midi_roll(cache_id: str) -> dict[str, Any]:
+    try:
+        return _executor.cache.midi_roll(cache_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="MIDI cache not found") from exc
 
 
 @app.post("/api/compare/analyze")
@@ -804,6 +886,7 @@ def main() -> None:
     import uvicorn
 
     PROJECT_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
     uvicorn.run("groovy.server.main:app", host=HOST, port=PORT, reload=False)
 
 

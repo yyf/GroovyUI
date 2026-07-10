@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TemplateListItem } from "../api";
+import { templatesVisibleInUi } from "../templateUi";
 
 type Props = {
   templates: TemplateListItem[];
@@ -16,7 +17,11 @@ function groupTemplates(templates: TemplateListItem[]) {
 export default function TemplateSelector({ templates, selectedId, onSelect }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const { bundled, user } = useMemo(() => groupTemplates(templates), [templates]);
+  const visibleTemplates = useMemo(
+    () => templatesVisibleInUi(templates, selectedId),
+    [templates, selectedId],
+  );
+  const { bundled, user } = useMemo(() => groupTemplates(visibleTemplates), [visibleTemplates]);
   const selected = templates.find((template) => template.id === selectedId);
 
   useEffect(() => {
@@ -27,9 +32,12 @@ export default function TemplateSelector({ templates, selectedId, onSelect }: Pr
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
-    window.addEventListener("mousedown", onPointer);
-    window.addEventListener("keydown", onKey);
+    const frame = window.requestAnimationFrame(() => {
+      window.addEventListener("mousedown", onPointer);
+      window.addEventListener("keydown", onKey);
+    });
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("mousedown", onPointer);
       window.removeEventListener("keydown", onKey);
     };

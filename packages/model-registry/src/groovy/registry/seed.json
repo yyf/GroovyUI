@@ -22,6 +22,16 @@
         "python_deps": [{ "package": "deepfilternet", "version": ">=0.5.0" }],
         "dev_stub": true
       },
+      "inference_params": [
+        {
+          "name": "strength",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Denoising blend (0 = dry, 1 = full noise reduction)."
+        }
+      ],
       "similar_models": ["whisper-small-en"]
     },
     {
@@ -42,9 +52,44 @@
       "vram_gb_estimate": 4,
       "compatible_nodes": ["SeparateStems"],
       "install": {
-        "python_deps": [{ "package": "demucs", "version": ">=4.0.0" }],
-        "dev_stub": true
+        "python_deps": [
+          { "package": "demucs", "version": ">=4.0.0" },
+          { "package": "torch", "version": ">=2.0.0" }
+        ],
+        "dev_stub": false
       },
+      "inference_params": [
+        {
+          "name": "shifts",
+          "type": "INT",
+          "default": 1,
+          "min": 0,
+          "max": 5,
+          "description": "Random shift passes — higher improves quality but slows render."
+        },
+        {
+          "name": "overlap",
+          "type": "FLOAT",
+          "default": 0.25,
+          "min": 0.0,
+          "max": 0.99,
+          "description": "Overlap between analysis segments."
+        },
+        {
+          "name": "segment",
+          "type": "FLOAT",
+          "default": 0,
+          "min": 0.0,
+          "max": 60.0,
+          "description": "Segment length in seconds (0 = model default)."
+        },
+        {
+          "name": "split",
+          "type": "BOOLEAN",
+          "default": true,
+          "description": "Split long files into segments during separation."
+        }
+      ],
       "similar_models": ["demucs-v4-ht", "uvr-mdx-net", "spleeter-2stems"]
     },
     {
@@ -64,7 +109,39 @@
       },
       "vram_gb_estimate": 4,
       "compatible_nodes": ["SeparateStems"],
-      "install": { "dev_stub": true },
+      "install": { "dev_stub": false, "python_deps": [{ "package": "demucs", "version": ">=4.0.0" }] },
+      "inference_params": [
+        {
+          "name": "shifts",
+          "type": "INT",
+          "default": 1,
+          "min": 0,
+          "max": 5,
+          "description": "Random shift passes — higher improves quality but slows render."
+        },
+        {
+          "name": "overlap",
+          "type": "FLOAT",
+          "default": 0.25,
+          "min": 0.0,
+          "max": 0.99,
+          "description": "Overlap between analysis segments."
+        },
+        {
+          "name": "segment",
+          "type": "FLOAT",
+          "default": 0,
+          "min": 0.0,
+          "max": 60.0,
+          "description": "Segment length in seconds (0 = model default)."
+        },
+        {
+          "name": "split",
+          "type": "BOOLEAN",
+          "default": true,
+          "description": "Split long files into segments during separation."
+        }
+      ],
       "similar_models": ["demucs-v4", "uvr-mdx-net"]
     },
     {
@@ -85,6 +162,22 @@
       "vram_gb_estimate": 2,
       "compatible_nodes": ["WhisperSTT"],
       "install": { "dev_stub": true },
+      "inference_params": [
+        {
+          "name": "language",
+          "type": "STRING",
+          "default": "en",
+          "description": "ISO language code, or auto for language detection."
+        },
+        {
+          "name": "temperature",
+          "type": "FLOAT",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Sampling temperature (0 = greedy decode)."
+        }
+      ],
       "similar_models": ["whisper-small-en"]
     },
     {
@@ -105,6 +198,22 @@
       "vram_gb_estimate": 1,
       "compatible_nodes": ["WhisperSTT"],
       "install": { "dev_stub": true },
+      "inference_params": [
+        {
+          "name": "language",
+          "type": "STRING",
+          "default": "en",
+          "description": "ISO language code (English models ignore auto-detect)."
+        },
+        {
+          "name": "temperature",
+          "type": "FLOAT",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Sampling temperature (0 = greedy decode)."
+        }
+      ],
       "similar_models": ["whisper-large-v3-turbo"]
     },
     {
@@ -224,7 +333,65 @@
       },
       "vram_gb_estimate": 1,
       "compatible_nodes": ["AudioToMIDI"],
-      "install": { "dev_stub": true },
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "onnxruntime", "version": ">=1.17.0" },
+          { "package": "librosa", "version": ">=0.10.0" },
+          { "package": "mir_eval", "version": ">=0.7.0" },
+          { "package": "resampy", "version": ">=0.4.0" },
+          { "package": "pretty-midi", "version": ">=0.2.10" },
+          { "package": "soundfile", "version": ">=0.12.0" }
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "onset_threshold",
+          "type": "FLOAT",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Sensitivity for detecting note onsets."
+        },
+        {
+          "name": "frame_threshold",
+          "type": "FLOAT",
+          "default": 0.3,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Sensitivity for sustaining active notes."
+        },
+        {
+          "name": "minimum_note_length",
+          "type": "FLOAT",
+          "default": 127.7,
+          "min": 10.0,
+          "max": 5000.0,
+          "description": "Minimum note length in milliseconds."
+        },
+        {
+          "name": "minimum_frequency",
+          "type": "FLOAT",
+          "default": 0,
+          "min": 0.0,
+          "max": 20000.0,
+          "description": "Lowest pitch in Hz (0 = model default)."
+        },
+        {
+          "name": "maximum_frequency",
+          "type": "FLOAT",
+          "default": 0,
+          "min": 0.0,
+          "max": 20000.0,
+          "description": "Highest pitch in Hz (0 = model default)."
+        },
+        {
+          "name": "melodia_trick",
+          "type": "BOOLEAN",
+          "default": true,
+          "description": "Merge overlapping notes into single monophonic melody."
+        }
+      ],
       "similar_models": []
     },
     {
@@ -245,6 +412,16 @@
       "vram_gb_estimate": 2,
       "compatible_nodes": ["DeepfakeDetect"],
       "install": { "dev_stub": true },
+      "inference_params": [
+        {
+          "name": "threshold",
+          "type": "FLOAT",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Spoof score above this value is flagged as likely synthetic."
+        }
+      ],
       "similar_models": []
     },
     {
@@ -252,7 +429,7 @@
       "status": "published",
       "trust": "verified",
       "name": "MusicGen Melody Small",
-      "description": "Conditional music generation from MIDI melody (dev stub).",
+      "description": "Conditional music generation from transcribed MIDI melody plus text prompt (facebook/musicgen-melody).",
       "task_types": ["midi-to-audio"],
       "tags": ["musicgen", "melody", "midi-to-audio", "generation"],
       "author": "Meta",
@@ -264,7 +441,58 @@
       },
       "vram_gb_estimate": 4,
       "compatible_nodes": ["MIDIToAudio"],
-      "install": { "dev_stub": true },
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "torchaudio", "version": ">=2.0.0" },
+          { "package": "transformers", "version": ">=4.40.0" },
+          { "package": "accelerate", "version": ">=0.28.0" },
+          { "package": "pretty-midi", "version": ">=0.2.10" }
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "max_new_tokens",
+          "type": "INT",
+          "default": 512,
+          "min": 64,
+          "max": 2048,
+          "description": "Generation length cap (affects output duration)."
+        },
+        {
+          "name": "melody_weight",
+          "type": "FLOAT",
+          "default": 0.55,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Blend weight for transcribed MIDI melody conditioning."
+        },
+        {
+          "name": "reference_weight",
+          "type": "FLOAT",
+          "default": 0.45,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Blend weight for optional reference audio conditioning."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 3.0,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "Text prompt guidance strength."
+        },
+        {
+          "name": "temperature",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 2.0,
+          "description": "Sampling temperature (0 = deterministic)."
+        }
+      ],
       "similar_models": ["ace-step"]
     },
     {
@@ -285,6 +513,32 @@
       "vram_gb_estimate": 4,
       "compatible_nodes": ["GenerateAudio"],
       "install": { "dev_stub": true },
+      "inference_params": [
+        {
+          "name": "max_new_tokens",
+          "type": "INT",
+          "default": 512,
+          "min": 64,
+          "max": 2048,
+          "description": "Generation length cap (affects output duration)."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 3.0,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "Text prompt guidance strength."
+        },
+        {
+          "name": "temperature",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 2.0,
+          "description": "Sampling temperature (0 = deterministic)."
+        }
+      ],
       "similar_models": ["musicgen-melody-small", "stable-audio-open-1.0"]
     },
     {

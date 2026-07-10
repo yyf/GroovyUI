@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import numpy as np
 from scipy import signal
 from scipy.ndimage import median_filter
@@ -39,6 +42,8 @@ DEFAULT_STEM_AZIMUTH: dict[str, float] = {
     "other": 40.0,
 }
 
+STEM_OUTPUT_ORDER = ("vocals", "drums", "bass", "other")
+
 
 def resolve_model_id(model_id: str) -> str:
     aliases = {"demucs-v4-objects": "demucs-v4"}
@@ -50,8 +55,21 @@ def run_separate_to_objects(cache: CacheStore, kwargs: dict) -> list[dict]:
 
     model_id = str(kwargs.get("model", "demucs-v4-objects"))
     resolved = resolve_model_id(model_id)
-    stem_result = run_separate_stems(cache, {**kwargs, "model": resolved})[0]
-    stems = cache.load_stems(stem_result["stems_id"])
+    audio_id = kwargs["audio_id"]
+    buffer, pcm = cache.load_audio(audio_id)
+    from groovy.nodes.ai.model_params import bool_param, float_param, int_param
+
+    _, stems = _write_stems_bundle(
+        cache,
+        pcm,
+        sample_rate=buffer.sample_rate,
+        channel_layout=buffer.channel_layout,
+        model_id=resolved,
+        shifts=int_param(kwargs, "shifts", 1),
+        overlap=float_param(kwargs, "overlap", 0.25),
+        segment=float_param(kwargs, "segment", 0.0),
+        split=bool_param(kwargs, "split", True),
+    )
     scene = ObjectScene.create(
         sample_rate=stems.sample_rate,
         frame_count=stems.frame_count,
@@ -79,28 +97,81 @@ def run_separate_to_objects(cache: CacheStore, kwargs: dict) -> list[dict]:
 
 
 def run_separate_stems(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import bool_param, float_param, int_param
+
     audio_id = kwargs["audio_id"]
     model_id = str(kwargs.get("model", "demucs-v4"))
     buffer, pcm = cache.load_audio(audio_id)
-    stem_pcm = separate_stems_audio(pcm, sample_rate=buffer.sample_rate, model_id=model_id)
+    stem_pcm, stems = _write_stems_bundle(
+        cache,
+        pcm,
+        sample_rate=buffer.sample_rate,
+        channel_layout=buffer.channel_layout,
+        model_id=model_id,
+        shifts=int_param(kwargs, "shifts", 1),
+        overlap=float_param(kwargs, "overlap", 0.25),
+        segment=float_param(kwargs, "segment", 0.0),
+        split=bool_param(kwargs, "split", True),
+    )
+    _ = stems
+    outputs: list[dict] = []
+    for name in STEM_OUTPUT_ORDER:
+        if name not in stem_pcm:
+            continue
+        out_buffer = AudioBuffer.from_planar(
+            stem_pcm[name],
+            buffer.sample_rate,
+            source_node_type="SeparateStems",
+            channel_layout=buffer.channel_layout,
+        )
+        cache.write_audio(out_buffer, stem_pcm[name])
+        outputs.append({"type": "AUDIO", "cache_id": out_buffer.id, "name": name})
+    return outputs
+
+
+def _write_stems_bundle(
+    cache: CacheStore,
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    channel_layout: str,
+    model_id: str,
+    shifts: int,
+    overlap: float,
+    segment: float,
+    split: bool,
+) -> tuple[dict[str, np.ndarray], StemsBuffer]:
+    stem_pcm = separate_stems_audio(
+        pcm,
+        sample_rate=sample_rate,
+        model_id=model_id,
+        shifts=shifts,
+        overlap=overlap,
+        segment=segment,
+        split=split,
+    )
     stems = StemsBuffer.from_stem_pcm(
-        stem_pcm, buffer.sample_rate, channel_layout=buffer.channel_layout
+        stem_pcm, sample_rate, channel_layout=channel_layout
     )
     cache.write_stems(stems, stem_pcm)
-    return [
-        {
-            "type": "STEMS",
-            "stems_id": stems.id,
-            "stems": {name: {"cache_id": buf.id} for name, buf in stems.stems.items()},
-        }
-    ]
+    return stem_pcm, stems
 
 
 def run_whisper_stt(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import float_param
+
     audio_id = kwargs["audio_id"]
     model_id = str(kwargs.get("model", "whisper-large-v3-turbo"))
+    language = str(kwargs.get("language", "en"))
+    temperature = float_param(kwargs, "temperature", 0.0)
     buffer, pcm = cache.load_audio(audio_id)
-    text = transcribe_audio(pcm, sample_rate=buffer.sample_rate, model_id=model_id)
+    text = transcribe_audio(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        language=language,
+        temperature=temperature,
+    )
     return [{"type": "TEXT", "text": text}]
 
 
@@ -156,8 +227,44 @@ def denoise_audio(
 
 
 def separate_stems_audio(
-    pcm: np.ndarray, *, sample_rate: int, model_id: str
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    shifts: int = 1,
+    overlap: float = 0.25,
+    segment: float = 0.0,
+    split: bool = True,
 ) -> dict[str, np.ndarray]:
+    from groovy.nodes.ai.inference_env import demucs_available, inference_stub_enabled
+
+    if model_id in MODEL_ID_TO_DEMUCS:
+        if demucs_available() and not inference_stub_enabled():
+            from groovy.nodes.ai.backends.demucs_runner import separate_pcm_to_stems
+
+            return separate_pcm_to_stems(
+                pcm,
+                sample_rate=sample_rate,
+                model_id=model_id,
+                shifts=shifts,
+                overlap=overlap,
+                segment=segment,
+                split=split,
+            )
+        if inference_stub_enabled():
+            return _separate_stems_stub(pcm, model_id=model_id)
+        raise RuntimeError(
+            "Demucs inference is not installed. Run: uv sync --group inference "
+            "then install demucs-v4 from Model Browser (Cmd+K)."
+        )
+
+    return _separate_stems_stub(pcm, model_id=model_id)
+
+
+MODEL_ID_TO_DEMUCS = {"demucs-v4", "demucs-v4-ht"}
+
+
+def _separate_stems_stub(pcm: np.ndarray, *, model_id: str) -> dict[str, np.ndarray]:
     _ = model_id
     if pcm.ndim == 1:
         pcm = pcm.reshape(1, -1)
@@ -175,7 +282,15 @@ def separate_stems_audio(
     }
 
 
-def transcribe_audio(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> str:
+def transcribe_audio(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    language: str = "en",
+    temperature: float = 0.0,
+) -> str:
+    _ = language, temperature
     if pcm.ndim == 1:
         mono = pcm.astype(np.float64)
     else:
@@ -185,7 +300,7 @@ def transcribe_audio(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> str
     rms = float(np.sqrt(np.mean(np.square(mono)))) if mono.size else 0.0
     fingerprint = int(np.sum((mono[: min(len(mono), 4096)] * 1_000_000).astype(np.int64)) % 1_000_000)
     return (
-        f"[dev transcript via {model_id}] "
+        f"[dev transcript via {model_id} lang={language} temp={temperature:.2f}] "
         f"dur={duration:.2f}s peak={peak:.3f} rms={rms:.3f} fp={fingerprint}"
     )
 
@@ -213,24 +328,53 @@ def voice_convert_audio(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> 
 
 
 def run_audio_to_midi(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import (
+        bool_param,
+        float_param,
+        optional_frequency,
+    )
+
     audio_id = kwargs["audio_id"]
     model_id = str(kwargs.get("model", "basic-pitch"))
     buffer, pcm = cache.load_audio(audio_id)
-    midi = audio_to_midi(pcm, sample_rate=buffer.sample_rate, model_id=model_id)
-    mid_path = cache.cache_dir / f"{midi.id}.mid"
-    duration = buffer.frame_count / buffer.sample_rate
-    write_minimal_smf(mid_path, duration_sec=min(4.0, max(0.5, duration)))
-    cache.write_midi(midi)
+    midi, midi_bytes = audio_to_midi(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        onset_threshold=float_param(kwargs, "onset_threshold", 0.5),
+        frame_threshold=float_param(kwargs, "frame_threshold", 0.3),
+        minimum_note_length=float_param(kwargs, "minimum_note_length", 127.7),
+        minimum_frequency=optional_frequency(kwargs, "minimum_frequency"),
+        maximum_frequency=optional_frequency(kwargs, "maximum_frequency"),
+        melodia_trick=bool_param(kwargs, "melodia_trick", True),
+    )
+    cache.write_midi(midi, midi_bytes)
     return [{"type": "MIDI", "midi_id": midi.id}]
 
 
 def run_midi_to_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import float_param, int_param
+
     midi_id = kwargs["midi_id"]
     model_id = str(kwargs.get("model", "musicgen-melody-small"))
     prompt = str(kwargs.get("text") or kwargs.get("prompt") or "regenerated melody")
     midi = cache.load_midi(midi_id)
     sample_rate = midi.sample_rate
-    pcm = midi_to_audio_waveform(midi, sample_rate=sample_rate, model_id=model_id, prompt=prompt)
+    reference_pcm = None
+    if kwargs.get("audio_id"):
+        _, reference_pcm = cache.load_audio(str(kwargs["audio_id"]))
+    pcm = midi_to_audio_waveform(
+        midi,
+        sample_rate=sample_rate,
+        model_id=model_id,
+        prompt=prompt,
+        reference_pcm=reference_pcm,
+        max_new_tokens=int_param(kwargs, "max_new_tokens", 512),
+        melody_weight=float_param(kwargs, "melody_weight", 0.55),
+        reference_weight=float_param(kwargs, "reference_weight", 0.45),
+        guidance_scale=float_param(kwargs, "guidance_scale", 3.0),
+        temperature=float_param(kwargs, "temperature", 1.0),
+    )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="MIDIToAudio")
     cache.write_audio(out_buffer, pcm)
     return [{"type": "AUDIO", "cache_id": out_buffer.id}]
@@ -313,18 +457,61 @@ def run_deepfake_detect(cache: CacheStore, kwargs: dict) -> list[dict]:
     ]
 
 
-def audio_to_midi(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> MidiBuffer:
-    _ = model_id
+def audio_to_midi(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    onset_threshold: float = 0.5,
+    frame_threshold: float = 0.3,
+    minimum_note_length: float = 127.7,
+    minimum_frequency: float | None = None,
+    maximum_frequency: float | None = None,
+    melodia_trick: bool = True,
+) -> tuple[MidiBuffer, bytes]:
+    from groovy.nodes.ai.inference_env import basic_pitch_available, inference_stub_enabled
+
+    if model_id != "basic-pitch":
+        raise RuntimeError(f"Unsupported audio-to-midi model: {model_id}")
+
+    if basic_pitch_available() and not inference_stub_enabled():
+        from groovy.nodes.ai.backends.basic_pitch_runner import transcribe_pcm_to_midi
+
+        return transcribe_pcm_to_midi(
+            pcm,
+            sample_rate=sample_rate,
+            onset_threshold=onset_threshold,
+            frame_threshold=frame_threshold,
+            minimum_note_length=minimum_note_length,
+            minimum_frequency=minimum_frequency,
+            maximum_frequency=maximum_frequency,
+            melodia_trick=melodia_trick,
+        )
+
+    if inference_stub_enabled():
+        return _audio_to_midi_stub(pcm, sample_rate=sample_rate)
+
+    raise RuntimeError(
+        "Basic Pitch inference is not installed. Run: uv sync --group inference "
+        "then install basic-pitch from Model Browser (Cmd+K)."
+    )
+
+
+def _audio_to_midi_stub(pcm: np.ndarray, *, sample_rate: int) -> tuple[MidiBuffer, bytes]:
     if pcm.ndim == 1:
         pcm = pcm.reshape(1, -1)
     mono = pcm.mean(axis=0)
     frame_count = len(mono)
-    return MidiBuffer.create(
+    midi = MidiBuffer.create(
         sample_rate=sample_rate,
         frame_count=frame_count,
         source_node_type="AudioToMIDI",
         midi_kind="transcript",
     )
+    duration = max(0.5, frame_count / max(sample_rate, 1))
+    mid_path = Path(tempfile.gettempdir()) / f"{midi.id}.mid"
+    write_minimal_smf(mid_path, duration_sec=min(4.0, duration))
+    return midi, mid_path.read_bytes()
 
 
 def deepfake_score(pcm: np.ndarray, *, model_id: str) -> float:
@@ -341,12 +528,51 @@ def deepfake_score(pcm: np.ndarray, *, model_id: str) -> float:
 
 
 def midi_to_audio_waveform(
-    midi: MidiBuffer, *, sample_rate: int, model_id: str, prompt: str
+    midi: MidiBuffer,
+    *,
+    sample_rate: int,
+    model_id: str,
+    prompt: str,
+    reference_pcm: np.ndarray | None = None,
+    max_new_tokens: int = 512,
+    melody_weight: float = 0.55,
+    reference_weight: float = 0.45,
+    guidance_scale: float = 3.0,
+    temperature: float = 1.0,
 ) -> np.ndarray:
-    _ = model_id, prompt
+    from groovy.nodes.ai.inference_env import inference_stub_enabled, musicgen_melody_available
+
+    if model_id != "musicgen-melody-small":
+        raise RuntimeError(f"Unsupported midi-to-audio model: {model_id}")
+
+    if musicgen_melody_available() and not inference_stub_enabled():
+        from groovy.nodes.ai.backends.musicgen_melody_runner import regenerate_audio_from_midi
+
+        return regenerate_audio_from_midi(
+            midi,
+            sample_rate=sample_rate,
+            prompt=prompt,
+            reference_pcm=reference_pcm,
+            max_new_tokens=max_new_tokens,
+            melody_weight=melody_weight,
+            reference_weight=reference_weight,
+            guidance_scale=guidance_scale,
+            temperature=temperature,
+        )
+
+    if inference_stub_enabled():
+        return _midi_to_audio_stub(midi, sample_rate=sample_rate, prompt=prompt)
+
+    raise RuntimeError(
+        "MusicGen Melody inference is not installed. Run: ./scripts/setup-inference.sh "
+        "(requires torch, torchaudio, transformers) then install musicgen-melody-small from Model Browser."
+    )
+
+
+def _midi_to_audio_stub(midi: MidiBuffer, *, sample_rate: int, prompt: str) -> np.ndarray:
+    _ = prompt
     duration = max(0.5, midi.frame_count / sample_rate)
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    # melody stub: two-tone pattern from midi id hash
     seed = sum(ord(c) for c in midi.id) % 7
     f1 = 220 + seed * 20
     f2 = 330 + seed * 15

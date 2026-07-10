@@ -4,8 +4,12 @@ import json
 import shutil
 import subprocess
 import sys
+import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from groovy.executor.cancel import JobCancelled
 
 
 def run_ai_worker(
@@ -14,6 +18,7 @@ def run_ai_worker(
     project_dir: Path,
     *,
     timeout: int = 1200,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> list[dict[str, Any]]:
     worker_cmd = shutil.which("groovy-ai-worker")
     if worker_cmd:
@@ -26,19 +31,62 @@ def run_ai_worker(
         "kwargs": _serialize_kwargs(kwargs),
         "project_dir": str(project_dir.resolve()),
     }
-    proc = subprocess.run(
+    proc = subprocess.Popen(
         cmd,
-        input=json.dumps(payload),
-        capture_output=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=timeout,
-        check=False,
     )
+    assert proc.stdin is not None
+    proc.stdin.write(json.dumps(payload))
+    proc.stdin.close()
+
+    started = time.monotonic()
+    while proc.poll() is None:
+        if cancel_check and cancel_check():
+            _terminate_worker(proc)
+            raise JobCancelled()
+        if time.monotonic() - started > timeout:
+            _terminate_worker(proc)
+            raise RuntimeError(f"AI worker timed out after {timeout}s")
+        time.sleep(0.25)
+
+    stdout = proc.stdout.read() if proc.stdout else ""
+    stderr = proc.stderr.read() if proc.stderr else ""
     if proc.returncode != 0:
-        stderr = proc.stderr.strip() or proc.stdout.strip() or "AI worker failed"
-        raise RuntimeError(_clean_worker_error(stderr))
-    data = json.loads(proc.stdout)
+        err = stderr.strip() or stdout.strip() or "AI worker failed"
+        raise RuntimeError(_clean_worker_error(err))
+    data = _parse_worker_stdout(stdout)
     return data.get("outputs", [])
+
+
+def _terminate_worker(proc: subprocess.Popen[str]) -> None:
+    proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=5)
+
+
+def _parse_worker_stdout(stdout: str) -> dict[str, Any]:
+    text = stdout.strip()
+    if not text:
+        raise RuntimeError("AI worker returned empty output")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    for line in reversed(text.splitlines()):
+        candidate = line.strip()
+        if not candidate.startswith("{"):
+            continue
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+    raise RuntimeError("AI worker returned invalid JSON")
 
 
 def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -73,8 +121,41 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
 
 
 def _clean_worker_error(stderr: str) -> str:
-    for line in reversed(stderr.strip().splitlines()):
-        if line.startswith("RuntimeError:"):
-            return line.removeprefix("RuntimeError:").strip()
-    lines = [line for line in stderr.strip().splitlines() if line.strip()]
+    text = stderr.strip()
+    if not text:
+        return "AI worker failed"
+
+    for line in reversed(text.splitlines()):
+        stripped = line.strip()
+        if stripped.startswith("RuntimeError:"):
+            msg = stripped.removeprefix("RuntimeError:").strip()
+            if msg and msg != "runtime.":
+                return msg
+
+    import re
+
+    import_err = re.search(
+        r"(ImportError|ModuleNotFoundError):(?:[^\n]|\n(?!Traceback|  File ))+",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if import_err:
+        return " ".join(import_err.group(0).split())
+
+    for line in reversed(text.splitlines()):
+        stripped = line.strip()
+        if stripped.startswith(("OSError:", "ValueError:")):
+            return stripped
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line in reversed(lines):
+        if line.startswith("Traceback"):
+            continue
+        if line.startswith("File "):
+            continue
+        if line in {"runtime.", "runtime", "ImportError:"}:
+            continue
+        if len(line) > 12:
+            return line
+
     return lines[-1] if lines else "AI worker failed"

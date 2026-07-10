@@ -38,9 +38,7 @@ class Denoise(GroovyNode):
                 "audio": ("AUDIO",),
                 "model": ("MODEL_REF", {"default": "deepfilternet-v3"}),
             },
-            "optional": {
-                "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0}),
-            },
+            "optional": {},
         }
 
     def run(self, **kwargs) -> tuple[AudioBuffer]:
@@ -56,7 +54,8 @@ class SeparateStems(GroovyNode):
     run_in_worker = True
     PROVENANCE_CLASS = "ai_transformed"
     COMPATIBLE_MODELS = ["demucs-v4", "demucs-v4-ht"]
-    RETURN_TYPES = ("STEMS",)
+    RETURN_TYPES = ("AUDIO", "AUDIO", "AUDIO", "AUDIO")
+    OUTPUT_NAMES = ("vocals", "drums", "bass", "other")
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -67,6 +66,14 @@ class SeparateStems(GroovyNode):
             },
             "optional": {},
         }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [
+            {"name": name, "type": "AUDIO"} for name in cls.OUTPUT_NAMES
+        ]
+        return schema
 
     def run(self, **kwargs):
         raise RuntimeError("SeparateStems must run in AI worker subprocess")
@@ -90,7 +97,7 @@ class WhisperSTT(GroovyNode):
                 "audio": ("AUDIO",),
                 "model": ("MODEL_REF", {"default": "whisper-large-v3-turbo"}),
             },
-            "optional": {"language": ("STRING", {"default": "en"})},
+            "optional": {},
         }
 
     def run(self, **kwargs):
@@ -192,9 +199,7 @@ class DeepfakeDetect(GroovyNode):
                 "audio": ("AUDIO",),
                 "model": ("MODEL_REF", {"default": "rawnet2-asvspoof"}),
             },
-            "optional": {
-                "threshold": ("FLOAT", {"default": 0.5}),
-            },
+            "optional": {},
         }
 
     def run(self, **kwargs):
