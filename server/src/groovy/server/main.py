@@ -32,6 +32,7 @@ from groovy.registry.agent.registry_freshness import scan_registry_freshness
 from groovy.registry.pack_installer import PackInstaller
 from groovy.registry.packs import list_packs
 from groovy.registry.compliance import summarize_compliance
+from groovy.registry.compliance_report import build_compliance_report, render_compliance_pdf
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
 from groovy.schema.comfy_import import import_comfy_workflow
@@ -98,6 +99,12 @@ class ModelRecommendRequest(BaseModel):
 
 
 class ProvenanceRequest(BaseModel):
+    workflow: dict[str, Any]
+    outputs: dict[str, Any] = {}
+    target_node_id: str | None = None
+
+
+class ComplianceReportRequest(BaseModel):
     workflow: dict[str, Any]
     outputs: dict[str, Any] = {}
     target_node_id: str | None = None
@@ -176,6 +183,34 @@ class CompareAnalyzeRequest(BaseModel):
 
 def _workflow_from_dict(data: dict[str, Any]) -> Workflow:
     return Workflow.model_validate(data)
+
+
+def _authenticity_id_from_outputs(
+    outputs: dict[str, Any],
+    target_node_id: str | None = None,
+) -> str | None:
+    if target_node_id:
+        focus = outputs.get(target_node_id) or {}
+        if isinstance(focus, dict) and focus.get("authenticity_id"):
+            return str(focus["authenticity_id"])
+    for output in outputs.values():
+        if isinstance(output, dict) and output.get("authenticity_id"):
+            return str(output["authenticity_id"])
+    return None
+
+
+def _load_authenticity_record(report_id: str) -> dict[str, Any] | None:
+    try:
+        report = _executor.cache.load_authenticity(report_id)
+    except FileNotFoundError:
+        return None
+    return report.record
+
+
+def _compliance_report_filename(title: str) -> str:
+    slug = "".join(ch if ch.isalnum() or ch in "-_" else "-" for ch in title.lower()).strip("-")
+    slug = slug[:60] or "workflow"
+    return f"groovy-compliance-{slug}.pdf"
 
 
 def _template_meta(path: Path, source: str) -> dict[str, str]:
@@ -569,6 +604,33 @@ def workflow_compliance(body: ValidateRequest) -> dict[str, Any]:
 def workflow_license_scan(body: ValidateRequest) -> dict[str, Any]:
     workflow = _workflow_from_dict(body.workflow)
     return scan_workflow_licenses(workflow, _registry)
+
+
+@app.post("/api/workflow/compliance-report")
+def workflow_compliance_report(body: ComplianceReportRequest) -> Response:
+    workflow = _workflow_from_dict(body.workflow)
+    provenance = None
+    if body.outputs:
+        provenance = summarize_workflow_outputs(
+            _executor.cache,
+            body.outputs,
+            target_node_id=body.target_node_id,
+        )
+    authenticity_id = _authenticity_id_from_outputs(body.outputs, body.target_node_id)
+    authenticity = _load_authenticity_record(authenticity_id) if authenticity_id else None
+    report = build_compliance_report(
+        workflow,
+        _registry,
+        provenance=provenance,
+        authenticity=authenticity,
+    )
+    pdf_bytes = render_compliance_pdf(report)
+    filename = _compliance_report_filename(str(report.get("workflow_title") or workflow.id))
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post("/api/batch/render")

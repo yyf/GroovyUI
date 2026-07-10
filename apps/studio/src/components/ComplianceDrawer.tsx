@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchAuthenticity, fetchLicenseScan, fetchProvenance } from "../api";
+import { downloadComplianceReport, fetchAuthenticity, fetchLicenseScan, fetchProvenance } from "../api";
 import type { JobOutput, LicenseScanSummary, ProvenanceSummary, Workflow } from "../types";
 
 type Tab = "license" | "provenance" | "authenticity" | "disclosure";
@@ -17,6 +17,8 @@ export default function ComplianceDrawer({ open, workflow, outputs, targetNodeId
   const [license, setLicense] = useState<LicenseScanSummary | null>(null);
   const [provenance, setProvenance] = useState<ProvenanceSummary | null>(null);
   const [authenticity, setAuthenticity] = useState<Record<string, unknown> | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const authenticityId = useMemo(() => {
     if (!outputs) return null;
@@ -75,6 +77,32 @@ export default function ComplianceDrawer({ open, workflow, outputs, targetNodeId
     if (authenticity) void navigator.clipboard.writeText(JSON.stringify(authenticity, null, 2));
   };
 
+  const downloadReport = async () => {
+    setReportBusy(true);
+    setReportError(null);
+    try {
+      const blob = await downloadComplianceReport(workflow, {
+        outputs,
+        targetNodeId: targetNodeId,
+      });
+      const slug = (workflow.metadata?.title || workflow.id)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 60);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `groovy-compliance-${slug || "workflow"}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setReportError(err instanceof Error ? err.message : "Failed to export PDF");
+    } finally {
+      setReportBusy(false);
+    }
+  };
+
   const overall = authenticity?.overall as { label?: string; confidence?: number; summary?: string } | undefined;
   const provCheck = authenticity?.provenance_check as Record<string, unknown> | undefined;
   const mlDet = authenticity?.ml_detection as Record<string, unknown> | undefined;
@@ -86,10 +114,19 @@ export default function ComplianceDrawer({ open, workflow, outputs, targetNodeId
           <h2>Compliance</h2>
           {provenance?.contains_ai ? <span className="pill pill--warning">AI</span> : null}
           {overall?.label ? <span className={`pill pill--${overall.label}`}>{overall.label}</span> : null}
+          <button
+            type="button"
+            className="compliance-export"
+            onClick={() => void downloadReport()}
+            disabled={reportBusy || !license}
+          >
+            {reportBusy ? "Exporting…" : "Download PDF"}
+          </button>
           <button type="button" onClick={onClose}>
             ✕
           </button>
         </header>
+        {reportError ? <p className="compliance-hint compliance-hint--error">{reportError}</p> : null}
         <nav>
           <button type="button" className={tab === "license" ? "active" : ""} onClick={() => setTab("license")}>
             License
