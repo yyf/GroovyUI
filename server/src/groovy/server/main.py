@@ -39,6 +39,7 @@ from groovy.schema.comfy_import import import_comfy_workflow
 from groovy.executor.live_midi import LiveIoState
 from groovy.executor.osc_live import OscCaptureStore
 from groovy.server.bootstrap import ensure_project_samples
+from groovy.server.compare import analyze_ab_pair
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
 from pydantic import BaseModel
 

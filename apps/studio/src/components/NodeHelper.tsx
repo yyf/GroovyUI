@@ -67,10 +67,7 @@ export default function NodeHelper({
 }: Props) {
   const [tab, setTab] = useState<Tab>("config");
   const [schema, setSchema] = useState<NodeSchema | null>(null);
-  const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
-  const [signalMetrics, setSignalMetrics] = useState<CacheSignalMetrics | null>(null);
   const [provenance, setProvenance] = useState<Record<string, unknown> | null>(null);
-  const [waveform, setWaveform] = useState<number[]>([]);
   const [fileMeta, setFileMeta] = useState<Record<string, unknown> | null>(null);
   const [fileMetaError, setFileMetaError] = useState<string | null>(null);
   const [compareWaveforms, setCompareWaveforms] = useState<[number[], number[]]>([[], []]);
@@ -105,21 +102,9 @@ export default function NodeHelper({
   useEffect(() => {
     const primary = jobOutputAtSlot(output, 0);
     if (!primary?.cache_id) {
-      setMeta(null);
-      setSignalMetrics(null);
       setProvenance(null);
-      setWaveform([]);
       return;
     }
-    fetchCacheMeta(primary.cache_id)
-      .then(setMeta)
-      .catch(() => setMeta(null));
-    fetchCacheMetrics(primary.cache_id)
-      .then(setSignalMetrics)
-      .catch(() => setSignalMetrics(null));
-    fetchWaveform(primary.cache_id)
-      .then((data) => setWaveform(data.peaks))
-      .catch(() => setWaveform([]));
     fetch(`${import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188"}/api/cache/${primary.cache_id}/provenance`)
       .then((res) => (res.ok ? res.json() : null))
       .then(setProvenance)
