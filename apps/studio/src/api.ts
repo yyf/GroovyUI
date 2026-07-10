@@ -444,6 +444,40 @@ export async function fetchLicenseScan(workflow: Workflow): Promise<LicenseScanS
   return res.json();
 }
 
+export async function downloadComplianceReport(
+  workflow: Workflow,
+  options?: {
+    outputs?: Record<string, JobOutput>;
+    targetNodeId?: string | null;
+  },
+): Promise<Blob> {
+  const res = await fetch(`${API}/api/workflow/compliance-report`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      workflow,
+      outputs: options?.outputs ?? {},
+      target_node_id: options?.targetNodeId ?? null,
+    }),
+  });
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw new Error(
+        "Compliance PDF export is not available on this API — restart groovy-server (uv run --package groovy-server groovy-server) and try again.",
+      );
+    }
+    let detail = "Compliance report export failed";
+    try {
+      const body = await res.json();
+      detail = formatApiDetail(body.detail, detail);
+    } catch {
+      detail = (await res.text()) || detail;
+    }
+    throw new Error(detail);
+  }
+  return res.blob();
+}
+
 export async function batchRenderWorkflow(
   workflow: Workflow,
   options: {
