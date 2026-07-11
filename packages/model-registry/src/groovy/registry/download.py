@@ -26,13 +26,17 @@ def assert_allowed_url(url: str) -> None:
         raise DownloadError(f"URL host not allowlisted: {host}")
 
 
-def download_file(url: str, dest: Path, *, expected_sha256: str | None = None) -> Path:
+def download_file(url: str, dest: Path, *, expected_sha256: str | None = None, hf_token: str | None = None) -> Path:
     assert_allowed_url(url)
     dest.parent.mkdir(parents=True, exist_ok=True)
 
     import urllib.request
 
-    with urllib.request.urlopen(url, timeout=120) as response:
+    request = urllib.request.Request(url)
+    if hf_token and "huggingface.co" in url:
+        request.add_header("Authorization", f"Bearer {hf_token}")
+
+    with urllib.request.urlopen(request, timeout=120) as response:
         data = response.read()
 
     digest = hashlib.sha256(data).hexdigest()

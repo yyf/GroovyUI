@@ -752,6 +752,20 @@ export function resolveTargetNode(workflow: Workflow, selectedId: string | null)
   return workflow.nodes[workflow.nodes.length - 1]?.id ?? "";
 }
 
+/** Terminal nodes (no outgoing edges) — render-all executes each chain to its sink. */
+export function resolveRenderAllTargets(workflow: Workflow): string[] {
+  const sources = new Set(workflow.links.map((link) => link.from[0]));
+  const terminals = workflow.nodes.filter((node) => !sources.has(node.id)).map((node) => node.id);
+  if (terminals.length > 0) return terminals;
+
+  const sinks = workflow.nodes
+    .filter((node) => node.type === "Preview" || node.type === "SaveAudio")
+    .map((node) => node.id);
+  if (sinks.length > 0) return sinks;
+
+  return workflow.nodes.map((node) => node.id);
+}
+
 export function downloadWorkflow(workflow: Workflow): void {
   const blob = new Blob([JSON.stringify(workflow, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);

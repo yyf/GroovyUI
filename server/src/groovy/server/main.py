@@ -29,6 +29,9 @@ from groovy.registry.agent.license_scanner import scan_workflow_licenses
 from groovy.registry.agent.curator import approve_draft, ingest_drafts, list_drafts
 from groovy.registry.agent.template_generator import generate_template_from_workflow
 from groovy.registry.agent.registry_freshness import scan_registry_freshness
+from groovy.registry.installer import model_install_complete
+from groovy.registry.studio_settings import StudioSettingsStore
+from groovy.registry.workflow_models import missing_models_for_workflow
 from groovy.registry.pack_installer import PackInstaller
 from groovy.registry.packs import list_packs
 from groovy.registry.compliance import summarize_compliance
@@ -80,10 +83,12 @@ app.add_middleware(
 
 _jobs: dict[str, dict[str, Any]] = {}
 _job_cancel_flags: dict[str, threading.Event] = {}
+_install_threads: dict[str, threading.Thread] = {}
 _ws_subscribers: dict[str, set[WebSocket]] = {}
 _executor = Executor(PROJECT_DIR)
 _registry = ModelRegistry(PROJECT_DIR)
 _pack_installer = PackInstaller(PROJECT_DIR)
+_studio_settings = StudioSettingsStore(PROJECT_DIR)
 
 
 class ModelSearchRequest(BaseModel):
@@ -148,6 +153,10 @@ class LiveIoSettingsRequest(BaseModel):
     audio_output_enabled: bool | None = None
     default_audio_input_id: str | None = None
     default_audio_output_id: str | None = None
+
+
+class StudioSettingsRequest(BaseModel):
+    hf_token: str | None = None
 
 
 class MidiInEventRequest(BaseModel):
@@ -312,6 +321,17 @@ def update_live_io_settings(body: LiveIoSettingsRequest) -> dict[str, Any]:
         setattr(_live_io.settings, key, value)
     _live_io.save_settings()
     return _live_io.settings.to_dict()
+
+
+@app.get("/api/settings/studio")
+def get_studio_settings() -> dict[str, Any]:
+    return _studio_settings.public_view()
+
+
+@app.post("/api/settings/studio")
+def update_studio_settings(body: StudioSettingsRequest) -> dict[str, Any]:
+    patch = body.model_dump(exclude_unset=True)
+    return _studio_settings.save(patch)
 
 
 @app.post("/api/midi/in/event")
@@ -520,8 +540,14 @@ def install_model(model_id: str) -> dict[str, Any]:
     manifest = _registry.catalog.get(model_id)
     if not manifest:
         raise HTTPException(status_code=404, detail="Model not found")
-    state = _registry.installer.install(model_id)
-    return state.model_dump()
+    return _start_model_install(model_id).model_dump()
+
+
+@app.get("/api/models/{model_id}/install/status")
+def install_model_status(model_id: str) -> dict[str, Any]:
+    if not _registry.catalog.get(model_id):
+        raise HTTPException(status_code=404, detail="Model not found")
+    return _registry.store.get(model_id).model_dump()
 
 
 @app.post("/api/models/recommend")
@@ -542,12 +568,39 @@ def model_recovery(model_id: str) -> dict[str, Any]:
 
 def _model_card(manifest) -> dict[str, Any]:
     state = _registry.store.get(manifest.id)
+    from groovy.nodes.ai.inference_env import model_inference_ready
+
     return {
         **manifest.model_dump(),
         "install_status": state.status,
         "install_progress": state.progress,
         "install_error": state.error,
+        "dev_stub": manifest.install.dev_stub,
+        "inference_ready": model_inference_ready(manifest.id, dev_stub=manifest.install.dev_stub),
+        "install_complete": model_install_complete(manifest, state),
     }
+
+
+def _start_model_install(model_id: str):
+    manifest = _registry.catalog.get(model_id)
+    state = _registry.store.get(model_id)
+    if manifest and model_install_complete(manifest, state):
+        return state
+    active = _install_threads.get(model_id)
+    if active is not None and active.is_alive():
+        return _registry.store.get(model_id)
+
+    def run() -> None:
+        try:
+            _registry.installer.install(model_id)
+        finally:
+            _install_threads.pop(model_id, None)
+
+    _registry.store.mark_progress(model_id, "downloading", 0.05)
+    thread = threading.Thread(target=run, daemon=True, name=f"install-{model_id}")
+    _install_threads[model_id] = thread
+    thread.start()
+    return _registry.store.get(model_id)
 
 
 @app.post("/api/workflow/import/comfy")
@@ -556,10 +609,20 @@ def import_comfy_workflow_endpoint(body: ComfyImportRequest) -> dict[str, Any]:
     import_meta = converted.pop("import_meta", {})
     workflow = _workflow_from_dict(converted)
     validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    missing_models = missing_models_for_workflow(workflow, _registry.catalog, _registry.store)
     return {
         "workflow": converted,
         "validation": validation.model_dump(),
         "import_meta": import_meta,
+        "missing_models": missing_models,
+    }
+
+
+@app.post("/api/workflow/missing-models")
+def workflow_missing_models(body: ValidateRequest) -> dict[str, Any]:
+    workflow = _workflow_from_dict(body.workflow)
+    return {
+        "missing_models": missing_models_for_workflow(workflow, _registry.catalog, _registry.store),
     }
 
 
@@ -857,6 +920,16 @@ def cache_waveform(cache_id: str, width: int = 512) -> dict[str, Any]:
         return _executor.cache.waveform_peaks(cache_id, width=width)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Cache not found") from exc
+
+
+@app.get("/api/cache/{cache_id}/spectrogram")
+def cache_spectrogram(cache_id: str, width: int = 512, height: int = 48) -> dict[str, Any]:
+    try:
+        return _executor.cache.spectrogram_tiles(cache_id, width=width, height=height)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Cache not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.get("/api/cache/{cache_id}/midi-roll")

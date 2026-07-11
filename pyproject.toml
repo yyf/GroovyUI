@@ -56,6 +56,9 @@ pythonpath = [
     "server/src",
 ]
 asyncio_mode = "auto"
+markers = [
+    "integration: cold-machine hero tests (real model install; run with GROOVY_INFERENCE_STUB=0)",
+]
 
 [tool.ruff]
 line-length = 100

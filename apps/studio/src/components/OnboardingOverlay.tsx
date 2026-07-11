@@ -31,16 +31,25 @@ export default function OnboardingOverlay({ open, onClose, onStartHello }: Props
     <div className="onboarding-backdrop">
       <div className="onboarding">
         <h2>Welcome to GroovyUI</h2>
-        <p>Patch AI audio like a modular synth. Render sample-accurate previews without leaving the graph.</p>
+        <p>Patch AI audio like a modular synth. Render sample-accurate previews, then save files from the graph.</p>
         <ol className="onboarding__steps">
           <li>
-            <strong>Start simple</strong> — try the Hello Groovy template (Load → Normalize → Preview).
+            <strong>Search &amp; install</strong> — Cmd+K → Model Browser → install hero models.
           </li>
           <li>
-            <strong>Press Play</strong> — Audition the selected node after you render it.
+            <strong>Patch &amp; render</strong> — open a featured template, wire the chain, press Render.
           </li>
           <li>
-            <strong>Cmd+K</strong> — search models, get recommendations, or suggest a workflow.
+            <strong>Audition</strong> — Play previews cached from your last render (not live inference).
+          </li>
+          <li>
+            <strong>Compliance</strong> — review license, provenance, and authenticity.
+          </li>
+          <li>
+            <strong>Share JSON</strong> — Settings menu → Save workflow.
+          </li>
+          <li>
+            <strong>Save/export audio</strong> — render the SaveAudio node; files land under <code>exports/</code>.
           </li>
         </ol>
         <div className="onboarding__actions">
@@ -53,7 +62,7 @@ export default function OnboardingOverlay({ open, onClose, onStartHello }: Props
               onClose();
             }}
           >
-            Start with Hello Groovy
+            Start with Podcast Denoise
           </button>
           <button
             type="button"

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { fetchSpectrogram, type SpectrogramData } from "../api";
+import SpectrogramMini from "./SpectrogramMini";
 import WaveformMini from "./WaveformMini";
 import MidiRollMini, { type MidiRollNote } from "./MidiRollMini";
 
@@ -59,6 +61,8 @@ type Props = {
   auditionNonce?: number;
 };
 
+type AudioVisualMode = "waveform" | "spectrogram";
+
 export default function TransportBar({
   previewUrl,
   previewKind = null,
@@ -79,11 +83,24 @@ export default function TransportBar({
   const [playbackTime, setPlaybackTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const isMidiVisual = previewKind === "midi";
-  const hasPreview = Boolean(previewUrl);
+  const [audioVisualMode, setAudioVisualMode] = useState<AudioVisualMode>("waveform");
+  const [spectrogram, setSpectrogram] = useState<SpectrogramData | null>(null);
+  const [spectrogramLoading, setSpectrogramLoading] = useState(false);
+  const [spectrogramError, setSpectrogramError] = useState<string | null>(null);
   const statusFailed = Boolean(
     statusMessage?.toLowerCase().includes("fail") || statusMessage?.toLowerCase().startsWith("error"),
   );
+
+  const isMidiVisual = previewKind === "midi";
+  const hasPreview = Boolean(previewUrl);
+  const midiTimelineDuration = midiRoll?.duration && midiRoll.duration > 0 ? midiRoll.duration : 0;
+
+  const timelineDuration = useCallback(() => {
+    const audio = audioRef.current;
+    if (isMidiVisual && midiTimelineDuration > 0) return midiTimelineDuration;
+    const dur = audio?.duration;
+    return dur && Number.isFinite(dur) ? dur : 0;
+  }, [isMidiVisual, midiTimelineDuration]);
 
   const syncProgress = useCallback(() => {
     const audio = audioRef.current;
@@ -93,8 +110,8 @@ export default function TransportBar({
       setDuration(0);
       return;
     }
-    const dur = audio.duration;
-    if (!dur || !Number.isFinite(dur)) {
+    const dur = timelineDuration();
+    if (!dur) {
       setPlaybackProgress(0);
       setPlaybackTime(0);
       setDuration(0);
@@ -102,8 +119,8 @@ export default function TransportBar({
     }
     setPlaybackTime(audio.currentTime);
     setDuration(dur);
-    setPlaybackProgress(audio.currentTime / dur);
-  }, []);
+    setPlaybackProgress(Math.min(1, audio.currentTime / dur));
+  }, [timelineDuration]);
 
   const stopRaf = useCallback(() => {
     if (rafRef.current) {
@@ -174,12 +191,54 @@ export default function TransportBar({
   }, [previewUrl]);
 
   useEffect(() => {
+    syncProgress();
+  }, [midiTimelineDuration, syncProgress]);
+
+  useEffect(() => {
     setPlaybackProgress(0);
     setPlaybackTime(0);
     setDuration(0);
     setIsPlaying(false);
+    setSpectrogram(null);
+    setSpectrogramError(null);
     stopRaf();
   }, [previewUrl, previewKind, midiRoll, stopRaf]);
+
+  useEffect(() => {
+    if (audioVisualMode !== "spectrogram" || isMidiVisual || !previewUrl) {
+      return;
+    }
+    const cacheId = cacheIdFromPreviewUrl(previewUrl);
+    if (!cacheId) {
+      setSpectrogram(null);
+      setSpectrogramError("No preview cache for spectrogram");
+      return;
+    }
+    let cancelled = false;
+    setSpectrogramLoading(true);
+    setSpectrogramError(null);
+    fetchSpectrogram(cacheId, 512, 48)
+      .then((data) => {
+        if (cancelled) return;
+        if (!data.values.length) {
+          setSpectrogram(null);
+          setSpectrogramError("Spectrogram unavailable for this clip");
+          return;
+        }
+        setSpectrogram(data);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setSpectrogram(null);
+        setSpectrogramError(err instanceof Error ? err.message : "Spectrogram failed to load");
+      })
+      .finally(() => {
+        if (!cancelled) setSpectrogramLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [audioVisualMode, isMidiVisual, previewUrl]);
 
   useEffect(() => {
     if (!auditionNonce) return;
@@ -230,12 +289,20 @@ export default function TransportBar({
   const handleSeek = useCallback(
     (ratio: number) => {
       const audio = audioRef.current;
-      if (!audio || !audio.duration) return;
-      audio.currentTime = ratio * audio.duration;
-      setPlaybackProgress(ratio);
+      const dur = timelineDuration();
+      if (!audio || !dur) return;
+      const clamped = Math.min(1, Math.max(0, ratio));
+      const target = clamped * dur;
+      if (audio.duration && Number.isFinite(audio.duration)) {
+        audio.currentTime = Math.min(target, audio.duration);
+      } else {
+        audio.currentTime = target;
+      }
+      setPlaybackProgress(clamped);
+      setPlaybackTime(audio.currentTime);
       if (!audio.paused) startRaf();
     },
-    [startRaf],
+    [startRaf, timelineDuration],
   );
 
   const handlePause = useCallback(() => {
@@ -340,6 +407,27 @@ export default function TransportBar({
 
         <div className="transport__stage">
           <div className="transport__wave-wrap">
+            {!isMidiVisual && previewUrl ? (
+              <div className="transport__visual-toggle" role="group" aria-label="Audio visualization mode">
+                <button
+                  type="button"
+                  className={audioVisualMode === "waveform" ? "active" : undefined}
+                  onClick={() => setAudioVisualMode("waveform")}
+                  title="Waveform"
+                >
+                  Wave
+                </button>
+                <button
+                  type="button"
+                  className={audioVisualMode === "spectrogram" ? "active" : undefined}
+                  onClick={() => setAudioVisualMode("spectrogram")}
+                  title="Spectrogram"
+                >
+                  Spec
+                </button>
+              </div>
+            ) : null}
+            <div className="transport__wave-visual">
             {isMidiVisual ? (
               <div className={previewUrl ? undefined : "transport__wave-empty"}>
                 <MidiRollMini
@@ -355,19 +443,37 @@ export default function TransportBar({
                 {!previewUrl ? <p className="transport__empty">{emptyHint}</p> : null}
               </div>
             ) : previewUrl ? (
-              <WaveformMini
-                peaks={waveformPeaks}
-                progress={playbackProgress}
-                onSeek={handleSeek}
-                fitContainer
-                className="transport__waveform"
-              />
+              audioVisualMode === "spectrogram" ? (
+                <SpectrogramMini
+                  data={spectrogram}
+                  progress={playbackProgress}
+                  onSeek={handleSeek}
+                  fitContainer
+                  className="transport__spectrogram"
+                />
+              ) : (
+                <WaveformMini
+                  peaks={waveformPeaks}
+                  progress={playbackProgress}
+                  onSeek={handleSeek}
+                  fitContainer
+                  showScale
+                  className="transport__waveform"
+                />
+              )
             ) : (
               <div className="transport__wave-empty">
                 <WaveformMini peaks={[]} fitContainer className="transport__waveform" />
                 <p className="transport__empty">{emptyHint}</p>
               </div>
             )}
+            {hasPreview && !isMidiVisual && audioVisualMode === "spectrogram" && spectrogramLoading ? (
+              <div className="transport__visual-loading">Loading spectrogram…</div>
+            ) : null}
+            {hasPreview && !isMidiVisual && audioVisualMode === "spectrogram" && spectrogramError ? (
+              <div className="transport__visual-error">{spectrogramError}</div>
+            ) : null}
+            </div>
             {hasPreview ? (
               <div className="transport__time-tag" aria-live="off">
                 <span className="transport__time-current">{formatTimeTag(playbackTime)}</span>

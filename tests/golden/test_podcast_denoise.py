@@ -39,8 +39,13 @@ def test_podcast_denoise_with_ai_node(project_dir: Path) -> None:
         if node.type == "LoadAudio":
             node.widgets["path"] = "assets/samples/male-1.wav"
 
+    registry = ModelRegistry(project_dir)
+    install = registry.store.get("deepfilternet-v3")
+    assert install.status == "ready", install.error
+
     executor = Executor(project_dir)
-    result = executor.execute(workflow, target_nodes=["n4"])
+    result = executor.execute(workflow, target_nodes=["n4", "n5"])
     assert result.status == "completed", result.error
     assert "n4" in result.outputs
     assert "n2" in result.outputs
+    assert "n5" in result.outputs

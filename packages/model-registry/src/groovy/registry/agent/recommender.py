@@ -130,9 +130,13 @@ def _card(manifest: ModelManifest, state) -> dict[str, Any]:
         "name": manifest.name,
         "description": manifest.description,
         "task_types": manifest.task_types,
+        "tags": manifest.tags,
+        "author": manifest.author,
         "license": manifest.license.model_dump(),
         "vram_gb_estimate": manifest.vram_gb_estimate,
         "compatible_nodes": manifest.compatible_nodes,
         "install_status": state.status,
+        "install_progress": state.progress,
         "install_error": state.error,
+        "dev_stub": manifest.install.dev_stub,
     }

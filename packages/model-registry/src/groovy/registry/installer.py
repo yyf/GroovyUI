@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -7,6 +11,7 @@ from groovy.registry.catalog import ModelCatalog
 from groovy.registry.download import DownloadError, copy_bundle_file, download_file
 from groovy.registry.models import InstallState, ModelManifest
 from groovy.registry.store import InstallStore
+from groovy.registry.studio_settings import StudioSettingsStore
 
 
 class ModelInstaller:
@@ -14,6 +19,7 @@ class ModelInstaller:
         self.catalog = catalog
         self.store = store
         self.project_dir = project_dir
+        self._settings = StudioSettingsStore(project_dir)
 
     def install(self, model_id: str) -> InstallState:
         manifest = self.catalog.get(model_id)
@@ -21,18 +27,24 @@ class ModelInstaller:
             return self.store.mark_failed(model_id, f"Unknown model: {model_id}")
 
         existing = self.store.get(model_id)
-        if existing.status == "ready":
+        if existing.status == "ready" and _imports_verified(manifest):
             return existing
 
         try:
-            self.store.mark_progress(model_id, "downloading", 0.2)
+            self.store.mark_progress(model_id, "downloading", 0.05)
             model_dir = self.project_dir / ".groovy" / "models" / model_id
             model_dir.mkdir(parents=True, exist_ok=True)
             if manifest.install.dev_stub:
                 time.sleep(0.05)
                 self.store.mark_progress(model_id, "verifying", 0.7)
                 return self.store.mark_ready(model_id)
-            for weight in manifest.install.weights:
+
+            _install_python_deps(manifest, model_id, self.store)
+
+            weights = manifest.install.weights
+            for index, weight in enumerate(weights):
+                progress = 0.45 + (0.4 * (index + 1) / max(len(weights), 1))
+                self.store.mark_progress(model_id, "downloading", progress)
                 bundle = weight.get("bundle")
                 if bundle:
                     filename = weight.get("filename") or str(bundle)
@@ -44,8 +56,16 @@ class ModelInstaller:
                     continue
                 filename = weight.get("filename") or _filename_from_url(url)
                 dest = model_dir / filename
-                download_file(url, dest, expected_sha256=weight.get("sha256"))
-            self.store.mark_progress(model_id, "verifying", 0.9)
+                download_file(
+                    url,
+                    dest,
+                    expected_sha256=weight.get("sha256"),
+                    hf_token=self._settings.hf_token(),
+                )
+
+            self.store.mark_progress(model_id, "verifying", 0.92)
+            _verify_imports(manifest)
+            _verify_runtime(manifest)
             if manifest.install.weights or manifest.install.python_deps:
                 return self.store.mark_ready(model_id)
             raise NotImplementedError("Weight download not configured")
@@ -66,6 +86,105 @@ class ModelInstaller:
         }
 
 
+def _install_python_deps(manifest: ModelManifest, model_id: str, store: InstallStore) -> None:
+    if os.environ.get("GROOVY_INFERENCE_STUB", "").lower() in ("1", "true", "yes"):
+        return
+    deps = manifest.install.python_deps
+    if not deps:
+        return
+    total = len(deps)
+    for index, dep in enumerate(deps):
+        package = str(dep.get("package", "")).strip()
+        if not package:
+            continue
+        version = str(dep.get("version", "")).strip()
+        requirement = f"{package}{version}" if version else package
+        progress = 0.12 + (0.28 * (index + 1) / total)
+        store.mark_progress(model_id, "downloading", progress)
+        no_deps = bool(dep.get("no_deps"))
+        _run_pip_install(requirement, no_deps=no_deps)
+
+
+def _verify_runtime(manifest: ModelManifest) -> None:
+    if os.environ.get("GROOVY_INFERENCE_STUB", "").lower() in ("1", "true", "yes"):
+        return
+    if manifest.install.dev_stub:
+        return
+    try:
+        from groovy.nodes.ai.inference_env import model_inference_ready
+    except ImportError:
+        return
+    if not model_inference_ready(manifest.id, dev_stub=False):
+        raise RuntimeError(
+            f"Inference runtime not ready for {manifest.id}. "
+            "Reinstall from Model Browser (Cmd+K) — install pulls weights and Python deps automatically."
+        )
+
+
+def model_install_complete(manifest: ModelManifest, state: InstallState) -> bool:
+    """True when registry install succeeded and runtime deps are importable."""
+    if state.status != "ready":
+        return False
+    return _imports_verified(manifest)
+
+
+def _imports_verified(manifest: ModelManifest) -> bool:
+    if not _imports_verified_manifest(manifest):
+        return False
+    try:
+        _verify_runtime(manifest)
+        return True
+    except RuntimeError:
+        return False
+
+
+def _imports_verified_manifest(manifest: ModelManifest) -> bool:
+    if not manifest.install.verify_imports:
+        return True
+    try:
+        _verify_imports(manifest)
+        return True
+    except RuntimeError:
+        return False
+
+
+def _verify_imports(manifest: ModelManifest) -> None:
+    if os.environ.get("GROOVY_INFERENCE_STUB", "").lower() in ("1", "true", "yes"):
+        return
+    missing: list[str] = []
+    for module in manifest.install.verify_imports:
+        try:
+            __import__(module)
+        except ImportError:
+            missing.append(module)
+    if missing:
+        joined = ", ".join(missing)
+        raise RuntimeError(
+            f"Inference packages not importable after install ({joined}). "
+            "Reinstall from Model Browser (Cmd+K)."
+        )
+
+
+def _run_pip_install(requirement: str, *, no_deps: bool = False) -> None:
+    if shutil.which("uv"):
+        # uv-managed venvs do not ship pip; uv pip targets the active interpreter.
+        command = ["uv", "pip", "install", "--python", sys.executable]
+    else:
+        command = [sys.executable, "-m", "pip", "install"]
+    if no_deps:
+        command.append("--no-deps")
+    command.append(requirement)
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "package install failed").strip()
+        raise RuntimeError(f"Failed to install {requirement}: {detail[:500]}")
+
+
 def _filename_from_url(url: str) -> str:
     from urllib.parse import urlparse
 
@@ -83,6 +202,10 @@ def _human_error(error: str) -> str:
         return "Network error while downloading model weights."
     if "cuda" in lowered or "gpu" in lowered:
         return "GPU/CUDA requirement not met for this model."
+    if "failed to install" in lowered or "pip install" in lowered:
+        return "Python dependency install failed — retry from Model Browser (Cmd+K)."
+    if "inference runtime not ready" in lowered or "not importable after install" in lowered:
+        return "Python inference packages missing — reinstall from Model Browser (Cmd+K)."
     return error or "Install failed for an unknown reason."
 
 

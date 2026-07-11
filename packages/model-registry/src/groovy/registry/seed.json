@@ -19,8 +19,13 @@
       "vram_gb_estimate": 1,
       "compatible_nodes": ["Denoise"],
       "install": {
-        "python_deps": [{ "package": "deepfilternet", "version": ">=0.5.0" }],
-        "dev_stub": true
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "torchaudio", "version": ">=2.0.0" },
+          { "package": "DeepFilterNet-py312", "version": ">=0.5.7" }
+        ],
+        "verify_imports": ["torch", "torchaudio"],
+        "dev_stub": false
       },
       "inference_params": [
         {
@@ -56,6 +61,7 @@
           { "package": "demucs", "version": ">=4.0.0" },
           { "package": "torch", "version": ">=2.0.0" }
         ],
+        "verify_imports": ["demucs.apply", "torch"],
         "dev_stub": false
       },
       "inference_params": [
@@ -109,7 +115,11 @@
       },
       "vram_gb_estimate": 4,
       "compatible_nodes": ["SeparateStems"],
-      "install": { "dev_stub": false, "python_deps": [{ "package": "demucs", "version": ">=4.0.0" }] },
+      "install": {
+        "dev_stub": false,
+        "python_deps": [{ "package": "demucs", "version": ">=4.0.0" }],
+        "verify_imports": ["demucs.apply", "torch"]
+      },
       "inference_params": [
         {
           "name": "shifts",
@@ -161,7 +171,11 @@
       },
       "vram_gb_estimate": 2,
       "compatible_nodes": ["WhisperSTT"],
-      "install": { "dev_stub": true },
+      "install": {
+        "dev_stub": false,
+        "python_deps": [{ "package": "faster-whisper", "version": ">=1.0.0" }],
+        "verify_imports": ["faster_whisper"]
+      },
       "inference_params": [
         {
           "name": "language",
@@ -197,7 +211,11 @@
       },
       "vram_gb_estimate": 1,
       "compatible_nodes": ["WhisperSTT"],
-      "install": { "dev_stub": true },
+      "install": {
+        "dev_stub": false,
+        "python_deps": [{ "package": "faster-whisper", "version": ">=1.0.0" }],
+        "verify_imports": ["faster_whisper"]
+      },
       "inference_params": [
         {
           "name": "language",
@@ -341,8 +359,10 @@
           { "package": "mir_eval", "version": ">=0.7.0" },
           { "package": "resampy", "version": ">=0.4.0" },
           { "package": "pretty-midi", "version": ">=0.2.10" },
-          { "package": "soundfile", "version": ">=0.12.0" }
-        ]
+          { "package": "soundfile", "version": ">=0.12.0" },
+          { "package": "basic-pitch", "version": "==0.4.0", "no_deps": true }
+        ],
+        "verify_imports": ["basic_pitch.note_creation", "onnxruntime"]
       },
       "inference_params": [
         {
@@ -449,7 +469,8 @@
           { "package": "transformers", "version": ">=4.40.0" },
           { "package": "accelerate", "version": ">=0.28.0" },
           { "package": "pretty-midi", "version": ">=0.2.10" }
-        ]
+        ],
+        "verify_imports": ["transformers", "torch", "torchaudio", "pretty_midi"]
       },
       "inference_params": [
         {

@@ -3,10 +3,13 @@ import {
   fetchAudioDevices,
   fetchLiveIoSettings,
   fetchMidiDevices,
+  fetchStudioSettings,
   updateLiveIoSettings,
+  updateStudioSettings,
   type AudioDevice,
   type LiveIoSettings,
   type MidiDevice,
+  type StudioSettings,
 } from "../api";
 
 type Props = {
@@ -25,6 +28,8 @@ function deviceLabel(device: AudioDevice | MidiDevice): string {
 
 export default function SettingsDrawer({ open, onClose }: Props) {
   const [settings, setSettings] = useState<LiveIoSettings | null>(null);
+  const [studioSettings, setStudioSettings] = useState<StudioSettings | null>(null);
+  const [hfTokenDraft, setHfTokenDraft] = useState("");
   const [audioInputs, setAudioInputs] = useState<AudioDevice[]>([]);
   const [audioOutputs, setAudioOutputs] = useState<AudioDevice[]>([]);
   const [midiInputs, setMidiInputs] = useState<MidiDevice[]>([]);
@@ -38,6 +43,9 @@ export default function SettingsDrawer({ open, onClose }: Props) {
     try {
       const liveSettings = await fetchLiveIoSettings();
       setSettings(liveSettings);
+      const studio = await fetchStudioSettings().catch(() => null);
+      setStudioSettings(studio);
+      setHfTokenDraft("");
 
       const [inAudio, outAudio, inMidi, outMidi] = await Promise.all([
         fetchAudioDevices("in").catch(() => {
@@ -91,6 +99,17 @@ export default function SettingsDrawer({ open, onClose }: Props) {
       setStatus("Saved");
     } catch {
       setStatus("Could not save settings");
+    }
+  };
+
+  const saveStudio = async (patch: { hf_token?: string | null }) => {
+    try {
+      const next = await updateStudioSettings(patch);
+      setStudioSettings(next);
+      setHfTokenDraft("");
+      setStatus("Saved");
+    } catch {
+      setStatus("Could not save studio settings");
     }
   };
 
@@ -223,6 +242,45 @@ export default function SettingsDrawer({ open, onClose }: Props) {
                     ))}
                   </select>
                 </label>
+              </section>
+
+              <section className="settings-section">
+                <h3>Model installs</h3>
+                <p className="compliance-hint">
+                  Hugging Face token for gated model weights. Environment variable <code>HF_TOKEN</code> takes
+                  precedence over this field.
+                </p>
+                {studioSettings?.hf_token_source === "environment" ? (
+                  <p className="compliance-hint">Using HF_TOKEN from environment.</p>
+                ) : studioSettings?.hf_token_set ? (
+                  <p className="compliance-hint">Token saved in project settings.</p>
+                ) : (
+                  <p className="compliance-hint">No token configured — gated downloads may fail.</p>
+                )}
+                <label className="settings-field">
+                  HF token
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    placeholder={studioSettings?.hf_token_set ? "••••••••  (leave blank to keep)" : "hf_…"}
+                    value={hfTokenDraft}
+                    onChange={(event) => setHfTokenDraft(event.target.value)}
+                  />
+                </label>
+                <div className="model-card__actions">
+                  <button
+                    type="button"
+                    disabled={!hfTokenDraft.trim()}
+                    onClick={() => void saveStudio({ hf_token: hfTokenDraft.trim() })}
+                  >
+                    Save token
+                  </button>
+                  {studioSettings?.hf_token_set && studioSettings.hf_token_source !== "environment" ? (
+                    <button type="button" onClick={() => void saveStudio({ hf_token: null })}>
+                      Clear token
+                    </button>
+                  ) : null}
+                </div>
               </section>
 
               <button type="button" onClick={() => void refresh()}>

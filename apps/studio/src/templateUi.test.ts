@@ -23,10 +23,11 @@ describe("templatesVisibleInUi", () => {
   it("shows only featured bundled templates", () => {
     const visible = templatesVisibleInUi(allBundled);
     expect(visible.map((t) => t.id)).toEqual([
-      "hello-groovy",
       "podcast-denoise",
       "stem-split-vocals",
       "transcribe-and-regenerate",
+      "transcribe-dialogue",
+      "hello-groovy",
     ]);
   });
 
