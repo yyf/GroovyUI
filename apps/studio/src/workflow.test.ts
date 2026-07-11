@@ -18,6 +18,7 @@ import {
   nodeIssuesFromValidation,
   resolveNodeListenId,
   resolveComparePair,
+  resolveRenderAllTargets,
   nodeHasListenableOutput,
   cachedStatusFromOutputs,
   jobOutputAtSlot,
@@ -477,5 +478,41 @@ describe("preview ids", () => {
     };
     expect(previewListenId(multi, 0)).toBe("vocals");
     expect(previewListenId(multi, 1)).toBe("drums");
+  });
+});
+
+describe("resolveRenderAllTargets", () => {
+  it("returns all terminal nodes in a multi-preview graph", () => {
+    const workflow: Workflow = {
+      version: 1,
+      metadata: { title: "stems" },
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
+        { id: "n2", type: "SeparateStems", pos: { x: 200, y: 0 }, widgets: {} },
+        { id: "p1", type: "Preview", pos: { x: 400, y: -40 }, widgets: {} },
+        { id: "p2", type: "Preview", pos: { x: 400, y: 40 }, widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+        { id: "l2", from: ["n2", 0], to: ["p1", 0], type: "AUDIO" },
+        { id: "l3", from: ["n2", 1], to: ["p2", 0], type: "AUDIO" },
+      ],
+      groups: [],
+    };
+    expect(resolveRenderAllTargets(workflow).sort()).toEqual(["p1", "p2"]);
+  });
+
+  it("falls back to all nodes when graph has no links", () => {
+    const workflow: Workflow = {
+      version: 1,
+      metadata: { title: "solo" },
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "n2", type: "Preview", pos: { x: 200, y: 0 }, widgets: {} },
+      ],
+      links: [],
+      groups: [],
+    };
+    expect(resolveRenderAllTargets(workflow).sort()).toEqual(["n1", "n2"]);
   });
 });

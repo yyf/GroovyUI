@@ -9,6 +9,8 @@ type Props = {
   /** Click/drag seek callback with ratio 0–1. */
   onSeek?: (ratio: number) => void;
   fitContainer?: boolean;
+  /** Show minimal dB scale (relative to peak in view). */
+  showScale?: boolean;
   className?: string;
 };
 
@@ -63,12 +65,23 @@ function WaveformBars({
   );
 }
 
+function VolumeScale() {
+  return (
+    <div className="waveform-mini__scale" aria-hidden>
+      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--top">0</span>
+      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--mid">−12</span>
+      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--bot">−24</span>
+    </div>
+  );
+}
+
 export default function WaveformMini({
   peaks,
   displayWidth = 512,
   progress = 0,
   onSeek,
   fitContainer = false,
+  showScale = false,
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,9 +112,18 @@ export default function WaveformMini({
   if (!peaks.length) {
     return (
       <div
-        ref={fitContainer ? containerRef : undefined}
-        className={["waveform-mini", "waveform-mini--empty", className].filter(Boolean).join(" ")}
-      />
+        className={[
+          "waveform-mini",
+          "waveform-mini--empty",
+          showScale ? "waveform-mini--with-scale" : "",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {showScale ? <VolumeScale /> : null}
+        <div ref={fitContainer ? containerRef : undefined} className="waveform-mini__plot waveform-mini__plot--empty" />
+      </div>
     );
   }
 
@@ -114,9 +136,16 @@ export default function WaveformMini({
   const playheadPct = `${clampedProgress * 100}%`;
   const clipWidth = clampedProgress * width;
 
-  const rootClass = ["waveform-mini", onSeek ? "waveform-mini--seekable" : "", className].filter(Boolean).join(" ");
+  const rootClass = [
+    "waveform-mini",
+    onSeek ? "waveform-mini--seekable" : "",
+    showScale ? "waveform-mini--with-scale" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  const content = playbackMode ? (
+  const plot = playbackMode ? (
     <>
       <svg className="waveform-mini__svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden>
         <defs>
@@ -137,31 +166,32 @@ export default function WaveformMini({
     </svg>
   );
 
-  if (!onSeek) {
-    return (
-      <div ref={fitContainer ? containerRef : undefined} className={rootClass}>
-        {content}
-      </div>
-    );
-  }
+  const plotProps = onSeek
+    ? {
+        onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+          event.preventDefault();
+          seekFromEvent(event.clientX);
+          const onMove = (moveEvent: PointerEvent) => seekFromEvent(moveEvent.clientX);
+          const onUp = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+          };
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onUp);
+        },
+      }
+    : {};
 
   return (
-    <div
-      ref={containerRef}
-      className={rootClass}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        seekFromEvent(event.clientX);
-        const onMove = (moveEvent: PointerEvent) => seekFromEvent(moveEvent.clientX);
-        const onUp = () => {
-          window.removeEventListener("pointermove", onMove);
-          window.removeEventListener("pointerup", onUp);
-        };
-        window.addEventListener("pointermove", onMove);
-        window.addEventListener("pointerup", onUp);
-      }}
-    >
-      {content}
+    <div className={rootClass}>
+      {showScale ? <VolumeScale /> : null}
+      <div
+        ref={containerRef}
+        className={["waveform-mini__plot", onSeek ? "waveform-mini__plot--seekable" : ""].filter(Boolean).join(" ")}
+        {...plotProps}
+      >
+        {plot}
+      </div>
     </div>
   );
 }

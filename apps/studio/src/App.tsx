@@ -13,13 +13,14 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
-  ensureWorkflowModels,
   executeWorkflow,
   fetchCompliance,
   fetchAllNodeSchemas,
   fetchWorkflowValidation,
   fetchTemplate,
   fetchModelCard,
+  findMissingWorkflowModels,
+  importComfyWorkflow,
   fetchWaveform,
   fetchMidiRoll,
   listTemplates,
@@ -46,7 +47,7 @@ import { AuditionContext } from "./context/AuditionContext";
 import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
 import { useLiveIo } from "./hooks/useLiveIo";
 import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
-import type { JobState, NodeRenderStatus, NodeSchema, Workflow } from "./types";
+import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import {
   cachedStatusFromOutputs,
@@ -73,6 +74,7 @@ import {
   resolveComparePair,
   resolveNodeListenId,
   resolveNodeListenOutput,
+  resolveRenderAllTargets,
   resolveTargetNode,
   syncPositions,
   toggleGroupCollapsed,
@@ -110,7 +112,9 @@ export default function App() {
   const [lastProgressAt, setLastProgressAt] = useState<number | undefined>();
   const activeExecutionRef = useRef<{ cancel: () => Promise<void> } | null>(null);
   const [modelBrowserOpen, setModelBrowserOpen] = useState(false);
+  const [modelBrowserLaunch, setModelBrowserLaunch] = useState<ModelBrowserLaunch | null>(null);
   const [modelPickTarget, setModelPickTarget] = useState<{ nodeId: string; widget: string } | null>(null);
+  const comfyImportInputRef = useRef<HTMLInputElement>(null);
   const [complianceOpen, setComplianceOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [complianceWarnings, setComplianceWarnings] = useState(0);
@@ -129,6 +133,11 @@ export default function App() {
   } | null>(null);
   const [activeEdgeIds, setActiveEdgeIds] = useState<Set<string>>(new Set());
   const [auditionNonce, setAuditionNonce] = useState(0);
+
+  const openModelBrowser = useCallback((launch?: ModelBrowserLaunch | null) => {
+    setModelBrowserLaunch(launch ?? null);
+    setModelBrowserOpen(true);
+  }, []);
 
   const onOscWidget = useCallback(
     (target: { node_id: string; param: string }, value: number) => {
@@ -180,8 +189,18 @@ export default function App() {
       resetHistory(data);
       setActiveTemplateId(templateId);
       setViewportFitKey((key) => key + 1);
-      setStatus("Ready");
       setLoadError(null);
+      try {
+        const missing = await findMissingWorkflowModels(data);
+        if (missing.length > 0) {
+          const label = missing.map((entry) => entry.name || entry.modelId).join(", ");
+          setStatus(`Install required: ${label} — Cmd+K to open Model Browser`);
+        } else {
+          setStatus("Ready");
+        }
+      } catch {
+        setStatus("Ready");
+      }
     },
     [resetHistory],
   );
@@ -317,22 +336,10 @@ export default function App() {
   const runRender = useCallback(
     async (targetNodeId?: string, renderAll = false) => {
       if (!workflow) return;
-      const previewNodes = workflow.nodes.filter((n) => n.type === "Preview").map((n) => n.id);
-      const previewTarget =
-        previewNodes[0] ??
-        workflow.nodes[workflow.nodes.length - 1]?.id;
       const singleTarget = targetNodeId ?? resolveTargetNode(workflow, selectedNodeId);
-      const targets = renderAll
-        ? previewNodes.length > 0
-          ? previewNodes
-          : previewTarget
-            ? [previewTarget]
-            : []
-        : singleTarget
-          ? [singleTarget]
-          : [];
+      const targets = renderAll ? resolveRenderAllTargets(workflow) : singleTarget ? [singleTarget] : [];
       if (!targets.length) {
-        setStatus("No render target — add a Preview node or select one");
+        setStatus("No render target — add nodes to the canvas");
         return;
       }
       setRunning(true);
@@ -354,12 +361,21 @@ export default function App() {
       });
 
       try {
-        const modelIds = [
-          ...new Set(workflow.nodes.map((n) => n.widgets.model).filter((m): m is string => typeof m === "string" && !!m)),
-        ];
-        if (modelIds.length > 0) {
-          setStatus("Installing models…");
-          await ensureWorkflowModels(workflow);
+        const missing = await findMissingWorkflowModels(workflow);
+        if (missing.length > 0) {
+          const label = missing.map((entry) => entry.name || entry.modelId).join(", ");
+          const needsRuntime = missing.some((entry) => entry.reason === "inference_not_ready");
+          setStatus(
+            needsRuntime
+              ? `Inference setup required: ${label} — reinstall from Model Browser (Cmd+K)`
+              : `Install required: ${label} — use Model Browser (Cmd+K)`,
+          );
+          openModelBrowser({
+            mode: "search",
+            requiredModelIds: missing.map((entry) => entry.modelId),
+          });
+          setRunning(false);
+          return;
         }
 
         setStatus("Rendering…");
@@ -429,7 +445,7 @@ export default function App() {
         setProgress(undefined);
       }
     },
-    [workflow, selectedNodeId],
+    [workflow, selectedNodeId, openModelBrowser],
   );
 
   const cancelRender = useCallback(() => {
@@ -494,7 +510,7 @@ export default function App() {
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setModelBrowserOpen(true);
+        openModelBrowser();
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
@@ -505,6 +521,12 @@ export default function App() {
           undo();
         }
         setLastJob(null);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+        if (nodes.length === 0) return;
+        event.preventDefault();
+        setNodes((current) => current.map((node) => ({ ...node, selected: true })));
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
@@ -569,7 +591,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [running, runRender, cancelRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode]);
+  }, [running, runRender, cancelRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode, openModelBrowser, setNodes]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -595,6 +617,27 @@ export default function App() {
       setModelBrowserOpen(false);
     },
     [modelPickTarget, updateWidget],
+  );
+
+  const handleDropModel = useCallback(
+    (modelId: string, nodeType: string) => {
+      if (!workflow) return;
+      const widgets: Record<string, unknown> = { model: modelId };
+      const { workflow: next, nodeId } = addNodeToWorkflow(workflow, nodeType, widgets);
+      pendingSelectionRef.current = new Set([nodeId]);
+      setWorkflow(next);
+      setLastJob(null);
+      void fetchModelCard(modelId)
+        .then((card) => {
+          for (const param of card.inference_params ?? []) {
+            updateWidget(nodeId, param.name, param.default ?? "");
+          }
+        })
+        .catch(() => undefined);
+      setModelBrowserOpen(false);
+      setStatus(`Dropped ${nodeType} with ${modelId}`);
+    },
+    [workflow, updateWidget, setWorkflow],
   );
 
   const handleAudioDrop = useCallback(
@@ -796,6 +839,60 @@ export default function App() {
     [resetHistory],
   );
 
+  const handleImportComfy = useCallback(() => {
+    comfyImportInputRef.current?.click();
+  }, []);
+
+  const handleComfyFileSelected = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      try {
+        setStatus("Importing ComfyUI workflow…");
+        const comfyJson = JSON.parse(await file.text()) as Record<string, unknown>;
+        const result = await importComfyWorkflow(comfyJson, file.name.replace(/\.json$/i, ""));
+        applyWorkflow(result.workflow);
+        if (result.missing_models.length > 0) {
+          const label = result.missing_models.map((entry) => entry.name || entry.model_id).join(", ");
+          setStatus(`Imported — install required: ${label}`);
+          openModelBrowser({
+            mode: "search",
+            requiredModelIds: result.missing_models.map((entry) => entry.model_id),
+          });
+        } else {
+          setStatus("Imported from ComfyUI — ready to render");
+        }
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : "ComfyUI import failed");
+      }
+    },
+    [applyWorkflow, openModelBrowser],
+  );
+
+  const handleBrowseModelsFromCompliance = useCallback(
+    (opts: { nodeType?: string; commercialOnly?: boolean; query?: string }) => {
+      setComplianceOpen(false);
+      openModelBrowser({
+        mode: "search",
+        commercialOnly: opts.commercialOnly ?? true,
+        taskType: opts.query,
+        query: opts.query,
+        filterNodeType: opts.nodeType ?? null,
+      });
+    },
+    [openModelBrowser],
+  );
+
+  const handleApplyModelSwap = useCallback(
+    (nodeId: string, modelId: string) => {
+      updateWidget(nodeId, "model", modelId);
+      setComplianceOpen(false);
+      setStatus(`Swapped ${nodeId} model → ${modelId}`);
+    },
+    [updateWidget],
+  );
+
   if (loadError) {
     return (
       <div className="app app--error">
@@ -822,8 +919,9 @@ export default function App() {
           onSelectTemplate={(id) => void loadTemplate(id)}
           onApplyWorkflow={applyWorkflow}
           complianceWarnings={complianceWarnings}
-          onModelBrowser={() => setModelBrowserOpen(true)}
+          onModelBrowser={() => openModelBrowser()}
           onCompliance={() => setComplianceOpen(true)}
+          onShareWorkflow={() => downloadWorkflow(workflow)}
           workflowBarOpen={workflowBarOpen}
           onToggleWorkflowBar={() => setWorkflowBarOpen((prev) => !prev)}
           settings={{
@@ -836,7 +934,15 @@ export default function App() {
             onToggleGroupCollapse: handleToggleGroupCollapse,
             onTogglePalette: () => setPaletteOpen((prev) => !prev),
             onToggleHelper: () => setHelperOpen((prev) => !prev),
+            onImportComfy: handleImportComfy,
           }}
+        />
+        <input
+          ref={comfyImportInputRef}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(event) => void handleComfyFileSelected(event)}
         />
         <div
           className={[
@@ -926,7 +1032,7 @@ export default function App() {
                 onWidgetChange={updateWidget}
                 onBrowseModel={(nodeId, widget) => {
                   setModelPickTarget({ nodeId, widget });
-                  setModelBrowserOpen(true);
+                  openModelBrowser();
                 }}
                 onAudition={() => {
                   if (selectedNodeId) auditionNode(selectedNodeId);
@@ -969,10 +1075,18 @@ export default function App() {
           open={modelBrowserOpen}
           onClose={() => {
             setModelBrowserOpen(false);
+            setModelBrowserLaunch(null);
             setModelPickTarget(null);
           }}
           onSelectModel={handleModelSelect}
+          onDropModel={handleDropModel}
           onApplyWorkflow={applyWorkflow}
+          launch={modelBrowserLaunch}
+          filterNodeType={
+            modelPickTarget
+              ? workflow.nodes.find((node) => node.id === modelPickTarget.nodeId)?.type ?? null
+              : null
+          }
         />
         <ComplianceDrawer
           open={complianceOpen}
@@ -980,12 +1094,14 @@ export default function App() {
           outputs={lastJob?.outputs}
           targetNodeId={selectedNodeId}
           onClose={() => setComplianceOpen(false)}
+          onBrowseModels={handleBrowseModelsFromCompliance}
+          onApplyModelSwap={handleApplyModelSwap}
         />
         <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <OnboardingOverlay
           open={onboardingOpen}
           onClose={() => setOnboardingOpen(false)}
-          onStartHello={() => void loadTemplate("hello-groovy")}
+          onStartHello={() => void loadTemplate("podcast-denoise")}
         />
       </div>
     </AuditionContext.Provider>

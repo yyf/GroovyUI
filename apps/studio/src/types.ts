@@ -71,19 +71,57 @@ export type InferenceParamSpec = {
   description?: string;
 };
 
+export type ModelBrowserLaunch = {
+  mode?: "search" | "recommend" | "workflow";
+  query?: string;
+  taskType?: string;
+  commercialOnly?: boolean;
+  filterNodeType?: string | null;
+  /** When opened from render/template gate — highlight and batch-install workflow models. */
+  requiredModelIds?: string[];
+};
+
+export type StudioSettings = {
+  hf_token_set: boolean;
+  hf_token_source: "environment" | "settings" | null;
+};
+
+export type MissingWorkflowModel = {
+  model_id: string;
+  name: string;
+  status: string;
+  reason: string;
+  dev_stub?: boolean;
+  node_ids?: string[];
+  compatible_nodes?: string[];
+};
+
 export type ModelCard = {
   id: string;
   name: string;
   description: string;
   task_types: string[];
   tags: string[];
+  author?: string;
   license: { spdx: string; commercial_ok: boolean; attribution_required: boolean };
   vram_gb_estimate: number;
   compatible_nodes: string[];
   install_status: string;
   install_progress?: number;
   install_error?: string | null;
+  dev_stub?: boolean;
+  inference_ready?: boolean;
+  install_complete?: boolean;
   inference_params?: InferenceParamSpec[];
+};
+
+export type ModelInstallState = {
+  model_id: string;
+  status: string;
+  version?: string | null;
+  error?: string | null;
+  progress?: number;
+  installed_at?: string | null;
 };
 
 export type NodeSchema = {

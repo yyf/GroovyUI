@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   analyzeAbCompare,
   fetchAudioFileMeta,
@@ -8,6 +8,7 @@ import {
   fetchModelCard,
   fetchNodeSchema,
   fetchWaveform,
+  uploadProjectAudio,
   type AbCompareResult,
   type CacheSignalMetrics,
 } from "../api";
@@ -317,6 +318,9 @@ export default function NodeHelper({
                   spec={widget}
                   value={node.widgets[widget.name] ?? widget.default ?? ""}
                   onChange={(value) => onWidgetChange(node.id, widget.name, value)}
+                  nodeType={node.type}
+                  nodeWidgets={node.widgets}
+                  onMultiWidgetChange={(name, value) => onWidgetChange(node.id, name, value)}
                   onBrowse={
                     widget.type === "MODEL_REF"
                       ? () => onBrowseModel?.(node.id, widget.name)
@@ -343,15 +347,14 @@ export default function NodeHelper({
             ) : null}
             {node.type === "SaveAudio" ? (
               <p className="node-helper__hint">
-                Writes to <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code> under the
-                project folder.
+                Output path: <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code> (relative to
+                project folder). Use Choose file… on the file name field to pick a name and folder.
               </p>
             ) : null}
             {node.type === "LoadAudio" ? (
               <p className="node-helper__hint">
-                Project-relative path under <code>workspace/</code> (e.g. <code>assets/samples/male-1.wav</code>).
-                A bare filename like <code>male-1.wav</code> also checks <code>assets/samples/</code> and{" "}
-                <code>assets/uploads/</code>. Drop audio onto the canvas to upload.
+                Choose a file to upload into the project, or enter a project-relative path (e.g.{" "}
+                <code>assets/samples/male-1.wav</code>). You can also drop audio onto the canvas.
               </p>
             ) : null}
             {schema.widgets.length === 0 && modelParamRows.length === 0 && node.type !== "SaveAudio" ? (
@@ -791,6 +794,10 @@ function widgetLabel(name: string, nodeType: string): string {
     if (name === "format") return "Format";
     if (name === "bit_depth") return "Bit depth";
   }
+  if (nodeType === "Resample") {
+    if (name === "target_sample_rate") return "Target sample rate (Hz)";
+    if (name === "quality") return "Quality";
+  }
   return name;
 }
 
@@ -807,6 +814,9 @@ type WidgetInputProps = {
   value: unknown;
   onChange: (value: unknown) => void;
   onBrowse?: () => void;
+  nodeType?: string;
+  nodeWidgets?: Record<string, unknown>;
+  onMultiWidgetChange?: (name: string, value: unknown) => void;
 };
 
 function clampNumber(value: number, min?: number, max?: number): number {
@@ -816,7 +826,164 @@ function clampNumber(value: number, min?: number, max?: number): number {
   return next;
 }
 
-function WidgetInput({ spec, value, onChange, onBrowse }: WidgetInputProps) {
+function splitProjectRelativePath(fullPath: string): { folder: string; filename: string } {
+  const normalized = fullPath.trim().replace(/^\/+/, "").replace(/\\/g, "/");
+  if (!normalized) return { folder: "", filename: "" };
+  const slash = normalized.lastIndexOf("/");
+  if (slash < 0) return { folder: "", filename: normalized };
+  return { folder: normalized.slice(0, slash), filename: normalized.slice(slash + 1) };
+}
+
+function savePickerTypes(format: unknown): FilePickerAcceptType[] {
+  const fmt = typeof format === "string" ? format.toLowerCase() : "wav";
+  if (fmt === "flac") {
+    return [{ description: "FLAC audio", accept: { "audio/flac": [".flac"] } }];
+  }
+  return [{ description: "WAV audio", accept: { "audio/wav": [".wav"] } }];
+}
+
+function LoadAudioPathInput({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const textValue = typeof value === "string" ? value : String(value ?? "");
+
+  const handleFile = async (file: File | null | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const path = await uploadProjectAudio(file);
+      onChange(path);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="node-helper__file-picker">
+      <input
+        type="text"
+        value={textValue}
+        placeholder="assets/uploads/recording.wav"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.opus"
+        className="node-helper__file-input-hidden"
+        onChange={(e) => void handleFile(e.target.files?.[0])}
+      />
+      <button type="button" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+        {uploading ? "Uploading…" : "Choose file…"}
+      </button>
+      {uploadError ? <p className="node-helper__path-error">{uploadError}</p> : null}
+    </div>
+  );
+}
+
+function SaveAudioFilenameInput({
+  value,
+  onChange,
+  nodeWidgets,
+  onMultiWidgetChange,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+  nodeWidgets?: Record<string, unknown>;
+  onMultiWidgetChange?: (name: string, value: unknown) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textValue = typeof value === "string" ? value : String(value ?? "");
+  const format = nodeWidgets?.format;
+
+  const applyPickedName = (picked: string) => {
+    const { folder, filename } = splitProjectRelativePath(picked);
+    if (filename) onChange(filename);
+    if (folder && onMultiWidgetChange) onMultiWidgetChange("path", folder);
+  };
+
+  const openSavePicker = async () => {
+    const suggested =
+      textValue.trim() ||
+      (typeof format === "string" && format.toLowerCase() === "flac" ? "output.flac" : "output.wav");
+    if ("showSaveFilePicker" in window) {
+      try {
+        const handle = await (
+          window as Window & {
+            showSaveFilePicker: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
+          }
+        ).showSaveFilePicker({
+          suggestedName: suggested,
+          types: savePickerTypes(format),
+        });
+        applyPickedName(handle.name);
+        return;
+      } catch {
+        return;
+      }
+    }
+    fileInputRef.current?.click();
+  };
+
+  return (
+    <div className="node-helper__file-picker">
+      <input
+        type="text"
+        value={textValue}
+        placeholder="output.wav"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.opus"
+        className="node-helper__file-input-hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) applyPickedName(file.name);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }}
+      />
+      <button type="button" onClick={() => void openSavePicker()}>
+        Choose file…
+      </button>
+    </div>
+  );
+}
+
+function WidgetInput({
+  spec,
+  value,
+  onChange,
+  onBrowse,
+  nodeType,
+  nodeWidgets,
+  onMultiWidgetChange,
+}: WidgetInputProps) {
+  if (nodeType === "LoadAudio" && spec.name === "path") {
+    return <LoadAudioPathInput value={value} onChange={onChange} />;
+  }
+  if (nodeType === "SaveAudio" && spec.name === "filename") {
+    return (
+      <SaveAudioFilenameInput
+        value={value}
+        onChange={onChange}
+        nodeWidgets={nodeWidgets}
+        onMultiWidgetChange={onMultiWidgetChange}
+      />
+    );
+  }
   if (spec.type === "MODEL_REF") {
     return (
       <div className="node-helper__model-ref">

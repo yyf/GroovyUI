@@ -187,18 +187,27 @@ class CacheStore:
         if not mid_path.exists():
             raise FileNotFoundError(f"MIDI file not found: {midi_id}")
 
+        duration = max(0.25, midi.frame_count / max(midi.sample_rate, 1))
         pcm: np.ndarray | None = None
         try:
             from pretty_midi import PrettyMIDI
 
-            audio = PrettyMIDI(str(mid_path)).synthesize(fs=sample_rate)
+            pm = PrettyMIDI(str(mid_path))
+            duration = max(duration, float(pm.get_end_time()))
+            audio = pm.synthesize(fs=sample_rate)
             if audio.size:
+                target_frames = int(round(duration * sample_rate))
+                if audio.size < target_frames:
+                    padded = np.zeros(target_frames, dtype=np.float64)
+                    padded[: audio.size] = audio
+                    audio = padded
+                elif audio.size > target_frames:
+                    audio = audio[:target_frames]
                 pcm = np.asarray(audio, dtype=np.float64).reshape(1, -1)
         except ImportError:
             pass
 
         if pcm is None:
-            duration = max(0.25, midi.frame_count / max(midi.sample_rate, 1))
             pcm = np.zeros((1, int(duration * sample_rate)), dtype=np.float64)
 
         buf = io.BytesIO()
@@ -285,6 +294,90 @@ class CacheStore:
         peaks = peaks[:width]
         sr = self.read_meta(cache_id)["sample_rate"]
         return {"peaks": peaks, "duration": len(mono) / sr}
+
+    def spectrogram_tiles(
+        self,
+        cache_id: str,
+        *,
+        width: int = 512,
+        height: int = 48,
+        floor_db: float = -72.0,
+    ) -> dict:
+        """Log-magnitude STFT tiles for minimal transport spectrogram (dBFS relative to clip peak)."""
+        import scipy.signal
+        from scipy.ndimage import zoom
+
+        width = max(16, min(width, 2048))
+        height = max(16, min(height, 128))
+
+        mono: np.ndarray
+        sr: int
+        if self.is_midi_cache(cache_id):
+            import io
+
+            import soundfile as sf
+
+            wav_bytes = self.midi_preview_wav_bytes(cache_id)
+            samples, sr = sf.read(io.BytesIO(wav_bytes), dtype="float64", always_2d=True)
+            mono = samples.mean(axis=1).astype(np.float64) if samples.ndim == 2 else samples.astype(np.float64)
+        else:
+            meta = self.read_meta(cache_id)
+            _, pcm = self.load_audio(cache_id)
+            mono = pcm.mean(axis=0).astype(np.float64)
+            sr = int(meta["sample_rate"])
+
+        duration = len(mono) / max(sr, 1)
+        if len(mono) == 0:
+            return {
+                "width": 0,
+                "height": 0,
+                "values": [],
+                "duration": 0.0,
+                "min_db": floor_db,
+                "max_db": 0.0,
+                "sample_rate": sr,
+                "max_freq_hz": sr / 2,
+            }
+
+        nperseg = int(min(2048, max(128, 2 ** int(np.ceil(np.log2(len(mono) / max(width, 1)))))))
+        nperseg = min(nperseg, len(mono))
+        if nperseg < 32:
+            nperseg = max(8, len(mono))
+        noverlap = max(0, min(nperseg // 2, nperseg - 1))
+        _f, t_stft, zxx = scipy.signal.stft(
+            mono,
+            fs=sr,
+            nperseg=nperseg,
+            noverlap=noverlap,
+            window="hann",
+            boundary="zeros",
+            padded=True,
+        )
+        magnitude = np.abs(zxx)
+        peak = float(np.max(magnitude))
+        if peak < 1e-12:
+            peak = 1e-12
+        db = 20.0 * np.log10(np.maximum(magnitude, 1e-12) / peak)
+        db = np.clip(db, floor_db, 0.0)
+
+        # Resample STFT onto the same uniform time grid as waveform peaks (0 … duration).
+        t_uniform = (np.arange(width, dtype=np.float64) + 0.5) / width * duration
+        db_time = np.vstack([np.interp(t_uniform, t_stft, row) for row in db]).astype(np.float64)
+
+        zoom_y = height / max(db_time.shape[0], 1)
+        resized = zoom(db_time, (zoom_y, 1), order=1)
+        resized = np.clip(resized[:height, :width], floor_db, 0.0)
+
+        return {
+            "width": width,
+            "height": height,
+            "values": resized.reshape(-1).astype(np.float64).tolist(),
+            "duration": duration,
+            "min_db": floor_db,
+            "max_db": 0.0,
+            "sample_rate": sr,
+            "max_freq_hz": sr / 2,
+        }
 
     def write_ambisonics(self, buffer: AmbisonicBuffer, pcm: np.ndarray) -> AmbisonicBuffer:
         f64_path = self.cache_dir / f"{buffer.id}.ambi.f64"

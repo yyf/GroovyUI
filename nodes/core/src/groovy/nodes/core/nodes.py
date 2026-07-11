@@ -192,7 +192,13 @@ class Resample(GroovyNode):
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"audio": ("AUDIO",)}, "optional": {}}
+        return {
+            "required": {"audio": ("AUDIO",)},
+            "optional": {
+                "target_sample_rate": ("INT", {"default": 48000, "min": 8000, "max": 192000}),
+                "quality": ("STRING", {"default": "good"}),
+            },
+        }
 
     def run(
         self, audio: AudioBuffer, target_sample_rate: int = 48000, quality: str = "good", **kwargs
@@ -224,7 +230,13 @@ class Trim(GroovyNode):
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"audio": ("AUDIO",)}, "optional": {}}
+        return {
+            "required": {"audio": ("AUDIO",)},
+            "optional": {
+                "start_frame": ("INT", {"default": 0, "min": 0}),
+                "end_frame": ("INT", {"default": -1}),
+            },
+        }
 
     def run(
         self, audio: AudioBuffer, start_frame: int = 0, end_frame: int = -1, **kwargs

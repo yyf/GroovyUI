@@ -13,6 +13,7 @@ type Props = {
   complianceWarnings: number;
   onModelBrowser: () => void;
   onCompliance: () => void;
+  onShareWorkflow: () => void;
   workflowBarOpen: boolean;
   onToggleWorkflowBar: () => void;
   settings: Omit<
@@ -29,6 +30,7 @@ export default function StudioTopBar({
   complianceWarnings,
   onModelBrowser,
   onCompliance,
+  onShareWorkflow,
   workflowBarOpen,
   onToggleWorkflowBar,
   settings,
@@ -57,6 +59,14 @@ export default function StudioTopBar({
             title="License, provenance, authenticity, and disclosure"
           >
             Compliance{complianceWarnings > 0 ? ` (${complianceWarnings})` : ""}
+          </button>
+          <button
+            type="button"
+            className="top-bar__tool"
+            onClick={onShareWorkflow}
+            title="Download workflow as .groovy.json"
+          >
+            Share
           </button>
         </div>
       </div>

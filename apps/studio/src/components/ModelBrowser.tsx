@@ -1,13 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
-import { fetchInstallRecovery, recommendModels, searchModels, suggestWorkflows } from "../api";
-import type { InstallRecovery, ModelCard, Workflow } from "../types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  fetchInstallRecovery,
+  fetchModelCard,
+  installModelWithProgress,
+  recommendModels,
+  searchModels,
+  suggestWorkflows,
+} from "../api";
+import type { InstallRecovery, ModelCard, ModelInstallState, Workflow } from "../types";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   onSelectModel?: (modelId: string) => void;
+  onDropModel?: (modelId: string, nodeType: string) => void;
   onApplyWorkflow?: (workflow: Workflow) => void;
   initialMode?: "search" | "recommend" | "workflow";
+  /** When browsing from a node's MODEL_REF widget, filter to compatible models. */
+  filterNodeType?: string | null;
+  /** Deep-link filters when opened from Compliance / Comfy import. */
+  launch?: import("../types").ModelBrowserLaunch | null;
 };
 
 const TASK_FILTERS = [
@@ -24,8 +36,64 @@ const TASK_FILTERS = [
   { value: "audio-compare", label: "A/B compare" },
 ];
 
-export default function ModelBrowser({ open, onClose, onSelectModel, onApplyWorkflow, initialMode }: Props) {
+function filterModelsForNode(models: ModelCard[], nodeType: string | null | undefined): ModelCard[] {
+  if (!nodeType) return models;
+  return models.filter((model) => model.compatible_nodes.includes(nodeType));
+}
+
+function installStatusLabel(status: string, progress?: number): string {
+  if (status === "downloading") {
+    return progress != null ? `Downloading ${Math.round(progress * 100)}%` : "Downloading…";
+  }
+  if (status === "verifying") return "Verifying…";
+  if (status === "ready") return "ready";
+  if (status === "failed") return "failed";
+  return status.replace(/_/g, " ");
+}
+
+function licenseBadge(license: ModelCard["license"] | undefined): { label: string; className: string } {
+  if (!license) {
+    return { label: "Unknown", className: "pill pill--neutral" };
+  }
+  if (license.commercial_ok) {
+    return { label: "Commercial OK", className: "pill pill--ready" };
+  }
+  if (license.spdx.includes("NC")) {
+    return { label: `${license.spdx} NC`, className: "pill pill--warning" };
+  }
+  return { label: license.spdx, className: "pill pill--warning" };
+}
+
+function modelIsReady(model: ModelCard): boolean {
+  if (model.install_status !== "ready") return false;
+  if (model.dev_stub) return true;
+  return model.inference_ready !== false;
+}
+
+function modelNeedsReinstall(model: ModelCard): boolean {
+  return model.install_status === "ready" && !model.dev_stub && model.inference_ready === false;
+}
+
+function modelCardStatus(model: ModelCard, live?: ModelInstallState): string {
+  const status = live?.status ?? model.install_status;
+  if (status === "ready" && modelNeedsReinstall(model)) {
+    return "needs setup";
+  }
+  return status;
+}
+
+export default function ModelBrowser({
+  open,
+  onClose,
+  onSelectModel,
+  onDropModel,
+  onApplyWorkflow,
+  initialMode,
+  filterNodeType,
+  launch,
+}: Props) {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [mode, setMode] = useState<"search" | "recommend" | "workflow">(initialMode ?? "search");
   const [taskType, setTaskType] = useState("");
   const [commercialOnly, setCommercialOnly] = useState(false);
@@ -42,17 +110,51 @@ export default function ModelBrowser({ open, onClose, onSelectModel, onApplyWork
     }>
   >([]);
   const [loading, setLoading] = useState(false);
-  const [installing, setInstalling] = useState<string | null>(null);
+  const [installingId, setInstallingId] = useState<string | null>(null);
+  const [installProgress, setInstallProgress] = useState<Record<string, ModelInstallState>>({});
   const [error, setError] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<InstallRecovery | null>(null);
+  const [failedModelId, setFailedModelId] = useState<string | null>(null);
+  const [detailModelId, setDetailModelId] = useState<string | null>(null);
+  const [showInstallLogs, setShowInstallLogs] = useState(false);
+  const [requiredModels, setRequiredModels] = useState<ModelCard[]>([]);
+  const [installingAllRequired, setInstallingAllRequired] = useState(false);
+
+  const requiredModelIds = launch?.requiredModelIds ?? [];
+
+  useEffect(() => {
+    if (!open) return;
+    if (launch?.mode) {
+      setMode(launch.mode);
+    } else if (initialMode) {
+      setMode(initialMode);
+    }
+    if (launch?.query != null) {
+      setQuery(launch.query);
+      setDebouncedQuery(launch.query);
+    }
+    if (launch?.taskType != null) {
+      setTaskType(launch.taskType);
+    }
+    if (launch?.commercialOnly != null) {
+      setCommercialOnly(launch.commercialOnly);
+    }
+  }, [open, launch, initialMode]);
+
+  const effectiveNodeFilter = filterNodeType ?? launch?.filterNodeType ?? null;
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => setDebouncedQuery(query), 300);
+    return () => window.clearTimeout(timer);
+  }, [query, open]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setRecovery(null);
     try {
       if (mode === "workflow") {
-        const data = await suggestWorkflows(query);
+        const data = await suggestWorkflows(debouncedQuery);
         setWorkflowSuggestions(data.results);
         setModels([]);
         setRecommendations([]);
@@ -61,15 +163,34 @@ export default function ModelBrowser({ open, onClose, onSelectModel, onApplyWork
       const filters = {
         task_type: taskType || undefined,
         commercial_ok: commercialOnly ? true : undefined,
+        node_type: effectiveNodeFilter || undefined,
       };
-      if (mode === "recommend" && query.trim()) {
-        const data = await recommendModels(query, filters);
-        setRecommendations(data.results);
+      if (mode === "recommend") {
+        if (!debouncedQuery.trim()) {
+          setRecommendations([]);
+          setModels([]);
+          setWorkflowSuggestions([]);
+          return;
+        }
+        const data = await recommendModels(debouncedQuery, {
+          commercial_ok: filters.commercial_ok,
+        });
+        const filtered = filterModelsForNode(
+          data.results.map((entry) => entry.model),
+          effectiveNodeFilter,
+        );
+        const rationaleById = new Map(data.results.map((entry) => [entry.model.id, entry.rationale]));
+        setRecommendations(
+          filtered.map((model) => ({
+            model,
+            rationale: rationaleById.get(model.id) ?? "",
+          })),
+        );
         setModels([]);
         setWorkflowSuggestions([]);
       } else {
-        const results = await searchModels(query, filters);
-        setModels(results);
+        const results = await searchModels(debouncedQuery, filters);
+        setModels(filterModelsForNode(results, effectiveNodeFilter));
         setRecommendations([]);
         setWorkflowSuggestions([]);
       }
@@ -81,14 +202,39 @@ export default function ModelBrowser({ open, onClose, onSelectModel, onApplyWork
     } finally {
       setLoading(false);
     }
-  }, [query, mode, taskType, commercialOnly]);
+  }, [debouncedQuery, mode, taskType, commercialOnly, effectiveNodeFilter]);
 
   useEffect(() => {
     if (!open) return;
-    if (initialMode) {
+    if (!requiredModelIds.length) {
+      setRequiredModels([]);
+      return;
+    }
+    let cancelled = false;
+    void Promise.all(
+      requiredModelIds.map(async (modelId) => {
+        try {
+          return await fetchModelCard(modelId);
+        } catch {
+          return null;
+        }
+      }),
+    ).then((cards) => {
+      if (!cancelled) {
+        setRequiredModels(cards.filter((card): card is ModelCard => card != null));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, requiredModelIds.join("|")]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (initialMode && !launch?.mode) {
       setMode(initialMode);
     }
-  }, [open, initialMode]);
+  }, [open, initialMode, launch?.mode]);
 
   useEffect(() => {
     if (!open) return;
@@ -96,184 +242,452 @@ export default function ModelBrowser({ open, onClose, onSelectModel, onApplyWork
   }, [open, refresh]);
 
   useEffect(() => {
+    if (!open) {
+      setDetailModelId(null);
+      setShowInstallLogs(false);
+      setRecovery(null);
+      setFailedModelId(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        if (detailModelId) {
+          setDetailModelId(null);
+          return;
+        }
+        onClose();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  }, [open, onClose, detailModelId]);
 
   const handleInstall = async (modelId: string) => {
-    setInstalling(modelId);
+    setInstallingId(modelId);
     setRecovery(null);
+    setFailedModelId(null);
+    setShowInstallLogs(false);
+    setError(null);
     try {
-      const res = await fetch(`${import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188"}/api/models/${modelId}/install`, {
-        method: "POST",
+      await installModelWithProgress(modelId, (state) => {
+        setInstallProgress((prev) => ({ ...prev, [modelId]: state }));
       });
-      const state = await res.json();
-      if (state.status === "failed") {
+      await refresh();
+    } catch (err) {
+      setFailedModelId(modelId);
+      try {
         const recoveryData = await fetchInstallRecovery(modelId);
         setRecovery(recoveryData);
+      } catch {
+        setError(err instanceof Error ? err.message : "Install failed");
+      }
+    } finally {
+      setInstallingId(null);
+    }
+  };
+
+  const handleInstallAllRequired = async () => {
+    const pending = requiredModels.filter((model) => !modelIsReady(model));
+    if (!pending.length) return;
+    setInstallingAllRequired(true);
+    setError(null);
+    setRecovery(null);
+    setFailedModelId(null);
+    try {
+      for (const model of pending) {
+        setInstallingId(model.id);
+        await installModelWithProgress(model.id, (state) => {
+          setInstallProgress((prev) => ({ ...prev, [model.id]: state }));
+        });
+        const refreshed = await fetchModelCard(model.id);
+        setRequiredModels((prev) => prev.map((entry) => (entry.id === model.id ? refreshed : entry)));
       }
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Install failed");
     } finally {
-      setInstalling(null);
+      setInstallingId(null);
+      setInstallingAllRequired(false);
     }
   };
 
-  const cards =
+  const cards = useMemo(
+    () =>
+      mode === "recommend"
+        ? recommendations.map((entry) => ({ model: entry.model, rationale: entry.rationale }))
+        : models.map((model) => ({ model, rationale: undefined as string | undefined })),
+    [mode, recommendations, models],
+  );
+
+  const detailModel = useMemo(() => {
+    if (!detailModelId) return null;
+    return cards.find(({ model }) => model.id === detailModelId)?.model ?? null;
+  }, [cards, detailModelId]);
+
+  if (!open) return null;
+
+  const catalogHint =
     mode === "recommend"
-      ? recommendations.map((r) => ({ model: r.model, rationale: r.rationale }))
-      : models.map((m) => ({ model: m, rationale: undefined as string | undefined }));
+      ? "Find models searches the local published catalog only — not live Hugging Face."
+      : mode === "search"
+        ? "Local catalog — Install downloads weights and Python deps from Model Browser."
+        : null;
+
+  const requiredPending = requiredModels.filter((model) => !modelIsReady(model));
+
+  const renderModelActions = (model: ModelCard, nodeType: string | undefined, isInstalling: boolean, status: string) => {
+    const needsSetup = modelNeedsReinstall(model);
+    const readyForUse = status === "ready" && !needsSetup;
+
+    if (readyForUse) {
+      return (
+        <>
+          {filterNodeType ? (
+            <button type="button" onClick={() => onSelectModel?.(model.id)}>
+              Use model
+            </button>
+          ) : null}
+          {nodeType && onDropModel && !filterNodeType ? (
+            <button type="button" onClick={() => onDropModel(model.id, nodeType)}>
+              Drop node
+            </button>
+          ) : null}
+          {!filterNodeType && !onDropModel ? (
+            <button type="button" onClick={() => onSelectModel?.(model.id)}>
+              Select
+            </button>
+          ) : null}
+        </>
+      );
+    }
+
+    if (needsSetup) {
+      return (
+        <button type="button" disabled={isInstalling} onClick={() => void handleInstall(model.id)}>
+          {isInstalling ? installStatusLabel(status) : "Reinstall / fix setup"}
+        </button>
+      );
+    }
+
+    return (
+      <button type="button" disabled={isInstalling} onClick={() => void handleInstall(model.id)}>
+        {isInstalling ? installStatusLabel(status, model.install_progress) : "Install"}
+      </button>
+    );
+  };
 
   return (
     <div className="model-browser-backdrop" onClick={onClose}>
-      <div className="model-browser" onClick={(e) => e.stopPropagation()}>
+      <div className={`model-browser${detailModel ? " model-browser--with-detail" : ""}`} onClick={(event) => event.stopPropagation()}>
         <header className="model-browser__header">
-          <h2>Command Palette</h2>
+          <h2>Model Browser</h2>
           <button type="button" className="model-browser__close" onClick={onClose}>
             ✕
           </button>
         </header>
-        <div className="model-browser__modes">
-          <button type="button" className={mode === "search" ? "active" : ""} onClick={() => setMode("search")}>
-            Search
-          </button>
-          <button type="button" className={mode === "recommend" ? "active" : ""} onClick={() => setMode("recommend")}>
-            Find models
-          </button>
-          <button type="button" className={mode === "workflow" ? "active" : ""} onClick={() => setMode("workflow")}>
-            Suggest workflow
-          </button>
-        </div>
-        <input
-          className="model-browser__search"
-          placeholder={
-            mode === "workflow"
-              ? "Describe your pipeline — e.g. denoise podcast then normalize"
-              : mode === "recommend"
-                ? "Describe your task — e.g. commercial-friendly podcast denoise"
-                : "Search models — denoise, stems, voice clone…"
-          }
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
-        />
-        <div className="model-browser__filters">
-          {mode !== "workflow" ? (
-            <>
-              <select value={taskType} onChange={(e) => setTaskType(e.target.value)}>
-                {TASK_FILTERS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-              <label>
-                <input type="checkbox" checked={commercialOnly} onChange={(e) => setCommercialOnly(e.target.checked)} />
-                Commercial OK
-              </label>
-            </>
-          ) : (
-            <p className="model-browser__hint">Suggestions are preview-only — click Apply to replace the canvas.</p>
-          )}
-        </div>
-        {recovery ? (
-          <div className="model-browser__recovery">
-            <p>
-              <strong>Install failed:</strong> {recovery.summary}
-            </p>
-            <ul>
-              {recovery.suggested_fixes.map((fix) => (
-                <li key={fix}>{fix}</li>
-              ))}
-            </ul>
-            {recovery.similar_models.length > 0 ? (
-              <>
-                <p>Similar models:</p>
-                <div className="model-browser__similar">
-                  {recovery.similar_models.map((model) => (
-                    <button key={model.id} type="button" onClick={() => void handleInstall(model.id)}>
-                      Install {model.name}
-                    </button>
-                  ))}
-                </div>
-              </>
+        <div className="model-browser__body">
+          <div className="model-browser__main">
+            <div className="model-browser__modes">
+              <button type="button" className={mode === "search" ? "active" : ""} onClick={() => setMode("search")}>
+                Search
+              </button>
+              <button
+                type="button"
+                className={mode === "recommend" ? "active" : ""}
+                onClick={() => {
+                  setMode("recommend");
+                  setError(null);
+                }}
+              >
+                Find models
+              </button>
+              <button type="button" className={mode === "workflow" ? "active" : ""} onClick={() => setMode("workflow")}>
+                Suggest workflow
+              </button>
+            </div>
+            {effectiveNodeFilter ? (
+              <p className="model-browser__context">
+                Showing models compatible with <strong>{effectiveNodeFilter}</strong>
+              </p>
             ) : null}
-          </div>
-        ) : null}
-        <div className="model-browser__list">
-          {loading ? <p className="model-browser__hint">Searching…</p> : null}
-          {error ? <p className="model-browser__error">{error}</p> : null}
-          {mode === "workflow" ? (
-            <>
-              {!loading && !error && workflowSuggestions.length === 0 ? (
-                <p className="model-browser__hint">No workflow suggestions yet — try describing your task.</p>
-              ) : null}
-              {workflowSuggestions.map((item) => (
-                <article key={item.template_id} className="model-card">
-                  <div className="model-card__row">
-                    <strong>{item.title}</strong>
-                    <span className="pill">{item.template_id}</span>
-                  </div>
-                  <p className="model-card__desc">{item.description}</p>
-                  <p className="model-card__rationale">{item.rationale}</p>
-                  <div className="model-card__actions">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onApplyWorkflow?.(item.workflow);
-                        onClose();
-                      }}
-                    >
-                      Apply workflow
+            {requiredModels.length > 0 ? (
+              <div className="model-browser__required">
+                <p>
+                  <strong>Required for this workflow</strong>
+                  {requiredPending.length === 0
+                    ? " — all models ready"
+                    : ` — ${requiredPending.length} need install`}
+                </p>
+                <ul className="model-browser__required-list">
+                  {requiredModels.map((model) => {
+                    const ready = modelIsReady(model);
+                    const live = installProgress[model.id];
+                    const installing =
+                      installingId === model.id ||
+                      live?.status === "downloading" ||
+                      live?.status === "verifying";
+                    return (
+                      <li key={model.id}>
+                        <span>{model.name}</span>
+                        <span className={`pill pill--${ready ? "ready" : installing ? "neutral" : "warning"}`}>
+                          {installing
+                            ? installStatusLabel(live?.status ?? "downloading", live?.progress)
+                            : ready
+                              ? "ready"
+                              : modelNeedsReinstall(model)
+                                ? "needs setup"
+                                : model.install_status}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {requiredPending.length > 0 ? (
+                  <button
+                    type="button"
+                    className="model-browser__install-all"
+                    disabled={installingAllRequired || installingId != null}
+                    onClick={() => void handleInstallAllRequired()}
+                  >
+                    {installingAllRequired ? "Installing…" : `Install all required (${requiredPending.length})`}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            <input
+              className="model-browser__search"
+              placeholder={
+                mode === "workflow"
+                  ? "Describe your pipeline — e.g. denoise podcast then normalize"
+                  : mode === "recommend"
+                    ? "Describe your task — e.g. commercial-friendly podcast denoise"
+                    : "Search models — denoise, stems, voice clone…"
+              }
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              autoFocus
+            />
+            <div className="model-browser__filters">
+              {mode !== "workflow" ? (
+                <>
+                  <select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
+                    {TASK_FILTERS.map((filter) => (
+                      <option key={filter.value} value={filter.value}>
+                        {filter.label}
+                      </option>
+                    ))}
+                  </select>
+                  <label>
+                    <input type="checkbox" checked={commercialOnly} onChange={(event) => setCommercialOnly(event.target.checked)} />
+                    Commercial OK
+                  </label>
+                </>
+              ) : (
+                <p className="model-browser__hint">Suggestions are preview-only — click Apply to replace the canvas.</p>
+              )}
+            </div>
+            {catalogHint ? <p className="model-browser__hint model-browser__hint--catalog">{catalogHint}</p> : null}
+            {recovery && failedModelId ? (
+              <div className="model-browser__recovery">
+                <p>
+                  <strong>Install failed:</strong> {recovery.summary}
+                </p>
+                {recovery.error ? (
+                  <pre className={`model-browser__logs${showInstallLogs ? " model-browser__logs--open" : ""}`}>
+                    {recovery.error}
+                  </pre>
+                ) : null}
+                <ul>
+                  {recovery.suggested_fixes.map((fix) => (
+                    <li key={fix}>{fix}</li>
+                  ))}
+                </ul>
+                <div className="model-card__actions">
+                  <button type="button" onClick={() => void handleInstall(failedModelId)}>
+                    Retry install
+                  </button>
+                  {recovery.error ? (
+                    <button type="button" onClick={() => setShowInstallLogs((value) => !value)}>
+                      {showInstallLogs ? "Hide logs" : "Open logs"}
                     </button>
-                  </div>
-                </article>
-              ))}
-            </>
-          ) : (
-            <>
-              {!loading && !error && cards.length === 0 ? (
-                <p className="model-browser__hint">No models found.</p>
+                  ) : null}
+                </div>
+                {recovery.similar_models.length > 0 ? (
+                  <>
+                    <p>Similar models:</p>
+                    <div className="model-browser__similar">
+                      {recovery.similar_models.map((model) => (
+                        <button key={model.id} type="button" onClick={() => void handleInstall(model.id)}>
+                          Install {model.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="model-browser__list">
+              {loading ? <p className="model-browser__hint">Searching…</p> : null}
+              {error ? <p className="model-browser__error">{error}</p> : null}
+              {mode === "workflow" ? (
+                <>
+                  {!loading && !error && workflowSuggestions.length === 0 ? (
+                    <p className="model-browser__hint">No workflow suggestions yet — try describing your task.</p>
+                  ) : null}
+                  {workflowSuggestions.map((item) => (
+                    <article key={item.template_id} className="model-card">
+                      <div className="model-card__row">
+                        <strong>{item.title}</strong>
+                        <span className="pill">{item.template_id}</span>
+                      </div>
+                      <p className="model-card__desc">{item.description}</p>
+                      <p className="model-card__rationale">{item.rationale}</p>
+                      <div className="model-card__actions">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onApplyWorkflow?.(item.workflow);
+                            onClose();
+                          }}
+                        >
+                          Apply workflow
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {!loading && !error && cards.length === 0 ? (
+                    <p className="model-browser__hint">
+                      {mode === "recommend"
+                        ? "Describe your task above to get model recommendations from the local catalog."
+                        : `No models found in the local catalog${effectiveNodeFilter ? ` for ${effectiveNodeFilter}` : ""}. Try another task filter or install from the required list above.`}
+                    </p>
+                  ) : null}
+                  {cards.map(({ model, rationale }) => {
+                    const liveProgress = installProgress[model.id];
+                    const status = modelCardStatus(model, liveProgress);
+                    const progress = liveProgress?.progress ?? model.install_progress;
+                    const isInstalling = installingId === model.id || status === "downloading" || status === "verifying";
+                    const nodeType = model.compatible_nodes?.[0];
+                    const badge = licenseBadge(model.license);
+                    const tags = model.tags ?? [];
+                    const compatibleNodes = model.compatible_nodes ?? [];
+                    const pillClass =
+                      status === "ready"
+                        ? "ready"
+                        : status === "needs setup"
+                          ? "warning"
+                          : status === "failed"
+                            ? "failed"
+                            : "neutral";
+                    return (
+                      <article key={model.id} className="model-card">
+                        <div className="model-card__row">
+                          <strong>{model.name}</strong>
+                          <span className={`pill pill--${pillClass}`}>
+                            {isInstalling ? installStatusLabel(liveProgress?.status ?? "downloading", progress) : status}
+                          </span>
+                        </div>
+                        <p className="model-card__desc">{model.description}</p>
+                        {rationale ? <p className="model-card__rationale">{rationale}</p> : null}
+                        <div className="model-card__meta">
+                          <span className={badge.className}>{badge.label}</span>
+                          {model.license?.attribution_required ? (
+                            <span className="pill pill--neutral">Attribution</span>
+                          ) : null}
+                          <span>{model.vram_gb_estimate} GB VRAM</span>
+                          {model.dev_stub ? <span className="pill pill--neutral">stub</span> : null}
+                          {model.inference_ready === false && model.install_status === "ready" ? (
+                            <span className="pill pill--warning">runtime missing</span>
+                          ) : null}
+                        </div>
+                        {compatibleNodes.length > 0 ? (
+                          <p className="model-card__nodes">Nodes: {compatibleNodes.join(", ")}</p>
+                        ) : null}
+                        {tags.length > 0 ? (
+                          <p className="model-card__tags">{tags.slice(0, 6).map((tag) => `#${tag}`).join(" ")}</p>
+                        ) : null}
+                        {isInstalling && progress != null ? (
+                          <div className="model-card__progress" aria-hidden>
+                            <div className="model-card__progress-bar" style={{ width: `${Math.round(progress * 100)}%` }} />
+                          </div>
+                        ) : null}
+                        <div className="model-card__actions">
+                          <button type="button" className="model-card__detail-btn" onClick={() => setDetailModelId(model.id)}>
+                            Open
+                          </button>
+                          {renderModelActions(model, nodeType, isInstalling, liveProgress?.status ?? model.install_status)}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+          {detailModel ? (
+            <aside className="model-browser__detail">
+              <header className="model-browser__detail-header">
+                <h3>{detailModel.name}</h3>
+                <button type="button" onClick={() => setDetailModelId(null)}>
+                  ✕
+                </button>
+              </header>
+              <p className="model-browser__detail-id">{detailModel.id}</p>
+              {detailModel.author ? <p className="model-browser__detail-meta">Author: {detailModel.author}</p> : null}
+              <p className="model-card__desc">{detailModel.description}</p>
+              <div className="model-card__meta">
+                <span className={licenseBadge(detailModel.license).className}>
+                  {licenseBadge(detailModel.license).label}
+                </span>
+                <span>{detailModel.vram_gb_estimate} GB VRAM</span>
+                {detailModel.dev_stub ? <span className="pill pill--neutral">dev stub</span> : null}
+              </div>
+              <p className="model-browser__detail-meta">
+                Install: {detailModel.install_status}
+                {detailModel.inference_ready === false && !detailModel.dev_stub ? " · inference not ready" : ""}
+              </p>
+              {detailModel.install_error ? (
+                <pre className="model-browser__logs model-browser__logs--open">{detailModel.install_error}</pre>
               ) : null}
-              {cards.map(({ model, rationale }) => (
-                <article key={model.id} className="model-card">
-                  <div className="model-card__row">
-                    <strong>{model.name}</strong>
-                    <span className={`pill pill--${model.install_status}`}>{model.install_status}</span>
-                  </div>
-                  <p className="model-card__desc">{model.description}</p>
-                  {rationale ? <p className="model-card__rationale">{rationale}</p> : null}
-                  <div className="model-card__meta">
-                    <span>{model.license.spdx}</span>
-                    <span>{model.vram_gb_estimate} GB VRAM</span>
-                    <span>{model.task_types.join(", ")}</span>
-                  </div>
-                  <div className="model-card__actions">
-                    {model.install_status === "ready" ? (
-                      <button type="button" onClick={() => onSelectModel?.(model.id)}>
-                        Use model
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={installing === model.id}
-                        onClick={() => void handleInstall(model.id)}
-                      >
-                        {installing === model.id ? "Installing…" : "Install"}
-                      </button>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </>
-          )}
+              {detailModel.task_types?.length ? (
+                <p className="model-browser__detail-meta">Tasks: {detailModel.task_types.join(", ")}</p>
+              ) : null}
+              {(detailModel.compatible_nodes ?? []).length > 0 ? (
+                <p className="model-browser__detail-meta">Nodes: {detailModel.compatible_nodes!.join(", ")}</p>
+              ) : null}
+              {(detailModel.tags ?? []).length > 0 ? (
+                <p className="model-card__tags">{detailModel.tags!.map((tag) => `#${tag}`).join(" ")}</p>
+              ) : null}
+              {detailModel.inference_params && detailModel.inference_params.length > 0 ? (
+                <div className="model-browser__params">
+                  <h4>Inference params</h4>
+                  <ul>
+                    {detailModel.inference_params.map((param) => (
+                      <li key={param.name}>
+                        <strong>{param.name}</strong>
+                        {param.default != null ? ` (default ${String(param.default)})` : ""}
+                        {param.description ? ` — ${param.description}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              <div className="model-card__actions">
+                {renderModelActions(
+                  detailModel,
+                  detailModel.compatible_nodes[0],
+                  installingId === detailModel.id,
+                  detailModel.install_status,
+                )}
+              </div>
+            </aside>
+          ) : null}
         </div>
       </div>
     </div>

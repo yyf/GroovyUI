@@ -10,9 +10,19 @@ type Props = {
   outputs?: Record<string, JobOutput>;
   targetNodeId?: string | null;
   onClose: () => void;
+  onBrowseModels?: (opts: { nodeType?: string; commercialOnly?: boolean; query?: string }) => void;
+  onApplyModelSwap?: (nodeId: string, modelId: string) => void;
 };
 
-export default function ComplianceDrawer({ open, workflow, outputs, targetNodeId, onClose }: Props) {
+export default function ComplianceDrawer({
+  open,
+  workflow,
+  outputs,
+  targetNodeId,
+  onClose,
+  onBrowseModels,
+  onApplyModelSwap,
+}: Props) {
   const [tab, setTab] = useState<Tab>("license");
   const [license, setLicense] = useState<LicenseScanSummary | null>(null);
   const [provenance, setProvenance] = useState<ProvenanceSummary | null>(null);
@@ -173,9 +183,33 @@ export default function ComplianceDrawer({ open, workflow, outputs, targetNodeId
                         <li key={alt.model_id}>
                           {alt.name} — {alt.license_spdx}
                           <span className="node-helper__hint"> ({alt.model_id})</span>
+                          {onApplyModelSwap ? (
+                            <button
+                              type="button"
+                              className="compliance-swap__apply"
+                              onClick={() => onApplyModelSwap(swap.node_id, alt.model_id)}
+                            >
+                              Use
+                            </button>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
+                    {onBrowseModels ? (
+                      <button
+                        type="button"
+                        className="compliance-swap__browse"
+                        onClick={() =>
+                          onBrowseModels({
+                            nodeType: swap.node_type,
+                            commercialOnly: true,
+                            query: swap.alternatives[0]?.task_types?.[0] ?? swap.node_type,
+                          })
+                        }
+                      >
+                        Browse in Model Browser
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </section>

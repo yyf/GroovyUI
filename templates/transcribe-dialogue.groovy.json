@@ -4,8 +4,8 @@
   "id": "d4e5f6a7-b8c9-0123-def0-23456789abcd",
   "metadata": {
     "title": "Transcribe Dialogue",
-    "description": "Load sample audio and transcribe with Whisper.",
-    "tags": ["ai", "stt", "transcribe"]
+    "description": "Load sample dialogue and transcribe with Whisper — review transcript in Node Inspector.",
+    "tags": ["featured", "ai", "stt", "transcribe"]
   },
   "nodes": [
     { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },

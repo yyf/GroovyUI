@@ -65,6 +65,16 @@ def test_compare_analyze_route(api_client: TestClient, tmp_path: Path) -> None:
     waveform = api_client.get(f"/api/cache/{cache_id_a}/waveform")
     assert waveform.status_code == 200
 
+    spectrogram = api_client.get(f"/api/cache/{cache_id_a}/spectrogram?width=128&height=32")
+    assert spectrogram.status_code == 200
+    spec_body = spectrogram.json()
+    assert spec_body["width"] == 128
+    assert spec_body["height"] == 32
+    assert len(spec_body["values"]) == 128 * 32
+    assert spec_body["max_db"] == 0.0
+    assert spec_body["min_db"] <= -60.0
+    assert spec_body["max_freq_hz"] == 24_000
+
     analysis = api_client.post(
         "/api/compare/analyze",
         json={

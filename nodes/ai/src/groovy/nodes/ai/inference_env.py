@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 
 
 def inference_stub_enabled() -> bool:
@@ -37,3 +38,38 @@ def demucs_available() -> bool:
         return True
     except ImportError:
         return False
+
+
+def deepfilternet_available() -> bool:
+    from groovy.nodes.ai.deepfilter_compat import deepfilternet_available as _available
+
+    return _available()
+
+
+def whisper_available() -> bool:
+    try:
+        import faster_whisper  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+_MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
+    "deepfilternet-v3": deepfilternet_available,
+    "basic-pitch": basic_pitch_available,
+    "demucs-v4": demucs_available,
+    "demucs-v4-ht": demucs_available,
+    "musicgen-melody-small": musicgen_melody_available,
+    "whisper-large-v3-turbo": whisper_available,
+    "whisper-small-en": whisper_available,
+}
+
+
+def model_inference_ready(model_id: str, *, dev_stub: bool = False) -> bool:
+    if dev_stub or inference_stub_enabled():
+        return True
+    checker = _MODEL_RUNTIME_CHECKS.get(model_id)
+    if checker is None:
+        return True
+    return checker()

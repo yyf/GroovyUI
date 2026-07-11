@@ -4,6 +4,17 @@ type OutputSocket = { name: string; type: string; description?: string };
 
 /** Widgets when the API is on an older build (e.g. SaveAudio before path/filename fields). */
 const NODE_WIDGET_FALLBACKS: Record<string, NodeWidgetSpec[]> = {
+  Resample: [
+    {
+      name: "target_sample_rate",
+      type: "INT",
+      default: 48000,
+      min: 8000,
+      max: 192000,
+      description: "Output sample rate in Hz",
+    },
+    { name: "quality", type: "STRING", default: "good" },
+  ],
   SaveAudio: [
     {
       name: "path",

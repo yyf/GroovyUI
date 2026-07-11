@@ -1,11 +1,12 @@
 import type { TemplateListItem } from "./api";
 
-/** Bundled templates shown in the workflow template picker (general / high-demand starters). */
+/** Bundled templates shown in the workflow template picker (hero demos first). */
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
-  "hello-groovy",
   "podcast-denoise",
   "stem-split-vocals",
   "transcribe-and-regenerate",
+  "transcribe-dialogue",
+  "hello-groovy",
 ] as const;
 
 const featuredBundledIds = new Set<string>(FEATURED_BUNDLED_TEMPLATE_IDS);
@@ -15,10 +16,20 @@ export function templatesVisibleInUi(
   templates: TemplateListItem[],
   selectedId?: string,
 ): TemplateListItem[] {
-  return templates.filter(
-    (template) =>
-      template.source === "user" ||
-      featuredBundledIds.has(template.id) ||
-      template.id === selectedId,
-  );
+  const featuredOrder = new Map(FEATURED_BUNDLED_TEMPLATE_IDS.map((id, index) => [id, index]));
+  return templates
+    .filter(
+      (template) =>
+        template.source === "user" ||
+        featuredBundledIds.has(template.id) ||
+        template.id === selectedId,
+    )
+    .sort((a, b) => {
+      if (a.source === "user" && b.source !== "user") return 1;
+      if (b.source === "user" && a.source !== "user") return -1;
+      const aRank = featuredOrder.get(a.id) ?? 999;
+      const bRank = featuredOrder.get(b.id) ?? 999;
+      if (aRank !== bRank) return aRank - bRank;
+      return a.title.localeCompare(b.title);
+    });
 }

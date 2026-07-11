@@ -13,6 +13,7 @@ class LicenseInfo(BaseModel):
 class InstallSpec(BaseModel):
     weights: list[dict] = Field(default_factory=list)
     python_deps: list[dict] = Field(default_factory=list)
+    verify_imports: list[str] = Field(default_factory=list)
     install_script: str | None = None
     dev_stub: bool = False
 

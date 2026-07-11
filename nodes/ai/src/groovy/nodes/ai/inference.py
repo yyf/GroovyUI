@@ -204,11 +204,28 @@ def denoise_audio(
     strength: float,
     sample_rate: int,
 ) -> np.ndarray:
-    _ = model_id, sample_rate
+    from groovy.nodes.ai.inference_env import deepfilternet_available, inference_stub_enabled
+
     strength = float(np.clip(strength, 0.0, 1.0))
     if strength <= 0:
         return pcm.copy()
 
+    if model_id == "deepfilternet-v3":
+        if deepfilternet_available() and not inference_stub_enabled():
+            from groovy.nodes.ai.backends.deepfilternet_runner import denoise_pcm
+
+            return denoise_pcm(pcm, sample_rate=sample_rate, strength=strength)
+        if inference_stub_enabled():
+            return _denoise_audio_stub(pcm, strength=strength, sample_rate=sample_rate)
+        raise RuntimeError(
+            "DeepFilterNet inference is not installed. Install deepfilternet-v3 from Model Browser (Cmd+K)."
+        )
+
+    return _denoise_audio_stub(pcm, strength=strength, sample_rate=sample_rate)
+
+
+def _denoise_audio_stub(pcm: np.ndarray, *, strength: float, sample_rate: int) -> np.ndarray:
+    _ = sample_rate
     out = pcm.copy()
     for ch in range(out.shape[0]):
         channel = out[ch]
@@ -283,6 +300,49 @@ def _separate_stems_stub(pcm: np.ndarray, *, model_id: str) -> dict[str, np.ndar
 
 
 def transcribe_audio(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    language: str = "en",
+    temperature: float = 0.0,
+) -> str:
+    from groovy.nodes.ai.inference_env import inference_stub_enabled, whisper_available
+
+    if model_id in {"whisper-large-v3-turbo", "whisper-small-en"}:
+        if whisper_available() and not inference_stub_enabled():
+            from groovy.nodes.ai.backends.whisper_runner import transcribe_pcm
+
+            return transcribe_pcm(
+                pcm,
+                sample_rate=sample_rate,
+                model_id=model_id,
+                language=language,
+                temperature=temperature,
+            )
+        if inference_stub_enabled():
+            return _transcribe_audio_stub(
+                pcm,
+                sample_rate=sample_rate,
+                model_id=model_id,
+                language=language,
+                temperature=temperature,
+            )
+        raise RuntimeError(
+            "Whisper inference is not installed. Run: uv sync --group inference "
+            f"then install {model_id} from Model Browser (Cmd+K)."
+        )
+
+    return _transcribe_audio_stub(
+        pcm,
+        sample_rate=sample_rate,
+        model_id=model_id,
+        language=language,
+        temperature=temperature,
+    )
+
+
+def _transcribe_audio_stub(
     pcm: np.ndarray,
     *,
     sample_rate: int,

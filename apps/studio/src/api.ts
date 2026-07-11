@@ -5,6 +5,7 @@ import type {
   JobState,
   LicenseScanSummary,
   ModelCard,
+  ModelInstallState,
   NodeSchema,
   ProvenanceSummary,
   Workflow,
@@ -174,10 +175,31 @@ export function wsUrl(): string {
   return `${url.origin}/api/ws`;
 }
 
+export async function fetchStudioSettings(): Promise<import("./types").StudioSettings> {
+  const res = await fetch(`${API}/api/settings/studio`);
+  if (!res.ok) throw new Error("Failed to load studio settings");
+  return res.json();
+}
+
+export async function updateStudioSettings(patch: { hf_token?: string | null }): Promise<import("./types").StudioSettings> {
+  const res = await fetch(`${API}/api/settings/studio`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error("Failed to save studio settings");
+  return res.json();
+}
+
 export async function importComfyWorkflow(
   comfyJson: Record<string, unknown>,
   title?: string,
-): Promise<{ workflow: Workflow; import_meta: Record<string, unknown>; validation: { valid: boolean } }> {
+): Promise<{
+  workflow: Workflow;
+  import_meta: Record<string, unknown>;
+  validation: { valid: boolean };
+  missing_models: import("./types").MissingWorkflowModel[];
+}> {
   const res = await fetch(`${API}/api/workflow/import/comfy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -251,6 +273,29 @@ export async function fetchWaveform(cacheId: string, width = 128): Promise<{ pea
   const res = await fetch(`${API}/api/cache/${cacheId}/waveform?width=${width}`);
   if (!res.ok) {
     throw new Error(`Waveform not found: ${cacheId}`);
+  }
+  return res.json();
+}
+
+export type SpectrogramData = {
+  width: number;
+  height: number;
+  values: number[];
+  duration: number;
+  min_db: number;
+  max_db: number;
+  sample_rate: number;
+  max_freq_hz: number;
+};
+
+export async function fetchSpectrogram(
+  cacheId: string,
+  width = 512,
+  height = 48,
+): Promise<SpectrogramData> {
+  const res = await fetch(`${API}/api/cache/${cacheId}/spectrogram?width=${width}&height=${height}`);
+  if (!res.ok) {
+    throw new Error(`Spectrogram not found: ${cacheId}`);
   }
   return res.json();
 }
@@ -348,7 +393,7 @@ export async function fetchAudioFileMeta(
 
 export async function searchModels(
   query: string,
-  filters?: { task_type?: string; commercial_ok?: boolean },
+  filters?: { task_type?: string; commercial_ok?: boolean; node_type?: string },
 ): Promise<ModelCard[]> {
   const res = await fetch(`${API}/api/models/search`, {
     method: "POST",
@@ -395,17 +440,93 @@ export async function ensureWorkflowModels(workflow: Workflow): Promise<string[]
   }
   const installed: string[] = [];
   for (const modelId of modelIds) {
-    await installModel(modelId);
+    await installModelWithProgress(modelId);
     installed.push(modelId);
   }
   return installed;
 }
 
-export async function installModel(modelId: string): Promise<void> {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function fetchModelInstallStatus(modelId: string): Promise<ModelInstallState> {
+  const res = await fetch(`${API}/api/models/${modelId}/install/status`);
+  if (!res.ok) {
+    throw new Error(`Install status failed: ${modelId}`);
+  }
+  return res.json();
+}
+
+export async function installModelWithProgress(
+  modelId: string,
+  onProgress?: (state: ModelInstallState) => void,
+): Promise<ModelInstallState> {
   const res = await fetch(`${API}/api/models/${modelId}/install`, { method: "POST" });
   if (!res.ok) {
-    throw new Error(`Install failed: ${modelId}`);
+    const detail = await res.text();
+    throw new Error(detail || `Install failed to start: ${modelId}`);
   }
+  let state = (await res.json()) as ModelInstallState;
+  onProgress?.(state);
+  if (state.status === "ready") {
+    return state;
+  }
+
+  const deadline = Date.now() + 30 * 60 * 1000;
+  while (Date.now() < deadline) {
+    await sleep(400);
+    state = await fetchModelInstallStatus(modelId);
+    onProgress?.(state);
+    if (state.status === "ready") {
+      return state;
+    }
+    if (state.status === "failed") {
+      throw new Error(state.error ?? `Install failed: ${modelId}`);
+    }
+  }
+  throw new Error(`Install timed out: ${modelId}`);
+}
+
+/** @deprecated Prefer installModelWithProgress */
+export async function installModel(modelId: string): Promise<void> {
+  await installModelWithProgress(modelId);
+}
+
+export async function findMissingWorkflowModels(
+  workflow: Workflow,
+): Promise<Array<{ modelId: string; status: string; name: string; reason: string }>> {
+  const modelIds = [
+    ...new Set(
+      workflow.nodes
+        .map((node) => node.widgets.model)
+        .filter((model): model is string => typeof model === "string" && model.trim().length > 0),
+    ),
+  ];
+  const missing: Array<{ modelId: string; status: string; name: string; reason: string }> = [];
+  for (const modelId of modelIds) {
+    try {
+      const card = await fetchModelCard(modelId);
+      if (card.install_status !== "ready") {
+        missing.push({
+          modelId,
+          status: card.install_status,
+          name: card.name,
+          reason: "not_installed",
+        });
+      } else if (!card.dev_stub && card.inference_ready === false) {
+        missing.push({
+          modelId,
+          status: card.install_status,
+          name: card.name,
+          reason: "inference_not_ready",
+        });
+      }
+    } catch {
+      missing.push({ modelId, status: "unknown", name: modelId, reason: "unknown" });
+    }
+  }
+  return missing;
 }
 
 export async function fetchWorkflowValidation(workflow: Workflow): Promise<WorkflowValidationResult> {
