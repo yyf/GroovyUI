@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  createModelDraft,
+  discoverModels,
   fetchInstallRecovery,
   fetchModelCard,
   installModelWithProgress,
@@ -7,7 +9,7 @@ import {
   searchModels,
   suggestWorkflows,
 } from "../api";
-import type { InstallRecovery, ModelCard, ModelInstallState, Workflow } from "../types";
+import type { DiscoverModelResult, InstallRecovery, ModelCard, ModelInstallState, Workflow } from "../types";
 
 type Props = {
   open: boolean;
@@ -15,7 +17,7 @@ type Props = {
   onSelectModel?: (modelId: string) => void;
   onDropModel?: (modelId: string, nodeType: string) => void;
   onApplyWorkflow?: (workflow: Workflow) => void;
-  initialMode?: "search" | "recommend" | "workflow";
+  initialMode?: "search" | "recommend" | "workflow" | "discover";
   /** When browsing from a node's MODEL_REF widget, filter to compatible models. */
   filterNodeType?: string | null;
   /** Deep-link filters when opened from Compliance / Comfy import. */
@@ -35,6 +37,29 @@ const TASK_FILTERS = [
   { value: "deepfake-detection", label: "Deepfake detection" },
   { value: "audio-compare", label: "A/B compare" },
 ];
+
+function isDraftModel(model: ModelCard): boolean {
+  return model.status === "draft" || model.trust === "draft" || model.install_status === "draft";
+}
+
+function filterDiscoverResults(
+  results: DiscoverModelResult[],
+  commercialOnly: boolean,
+  nodeType: string | null | undefined,
+): DiscoverModelResult[] {
+  return results.filter((entry) => {
+    if (commercialOnly && entry.license.commercial_ok === false) return false;
+    if (nodeType && !entry.suggested_compatible_nodes.includes(nodeType)) return false;
+    return true;
+  });
+}
+
+function formatDiscoverUpdated(value?: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString();
+}
 
 function filterModelsForNode(models: ModelCard[], nodeType: string | null | undefined): ModelCard[] {
   if (!nodeType) return models;
@@ -94,10 +119,13 @@ export default function ModelBrowser({
 }: Props) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [mode, setMode] = useState<"search" | "recommend" | "workflow">(initialMode ?? "search");
+  const [mode, setMode] = useState<"search" | "recommend" | "workflow" | "discover">(initialMode ?? "search");
   const [taskType, setTaskType] = useState("");
   const [commercialOnly, setCommercialOnly] = useState(false);
   const [models, setModels] = useState<ModelCard[]>([]);
+  const [discoverResults, setDiscoverResults] = useState<DiscoverModelResult[]>([]);
+  const [draftResult, setDraftResult] = useState<{ id: string; created: boolean } | null>(null);
+  const [draftingId, setDraftingId] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Array<{ model: ModelCard; rationale: string }>>([]);
   const [workflowSuggestions, setWorkflowSuggestions] = useState<
     Array<{
@@ -158,6 +186,18 @@ export default function ModelBrowser({
         setWorkflowSuggestions(data.results);
         setModels([]);
         setRecommendations([]);
+        setDiscoverResults([]);
+        return;
+      }
+      if (mode === "discover") {
+        const results = await discoverModels(debouncedQuery, {
+          task_type: taskType || undefined,
+          limit: 20,
+        });
+        setDiscoverResults(filterDiscoverResults(results, commercialOnly, effectiveNodeFilter));
+        setModels([]);
+        setRecommendations([]);
+        setWorkflowSuggestions([]);
         return;
       }
       const filters = {
@@ -193,11 +233,13 @@ export default function ModelBrowser({
         setModels(filterModelsForNode(results, effectiveNodeFilter));
         setRecommendations([]);
         setWorkflowSuggestions([]);
+        setDiscoverResults([]);
       }
     } catch (err) {
       setModels([]);
       setRecommendations([]);
       setWorkflowSuggestions([]);
+      setDiscoverResults([]);
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
       setLoading(false);
@@ -247,6 +289,7 @@ export default function ModelBrowser({
       setShowInstallLogs(false);
       setRecovery(null);
       setFailedModelId(null);
+      setDraftResult(null);
     }
   }, [open]);
 
@@ -314,6 +357,30 @@ export default function ModelBrowser({
     }
   };
 
+  const handleCreateDraft = async (entry: DiscoverModelResult) => {
+    setDraftingId(entry.external_id);
+    setDraftResult(null);
+    setError(null);
+    try {
+      const result = await createModelDraft(entry);
+      setDraftResult({ id: result.model.id, created: result.created });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save draft");
+    } finally {
+      setDraftingId(null);
+    }
+  };
+
+  const viewDraftInSearch = (draftId: string) => {
+    setMode("search");
+    setQuery(draftId);
+    setDebouncedQuery(draftId);
+    setTaskType("");
+    setCommercialOnly(false);
+    setError(null);
+    setDetailModelId(draftId);
+  };
+
   const cards = useMemo(
     () =>
       mode === "recommend"
@@ -333,12 +400,22 @@ export default function ModelBrowser({
     mode === "recommend"
       ? "Find models searches the local published catalog only — not live Hugging Face."
       : mode === "search"
-        ? "Local catalog — Install downloads weights and Python deps from Model Browser."
-        : null;
+        ? "Verified catalog — safe to install from Model Browser."
+        : mode === "discover"
+          ? "Latest models from Hugging Face — browse only. Install after GroovyUI verifies the registry entry."
+          : null;
 
   const requiredPending = requiredModels.filter((model) => !modelIsReady(model));
 
   const renderModelActions = (model: ModelCard, nodeType: string | undefined, isInstalling: boolean, status: string) => {
+    if (isDraftModel(model)) {
+      return (
+        <span className="model-card__draft-note">
+          Draft — pending maintainer review. Install unlocks after publish.
+        </span>
+      );
+    }
+
     const needsSetup = modelNeedsReinstall(model);
     const readyForUse = status === "ready" && !needsSetup;
 
@@ -404,6 +481,16 @@ export default function ModelBrowser({
               >
                 Find models
               </button>
+              <button
+                type="button"
+                className={mode === "discover" ? "active" : ""}
+                onClick={() => {
+                  setMode("discover");
+                  setError(null);
+                }}
+              >
+                Discover
+              </button>
               <button type="button" className={mode === "workflow" ? "active" : ""} onClick={() => setMode("workflow")}>
                 Suggest workflow
               </button>
@@ -464,7 +551,9 @@ export default function ModelBrowser({
                   ? "Describe your pipeline — e.g. denoise podcast then normalize"
                   : mode === "recommend"
                     ? "Describe your task — e.g. commercial-friendly podcast denoise"
-                    : "Search models — denoise, stems, voice clone…"
+                    : mode === "discover"
+                      ? "Search Hugging Face — e.g. denoise podcast whisper demucs"
+                      : "Search models — denoise, stems, voice clone…"
               }
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -480,16 +569,43 @@ export default function ModelBrowser({
                       </option>
                     ))}
                   </select>
-                  <label>
-                    <input type="checkbox" checked={commercialOnly} onChange={(event) => setCommercialOnly(event.target.checked)} />
-                    Commercial OK
-                  </label>
+                  {mode !== "discover" ? (
+                    <label>
+                      <input type="checkbox" checked={commercialOnly} onChange={(event) => setCommercialOnly(event.target.checked)} />
+                      Commercial OK
+                    </label>
+                  ) : (
+                    <label>
+                      <input type="checkbox" checked={commercialOnly} onChange={(event) => setCommercialOnly(event.target.checked)} />
+                      Commercial OK only
+                    </label>
+                  )}
                 </>
               ) : (
                 <p className="model-browser__hint">Suggestions are preview-only — click Apply to replace the canvas.</p>
               )}
             </div>
             {catalogHint ? <p className="model-browser__hint model-browser__hint--catalog">{catalogHint}</p> : null}
+            {draftResult ? (
+              <div className="model-browser__draft-next">
+                <p>
+                  <strong>{draftResult.created ? "Draft saved" : "Draft already exists"}:</strong>{" "}
+                  <code>{draftResult.id}</code>
+                </p>
+                <p>
+                  Install stays off until a maintainer publishes it. Meanwhile, use a verified model from Search, or keep
+                  exploring in Discover.
+                </p>
+                <div className="model-card__actions">
+                  <button type="button" onClick={() => viewDraftInSearch(draftResult.id)}>
+                    View in Search
+                  </button>
+                  <button type="button" onClick={() => setDraftResult(null)}>
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ) : null}
             {recovery && failedModelId ? (
               <div className="model-browser__recovery">
                 <p>
@@ -559,6 +675,61 @@ export default function ModelBrowser({
                     </article>
                   ))}
                 </>
+              ) : mode === "discover" ? (
+                <>
+                  {!loading && !error && discoverResults.length === 0 ? (
+                    <p className="model-browser__hint">
+                      No Hugging Face models matched — try another task filter or search term.
+                    </p>
+                  ) : null}
+                  {discoverResults.map((entry) => {
+                    const badge = licenseBadge({
+                      spdx: entry.license.spdx,
+                      commercial_ok: entry.license.commercial_ok ?? false,
+                      attribution_required: false,
+                    });
+                    const updated = formatDiscoverUpdated(entry.updated_at);
+                    const isDrafting = draftingId === entry.external_id;
+                    return (
+                      <article key={entry.external_id} className="model-card model-card--external">
+                        <div className="model-card__row">
+                          <strong>{entry.name}</strong>
+                          <span className="pill pill--neutral">external</span>
+                        </div>
+                        <p className="model-card__desc">{entry.description}</p>
+                        <div className="model-card__meta">
+                          <span className={badge.className}>{badge.label}</span>
+                          {entry.author ? <span>{entry.author}</span> : null}
+                          {updated ? <span>Updated {updated}</span> : null}
+                          {entry.downloads != null ? <span>{entry.downloads.toLocaleString()} downloads</span> : null}
+                        </div>
+                        {entry.suggested_compatible_nodes.length > 0 ? (
+                          <p className="model-card__nodes">Nodes: {entry.suggested_compatible_nodes.join(", ")}</p>
+                        ) : null}
+                        {entry.tags.length > 0 ? (
+                          <p className="model-card__tags">{entry.tags.slice(0, 6).map((tag) => `#${tag}`).join(" ")}</p>
+                        ) : null}
+                        <div className="model-card__actions">
+                          <a
+                            className="model-card__link-btn"
+                            href={entry.source_url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open on Hugging Face
+                          </a>
+                          <button
+                            type="button"
+                            disabled={isDrafting}
+                            onClick={() => void handleCreateDraft(entry)}
+                          >
+                            {isDrafting ? "Saving draft…" : "Draft registry entry"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </>
               ) : (
                 <>
                   {!loading && !error && cards.length === 0 ? (
@@ -578,7 +749,9 @@ export default function ModelBrowser({
                     const tags = model.tags ?? [];
                     const compatibleNodes = model.compatible_nodes ?? [];
                     const pillClass =
-                      status === "ready"
+                      isDraftModel(model)
+                        ? "warning"
+                        : status === "ready"
                         ? "ready"
                         : status === "needs setup"
                           ? "warning"
@@ -590,7 +763,11 @@ export default function ModelBrowser({
                         <div className="model-card__row">
                           <strong>{model.name}</strong>
                           <span className={`pill pill--${pillClass}`}>
-                            {isInstalling ? installStatusLabel(liveProgress?.status ?? "downloading", progress) : status}
+                            {isDraftModel(model)
+                              ? "draft"
+                              : isInstalling
+                                ? installStatusLabel(liveProgress?.status ?? "downloading", progress)
+                                : status}
                           </span>
                         </div>
                         <p className="model-card__desc">{model.description}</p>
@@ -601,7 +778,8 @@ export default function ModelBrowser({
                             <span className="pill pill--neutral">Attribution</span>
                           ) : null}
                           <span>{model.vram_gb_estimate} GB VRAM</span>
-                          {model.dev_stub ? <span className="pill pill--neutral">stub</span> : null}
+                          {model.dev_stub && !isDraftModel(model) ? <span className="pill pill--neutral">stub</span> : null}
+                          {isDraftModel(model) ? <span className="pill pill--warning">pending review</span> : null}
                           {model.inference_ready === false && model.install_status === "ready" ? (
                             <span className="pill pill--warning">runtime missing</span>
                           ) : null}

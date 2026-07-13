@@ -13,7 +13,6 @@ export type StudioSettingsMenuProps = {
   onTogglePalette: () => void;
   onToggleHelper: () => void;
   onToggleWorkflowBar: () => void;
-  onImportComfy?: () => void;
 };
 
 export default function StudioSettingsMenu({
@@ -28,7 +27,6 @@ export default function StudioSettingsMenu({
   onTogglePalette,
   onToggleHelper,
   onToggleWorkflowBar,
-  onImportComfy,
 }: StudioSettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -94,7 +92,6 @@ export default function StudioSettingsMenu({
             <span className="studio-menu__heading">Workflow</span>
             {item("Save workflow", onSaveWorkflow)}
             {item("Save as template", onSaveAsTemplate)}
-            {onImportComfy ? item("Import ComfyUI JSON…", onImportComfy) : null}
             {groupCollapsed != null
               ? item(groupCollapsed ? "Expand group" : "Collapse group", onToggleGroupCollapse)
               : null}

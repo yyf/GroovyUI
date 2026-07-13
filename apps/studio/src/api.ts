@@ -407,6 +407,48 @@ export async function searchModels(
   return data.models;
 }
 
+export async function discoverModels(
+  query: string,
+  filters?: { task_type?: string; limit?: number },
+): Promise<import("./types").DiscoverModelResult[]> {
+  const params = new URLSearchParams();
+  if (query.trim()) params.set("query", query.trim());
+  if (filters?.task_type) params.set("task_type", filters.task_type);
+  if (filters?.limit != null) params.set("limit", String(filters.limit));
+  const res = await fetch(`${API}/api/models/discover?${params.toString()}`);
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || `Discover failed (${res.status})`);
+  }
+  const data = await res.json();
+  return data.results ?? [];
+}
+
+export async function createModelDraft(
+  entry: import("./types").DiscoverModelResult,
+): Promise<{ model: ModelCard; created: boolean }> {
+  const res = await fetch(`${API}/api/models/drafts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      external_id: entry.external_id,
+      name: entry.name,
+      description: entry.description,
+      author: entry.author,
+      task_types: entry.task_types,
+      tags: entry.tags,
+      license: entry.license,
+      source_url: entry.source_url,
+      suggested_compatible_nodes: entry.suggested_compatible_nodes,
+    }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || `Draft save failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function recommendModels(
   prompt: string,
   filters?: { commercial_ok?: boolean },
