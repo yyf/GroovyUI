@@ -46,7 +46,7 @@ export default function OnboardingOverlay({ open, onClose, onStartHello }: Props
             <strong>Compliance</strong> — review license, provenance, and authenticity.
           </li>
           <li>
-            <strong>Share JSON</strong> — Settings menu → Save workflow.
+            <strong>Share JSON</strong> — Share button in the workflow bar (downloads <code>.groovy.json</code>).
           </li>
           <li>
             <strong>Save/export audio</strong> — render the SaveAudio node; files land under <code>exports/</code>.

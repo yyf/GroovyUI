@@ -57,7 +57,7 @@ pythonpath = [
 ]
 asyncio_mode = "auto"
 markers = [
-    "integration: cold-machine hero tests (real model install; run with GROOVY_INFERENCE_STUB=0)",
+    "integration: hero real-inference / cold-machine tests (run with GROOVY_INFERENCE_STUB=0)",
 ]
 
 [tool.ruff]

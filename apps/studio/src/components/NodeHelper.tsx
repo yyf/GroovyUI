@@ -14,7 +14,7 @@ import {
 } from "../api";
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowNode } from "../types";
 import type { CompareHop } from "../workflow";
-import { joinSaveAudioPath, jobOutputAtSlot, wiredInputsForNode } from "../workflow";
+import { joinSaveAudioPath, jobOutputAtSlot, wiredInputSupersedesWidget, wiredInputsForNode, wiredPromptPreview } from "../workflow";
 import { hasMinimalPatch } from "../nodeMinimalPatches";
 import { inferenceParamsForModel } from "../modelInferenceParams";
 import AudioFormatPanel from "./AudioFormatPanel";
@@ -310,14 +310,43 @@ export default function NodeHelper({
                 </ul>
               </section>
             ) : null}
-            {schema.widgets.map((widget) => (
-              <label key={widget.name} className="node-helper__field">
+            {schema.widgets.map((widget) => {
+              const supersededBy = wiredInputSupersedesWidget(node.type, widget.name, inputRows);
+              const wiredPreview = supersededBy ? wiredPromptPreview(supersededBy.sourceNode) : null;
+              return (
+              <label
+                key={widget.name}
+                className={[
+                  "node-helper__field",
+                  supersededBy ? "node-helper__field--superseded" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
                 <span>{widgetLabel(widget.name, node.type)}</span>
                 {widget.description ? <small className="node-helper__hint">{widget.description}</small> : null}
+                {supersededBy ? (
+                  <small className="node-helper__hint node-helper__hint--wired">
+                    Wired from {supersededBy.sourceNode?.type ?? "upstream"}
+                    {supersededBy.sourceNode?.id ? (
+                      <>
+                        {" "}
+                        <span className="node-helper__mono">({supersededBy.sourceNode.id})</span>
+                      </>
+                    ) : null}
+                    — edit on the source node.
+                  </small>
+                ) : null}
+                {wiredPreview ? (
+                  <p className="node-helper__wired-preview" title="Resolved prompt at render">
+                    {wiredPreview}
+                  </p>
+                ) : null}
                 <WidgetInput
                   spec={widget}
                   value={node.widgets[widget.name] ?? widget.default ?? ""}
                   onChange={(value) => onWidgetChange(node.id, widget.name, value)}
+                  disabled={Boolean(supersededBy)}
                   nodeType={node.type}
                   nodeWidgets={node.widgets}
                   onMultiWidgetChange={(name, value) => onWidgetChange(node.id, name, value)}
@@ -328,7 +357,8 @@ export default function NodeHelper({
                   }
                 />
               </label>
-            ))}
+            );
+            })}
             {modelParamRows.length > 0 ? (
               <section className="node-helper__model-params">
                 <h4 className="node-helper__compare-subtitle">Model parameters</h4>
@@ -813,6 +843,7 @@ type WidgetInputProps = {
   };
   value: unknown;
   onChange: (value: unknown) => void;
+  disabled?: boolean;
   onBrowse?: () => void;
   nodeType?: string;
   nodeWidgets?: Record<string, unknown>;
@@ -966,6 +997,7 @@ function WidgetInput({
   spec,
   value,
   onChange,
+  disabled = false,
   onBrowse,
   nodeType,
   nodeWidgets,
@@ -1000,6 +1032,7 @@ function WidgetInput({
         <input
           type="checkbox"
           checked={Boolean(value)}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.checked)}
         />
         <span>{Boolean(value) ? "On" : "Off"}</span>
@@ -1014,6 +1047,7 @@ function WidgetInput({
         min={spec.min}
         max={spec.max}
         value={typeof value === "number" ? value : Number(value)}
+        disabled={disabled}
         onChange={(e) => {
           const parsed = spec.type === "INT" ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
           if (!Number.isFinite(parsed)) return;
@@ -1026,6 +1060,7 @@ function WidgetInput({
     <input
       type="text"
       value={typeof value === "string" ? value : String(value ?? "")}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
     />
   );

@@ -9,7 +9,7 @@ type Props = {
   /** Click/drag seek callback with ratio 0–1. */
   onSeek?: (ratio: number) => void;
   fitContainer?: boolean;
-  /** Show minimal dB scale (relative to peak in view). */
+  /** Show dB-relative-to-peak scale (−24…0 dB rel peak). */
   showScale?: boolean;
   className?: string;
 };
@@ -32,14 +32,27 @@ function ratioFromPointer(clientX: number, rect: DOMRect): number {
   return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
 }
 
+/** Fixed display floor — matches transport scale ticks (−24 … 0 dB rel peak). */
+const WAVEFORM_FLOOR_DB = -24;
+
+function peakToDbRelPeak(peak: number, clipPeak: number): number {
+  if (peak <= 0 || clipPeak <= 0) return WAVEFORM_FLOOR_DB;
+  const db = 20 * Math.log10(peak / clipPeak);
+  return Math.max(WAVEFORM_FLOOR_DB, Math.min(0, db));
+}
+
+function dbRelPeakToBarHeight(db: number, mid: number): number {
+  return ((db - WAVEFORM_FLOOR_DB) / -WAVEFORM_FLOOR_DB) * (mid - 2);
+}
+
 function WaveformBars({
   samples,
-  max,
+  clipPeak,
   height,
   barClass,
 }: {
   samples: number[];
-  max: number;
+  clipPeak: number;
   height: number;
   barClass: string;
 }) {
@@ -47,7 +60,7 @@ function WaveformBars({
   return (
     <>
       {samples.map((peak, index) => {
-        const amp = (peak / max) * (mid - 2);
+        const amp = dbRelPeakToBarHeight(peakToDbRelPeak(peak, clipPeak), mid);
         const x = index + 0.5;
         return (
           <line
@@ -67,10 +80,11 @@ function WaveformBars({
 
 function VolumeScale() {
   return (
-    <div className="waveform-mini__scale" aria-hidden>
+    <div className="waveform-mini__scale" aria-label="Amplitude in dB relative to clip peak">
       <span className="waveform-mini__scale-mark waveform-mini__scale-mark--top">0</span>
       <span className="waveform-mini__scale-mark waveform-mini__scale-mark--mid">−12</span>
       <span className="waveform-mini__scale-mark waveform-mini__scale-mark--bot">−24</span>
+      <span className="waveform-mini__scale-unit">dB rel</span>
     </div>
   );
 }
@@ -128,7 +142,7 @@ export default function WaveformMini({
   }
 
   const samples = resamplePeaks(peaks, containerWidth);
-  const max = Math.max(...samples, 0.001);
+  const clipPeak = Math.max(...samples, 1e-12);
   const width = samples.length;
   const height = 40;
   const playbackMode = onSeek != null;
@@ -153,16 +167,16 @@ export default function WaveformMini({
             <rect x={0} y={0} width={clipWidth} height={height} />
           </clipPath>
         </defs>
-        <WaveformBars samples={samples} max={max} height={height} barClass="waveform-mini__bar waveform-mini__bar--unplayed" />
+        <WaveformBars samples={samples} clipPeak={clipPeak} height={height} barClass="waveform-mini__bar waveform-mini__bar--unplayed" />
         <g clipPath={`url(#${clipId.current})`}>
-          <WaveformBars samples={samples} max={max} height={height} barClass="waveform-mini__bar waveform-mini__bar--played" />
+          <WaveformBars samples={samples} clipPeak={clipPeak} height={height} barClass="waveform-mini__bar waveform-mini__bar--played" />
         </g>
       </svg>
       <div className="waveform-mini__playhead" style={{ left: playheadPct }} />
     </>
   ) : (
     <svg className="waveform-mini__svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden>
-      <WaveformBars samples={samples} max={max} height={height} barClass="waveform-mini__bar" />
+      <WaveformBars samples={samples} clipPeak={clipPeak} height={height} barClass="waveform-mini__bar" />
     </svg>
   );
 

@@ -896,7 +896,6 @@ export default function App() {
             paletteOpen,
             helperOpen,
             onOpenIoSettings: () => setSettingsOpen(true),
-            onSaveWorkflow: () => downloadWorkflow(workflow),
             onSaveAsTemplate: () => void handleSaveAsTemplate(),
             onToggleGroupCollapse: handleToggleGroupCollapse,
             onTogglePalette: () => setPaletteOpen((prev) => !prev),
