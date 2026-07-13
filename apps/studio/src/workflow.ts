@@ -484,6 +484,38 @@ export type WiredInputRow = {
   linkType?: string;
 };
 
+/** When a TEXT socket is wired, these local widgets are ignored at render. */
+const WIRED_TEXT_SUPERSEDES_WIDGET: Record<string, Record<string, string>> = {
+  MIDIToAudio: { text: "prompt" },
+  SingFromMIDI: { lyrics: "text" },
+};
+
+/** Returns the wired input row that disables a local widget, if any. */
+export function wiredInputSupersedesWidget(
+  nodeType: string,
+  widgetName: string,
+  inputRows: WiredInputRow[],
+): WiredInputRow | null {
+  const map = WIRED_TEXT_SUPERSEDES_WIDGET[nodeType];
+  if (!map) return null;
+  for (const [inputName, supersededWidget] of Object.entries(map)) {
+    if (supersededWidget !== widgetName) continue;
+    const row = inputRows.find((entry) => entry.name === inputName && entry.connected);
+    if (row) return row;
+  }
+  return null;
+}
+
+export function wiredPromptPreview(sourceNode: WorkflowNode | undefined): string | null {
+  if (!sourceNode) return null;
+  if (sourceNode.type === "Prompt") {
+    const text = sourceNode.widgets.text;
+    return typeof text === "string" && text.trim() ? text : null;
+  }
+  const text = sourceNode.widgets.text ?? sourceNode.widgets.prompt ?? sourceNode.widgets.lyrics;
+  return typeof text === "string" && text.trim() ? text : null;
+}
+
 /** Map schema input sockets to workflow links by slot index. */
 export function wiredInputsForNode(
   workflow: Workflow,

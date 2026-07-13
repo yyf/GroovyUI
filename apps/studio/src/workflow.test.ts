@@ -23,6 +23,8 @@ import {
   cachedStatusFromOutputs,
   jobOutputAtSlot,
   wiredInputsForNode,
+  wiredInputSupersedesWidget,
+  wiredPromptPreview,
   workflowToFlowEdges,
   workflowToFlowNodes,
 } from "./workflow";
@@ -113,6 +115,40 @@ describe("wiredInputsForNode", () => {
     expect(rows[0]?.connected).toBe(true);
     expect(rows[0]?.sourceNode?.type).toBe("Prompt");
     expect(rows[1]?.connected).toBe(false);
+  });
+});
+
+describe("wiredInputSupersedesWidget", () => {
+  it("disables MIDIToAudio prompt when text socket is wired", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        ...sampleWorkflow().nodes,
+        { id: "p1", type: "Prompt", pos: { x: 0, y: 120 }, widgets: { text: "guitar lead" } },
+        { id: "m4", type: "MIDIToAudio", pos: { x: 280, y: 0 }, widgets: { model: "musicgen-melody-small", prompt: "stale" } },
+      ],
+      links: [{ id: "l3", from: ["p1", 0], to: ["m4", 1], type: "TEXT" }],
+    };
+    const inputs = [
+      { name: "midi", type: "MIDI" },
+      { name: "text", type: "TEXT", optional: true },
+      { name: "reference_audio", type: "AUDIO", optional: true },
+    ];
+    const rows = wiredInputsForNode(workflow, "m4", inputs);
+    const superseded = wiredInputSupersedesWidget("MIDIToAudio", "prompt", rows);
+    expect(superseded?.name).toBe("text");
+    expect(superseded?.sourceNode?.id).toBe("p1");
+    expect(wiredInputSupersedesWidget("MIDIToAudio", "model", rows)).toBeNull();
+    expect(wiredPromptPreview(superseded?.sourceNode)).toBe("guitar lead");
+  });
+
+  it("leaves prompt editable when text socket is open", () => {
+    const inputs = [
+      { name: "midi", type: "MIDI" },
+      { name: "text", type: "TEXT", optional: true },
+    ];
+    const rows = wiredInputsForNode(sampleWorkflow(), "n1", inputs);
+    expect(wiredInputSupersedesWidget("MIDIToAudio", "prompt", rows)).toBeNull();
   });
 });
 

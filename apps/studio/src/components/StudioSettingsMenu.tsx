@@ -7,7 +7,6 @@ export type StudioSettingsMenuProps = {
   helperOpen: boolean;
   workflowBarOpen: boolean;
   onOpenIoSettings: () => void;
-  onSaveWorkflow: () => void;
   onSaveAsTemplate: () => void;
   onToggleGroupCollapse: () => void;
   onTogglePalette: () => void;
@@ -21,7 +20,6 @@ export default function StudioSettingsMenu({
   helperOpen,
   workflowBarOpen,
   onOpenIoSettings,
-  onSaveWorkflow,
   onSaveAsTemplate,
   onToggleGroupCollapse,
   onTogglePalette,
@@ -90,7 +88,6 @@ export default function StudioSettingsMenu({
           </div>
           <div className="studio-menu__section">
             <span className="studio-menu__heading">Workflow</span>
-            {item("Save workflow", onSaveWorkflow)}
             {item("Save as template", onSaveAsTemplate)}
             {groupCollapsed != null
               ? item(groupCollapsed ? "Expand group" : "Collapse group", onToggleGroupCollapse)
