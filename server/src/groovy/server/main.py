@@ -26,7 +26,8 @@ from groovy.registry.agent.node_enricher import enrich_node_schema
 from groovy.registry.agent.recommender import recommend_models
 from groovy.registry.agent.workflow_suggester import suggest_workflows
 from groovy.registry.agent.license_scanner import scan_workflow_licenses
-from groovy.registry.agent.curator import approve_draft, ingest_drafts, list_drafts
+from groovy.registry.agent.curator import approve_draft, ingest_drafts, list_drafts, save_discover_draft
+from groovy.registry.discover import DiscoverError, discover_models
 from groovy.registry.agent.template_generator import generate_template_from_workflow
 from groovy.registry.agent.registry_freshness import scan_registry_freshness
 from groovy.registry.installer import model_install_complete
@@ -44,7 +45,7 @@ from groovy.executor.osc_live import OscCaptureStore
 from groovy.server.bootstrap import ensure_project_samples
 from groovy.server.compare import analyze_ab_pair
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 register_core()
 register_ai()
@@ -102,6 +103,18 @@ class ModelRecommendRequest(BaseModel):
     prompt: str
     commercial_ok: bool | None = None
     max_results: int = 5
+
+
+class ModelDraftRequest(BaseModel):
+    external_id: str
+    name: str
+    description: str = ""
+    author: str = ""
+    task_types: list[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    license: dict[str, Any] = Field(default_factory=dict)
+    source_url: str = ""
+    suggested_compatible_nodes: list[str] = Field(default_factory=list)
 
 
 class ProvenanceRequest(BaseModel):
@@ -516,6 +529,31 @@ def list_models() -> dict[str, list[dict[str, Any]]]:
     return {"models": [_model_card(m) for m in _registry.catalog.all()]}
 
 
+@app.get("/api/models/discover")
+def discover_models_endpoint(
+    query: str = "",
+    task_type: str | None = None,
+    limit: int = 20,
+) -> dict[str, Any]:
+    settings = StudioSettingsStore(PROJECT_DIR)
+    try:
+        results = discover_models(
+            query,
+            task_type=task_type,
+            limit=limit,
+            hf_token=settings.hf_token(),
+        )
+    except DiscoverError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {"results": results}
+
+
+@app.post("/api/models/drafts")
+def create_model_draft(body: ModelDraftRequest) -> dict[str, Any]:
+    manifest, created = save_discover_draft(_registry.draft_dir, body.model_dump())
+    return {"model": _draft_model_card(manifest.model_dump()), "created": created}
+
+
 @app.post("/api/models/search")
 def search_models(body: ModelSearchRequest) -> dict[str, list[dict[str, Any]]]:
     matches = _registry.catalog.search(
@@ -524,7 +562,9 @@ def search_models(body: ModelSearchRequest) -> dict[str, list[dict[str, Any]]]:
         commercial_ok=body.commercial_ok,
         node_type=body.node_type,
     )
-    return {"models": [_model_card(m) for m in matches]}
+    cards = [_model_card(m) for m in matches]
+    cards.extend(_filtered_draft_cards(body.query, body.task_type, body.commercial_ok, body.node_type))
+    return {"models": cards}
 
 
 @app.get("/api/models/{model_id}")
@@ -537,9 +577,19 @@ def get_model(model_id: str) -> dict[str, Any]:
 
 @app.post("/api/models/{model_id}/install", status_code=202)
 def install_model(model_id: str) -> dict[str, Any]:
+    if _is_draft_model(model_id):
+        raise HTTPException(
+            status_code=400,
+            detail="Draft models cannot be installed until published and verified.",
+        )
     manifest = _registry.catalog.get(model_id)
     if not manifest:
         raise HTTPException(status_code=404, detail="Model not found")
+    if manifest.status != "published":
+        raise HTTPException(
+            status_code=400,
+            detail="Only published catalog models can be installed from Model Browser.",
+        )
     return _start_model_install(model_id).model_dump()
 
 
@@ -579,6 +629,57 @@ def _model_card(manifest) -> dict[str, Any]:
         "inference_ready": model_inference_ready(manifest.id, dev_stub=manifest.install.dev_stub),
         "install_complete": model_install_complete(manifest, state),
     }
+
+
+def _draft_model_card(data: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **data,
+        "install_status": "draft",
+        "install_progress": 0.0,
+        "install_error": None,
+        "dev_stub": True,
+        "inference_ready": False,
+        "install_complete": False,
+    }
+
+
+def _is_draft_model(model_id: str) -> bool:
+    if (_registry.draft_dir / f"{model_id}.json").exists():
+        return True
+    manifest = _registry.catalog.get(model_id)
+    return manifest is not None and manifest.status != "published"
+
+
+def _filtered_draft_cards(
+    query: str,
+    task_type: str | None,
+    commercial_ok: bool | None,
+    node_type: str | None,
+) -> list[dict[str, Any]]:
+    q = query.strip().lower()
+    cards: list[dict[str, Any]] = []
+    for draft in list_drafts(_registry.draft_dir):
+        card = _draft_model_card(draft)
+        if task_type and task_type not in card.get("task_types", []):
+            continue
+        if commercial_ok is True and not card.get("license", {}).get("commercial_ok"):
+            continue
+        if node_type and node_type not in card.get("compatible_nodes", []):
+            continue
+        if q:
+            haystack = " ".join(
+                [
+                    str(card.get("id", "")),
+                    str(card.get("name", "")),
+                    str(card.get("description", "")),
+                    " ".join(card.get("tags") or []),
+                    " ".join(card.get("task_types") or []),
+                ]
+            ).lower()
+            if q not in haystack and not any(token in haystack for token in q.split()):
+                continue
+        cards.append(card)
+    return cards
 
 
 def _start_model_install(model_id: str):

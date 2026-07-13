@@ -72,13 +72,29 @@ export type InferenceParamSpec = {
 };
 
 export type ModelBrowserLaunch = {
-  mode?: "search" | "recommend" | "workflow";
+  mode?: "search" | "recommend" | "workflow" | "discover";
   query?: string;
   taskType?: string;
   commercialOnly?: boolean;
   filterNodeType?: string | null;
   /** When opened from render/template gate — highlight and batch-install workflow models. */
   requiredModelIds?: string[];
+};
+
+export type DiscoverModelResult = {
+  external_id: string;
+  name: string;
+  author: string;
+  description: string;
+  task_types: string[];
+  tags: string[];
+  license: { spdx: string; commercial_ok: boolean | null; confidence: number };
+  updated_at?: string;
+  downloads?: number;
+  likes?: number;
+  source_url: string;
+  suggested_compatible_nodes: string[];
+  trust: "external";
 };
 
 export type StudioSettings = {
@@ -113,6 +129,9 @@ export type ModelCard = {
   inference_ready?: boolean;
   install_complete?: boolean;
   inference_params?: InferenceParamSpec[];
+  status?: string;
+  trust?: string;
+  source_url?: string;
 };
 
 export type ModelInstallState = {

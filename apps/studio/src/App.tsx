@@ -20,7 +20,6 @@ import {
   fetchTemplate,
   fetchModelCard,
   findMissingWorkflowModels,
-  importComfyWorkflow,
   fetchWaveform,
   fetchMidiRoll,
   listTemplates,
@@ -114,7 +113,6 @@ export default function App() {
   const [modelBrowserOpen, setModelBrowserOpen] = useState(false);
   const [modelBrowserLaunch, setModelBrowserLaunch] = useState<ModelBrowserLaunch | null>(null);
   const [modelPickTarget, setModelPickTarget] = useState<{ nodeId: string; widget: string } | null>(null);
-  const comfyImportInputRef = useRef<HTMLInputElement>(null);
   const [complianceOpen, setComplianceOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [complianceWarnings, setComplianceWarnings] = useState(0);
@@ -839,37 +837,6 @@ export default function App() {
     [resetHistory],
   );
 
-  const handleImportComfy = useCallback(() => {
-    comfyImportInputRef.current?.click();
-  }, []);
-
-  const handleComfyFileSelected = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = "";
-      if (!file) return;
-      try {
-        setStatus("Importing ComfyUI workflow…");
-        const comfyJson = JSON.parse(await file.text()) as Record<string, unknown>;
-        const result = await importComfyWorkflow(comfyJson, file.name.replace(/\.json$/i, ""));
-        applyWorkflow(result.workflow);
-        if (result.missing_models.length > 0) {
-          const label = result.missing_models.map((entry) => entry.name || entry.model_id).join(", ");
-          setStatus(`Imported — install required: ${label}`);
-          openModelBrowser({
-            mode: "search",
-            requiredModelIds: result.missing_models.map((entry) => entry.model_id),
-          });
-        } else {
-          setStatus("Imported from ComfyUI — ready to render");
-        }
-      } catch (err) {
-        setStatus(err instanceof Error ? err.message : "ComfyUI import failed");
-      }
-    },
-    [applyWorkflow, openModelBrowser],
-  );
-
   const handleBrowseModelsFromCompliance = useCallback(
     (opts: { nodeType?: string; commercialOnly?: boolean; query?: string }) => {
       setComplianceOpen(false);
@@ -934,15 +901,7 @@ export default function App() {
             onToggleGroupCollapse: handleToggleGroupCollapse,
             onTogglePalette: () => setPaletteOpen((prev) => !prev),
             onToggleHelper: () => setHelperOpen((prev) => !prev),
-            onImportComfy: handleImportComfy,
           }}
-        />
-        <input
-          ref={comfyImportInputRef}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={(event) => void handleComfyFileSelected(event)}
         />
         <div
           className={[
