@@ -136,7 +136,7 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
   },
   Preview: {
     title: "Preview",
-    description: "Terminal audition node after normalize.",
+    description: "Terminal sink — wire audio for audition or text for on-canvas transcript.",
     focusNodeId: "n3",
     nodes: [load("n1", 0), { id: "n2", type: "Normalize", x: 260, widgets: { mode: "lufs" } }, preview("n3", 520)],
     links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],

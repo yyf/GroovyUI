@@ -127,6 +127,37 @@ export function previewMidiId(output?: JobOutput): string | null {
   return null;
 }
 
+/** Truncated TEXT payload for on-node display (Preview / STT / Prompt). */
+export function previewTextSnippet(output?: JobOutput, maxLen = 140): string | null {
+  // Preview may return AUDIO with an attached `text` transcript field.
+  const raw = typeof output?.text === "string" ? output.text.trim() : "";
+  if (!raw) return null;
+  const collapsed = raw.replace(/\s+/g, " ");
+  if (collapsed.length <= maxLen) return collapsed;
+  return `${collapsed.slice(0, Math.max(1, maxLen - 1))}…`;
+}
+
+/**
+ * Inspector payload: prefer the node's own job output (keeps Preview transcripts)
+ * while retaining listen/upstream cache_id for waveform when needed.
+ */
+export function resolveNodeInspectorOutput(
+  direct?: JobOutput,
+  listen?: JobOutput,
+): JobOutput | undefined {
+  if (direct?.text) {
+    const cacheId = direct.cache_id ?? listen?.cache_id;
+    return {
+      ...(listen ?? {}),
+      ...direct,
+      cache_id: cacheId,
+      type: cacheId ? "AUDIO" : direct.type,
+      text: direct.text,
+    };
+  }
+  return listen ?? direct;
+}
+
 /** Cache id used for offline preview/listen (audio WAV or synthesized MIDI audition). */
 export function previewListenId(output?: JobOutput, slot = 0): string | null {
   const slotOutput = jobOutputAtSlot(output, slot);
@@ -408,10 +439,12 @@ export function workflowToFlowNodes(
         : linkCounts.inputs > 0
           ? placeholderInputSockets(linkCounts.inputs)
           : [];
+      const jobOut = outputs?.[n.id];
       const outputSockets: NodeSocketSpec[] = schema
         ? schema.outputs.map((socket, slot) => ({
             name: socket.name,
-            type: socket.type,
+            // When Preview (or passthrough) emits TEXT, color the handle from the job.
+            type: slot === 0 && jobOut?.type === "TEXT" ? "TEXT" : socket.type,
             slot,
           }))
         : placeholderOutputSockets(linkCounts.outputs);
@@ -425,6 +458,7 @@ export function workflowToFlowNodes(
           nodeId: n.id,
           canAudition: nodeHasListenableOutput(workflow, n.id, outputs),
           issue: nodeIssues?.[n.id],
+          previewText: previewTextSnippet(jobOut) ?? undefined,
           inputs,
           outputs: outputSockets,
         },

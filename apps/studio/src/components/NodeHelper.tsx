@@ -390,6 +390,14 @@ export default function NodeHelper({
             {schema.widgets.length === 0 && modelParamRows.length === 0 && node.type !== "SaveAudio" ? (
               <p className="node-helper__hint">No configurable parameters.</p>
             ) : null}
+            {output?.text ? (
+              <div className="node-helper__transcript-panel">
+                <p className="node-helper__socket-wire">
+                  <SocketTypeBadge type="TEXT" /> transcript
+                </p>
+                <p className="node-helper__text">{output.text}</p>
+              </div>
+            ) : null}
             {node.type === "LoadAudio" ? (
               <AudioFormatPanel meta={fileMeta} title="Source file format" />
             ) : null}
@@ -769,6 +777,9 @@ function OutputSnapshot({
         </p>
       ) : null}
       {output.type === "TEXT" && output.text ? <p className="node-helper__text">{output.text}</p> : null}
+      {output.type === "AUDIO" && output.text ? (
+        <p className="node-helper__text node-helper__text--transcript">{output.text}</p>
+      ) : null}
       {output.type === "STEMS" && output.stems ? (
         <ul className="node-helper__list">
           {Object.keys(output.stems).map((stem) => (

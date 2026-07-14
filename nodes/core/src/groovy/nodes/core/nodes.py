@@ -157,7 +157,7 @@ class SaveAudio(GroovyNode):
 
     def run(
         self,
-        audio: AudioBuffer,
+        audio: AudioBuffer | None = None,
         path: str = "exports",
         filename: str = "output.wav",
         format: str = "wav",
@@ -166,6 +166,12 @@ class SaveAudio(GroovyNode):
     ) -> tuple[str]:
         if not self._ctx:
             raise RuntimeError("Node context not bound")
+        audio_in = kwargs["audio"] if "audio" in kwargs else audio
+        if not isinstance(audio_in, AudioBuffer):
+            raise TypeError(
+                "SaveAudio needs AUDIO input — wire LoadAudio/Denoise/etc., "
+                "not Preview text (wire Preview.audio or the original LoadAudio instead)"
+            )
         folder = str(kwargs.get("path", path))
         name = str(kwargs.get("filename", filename))
         fmt = str(kwargs.get("format", format))
@@ -174,12 +180,12 @@ class SaveAudio(GroovyNode):
         out_path = self._ctx.cache.resolve_project_path(relative)
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
-        _, pcm = self._ctx.cache.load_audio(audio.id)
+        _, pcm = self._ctx.cache.load_audio(audio_in.id)
         interleaved = pcm.T
         subtype = "FLOAT" if depth == "float" else "PCM_24"
-        sf.write(out_path, interleaved, audio.sample_rate, format=fmt.upper(), subtype=subtype)
+        sf.write(out_path, interleaved, audio_in.sample_rate, format=fmt.upper(), subtype=subtype)
         try:
-            self._ctx.cache.export_provenance_sidecar(audio.id, out_path)
+            self._ctx.cache.export_provenance_sidecar(audio_in.id, out_path)
         except FileNotFoundError:
             pass
         return (str(out_path),)
@@ -410,15 +416,33 @@ class MultichannelNormalize(GroovyNode):
 
 @register_node
 class Preview(GroovyNode):
+    """Terminal audition/inspection sink — wire audio and/or text."""
+
     PROVENANCE_PASSTHROUGH = True
+    # Declared AUDIO for schema/handle; TEXT-only returns are emitted as TEXT via the executor.
     RETURN_TYPES = ("AUDIO",)
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"audio": ("AUDIO",)}, "optional": {}}
+        # Slot 0 stays audio so existing templates (to: [preview, 0]) keep working.
+        return {
+            "required": {},
+            "optional": {
+                "audio": ("AUDIO",),
+                "text": ("TEXT",),
+            },
+        }
 
-    def run(self, audio: AudioBuffer, **kwargs) -> tuple[AudioBuffer]:
-        return (audio,)
+    def run(self, **kwargs) -> tuple[AudioBuffer] | tuple[str]:
+        # Prefer audio when present so waveform, transport, and SaveAudio chaining keep working.
+        # Text may be wired alongside audio; the executor attaches it on output meta.
+        audio_in = kwargs.get("audio")
+        text_in = kwargs.get("text")
+        if audio_in is None and text_in is None:
+            raise ValueError("Preview needs a wired audio or text input")
+        if audio_in is not None:
+            return (audio_in,)
+        return (str(text_in),)
 
 
 @register_node

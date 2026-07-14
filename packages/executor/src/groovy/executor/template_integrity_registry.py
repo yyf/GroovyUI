@@ -78,7 +78,11 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "sample_path": None,
         "required_outputs": (("n4", "AUDIO"),),
     },
-    "transcribe-dialogue": {"terminal_output_type": "TEXT"},
+    "transcribe-dialogue": {
+        # n3 = text Preview (Whisper); n4 = audio Preview (source waveform).
+        "terminal_output_type": "TEXT",
+        "required_outputs": (("n2", "TEXT"), ("n3", "TEXT"), ("n4", "AUDIO")),
+    },
     "transcribe-to-midi": {"terminal_output_type": "MIDI"},
     "transcribe-to-synth": {
         "terminal_output_type": "MIDI",

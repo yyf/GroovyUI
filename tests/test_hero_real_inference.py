@@ -18,7 +18,11 @@ import soundfile as sf
 from audio_tolerance import assert_peak_sane, duration_delta_sec, mono, snr_db
 from groovy.executor import Executor
 from groovy.nodes.ai import register_all as register_ai
-from groovy.nodes.ai.inference_env import deepfilternet_available, demucs_available
+from groovy.nodes.ai.inference_env import (
+    deepfilternet_available,
+    demucs_available,
+    whisper_available,
+)
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
 from groovy.schema.models import Workflow
@@ -29,6 +33,8 @@ register_ai()
 ROOT = Path(__file__).resolve().parents[1]
 PODCAST = ROOT / "templates" / "podcast-denoise.groovy.json"
 STEMS = ROOT / "templates" / "stem-split-vocals.groovy.json"
+DIALOGUE = ROOT / "templates" / "transcribe-dialogue.groovy.json"
+DIALOGUE_FIXTURE = ROOT / "assets" / "samples" / "dialogue_48k.wav"
 
 # EXECUTOR_SPEC: Demucs verify SNR ≥ 40 dB. Short synthetic tones are looser.
 DEMUCS_RECONSTRUCTION_SNR_DB = 20.0
@@ -66,14 +72,16 @@ def project_dir(tmp_path: Path) -> Path:
     tone = 0.22 * np.sin(2 * np.pi * 440 * t)
     noise = 0.02 * np.random.default_rng(0).standard_normal(t.size)
     sf.write(assets / "male-1.wav", tone + noise, sr)
+    if DIALOGUE_FIXTURE.is_file():
+        shutil.copy(DIALOGUE_FIXTURE, assets / "dialogue_48k.wav")
     return tmp_path
 
 
-def _load_template(path: Path) -> Workflow:
+def _load_template(path: Path, *, sample: str = "assets/samples/male-1.wav") -> Workflow:
     workflow = Workflow.model_validate(json.loads(path.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/male-1.wav"
+            node.widgets["path"] = sample
     return workflow
 
 
@@ -201,3 +209,44 @@ def test_stem_split_vocals_real_inference_tolerance(project_dir: Path) -> None:
     again = executor.execute(workflow, target_nodes=["n3", "n4"])
     assert again.status == "completed", again.error
     assert again.outputs["n2"]["outputs"][0]["cache_id"] == multi["outputs"][0]["cache_id"]
+
+
+def test_transcribe_dialogue_real_inference_tolerance(project_dir: Path) -> None:
+    if not (project_dir / "assets" / "samples" / "dialogue_48k.wav").is_file():
+        pytest.skip("dialogue_48k.wav fixture missing from assets/samples")
+
+    _ensure_model(project_dir, "whisper-large-v3-turbo")
+    if not whisper_available():
+        pytest.skip("faster_whisper unavailable after install")
+
+    workflow = _load_template(DIALOGUE, sample="assets/samples/dialogue_48k.wav")
+    executor = Executor(project_dir)
+    result = executor.execute(workflow, target_nodes=["n2", "n3", "n4", "n5"], force_rebuild=True)
+    assert result.status == "completed", result.error
+
+    text_out = result.outputs["n2"]
+    assert text_out["type"] == "TEXT"
+    text = (text_out.get("text") or "").strip()
+    assert text, "Whisper returned empty transcript on dialogue fixture"
+    assert "[dev transcript" not in text.lower()
+
+    text_preview = result.outputs["n3"]
+    assert text_preview["type"] == "TEXT"
+    assert (text_preview.get("text") or "").strip() == text
+
+    audio_preview = result.outputs["n4"]
+    assert audio_preview["type"] == "AUDIO"
+    assert audio_preview["cache_id"] == result.outputs["n1"]["cache_id"]
+
+    load_meta = executor.cache.read_meta(result.outputs["n1"]["cache_id"])
+    assert int(load_meta["sample_rate"]) == 48_000
+    assert int(load_meta["frame_count"]) > 0
+
+    saved = project_dir / "exports" / "dialogue-source.wav"
+    assert saved.exists() and saved.stat().st_size > 1_000
+
+    again = executor.execute(workflow, target_nodes=["n2", "n3", "n4", "n5"])
+    assert again.status == "completed", again.error
+    assert again.outputs["n2"]["text"] == text_out["text"]
+    assert again.outputs["n3"]["text"] == text_preview["text"]
+    assert again.outputs["n4"]["cache_id"] == audio_preview["cache_id"]

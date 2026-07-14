@@ -1862,6 +1862,21 @@ body {
   flex-shrink: 0;
 }
 
+.groovy-node__preview-text {
+  margin: 6px 0 0;
+  padding: 4px 6px;
+  max-width: 200px;
+  max-height: 4.5em;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .groovy-node--issue {
   border-color: #f87171;
   background: linear-gradient(180deg, #2a1518 0%, var(--bg-elevated) 100%);
@@ -3193,6 +3208,22 @@ body {
   font-size: 13px;
   line-height: 1.5;
   color: #e8eaed;
+}
+
+.node-helper__transcript-panel {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.node-helper__transcript-panel .node-helper__text {
+  margin: 6px 0 0;
+  max-height: 12em;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .canvas--drop {

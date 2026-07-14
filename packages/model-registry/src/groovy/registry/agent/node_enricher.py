@@ -80,8 +80,11 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "widgets": {"cc": "MIDI CC number to follow.", "default_value": "Fallback value when CC is sparse."},
     },
     "Preview": {
-        "description": "Terminal node for cached audition — does not write a new file.",
-        "inputs": {"audio": "Audio to preview in the transport bar."},
+        "description": "Terminal sink for cached audition (audio) and/or transcript inspection (text).",
+        "inputs": {
+            "audio": "Audio to audition in the transport bar (also enables SaveAudio chaining).",
+            "text": "Text (e.g. Whisper transcript) shown on the node and in Node Helper.",
+        },
     },
     "Normalize": {
         "description": "Adjust loudness to a target LUFS and peak ceiling.",

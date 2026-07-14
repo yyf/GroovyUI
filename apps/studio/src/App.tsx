@@ -73,6 +73,7 @@ import {
   resolveComparePair,
   resolveNodeListenId,
   resolveNodeListenOutput,
+  resolveNodeInspectorOutput,
   resolveRenderAllTargets,
   resolveTargetNode,
   syncPositions,
@@ -711,6 +712,7 @@ export default function App() {
     workflow && selectedNodeId
       ? resolveNodeListenOutput(workflow, selectedNodeId, lastJob?.outputs)
       : undefined;
+  const selectedInspectorOutput = resolveNodeInspectorOutput(selectedOutput, selectedListenOutput);
   const selectedMidiId = previewMidiId(selectedListenOutput) ?? previewMidiId(selectedOutput);
   const selectedPreviewId = previewCacheId(selectedListenOutput) ?? previewCacheId(selectedOutput);
   const selectedListenId =
@@ -979,7 +981,7 @@ export default function App() {
               <NodeHelper
                 node={selectedNode}
                 workflow={workflow}
-                output={selectedListenOutput ?? selectedOutput}
+                output={selectedInspectorOutput}
                 previewUrl={selectedNodePreview}
                 comparePair={comparePair}
                 compareNote={compareNote}
