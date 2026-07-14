@@ -876,6 +876,17 @@ function splitProjectRelativePath(fullPath: string): { folder: string; filename:
   return { folder: normalized.slice(0, slash), filename: normalized.slice(slash + 1) };
 }
 
+/** File System Access API types — not in default DOM lib used by CI `tsc`. */
+type FilePickerAcceptType = {
+  description?: string;
+  accept: Record<string, string[]>;
+};
+
+type SaveFilePickerOptions = {
+  suggestedName?: string;
+  types?: FilePickerAcceptType[];
+};
+
 function savePickerTypes(format: unknown): FilePickerAcceptType[] {
   const fmt = typeof format === "string" ? format.toLowerCase() : "wav";
   if (fmt === "flac") {

@@ -181,6 +181,8 @@ export async function fetchStudioSettings(): Promise<import("./types").StudioSet
   return res.json();
 }
 
+export type { StudioSettings } from "./types";
+
 export async function updateStudioSettings(patch: { hf_token?: string | null }): Promise<import("./types").StudioSettings> {
   const res = await fetch(`${API}/api/settings/studio`, {
     method: "POST",

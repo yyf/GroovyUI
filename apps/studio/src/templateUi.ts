@@ -16,7 +16,9 @@ export function templatesVisibleInUi(
   templates: TemplateListItem[],
   selectedId?: string,
 ): TemplateListItem[] {
-  const featuredOrder = new Map(FEATURED_BUNDLED_TEMPLATE_IDS.map((id, index) => [id, index]));
+  const featuredOrder = new Map<string, number>(
+    FEATURED_BUNDLED_TEMPLATE_IDS.map((id, index) => [id, index]),
+  );
   return templates
     .filter(
       (template) =>
