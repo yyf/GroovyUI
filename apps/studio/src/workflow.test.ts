@@ -13,6 +13,8 @@ import {
   previewCacheId,
   previewMidiId,
   previewListenId,
+  previewTextSnippet,
+  resolveNodeInspectorOutput,
   pasteSelection,
   removeNodesFromWorkflow,
   nodeIssuesFromValidation,
@@ -84,6 +86,60 @@ describe("mergeFlowEdges", () => {
   it("keeps current edges when next is temporarily empty", () => {
     const current = [{ id: "l1", source: "n1", target: "n2" }];
     expect(mergeFlowEdges(current, [])).toEqual(current);
+  });
+});
+
+describe("previewTextSnippet", () => {
+  it("returns null for empty text", () => {
+    expect(previewTextSnippet({ type: "AUDIO", cache_id: "x" })).toBeNull();
+    expect(previewTextSnippet({ type: "TEXT", text: "   " })).toBeNull();
+  });
+
+  it("truncates long transcripts for on-node display", () => {
+    const long = "word ".repeat(50).trim();
+    const snippet = previewTextSnippet({ type: "TEXT", text: long }, 40);
+    expect(snippet).not.toBeNull();
+    expect(snippet!.endsWith("…")).toBe(true);
+    expect(snippet!.length).toBeLessThanOrEqual(40);
+  });
+
+  it("reads transcript attached to AUDIO Preview outputs", () => {
+    expect(
+      previewTextSnippet({ type: "AUDIO", cache_id: "abc", text: "Heard on canvas" }),
+    ).toBe("Heard on canvas");
+  });
+
+  it("keeps Preview transcript when merging listen + direct outputs", () => {
+    const merged = resolveNodeInspectorOutput(
+      { type: "AUDIO", cache_id: "preview", text: "from whisper" },
+      { type: "AUDIO", cache_id: "load" },
+    );
+    expect(merged).toMatchObject({ type: "AUDIO", cache_id: "preview", text: "from whisper" });
+  });
+
+  it("attaches previewText on TEXT job outputs in flow nodes", () => {
+    const workflow = sampleWorkflow();
+    const schemas = {
+      Preview: {
+        type: "Preview",
+        category: "Core",
+        inputs: [
+          { name: "audio", type: "AUDIO", optional: true },
+          { name: "text", type: "TEXT", optional: true },
+        ],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [],
+      },
+    };
+    const nodes = workflowToFlowNodes(
+      workflow,
+      {},
+      { n3: { type: "TEXT", text: "Heard on canvas" } },
+      schemas,
+    );
+    const preview = nodes.find((node) => node.id === "n3");
+    expect(preview?.data).toMatchObject({ previewText: "Heard on canvas" });
+    expect((preview?.data as { outputs?: { type: string }[] }).outputs?.[0]?.type).toBe("TEXT");
   });
 });
 

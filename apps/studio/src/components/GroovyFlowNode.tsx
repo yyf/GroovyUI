@@ -18,6 +18,8 @@ export type GroovyNodeData = {
   nodeId: string;
   canAudition?: boolean;
   issue?: string;
+  /** Truncated TEXT output shown on-node (Preview / Whisper / Prompt). */
+  previewText?: string;
   inputs?: NodeSocketSpec[];
   outputs?: NodeSocketSpec[];
 };
@@ -103,6 +105,11 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
               </li>
             ))}
           </ul>
+        ) : null}
+        {nodeData.previewText ? (
+          <p className="groovy-node__preview-text" title={nodeData.previewText}>
+            {nodeData.previewText}
+          </p>
         ) : null}
         {nodeData.issue ? <p className="groovy-node__issue">{nodeData.issue}</p> : null}
       </div>

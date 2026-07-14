@@ -383,7 +383,11 @@ class Executor:
                     and ctx.cache.read_provenance(item.id)
                 ):
                     self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
-                return {"cache_id": item.id, "type": "AUDIO"}
+                meta: dict[str, Any] = {"cache_id": item.id, "type": "AUDIO"}
+                # Preview may also carry a transcript when TEXT is wired alongside AUDIO.
+                if node.type == "Preview" and kwargs.get("text") is not None:
+                    meta["text"] = str(kwargs["text"])
+                return meta
             if isinstance(item, StemsBuffer):
                 return {
                     "type": "STEMS",

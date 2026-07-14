@@ -4,15 +4,25 @@
   "id": "d4e5f6a7-b8c9-0123-def0-23456789abcd",
   "metadata": {
     "title": "Transcribe Dialogue",
-    "description": "Load sample dialogue and transcribe with Whisper — review transcript in Node Inspector.",
-    "tags": ["featured", "ai", "stt", "transcribe"]
+    "author": "groovy",
+    "description": "Load dialogue → Whisper transcript Preview; same LoadAudio → waveform Preview and SaveAudio.",
+    "tags": ["featured", "ai", "stt", "transcribe"],
+    "created_at": "2026-07-06T12:00:00Z",
+    "modified_at": "2026-07-14T12:00:00Z"
   },
   "nodes": [
     { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
-    { "id": "n2", "type": "WhisperSTT", "pos": { "x": 300, "y": 0 }, "widgets": { "model": "whisper-large-v3-turbo", "language": "en" } }
+    { "id": "n2", "type": "WhisperSTT", "pos": { "x": 280, "y": 0 }, "widgets": { "model": "whisper-large-v3-turbo", "language": "en" } },
+    { "id": "n3", "type": "Preview", "pos": { "x": 560, "y": 0 }, "widgets": {} },
+    { "id": "n4", "type": "Preview", "pos": { "x": 560, "y": 160 }, "widgets": {} },
+    { "id": "n5", "type": "SaveAudio", "pos": { "x": 560, "y": 320 }, "widgets": { "path": "exports", "filename": "dialogue-source.wav", "format": "wav" } }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" }
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 1], "type": "TEXT" },
+    { "id": "l3", "from": ["n1", 0], "to": ["n4", 0], "type": "AUDIO" },
+    { "id": "l4", "from": ["n1", 0], "to": ["n5", 0], "type": "AUDIO" }
   ],
-  "groups": []
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
 }

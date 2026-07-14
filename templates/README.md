@@ -7,7 +7,7 @@
 | Hello Groovy | [hello-groovy.groovy.json](hello-groovy.groovy.json) | 0 | — |
 | Podcast Denoise | [podcast-denoise.groovy.json](podcast-denoise.groovy.json) | 1 | `deepfilternet-v3` |
 | Stem Split Vocals | [stem-split-vocals.groovy.json](stem-split-vocals.groovy.json) | 1 / **featured** | `demucs-v4` (real inference via `uv sync --group inference`) |
-| Transcribe Dialogue | [transcribe-dialogue.groovy.json](transcribe-dialogue.groovy.json) | 1 | `whisper-large-v3-turbo` |
+| Transcribe Dialogue | [transcribe-dialogue.groovy.json](transcribe-dialogue.groovy.json) | 1 / **featured** | `whisper-large-v3-turbo` (real via Model Browser `faster-whisper`) |
 | TTS Greeting | [tts-greeting.groovy.json](tts-greeting.groovy.json) | 1 | `cosyvoice-300m` |
 | Voice Convert Demo | [voice-convert-demo.groovy.json](voice-convert-demo.groovy.json) | 1 | `rvc-v2-base` |
 | Transcribe to MIDI | [transcribe-to-midi.groovy.json](transcribe-to-midi.groovy.json) | 1.1 | `basic-pitch` |
