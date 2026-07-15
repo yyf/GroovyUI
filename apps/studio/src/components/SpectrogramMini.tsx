@@ -36,10 +36,25 @@ function FreqScale({ maxFreqHz }: { maxFreqHz: number }) {
   );
 }
 
-function dbToGray(db: number, minDb: number, maxDb: number, dim = 1): number {
+/** Scientific intensity → black / signal-red / white-hot (palette only; dB mapping unchanged). */
+function dbToSignalRgb(db: number, minDb: number, maxDb: number, dim = 1): [number, number, number] {
   const span = Math.max(1e-6, maxDb - minDb);
-  const norm = Math.min(1, Math.max(0, (db - minDb) / span));
-  return Math.round((18 + norm * 210) * dim);
+  const t = Math.min(1, Math.max(0, (db - minDb) / span));
+  let r: number;
+  let g: number;
+  let b: number;
+  if (t < 0.55) {
+    const u = t / 0.55;
+    r = Math.round(12 + u * 243);
+    g = Math.round(u * 18);
+    b = Math.round(u * 28);
+  } else {
+    const u = (t - 0.55) / 0.45;
+    r = 255;
+    g = Math.round(18 + u * 220);
+    b = Math.round(28 + u * 200);
+  }
+  return [Math.round(r * dim), Math.round(g * dim), Math.round(b * dim)];
 }
 
 export default function SpectrogramMini({
@@ -99,11 +114,11 @@ export default function SpectrogramMini({
         const idx = srcY * data.width + x;
         const db = data.values[idx] ?? minDb;
         const dim = x <= playCol || onSeek == null ? 1 : 0.42;
-        const gray = dbToGray(db, minDb, maxDb, dim);
+        const [r, g, b] = dbToSignalRgb(db, minDb, maxDb, dim);
         const pixel = (y * data.width + x) * 4;
-        pixels[pixel] = gray;
-        pixels[pixel + 1] = gray;
-        pixels[pixel + 2] = Math.min(255, gray + 12);
+        pixels[pixel] = r;
+        pixels[pixel + 1] = g;
+        pixels[pixel + 2] = b;
         pixels[pixel + 3] = 255;
       }
     }

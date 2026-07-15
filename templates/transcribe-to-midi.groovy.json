@@ -11,7 +11,7 @@
     "modified_at": "2026-07-06T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
     { "id": "n2", "type": "AudioToMIDI", "pos": { "x": 280, "y": 0 }, "widgets": { "model": "basic-pitch" } }
   ],
   "links": [

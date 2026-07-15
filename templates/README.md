@@ -29,4 +29,4 @@
 
 Schema: [WORKFLOW_SCHEMA_v1.md](../docs/internal/specs/WORKFLOW_SCHEMA_v1.md) (when present in repo).
 
-Sample assets: `workspace/assets/samples/` (`male-1.wav`, `dialogue_48k.wav`, etc.).
+Sample assets: `workspace/assets/samples/` (default LoadAudio: `male-1.wav`; also `dialogue_48k.wav`, `surround_51.wav`, etc.).

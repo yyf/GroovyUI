@@ -10,7 +10,7 @@
     "modified_at": "2026-07-06T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
     { "id": "n2", "type": "LoadMIDI", "pos": { "x": 0, "y": 120 }, "widgets": { "path": "assets/samples/automation_cc7.mid", "midi_kind": "control" } },
     { "id": "n3", "type": "MIDIToFloat", "pos": { "x": 260, "y": 120 }, "widgets": { "cc": 7, "default_value": 0.75 } },
     { "id": "n4", "type": "AutomationApply", "pos": { "x": 520, "y": 0 }, "widgets": { "gain": 1.0 } },

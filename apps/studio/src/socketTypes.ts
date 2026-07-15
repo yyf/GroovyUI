@@ -1,15 +1,15 @@
-/** Typed socket colors — aligned with modular synth / Max-style patching. */
+/** Typed socket colors — AUDIO is signal-red; other types stay muted greys. */
 export const SOCKET_TYPE_COLORS: Record<string, string> = {
-  AUDIO: "#60a5fa",
-  STEMS: "#a78bfa",
-  MIDI: "#fbbf24",
-  TEXT: "#22d3ee",
-  AUTOMATION: "#fb923c",
-  FLOAT: "#f472b6",
-  AUTHENTICITY: "#f87171",
-  AMBISONICS: "#2dd4bf",
-  OBA: "#4ade80",
-  OSC: "#a3e635",
+  AUDIO: "#ff002b",
+  STEMS: "#8a8a8a",
+  MIDI: "#6e6e6e",
+  TEXT: "#a3a3a3",
+  AUTOMATION: "#5a5a5a",
+  FLOAT: "#4a4a4a",
+  AUTHENTICITY: "#7a7a7a",
+  AMBISONICS: "#9a9a9a",
+  OBA: "#707070",
+  OSC: "#555555",
 };
 
 export function socketTypeClass(type: string): string {
@@ -17,7 +17,7 @@ export function socketTypeClass(type: string): string {
 }
 
 export function socketTypeColor(type: string): string {
-  return SOCKET_TYPE_COLORS[type.toUpperCase()] ?? "#9ca3af";
+  return SOCKET_TYPE_COLORS[type.toUpperCase()] ?? "#6e6e6e";
 }
 
 export function edgeTypeClass(type: string): string {

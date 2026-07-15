@@ -18,9 +18,11 @@ import { joinSaveAudioPath, jobOutputAtSlot, wiredInputSupersedesWidget, wiredIn
 import { hasMinimalPatch } from "../nodeMinimalPatches";
 import { inferenceParamsForModel } from "../modelInferenceParams";
 import AudioFormatPanel from "./AudioFormatPanel";
+import { ParamFader, ParamPot, ParamStepped, ParamSwitch } from "./ParamControls";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
 import WaveformMini from "./WaveformMini";
+import { resolveWidgetControl } from "../widgetControls";
 
 type Tab = "config" | "inputs" | "outputs" | "provenance";
 
@@ -861,13 +863,6 @@ type WidgetInputProps = {
   onMultiWidgetChange?: (name: string, value: unknown) => void;
 };
 
-function clampNumber(value: number, min?: number, max?: number): number {
-  let next = value;
-  if (min != null) next = Math.max(min, next);
-  if (max != null) next = Math.min(max, next);
-  return next;
-}
-
 function splitProjectRelativePath(fullPath: string): { folder: string; filename: string } {
   const normalized = fullPath.trim().replace(/^\/+/, "").replace(/\\/g, "/");
   if (!normalized) return { folder: "", filename: "" };
@@ -1048,36 +1043,60 @@ function WidgetInput({
       </div>
     );
   }
-  if (spec.type === "BOOLEAN" || spec.type === "BOOL") {
+
+  const control = resolveWidgetControl(spec);
+
+  if (control.kind === "switch") {
     return (
-      <label className="node-helper__checkbox">
-        <input
-          type="checkbox"
-          checked={Boolean(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-        />
-        <span>{Boolean(value) ? "On" : "Off"}</span>
-      </label>
+      <ParamSwitch
+        checked={Boolean(value)}
+        disabled={disabled}
+        onChange={(next) => onChange(next)}
+      />
     );
   }
-  if (spec.type === "FLOAT" || spec.type === "INT") {
+
+  if (control.kind === "stepped" && control.options?.length) {
+    const str =
+      typeof value === "string" || typeof value === "number" ? String(value) : String(value ?? control.options[0]);
     return (
-      <input
-        type="number"
-        step={spec.step ?? (spec.type === "FLOAT" ? "any" : "1")}
-        min={spec.min}
-        max={spec.max}
-        value={typeof value === "number" ? value : Number(value)}
+      <ParamStepped
+        value={str}
+        options={control.options}
         disabled={disabled}
-        onChange={(e) => {
-          const parsed = spec.type === "INT" ? parseInt(e.target.value, 10) : parseFloat(e.target.value);
-          if (!Number.isFinite(parsed)) return;
-          onChange(clampNumber(parsed, spec.min, spec.max));
+        onChange={(next) => {
+          if (spec.type === "INT") {
+            const parsed = parseInt(next, 10);
+            if (Number.isFinite(parsed)) onChange(parsed);
+            return;
+          }
+          onChange(next);
         }}
       />
     );
   }
+
+  if (control.kind === "pot" || control.kind === "fader") {
+    const isInt = spec.type === "INT";
+    const numeric =
+      typeof value === "number"
+        ? value
+        : Number(value ?? spec.default ?? control.min);
+    const safe = Number.isFinite(numeric) ? numeric : control.min;
+    const Control = control.kind === "fader" ? ParamFader : ParamPot;
+    return (
+      <Control
+        value={safe}
+        min={control.min}
+        max={control.max}
+        step={control.step}
+        isInt={isInt}
+        disabled={disabled}
+        onChange={(next) => onChange(isInt ? Math.round(next) : next)}
+      />
+    );
+  }
+
   return (
     <input
       type="text"

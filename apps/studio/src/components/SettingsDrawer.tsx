@@ -11,6 +11,7 @@ import {
   type MidiDevice,
   type StudioSettings,
 } from "../api";
+import { ParamSwitch } from "./ParamControls";
 
 type Props = {
   open: boolean;
@@ -142,22 +143,20 @@ export default function SettingsDrawer({ open, onClose }: Props) {
                   Opt-in audio capture and playback drivers. Device listing uses the local PortAudio
                   stack when available; virtual devices are always available for preview routing.
                 </p>
-                <label className="settings-row">
-                  <input
-                    type="checkbox"
+                <div className="settings-row">
+                  <ParamSwitch
                     checked={settings.audio_input_enabled}
-                    onChange={(e) => void save({ audio_input_enabled: e.target.checked })}
+                    onChange={(checked) => void save({ audio_input_enabled: checked })}
                   />
-                  Enable audio input
-                </label>
-                <label className="settings-row">
-                  <input
-                    type="checkbox"
+                  <span>Enable audio input</span>
+                </div>
+                <div className="settings-row">
+                  <ParamSwitch
                     checked={settings.audio_output_enabled}
-                    onChange={(e) => void save({ audio_output_enabled: e.target.checked })}
+                    onChange={(checked) => void save({ audio_output_enabled: checked })}
                   />
-                  Enable audio output
-                </label>
+                  <span>Enable audio output</span>
+                </div>
                 <label className="settings-field">
                   Input driver
                   <select
@@ -192,30 +191,27 @@ export default function SettingsDrawer({ open, onClose }: Props) {
                   Hardware MIDI and OSC are opt-in. OSC binds localhost only; addresses must start
                   with <code>/groovy/</code>.
                 </p>
-                <label className="settings-row">
-                  <input
-                    type="checkbox"
+                <div className="settings-row">
+                  <ParamSwitch
                     checked={settings.midi_input_enabled}
-                    onChange={(e) => void save({ midi_input_enabled: e.target.checked })}
+                    onChange={(checked) => void save({ midi_input_enabled: checked })}
                   />
-                  Enable MIDI input
-                </label>
-                <label className="settings-row">
-                  <input
-                    type="checkbox"
+                  <span>Enable MIDI input</span>
+                </div>
+                <div className="settings-row">
+                  <ParamSwitch
                     checked={settings.midi_output_enabled}
-                    onChange={(e) => void save({ midi_output_enabled: e.target.checked })}
+                    onChange={(checked) => void save({ midi_output_enabled: checked })}
                   />
-                  Enable MIDI output
-                </label>
-                <label className="settings-row">
-                  <input
-                    type="checkbox"
+                  <span>Enable MIDI output</span>
+                </div>
+                <div className="settings-row">
+                  <ParamSwitch
                     checked={settings.osc_live_enabled}
-                    onChange={(e) => void save({ osc_live_enabled: e.target.checked })}
+                    onChange={(checked) => void save({ osc_live_enabled: checked })}
                   />
-                  Enable live OSC (UDP :9000 + POST /api/osc/in)
-                </label>
+                  <span>Enable live OSC (UDP :9000 + POST /api/osc/in)</span>
+                </div>
                 <label className="settings-field">
                   MIDI input
                   <select

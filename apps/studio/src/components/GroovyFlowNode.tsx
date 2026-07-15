@@ -62,6 +62,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
       style={{ minHeight }}
       title={nodeData.issue ?? undefined}
     >
+      <span className="groovy-node__ticks" aria-hidden />
       {inputs.map((socket, index) => (
         <Handle
           key={`in-${socket.slot ?? index}-${socket.name}`}
