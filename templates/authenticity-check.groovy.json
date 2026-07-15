@@ -11,7 +11,7 @@
     "modified_at": "2026-07-06T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
     { "id": "n2", "type": "VerifyProvenance", "pos": { "x": 260, "y": -80 }, "widgets": { "check_sidecar": true } },
     { "id": "n3", "type": "DeepfakeDetect", "pos": { "x": 260, "y": 80 }, "widgets": { "model": "rawnet2-asvspoof", "threshold": 0.5 } },
     { "id": "n4", "type": "AuthenticitySummary", "pos": { "x": 520, "y": 0 }, "widgets": { "spoof_threshold": 0.5 } },

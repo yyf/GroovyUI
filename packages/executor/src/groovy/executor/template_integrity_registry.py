@@ -34,7 +34,7 @@ class TemplateIntegritySpec:
     target_nodes: tuple[str, ...]
     terminal_node: str
     terminal_output_type: TerminalOutputType = "AUDIO"
-    sample_path: str | None = "assets/samples/dialogue_48k.wav"
+    sample_path: str | None = "assets/samples/male-1.wav"
     midi_path: str | None = None
     models: tuple[str, ...] = ()
     fixture: FixtureKind = "tone"

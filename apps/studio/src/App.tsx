@@ -971,7 +971,7 @@ export default function App() {
                   nodeSyncKey={flowNodeSyncKey}
                   fitViewKey={viewportFitKey}
                 />
-                <Background gap={20} color="#1a1a1a" size={1} />
+                <Background gap={28} color="#222222" size={1} />
                 <Controls className="flow-controls" showInteractive={false} />
               </ReactFlow>
             </ReactFlowProvider>

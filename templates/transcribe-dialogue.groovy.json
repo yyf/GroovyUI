@@ -11,7 +11,7 @@
     "modified_at": "2026-07-14T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
     { "id": "n2", "type": "WhisperSTT", "pos": { "x": 280, "y": 0 }, "widgets": { "model": "whisper-large-v3-turbo", "language": "en" } },
     { "id": "n3", "type": "Preview", "pos": { "x": 560, "y": 0 }, "widgets": {} },
     { "id": "n4", "type": "Preview", "pos": { "x": 560, "y": 160 }, "widgets": {} },

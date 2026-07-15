@@ -10,7 +10,7 @@
     "modified_at": "2026-07-09T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
     { "id": "n2", "type": "SeparateStems", "pos": { "x": 240, "y": 0 }, "widgets": { "model": "demucs-v4" } },
     { "id": "n4", "type": "AudioToMIDI", "pos": { "x": 480, "y": 0 }, "widgets": { "model": "basic-pitch" } },
     { "id": "n5", "type": "MIDIToAudio", "pos": { "x": 720, "y": 0 }, "widgets": { "model": "musicgen-melody-small", "prompt": "electronic remix" } },

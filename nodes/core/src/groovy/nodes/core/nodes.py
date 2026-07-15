@@ -64,7 +64,7 @@ class LoadAudio(GroovyNode):
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "path": ("STRING", {"default": ""}),
+                "path": ("STRING", {"default": "assets/samples/male-1.wav"}),
             },
             "optional": {
                 "start_frame": ("INT", {"default": 0}),

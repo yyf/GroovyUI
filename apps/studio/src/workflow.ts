@@ -922,7 +922,7 @@ export function createGroup(workflow: Workflow, nodeIds: string[], title: string
     id: `g_${Date.now()}`,
     title,
     node_ids: [...nodeIds],
-    color: "#3b82f6",
+    color: "#ff002b",
     collapsed: false,
   };
   return {

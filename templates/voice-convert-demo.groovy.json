@@ -8,7 +8,7 @@
     "tags": ["ai", "conversion", "rvc"]
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/dialogue_48k.wav" } },
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
     { "id": "n2", "type": "VoiceConvert", "pos": { "x": 280, "y": 0 }, "widgets": { "model": "rvc-v2-base" } },
     { "id": "n3", "type": "Preview", "pos": { "x": 560, "y": 0 }, "widgets": {} }
   ],
