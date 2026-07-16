@@ -6,7 +6,6 @@ export type StudioSettingsMenuProps = {
   paletteOpen: boolean;
   helperOpen: boolean;
   workflowBarOpen: boolean;
-  onOpenIoSettings: () => void;
   onSaveAsTemplate: () => void;
   onToggleGroupCollapse: () => void;
   onTogglePalette: () => void;
@@ -19,7 +18,6 @@ export default function StudioSettingsMenu({
   paletteOpen,
   helperOpen,
   workflowBarOpen,
-  onOpenIoSettings,
   onSaveAsTemplate,
   onToggleGroupCollapse,
   onTogglePalette,
@@ -83,12 +81,8 @@ export default function StudioSettingsMenu({
             {item(workflowBarOpen ? "Hide workflow bar" : "Show workflow bar", onToggleWorkflowBar)}
           </div>
           <div className="studio-menu__section">
-            <span className="studio-menu__heading">Tools</span>
-            {item("Audio & I/O…", onOpenIoSettings)}
-          </div>
-          <div className="studio-menu__section">
             <span className="studio-menu__heading">Workflow</span>
-            {item("Save as template", onSaveAsTemplate)}
+            {item("Save to Your templates", onSaveAsTemplate)}
             {groupCollapsed != null
               ? item(groupCollapsed ? "Expand group" : "Collapse group", onToggleGroupCollapse)
               : null}

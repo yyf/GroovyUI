@@ -80,12 +80,17 @@ describe("mergeFlowNodes", () => {
     expect(merged).toHaveLength(1);
     expect(merged[0]?.data).toEqual({ label: "First" });
   });
+
+  it("clears the canvas when next is an empty workflow snapshot", () => {
+    const current = [{ id: "n1", type: "groovy", position: { x: 0, y: 0 }, data: { label: "Stale" } }];
+    expect(mergeFlowNodes(current, [])).toEqual([]);
+  });
 });
 
 describe("mergeFlowEdges", () => {
-  it("keeps current edges when next is temporarily empty", () => {
+  it("clears edges when next is an empty workflow snapshot", () => {
     const current = [{ id: "l1", source: "n1", target: "n2" }];
-    expect(mergeFlowEdges(current, [])).toEqual(current);
+    expect(mergeFlowEdges(current, [])).toEqual([]);
   });
 });
 

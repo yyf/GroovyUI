@@ -9,6 +9,7 @@ type Props = {
   templates: TemplateListItem[];
   selectedTemplateId: string;
   onSelectTemplate: (templateId: string) => void;
+  onDeleteUserTemplate?: (templateId: string) => void | Promise<void>;
   onApplyWorkflow: (workflow: Workflow) => void;
   complianceWarnings: number;
   onModelBrowser: () => void;
@@ -26,6 +27,7 @@ export default function StudioTopBar({
   templates,
   selectedTemplateId,
   onSelectTemplate,
+  onDeleteUserTemplate,
   onApplyWorkflow,
   complianceWarnings,
   onModelBrowser,
@@ -45,7 +47,12 @@ export default function StudioTopBar({
 
       <div className={`top-bar__content${open ? "" : " top-bar__content--collapsed"}`}>
         <div className="top-bar__drawer">
-          <TemplateSelector templates={templates} selectedId={selectedTemplateId} onSelect={onSelectTemplate} />
+          <TemplateSelector
+            templates={templates}
+            selectedId={selectedTemplateId}
+            onSelect={onSelectTemplate}
+            onDeleteUserTemplate={onDeleteUserTemplate}
+          />
           <WorkflowGenerateButton onApply={onApplyWorkflow} />
         </div>
         <div className="top-bar__tools">

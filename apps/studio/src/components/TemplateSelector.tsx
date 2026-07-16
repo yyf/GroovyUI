@@ -6,6 +6,7 @@ type Props = {
   templates: TemplateListItem[];
   selectedId: string;
   onSelect: (templateId: string) => void;
+  onDeleteUserTemplate?: (templateId: string) => void | Promise<void>;
 };
 
 function groupTemplates(templates: TemplateListItem[]) {
@@ -14,7 +15,12 @@ function groupTemplates(templates: TemplateListItem[]) {
   return { bundled, user };
 }
 
-export default function TemplateSelector({ templates, selectedId, onSelect }: Props) {
+export default function TemplateSelector({
+  templates,
+  selectedId,
+  onSelect,
+  onDeleteUserTemplate,
+}: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const visibleTemplates = useMemo(
@@ -43,7 +49,7 @@ export default function TemplateSelector({ templates, selectedId, onSelect }: Pr
     };
   }, [open]);
 
-  const renderOption = (template: TemplateListItem) => (
+  const renderBundledOption = (template: TemplateListItem) => (
     <li key={template.id}>
       <button
         type="button"
@@ -57,6 +63,39 @@ export default function TemplateSelector({ templates, selectedId, onSelect }: Pr
       >
         {template.title}
       </button>
+    </li>
+  );
+
+  const renderUserOption = (template: TemplateListItem) => (
+    <li key={template.id} className="template-select__row">
+      <button
+        type="button"
+        role="option"
+        aria-selected={template.id === selectedId}
+        className={`template-select__option${template.id === selectedId ? " template-select__option--active" : ""}`}
+        onClick={() => {
+          setOpen(false);
+          if (template.id !== selectedId) onSelect(template.id);
+        }}
+      >
+        {template.title}
+      </button>
+      {onDeleteUserTemplate ? (
+        <button
+          type="button"
+          className="template-select__remove"
+          title={`Remove “${template.title}”`}
+          aria-label={`Remove ${template.title}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (!window.confirm(`Remove “${template.title}” from Your templates?`)) return;
+            void onDeleteUserTemplate(template.id);
+          }}
+        >
+          ×
+        </button>
+      ) : null}
     </li>
   );
 
@@ -77,7 +116,7 @@ export default function TemplateSelector({ templates, selectedId, onSelect }: Pr
           <li className="template-select__group" role="presentation">
             <span className="template-select__group-label">Default templates</span>
             <ul className="template-select__group-list">
-              {bundled.length > 0 ? bundled.map(renderOption) : (
+              {bundled.length > 0 ? bundled.map(renderBundledOption) : (
                 <li className="template-select__empty">No default templates</li>
               )}
             </ul>
@@ -85,8 +124,8 @@ export default function TemplateSelector({ templates, selectedId, onSelect }: Pr
           <li className="template-select__group" role="presentation">
             <span className="template-select__group-label">Your templates</span>
             <ul className="template-select__group-list">
-              {user.length > 0 ? user.map(renderOption) : (
-                <li className="template-select__empty">Save a workflow as template to add it here</li>
+              {user.length > 0 ? user.map(renderUserOption) : (
+                <li className="template-select__empty">Use Settings → Save to Your templates</li>
               )}
             </ul>
           </li>

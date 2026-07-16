@@ -267,25 +267,33 @@ def _list_all_templates() -> list[dict[str, str]]:
 
 
 def _resolve_template_path(template_id: str) -> Path | None:
-    user_path = USER_TEMPLATES_DIR / f"{template_id}.groovy.json"
-    if user_path.exists():
-        return user_path
+    # Bundled wins over any user file with the same id (user saves must not shadow defaults).
     bundled_path = TEMPLATES_DIR / f"{template_id}.groovy.json"
     if bundled_path.exists():
         return bundled_path
+    user_path = USER_TEMPLATES_DIR / f"{template_id}.groovy.json"
+    if user_path.exists():
+        return user_path
     return None
+
+
+def _user_template_id_taken(template_id: str) -> bool:
+    if (USER_TEMPLATES_DIR / f"{template_id}.groovy.json").exists():
+        return True
+    if (TEMPLATES_DIR / f"{template_id}.groovy.json").exists():
+        return True
+    return False
 
 
 def _unique_user_template_path(template_id: str) -> Path:
     USER_TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
-    candidate = USER_TEMPLATES_DIR / f"{template_id}.groovy.json"
-    if not candidate.exists():
-        return candidate
+    if not _user_template_id_taken(template_id):
+        return USER_TEMPLATES_DIR / f"{template_id}.groovy.json"
     index = 2
     while True:
-        candidate = USER_TEMPLATES_DIR / f"{template_id}-{index}.groovy.json"
-        if not candidate.exists():
-            return candidate
+        candidate_id = f"{template_id}-{index}"
+        if not _user_template_id_taken(candidate_id):
+            return USER_TEMPLATES_DIR / f"{candidate_id}.groovy.json"
         index += 1
 
 
@@ -514,6 +522,23 @@ def save_user_template(body: GenerateTemplateRequest) -> dict[str, Any]:
 @app.get("/api/templates")
 def list_templates() -> dict[str, list[dict[str, str]]]:
     return {"templates": _list_all_templates()}
+
+
+@app.delete("/api/templates/{template_id}")
+def delete_user_template(template_id: str) -> dict[str, Any]:
+    if "/" in template_id or "\\" in template_id or ".." in template_id or not template_id.strip():
+        raise HTTPException(status_code=400, detail="Invalid template id")
+    path = (USER_TEMPLATES_DIR / f"{template_id}.groovy.json").resolve()
+    try:
+        path.relative_to(USER_TEMPLATES_DIR.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid template id") from exc
+    if not path.is_file():
+        if (TEMPLATES_DIR / f"{template_id}.groovy.json").is_file():
+            raise HTTPException(status_code=403, detail="Bundled templates cannot be deleted")
+        raise HTTPException(status_code=404, detail="Template not found")
+    path.unlink()
+    return {"ok": True, "template_id": template_id}
 
 
 @app.get("/api/templates/{template_id}")

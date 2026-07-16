@@ -13,6 +13,7 @@ import {
 } from "../api";
 import { ParamSwitch } from "./ParamControls";
 
+/** Kept for Phase 4 Live I/O — not mounted in App until device routing ships. */
 type Props = {
   open: boolean;
   onClose: () => void;
