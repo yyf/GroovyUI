@@ -16,9 +16,9 @@ function ratioFromPointer(clientX: number, rect: DOMRect): number {
 }
 
 function formatFreqLabel(hz: number): string {
-  if (hz >= 10_000) return `${Math.round(hz / 1000)}k`;
-  if (hz >= 1000) return `${(hz / 1000).toFixed(1)}k`;
-  return `${Math.round(hz)}`;
+  if (hz >= 10_000) return `${Math.round(hz / 1000)}kHz`;
+  if (hz >= 1000) return `${(hz / 1000).toFixed(1)}kHz`;
+  return `${Math.round(hz)}Hz`;
 }
 
 function FreqScale({ maxFreqHz }: { maxFreqHz: number }) {
@@ -31,7 +31,7 @@ function FreqScale({ maxFreqHz }: { maxFreqHz: number }) {
       <span className="spectrogram-mini__scale-mark spectrogram-mini__scale-mark--mid">
         {formatFreqLabel(mid)}
       </span>
-      <span className="spectrogram-mini__scale-mark spectrogram-mini__scale-mark--bot">0</span>
+      <span className="spectrogram-mini__scale-mark spectrogram-mini__scale-mark--bot">0Hz</span>
     </div>
   );
 }
@@ -165,15 +165,24 @@ export default function SpectrogramMini({
   const plotProps = onSeek
     ? {
         onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.button !== 0) return;
           event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
           seekFromEvent(event.clientX);
-          const onMove = (moveEvent: PointerEvent) => seekFromEvent(moveEvent.clientX);
-          const onUp = () => {
-            window.removeEventListener("pointermove", onMove);
-            window.removeEventListener("pointerup", onUp);
-          };
-          window.addEventListener("pointermove", onMove);
-          window.addEventListener("pointerup", onUp);
+        },
+        onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          seekFromEvent(event.clientX);
+        },
+        onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        },
+        onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
         },
       }
     : {};

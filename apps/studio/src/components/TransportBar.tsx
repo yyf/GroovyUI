@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchSpectrogram, type SpectrogramData } from "../api";
 import SpectrogramMini from "./SpectrogramMini";
 import WaveformMini from "./WaveformMini";
@@ -18,8 +18,8 @@ function cacheIdFromPreviewUrl(url: string): string | null {
   return match?.[1] ?? null;
 }
 
-function waitForAudioReady(audio: HTMLAudioElement): Promise<void> {
-  if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+function waitForAudioMetadata(audio: HTMLAudioElement): Promise<void> {
+  if (audio.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(audio.duration) && audio.duration > 0) {
     return Promise.resolve();
   }
   return new Promise<void>((resolve, reject) => {
@@ -32,12 +32,12 @@ function waitForAudioReady(audio: HTMLAudioElement): Promise<void> {
       reject(new Error("Preview audio failed to load"));
     };
     const cleanup = () => {
-      audio.removeEventListener("canplaythrough", onReady);
-      audio.removeEventListener("canplay", onReady);
+      audio.removeEventListener("loadedmetadata", onReady);
+      audio.removeEventListener("durationchange", onReady);
       audio.removeEventListener("error", onError);
     };
-    audio.addEventListener("canplaythrough", onReady);
-    audio.addEventListener("canplay", onReady);
+    audio.addEventListener("loadedmetadata", onReady);
+    audio.addEventListener("durationchange", onReady);
     audio.addEventListener("error", onError);
   });
 }
@@ -46,6 +46,8 @@ type Props = {
   previewUrl: string | null;
   previewKind?: "audio" | "midi" | null;
   waveformPeaks?: number[];
+  /** Clip duration from waveform API (seconds); preferred for seek math. */
+  waveformDuration?: number;
   midiRoll?: {
     duration: number;
     notes: MidiRollNote[];
@@ -67,6 +69,7 @@ export default function TransportBar({
   previewUrl,
   previewKind = null,
   waveformPeaks = [],
+  waveformDuration = 0,
   midiRoll = null,
   emptyHint = "No render yet",
   running,
@@ -77,8 +80,11 @@ export default function TransportBar({
   auditionNonce = 0,
 }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const blobUrlRef = useRef<string | null>(null);
   const loadedCacheIdRef = useRef<string | null>(null);
-  const rafRef = useRef<number>(0);
+  const loadPromiseRef = useRef<Promise<void> | null>(null);
+  const playheadRatioRef = useRef(0);
+  const rafRef = useRef(0);
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -95,32 +101,43 @@ export default function TransportBar({
   const hasPreview = Boolean(previewUrl);
   const midiTimelineDuration = midiRoll?.duration && midiRoll.duration > 0 ? midiRoll.duration : 0;
 
-  const timelineDuration = useCallback(() => {
-    const audio = audioRef.current;
-    if (isMidiVisual && midiTimelineDuration > 0) return midiTimelineDuration;
-    const dur = audio?.duration;
-    return dur && Number.isFinite(dur) ? dur : 0;
-  }, [isMidiVisual, midiTimelineDuration]);
+  const revokeBlobUrl = useCallback(() => {
+    if (blobUrlRef.current) {
+      URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = null;
+    }
+  }, []);
 
-  const syncProgress = useCallback(() => {
+  const timelineDuration = useCallback(() => {
+    if (isMidiVisual && midiTimelineDuration > 0) return midiTimelineDuration;
+    if (waveformDuration > 0) return waveformDuration;
     const audio = audioRef.current;
-    if (!audio) {
-      setPlaybackProgress(0);
-      setPlaybackTime(0);
-      setDuration(0);
-      return;
-    }
-    const dur = timelineDuration();
-    if (!dur) {
-      setPlaybackProgress(0);
-      setPlaybackTime(0);
-      setDuration(0);
-      return;
-    }
-    setPlaybackTime(audio.currentTime);
-    setDuration(dur);
-    setPlaybackProgress(Math.min(1, audio.currentTime / dur));
-  }, [timelineDuration]);
+    const dur = audio?.duration;
+    return dur && Number.isFinite(dur) && dur > 0 ? dur : 0;
+  }, [isMidiVisual, midiTimelineDuration, waveformDuration]);
+
+  const setPlayheadRatio = useCallback(
+    (ratio: number, options?: { commitAudio?: boolean }) => {
+      const commitAudio = options?.commitAudio ?? false;
+      const clamped = Math.min(1, Math.max(0, ratio));
+      playheadRatioRef.current = clamped;
+      const dur = timelineDuration();
+      setPlaybackProgress(clamped);
+      if (dur > 0) {
+        setPlaybackTime(clamped * dur);
+        setDuration(dur);
+      }
+      if (!commitAudio) return;
+      const audio = audioRef.current;
+      if (!audio || !dur) return;
+      if (!(audio.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(audio.duration) && audio.duration > 0)) {
+        return;
+      }
+      // Avoid seeking exactly to duration (some browsers snap to end/ended).
+      audio.currentTime = Math.min(clamped * audio.duration, Math.max(0, audio.duration - 0.001));
+    },
+    [timelineDuration],
+  );
 
   const stopRaf = useCallback(() => {
     if (rafRef.current) {
@@ -137,64 +154,81 @@ export default function TransportBar({
         rafRef.current = 0;
         return;
       }
-      syncProgress();
+      const dur = timelineDuration() || audio.duration || 0;
+      if (dur > 0) {
+        const ratio = Math.min(1, audio.currentTime / dur);
+        playheadRatioRef.current = ratio;
+        setPlaybackProgress(ratio);
+        setPlaybackTime(audio.currentTime);
+        setDuration(dur);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
-  }, [stopRaf, syncProgress]);
+  }, [stopRaf, timelineDuration]);
 
-  const loadPreviewSource = useCallback(async (url: string) => {
+  const ensureBlobLoaded = useCallback(async () => {
     const audio = audioRef.current;
-    if (!audio) return;
-    const cacheId = cacheIdFromPreviewUrl(url);
-    if (cacheId && loadedCacheIdRef.current === cacheId && audio.src) {
+    if (!audio || !previewUrl) return;
+
+    const cacheId = cacheIdFromPreviewUrl(previewUrl);
+    if (cacheId && loadedCacheIdRef.current === cacheId && blobUrlRef.current && audio.src === blobUrlRef.current) {
+      if (audio.readyState >= HTMLMediaElement.HAVE_METADATA) return;
+      await waitForAudioMetadata(audio);
       return;
     }
-    audio.pause();
-    audio.currentTime = 0;
-    audio.src = url;
-    audio.load();
-    await waitForAudioReady(audio);
-    if (cacheId) loadedCacheIdRef.current = cacheId;
-  }, []);
+
+    if (loadPromiseRef.current) {
+      await loadPromiseRef.current;
+      if (cacheId && loadedCacheIdRef.current === cacheId) return;
+    }
+
+    const loadTask = (async () => {
+      const response = await fetch(previewUrl);
+      if (!response.ok) {
+        throw new Error(`Preview fetch failed (${response.status})`);
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      revokeBlobUrl();
+      blobUrlRef.current = objectUrl;
+      audio.pause();
+      audio.src = objectUrl;
+      audio.load();
+      await waitForAudioMetadata(audio);
+      if (cacheId) loadedCacheIdRef.current = cacheId;
+      // Re-apply playhead after load (blob load resets currentTime to 0).
+      setPlayheadRatio(playheadRatioRef.current, { commitAudio: true });
+    })();
+
+    loadPromiseRef.current = loadTask;
+    try {
+      await loadTask;
+    } finally {
+      if (loadPromiseRef.current === loadTask) {
+        loadPromiseRef.current = null;
+      }
+    }
+  }, [previewUrl, revokeBlobUrl, setPlayheadRatio]);
 
   const playAudio = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio || !previewUrl) return;
     try {
-      await loadPreviewSource(previewUrl);
+      await ensureBlobLoaded();
+      setPlayheadRatio(playheadRatioRef.current, { commitAudio: true });
       await audio.play();
     } catch {
       // Browser may block autoplay without a direct gesture; ignore.
     }
-  }, [loadPreviewSource, previewUrl]);
+  }, [ensureBlobLoaded, previewUrl, setPlayheadRatio]);
 
-  useLayoutEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (!previewUrl) {
-      loadedCacheIdRef.current = null;
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      return;
-    }
-    const cacheId = cacheIdFromPreviewUrl(previewUrl);
-    if (cacheId && loadedCacheIdRef.current === cacheId && audio.src) {
-      return;
-    }
-    audio.pause();
-    audio.currentTime = 0;
-    audio.src = previewUrl;
-    audio.load();
-    if (cacheId) loadedCacheIdRef.current = cacheId;
-  }, [previewUrl]);
+  const playAudioRef = useRef(playAudio);
+  playAudioRef.current = playAudio;
 
+  // Prefetch blob when preview changes so seek/play are ready.
   useEffect(() => {
-    syncProgress();
-  }, [midiTimelineDuration, syncProgress]);
-
-  useEffect(() => {
+    playheadRatioRef.current = 0;
     setPlaybackProgress(0);
     setPlaybackTime(0);
     setDuration(0);
@@ -202,7 +236,49 @@ export default function TransportBar({
     setSpectrogram(null);
     setSpectrogramError(null);
     stopRaf();
-  }, [previewUrl, previewKind, midiRoll, stopRaf]);
+    loadedCacheIdRef.current = null;
+    loadPromiseRef.current = null;
+
+    const audio = audioRef.current;
+    if (!previewUrl || !audio) {
+      revokeBlobUrl();
+      if (audio) {
+        audio.pause();
+        audio.removeAttribute("src");
+        audio.load();
+      }
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        await ensureBlobLoaded();
+        if (cancelled) return;
+      } catch {
+        // ignore prefetch errors; play/seek will retry
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Only remount media when the preview clip identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewUrl, previewKind, isMidiVisual ? midiTimelineDuration : 0]);
+
+  useEffect(() => {
+    return () => {
+      revokeBlobUrl();
+      stopRaf();
+    };
+  }, [revokeBlobUrl, stopRaf]);
+
+  useEffect(() => {
+    if (waveformDuration > 0) {
+      setDuration(waveformDuration);
+      setPlaybackTime(playheadRatioRef.current * waveformDuration);
+    }
+  }, [waveformDuration]);
 
   useEffect(() => {
     if (audioVisualMode !== "spectrogram" || isMidiVisual || !previewUrl) {
@@ -242,8 +318,8 @@ export default function TransportBar({
 
   useEffect(() => {
     if (!auditionNonce) return;
-    void playAudio();
-  }, [auditionNonce, playAudio]);
+    void playAudioRef.current();
+  }, [auditionNonce]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -256,11 +332,18 @@ export default function TransportBar({
     const onPause = () => {
       setIsPlaying(false);
       stopRaf();
-      syncProgress();
+      const dur = timelineDuration() || audio.duration || 0;
+      if (dur > 0) {
+        const ratio = Math.min(1, audio.currentTime / dur);
+        playheadRatioRef.current = ratio;
+        setPlaybackProgress(ratio);
+        setPlaybackTime(audio.currentTime);
+      }
     };
     const onEnded = () => {
       setIsPlaying(false);
       stopRaf();
+      playheadRatioRef.current = 0;
       setPlaybackProgress(0);
       setPlaybackTime(0);
     };
@@ -268,41 +351,26 @@ export default function TransportBar({
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
-    audio.addEventListener("seeked", syncProgress);
-    audio.addEventListener("loadedmetadata", syncProgress);
-
-    if (!audio.paused && !audio.ended) {
-      setIsPlaying(true);
-      startRaf();
-    }
-
     return () => {
       stopRaf();
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("seeked", syncProgress);
-      audio.removeEventListener("loadedmetadata", syncProgress);
     };
-  }, [previewUrl, startRaf, stopRaf, syncProgress]);
+  }, [previewUrl, startRaf, stopRaf, timelineDuration]);
 
   const handleSeek = useCallback(
     (ratio: number) => {
-      const audio = audioRef.current;
-      const dur = timelineDuration();
-      if (!audio || !dur) return;
-      const clamped = Math.min(1, Math.max(0, ratio));
-      const target = clamped * dur;
-      if (audio.duration && Number.isFinite(audio.duration)) {
-        audio.currentTime = Math.min(target, audio.duration);
-      } else {
-        audio.currentTime = target;
-      }
-      setPlaybackProgress(clamped);
-      setPlaybackTime(audio.currentTime);
-      if (!audio.paused) startRaf();
+      if (!previewUrl) return;
+      // Move playhead immediately; commit to audio element (blob) when ready.
+      setPlayheadRatio(ratio, { commitAudio: true });
+      void ensureBlobLoaded()
+        .then(() => {
+          setPlayheadRatio(playheadRatioRef.current, { commitAudio: true });
+        })
+        .catch(() => undefined);
     },
-    [startRaf, timelineDuration],
+    [ensureBlobLoaded, previewUrl, setPlayheadRatio],
   );
 
   const handlePause = useCallback(() => {
@@ -313,12 +381,10 @@ export default function TransportBar({
     const audio = audioRef.current;
     if (!audio) return;
     audio.pause();
-    audio.currentTime = 0;
-    setPlaybackProgress(0);
-    setPlaybackTime(0);
+    setPlayheadRatio(0, { commitAudio: true });
     setIsPlaying(false);
     stopRaf();
-  }, [stopRaf]);
+  }, [setPlayheadRatio, stopRaf]);
 
   const togglePlayPause = useCallback(() => {
     if (running || !hasPreview) return;
@@ -347,6 +413,7 @@ export default function TransportBar({
   const transportDisabled = running || !hasPreview;
   const canPause = Boolean(previewUrl) && isPlaying && !running;
   const canStop = Boolean(previewUrl) && (isPlaying || playbackProgress > 0) && !running;
+  const displayDuration = duration > 0 ? duration : timelineDuration();
 
   const statusLine =
     !running && statusMessage && statusMessage !== "Ready" ? (
@@ -366,7 +433,7 @@ export default function TransportBar({
                 void playAudio();
               }}
               disabled={transportDisabled}
-              title="Play selected node (Space)"
+              title="Play from playhead (Space) — click waveform to set start"
             >
               Play
             </button>
@@ -427,58 +494,58 @@ export default function TransportBar({
                 </button>
               </div>
             ) : null}
-            <div className="transport__wave-visual">
-            {isMidiVisual ? (
-              <div className={previewUrl ? undefined : "transport__wave-empty"}>
-                <MidiRollMini
-                  duration={midiRoll?.duration ?? 1}
-                  notes={midiRoll?.notes ?? []}
-                  minPitch={midiRoll?.minPitch ?? 60}
-                  maxPitch={midiRoll?.maxPitch ?? 72}
-                  progress={playbackProgress}
-                  onSeek={previewUrl ? handleSeek : undefined}
-                  fitContainer
-                  className="transport__midi-roll"
-                />
-                {!previewUrl ? <p className="transport__empty">{emptyHint}</p> : null}
-              </div>
-            ) : previewUrl ? (
-              audioVisualMode === "spectrogram" ? (
-                <SpectrogramMini
-                  data={spectrogram}
-                  progress={playbackProgress}
-                  onSeek={handleSeek}
-                  fitContainer
-                  className="transport__spectrogram"
-                />
+            <div className="transport__wave-visual" title={hasPreview ? "Click waveform to set playhead" : undefined}>
+              {isMidiVisual ? (
+                <div className={previewUrl ? undefined : "transport__wave-empty"}>
+                  <MidiRollMini
+                    duration={midiRoll?.duration ?? 1}
+                    notes={midiRoll?.notes ?? []}
+                    minPitch={midiRoll?.minPitch ?? 60}
+                    maxPitch={midiRoll?.maxPitch ?? 72}
+                    progress={playbackProgress}
+                    onSeek={previewUrl ? handleSeek : undefined}
+                    fitContainer
+                    className="transport__midi-roll"
+                  />
+                  {!previewUrl ? <p className="transport__empty">{emptyHint}</p> : null}
+                </div>
+              ) : previewUrl ? (
+                audioVisualMode === "spectrogram" ? (
+                  <SpectrogramMini
+                    data={spectrogram}
+                    progress={playbackProgress}
+                    onSeek={handleSeek}
+                    fitContainer
+                    className="transport__spectrogram"
+                  />
+                ) : (
+                  <WaveformMini
+                    peaks={waveformPeaks}
+                    progress={playbackProgress}
+                    onSeek={handleSeek}
+                    fitContainer
+                    showScale
+                    className="transport__waveform"
+                  />
+                )
               ) : (
-                <WaveformMini
-                  peaks={waveformPeaks}
-                  progress={playbackProgress}
-                  onSeek={handleSeek}
-                  fitContainer
-                  showScale
-                  className="transport__waveform"
-                />
-              )
-            ) : (
-              <div className="transport__wave-empty">
-                <WaveformMini peaks={[]} fitContainer className="transport__waveform" />
-                <p className="transport__empty">{emptyHint}</p>
-              </div>
-            )}
-            {hasPreview && !isMidiVisual && audioVisualMode === "spectrogram" && spectrogramLoading ? (
-              <div className="transport__visual-loading">Loading spectrogram…</div>
-            ) : null}
-            {hasPreview && !isMidiVisual && audioVisualMode === "spectrogram" && spectrogramError ? (
-              <div className="transport__visual-error">{spectrogramError}</div>
-            ) : null}
+                <div className="transport__wave-empty">
+                  <WaveformMini peaks={[]} fitContainer className="transport__waveform" />
+                  <p className="transport__empty">{emptyHint}</p>
+                </div>
+              )}
+              {hasPreview && !isMidiVisual && audioVisualMode === "spectrogram" && spectrogramLoading ? (
+                <div className="transport__visual-loading">Loading spectrogram…</div>
+              ) : null}
+              {hasPreview && !isMidiVisual && audioVisualMode === "spectrogram" && spectrogramError ? (
+                <div className="transport__visual-error">{spectrogramError}</div>
+              ) : null}
             </div>
             {hasPreview ? (
               <div className="transport__time-tag" aria-live="off">
                 <span className="transport__time-current">{formatTimeTag(playbackTime)}</span>
                 <span className="transport__time-sep">/</span>
-                <span className="transport__time-duration">{formatTimeTag(duration)}</span>
+                <span className="transport__time-duration">{formatTimeTag(displayDuration)}</span>
               </div>
             ) : null}
             {statusLine ? <div className="transport__status-overlay">{statusLine}</div> : null}

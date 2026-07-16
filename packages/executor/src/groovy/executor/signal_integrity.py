@@ -239,16 +239,13 @@ def audit_output_contract(
                 missing = spec.expect_stem_keys - stem_keys
                 if missing:
                     errors.append(f"{spec.expect_stems_node}: missing stem keys {sorted(missing)}")
-
-            stem_pick = next((n for n in workflow.nodes if n.type == "StemPick"), None)
-            if stem_pick and load_meta:
-                picked = stem_pick.widgets.get("stem", "vocals")
-                stem_cache_id = stems_out.get("stems", {}).get(picked)
-                if stem_cache_id:
-                    stem_meta = cache.read_meta(stem_cache_id)
+            if load_meta:
+                vocals_id = stems_out.get("stems", {}).get("vocals")
+                if vocals_id:
+                    stem_meta = cache.read_meta(vocals_id)
                     if stem_meta.get("sample_rate") != load_meta.get("sample_rate"):
                         errors.append(
-                            f"stem {picked} SR {stem_meta.get('sample_rate')} != load SR {load_meta.get('sample_rate')}"
+                            f"vocals SR {stem_meta.get('sample_rate')} != load SR {load_meta.get('sample_rate')}"
                         )
         elif spec.expect_stem_keys:
             errors.append(f"{spec.expect_stems_node}: expected MULTI or STEMS output")

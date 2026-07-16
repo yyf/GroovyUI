@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
-from groovy.executor.audio import AudioBuffer, StemsBuffer
+from groovy.executor.audio import AudioBuffer
 from groovy.executor.audio_meta import (
     apply_file_probe,
     channel_layout_for_channels,
@@ -34,7 +34,6 @@ def register_all() -> None:
         Mix,
         Normalize,
         Preview,
-        StemPick,
         VerifyProvenance,
         AuthenticitySummary,
         Prompt,
@@ -443,24 +442,6 @@ class Preview(GroovyNode):
         if audio_in is not None:
             return (audio_in,)
         return (str(text_in),)
-
-
-@register_node
-class StemPick(GroovyNode):
-    RETURN_TYPES = ("AUDIO",)
-
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {"stems": ("STEMS",)},
-            "optional": {"stem": ("STRING", {"default": "vocals"})},
-        }
-
-    def run(self, stems: StemsBuffer, stem: str = "vocals", **kwargs) -> tuple[AudioBuffer]:
-        stem = str(kwargs.get("stem", stem))
-        if stem not in stems.stems:
-            raise ValueError(f"Unknown stem '{stem}'. Available: {', '.join(stems.stems)}")
-        return (stems.stems[stem],)
 
 
 @register_node

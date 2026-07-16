@@ -83,7 +83,7 @@ import {
 } from "./workflow";
 
 const nodeTypes: NodeTypes = { groovy: GroovyFlowNode, groovyGroup: ModuleGroupNode };
-const DEFAULT_TEMPLATE = "transcribe-and-regenerate";
+const DEFAULT_TEMPLATE = "podcast-denoise";
 
 export default function App() {
   const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory();
@@ -124,6 +124,7 @@ export default function App() {
   const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboardingComplete());
   const [dropHint, setDropHint] = useState(false);
   const [transportWaveform, setTransportWaveform] = useState<number[]>([]);
+  const [transportWaveformDuration, setTransportWaveformDuration] = useState(0);
   const [transportMidiRoll, setTransportMidiRoll] = useState<{
     duration: number;
     notes: { start: number; end: number; pitch: number; velocity: number; drum?: boolean }[];
@@ -790,16 +791,24 @@ export default function App() {
   useEffect(() => {
     if (!selectedNodePreview || previewKind === "midi") {
       setTransportWaveform([]);
+      setTransportWaveformDuration(0);
       return;
     }
     const match = selectedNodePreview.match(/\/api\/cache\/([^/?]+)\/preview/);
     if (!match) {
       setTransportWaveform([]);
+      setTransportWaveformDuration(0);
       return;
     }
     fetchWaveform(match[1], 512)
-      .then((data) => setTransportWaveform(data.peaks))
-      .catch(() => setTransportWaveform([]));
+      .then((data) => {
+        setTransportWaveform(data.peaks);
+        setTransportWaveformDuration(data.duration);
+      })
+      .catch(() => {
+        setTransportWaveform([]);
+        setTransportWaveformDuration(0);
+      });
   }, [selectedNodePreview, previewKind]);
 
   useEffect(() => {
@@ -1022,6 +1031,7 @@ export default function App() {
           previewUrl={selectedNodePreview}
           previewKind={previewKind}
           waveformPeaks={transportWaveform}
+          waveformDuration={transportWaveformDuration}
           midiRoll={transportMidiRoll}
           emptyHint={transportEmptyHint}
           running={running}

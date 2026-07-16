@@ -4,8 +4,11 @@ import type { TemplateListItem } from "./api";
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "podcast-denoise",
   "stem-split-vocals",
-  "transcribe-and-regenerate",
   "transcribe-dialogue",
+  "diarize-and-transcribe",
+  "tts-greeting",
+  "text-to-music",
+  "transcribe-and-regenerate",
   "hello-groovy",
 ] as const;
 

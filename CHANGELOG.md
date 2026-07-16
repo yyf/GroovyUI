@@ -1,5 +1,17 @@
 # GroovyUI Phase 0–2
 
+## Unreleased
+
+### Removed
+
+- **`StemPick`** node — unused after SeparateStems exposed per-stem AUDIO outs
+
+### Changed
+
+- **`musicgen-small`** — real text-to-music inference via `facebook/musicgen-small` (no longer a tone stub when `GROOVY_INFERENCE_STUB` is off)
+- **Featured template picker** — portfolio ship set only: podcast denoise → stems → dialogue → diarize → TTS → text-to-music → regenerate → hello
+- **Kokoro TTS** — no silent sine fallback when stub is off (raises if package missing)
+
 ## [0.19.0] - 2026-07-09
 
 **Phase 2.6 signal integrity** — patch-bay trust layer before export (v1 + expansion).

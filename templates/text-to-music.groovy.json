@@ -4,19 +4,22 @@
   "id": "b1c2d3e4-f5a6-7890-abcd-111122223333",
   "metadata": {
     "title": "Text to Music",
-    "description": "Generate music from a text prompt with MusicGen (dev stub).",
-    "tags": ["generation", "musicgen", "text"],
+    "author": "groovy",
+    "description": "Generate a music bed from a text prompt (MusicGen Small). Preview and save to exports. Swap model to musicgen-medium in the Inspector for higher quality.",
+    "tags": ["featured", "generation", "musicgen", "text", "music"],
     "created_at": "2026-07-06T12:30:00Z",
-    "modified_at": "2026-07-06T12:30:00Z"
+    "modified_at": "2026-07-15T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "Prompt", "pos": { "x": 0, "y": 0 }, "widgets": { "text": "warm lo-fi beat with soft piano" } },
-    { "id": "n2", "type": "GenerateAudio", "pos": { "x": 260, "y": 0 }, "widgets": { "model": "musicgen-small" } },
-    { "id": "n3", "type": "Preview", "pos": { "x": 520, "y": 0 }, "widgets": {} }
+    { "id": "n1", "type": "Prompt", "pos": { "x": 0, "y": 40 }, "widgets": { "text": "warm lo-fi beat with soft piano" } },
+    { "id": "n2", "type": "GenerateAudio", "pos": { "x": 260, "y": 40 }, "widgets": { "model": "musicgen-small" } },
+    { "id": "n3", "type": "Preview", "pos": { "x": 520, "y": 0 }, "widgets": {} },
+    { "id": "n4", "type": "SaveAudio", "pos": { "x": 520, "y": 160 }, "widgets": { "path": "exports", "filename": "text-to-music.wav", "format": "wav" } }
   ],
   "links": [
     { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "TEXT" },
-    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" }
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
+    { "id": "l3", "from": ["n2", 0], "to": ["n4", 0], "type": "AUDIO" }
   ],
   "groups": [],
   "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }

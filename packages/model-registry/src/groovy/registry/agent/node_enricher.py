@@ -27,9 +27,17 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "description": "Transcribe speech to text with a Whisper-class STT model.",
         "widgets": {"model": "Speech-to-text model from the registry."},
     },
+    "DiarizeTranscribe": {
+        "description": "Speaker-labeled transcript for meetings and podcasts (Whisper + diarization).",
+        "widgets": {
+            "model": "Whisper STT model for transcription.",
+            "diarize_model": "Diarization model id (pyannote when installed; else energy-turn fallback).",
+            "language": "ISO language code for Whisper.",
+        },
+    },
     "TTS": {
         "description": "Synthesize speech from a text prompt using a TTS model.",
-        "widgets": {"model": "Text-to-speech model.", "text": "Script or prompt to speak."},
+        "widgets": {"model": "Text-to-speech model (default Kokoro-82M).", "text": "Script or prompt to speak."},
     },
     "VoiceConvert": {
         "description": "Convert speaker timbre while preserving timing and intelligibility.",

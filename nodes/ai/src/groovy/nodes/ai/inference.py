@@ -175,9 +175,29 @@ def run_whisper_stt(cache: CacheStore, kwargs: dict) -> list[dict]:
     return [{"type": "TEXT", "text": text}]
 
 
+def run_diarize_transcribe(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import float_param
+
+    audio_id = kwargs["audio_id"]
+    model_id = str(kwargs.get("model", "whisper-large-v3-turbo"))
+    diarize_model = str(kwargs.get("diarize_model", "pyannote-diarization-3.1"))
+    language = str(kwargs.get("language", "en"))
+    temperature = float_param(kwargs, "temperature", 0.0)
+    buffer, pcm = cache.load_audio(audio_id)
+    text = diarize_and_transcribe(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        diarize_model=diarize_model,
+        language=language,
+        temperature=temperature,
+    )
+    return [{"type": "TEXT", "text": text}]
+
+
 def run_tts(cache: CacheStore, kwargs: dict) -> list[dict]:
     text = str(kwargs.get("transcript") or kwargs.get("text") or "Hello from GroovyUI.")
-    model_id = str(kwargs.get("model", "f5-tts-base"))
+    model_id = str(kwargs.get("model", "kokoro-82m"))
     sample_rate = 48000
     pcm = synthesize_speech(text, sample_rate=sample_rate, model_id=model_id)
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="TTS")
@@ -365,11 +385,125 @@ def _transcribe_audio_stub(
     )
 
 
+def diarize_and_transcribe(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    diarize_model: str = "pyannote-diarization-3.1",
+    language: str = "en",
+    temperature: float = 0.0,
+) -> str:
+    """Return speaker-labeled transcript (pyannote when available; else energy turns + Whisper)."""
+    transcript = transcribe_audio(
+        pcm,
+        sample_rate=sample_rate,
+        model_id=model_id,
+        language=language,
+        temperature=temperature,
+    )
+    turns = _speaker_turns(pcm, sample_rate=sample_rate, diarize_model=diarize_model)
+    return _format_diarized_transcript(transcript, turns, diarize_model=diarize_model)
+
+
+def _speaker_turns(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    diarize_model: str,
+) -> list[tuple[float, float, str]]:
+    """Return (start_s, end_s, speaker_id) turns."""
+    try:
+        from groovy.nodes.ai.backends.pyannote_runner import diarize_pcm
+
+        return diarize_pcm(pcm, sample_rate=sample_rate, model_id=diarize_model)
+    except Exception:
+        return _energy_speaker_turns(pcm, sample_rate=sample_rate)
+
+
+def _energy_speaker_turns(pcm: np.ndarray, *, sample_rate: int) -> list[tuple[float, float, str]]:
+    if pcm.ndim == 1:
+        mono = pcm.astype(np.float64)
+    else:
+        mono = pcm.mean(axis=0).astype(np.float64)
+    if mono.size == 0:
+        return [(0.0, 0.0, "SPEAKER_00")]
+    hop = max(1, int(sample_rate * 0.5))
+    frame = max(hop, int(sample_rate * 1.0))
+    energies: list[float] = []
+    for start in range(0, len(mono), hop):
+        chunk = mono[start : start + frame]
+        if chunk.size == 0:
+            break
+        energies.append(float(np.sqrt(np.mean(np.square(chunk)))))
+    if not energies:
+        duration = len(mono) / max(sample_rate, 1)
+        return [(0.0, duration, "SPEAKER_00")]
+    median = float(np.median(energies))
+    voiced = [e > median * 0.35 for e in energies]
+    turns: list[tuple[float, float, str]] = []
+    speaker = 0
+    i = 0
+    while i < len(voiced):
+        if not voiced[i]:
+            i += 1
+            continue
+        j = i
+        while j < len(voiced) and voiced[j]:
+            j += 1
+        start_s = i * hop / sample_rate
+        end_s = min(len(mono), j * hop) / sample_rate
+        turns.append((start_s, end_s, f"SPEAKER_{speaker:02d}"))
+        speaker = 1 - speaker
+        i = j
+    if not turns:
+        duration = len(mono) / max(sample_rate, 1)
+        return [(0.0, duration, "SPEAKER_00")]
+    return turns
+
+
+def _format_diarized_transcript(
+    transcript: str,
+    turns: list[tuple[float, float, str]],
+    *,
+    diarize_model: str,
+) -> str:
+    parts = [p.strip() for p in transcript.replace("\n", " ").split(".") if p.strip()]
+    if not parts:
+        parts = [transcript.strip() or "(empty transcript)"]
+    lines: list[str] = [f"# diarize={diarize_model} turns={len(turns)}"]
+    for index, part in enumerate(parts):
+        turn = turns[min(index, len(turns) - 1)]
+        start_s, end_s, speaker = turn
+        lines.append(f"[{start_s:06.2f}-{end_s:06.2f}] {speaker}: {part}.")
+    return "\n".join(lines)
+
+
 def synthesize_speech(text: str, *, sample_rate: int, model_id: str) -> np.ndarray:
-    _ = model_id
+    from groovy.nodes.ai.inference_env import inference_stub_enabled
+
+    if model_id == "kokoro-82m":
+        if not inference_stub_enabled():
+            from groovy.nodes.ai.backends.kokoro_runner import synthesize_pcm
+
+            return synthesize_pcm(text, sample_rate=sample_rate)
+        return _synthesize_speech_stub(text, sample_rate=sample_rate, model_id=model_id)
+
+    if inference_stub_enabled():
+        return _synthesize_speech_stub(text, sample_rate=sample_rate, model_id=model_id)
+
+    raise RuntimeError(
+        f"Unsupported TTS model for real inference: {model_id}. "
+        "Install kokoro-82m from Model Browser, or set GROOVY_INFERENCE_STUB=1 for tone stubs."
+    )
+
+
+def _synthesize_speech_stub(text: str, *, sample_rate: int, model_id: str) -> np.ndarray:
     duration = min(3.0, max(0.5, len(text) * 0.05))
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    tone = 0.2 * np.sin(2 * np.pi * 220 * t)
+    # Slight pitch difference per model so stub A/B is audible.
+    freq = 196.0 if "kokoro" in model_id else 220.0
+    tone = 0.2 * np.sin(2 * np.pi * freq * t)
     return tone.reshape(1, -1)
 
 
@@ -441,6 +575,8 @@ def run_midi_to_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
 
 
 def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import float_param, int_param
+
     model_id = str(kwargs.get("model", "musicgen-small"))
     prompt = str(kwargs.get("prompt") or kwargs.get("text") or "ambient music")
     sample_rate = 48000
@@ -456,6 +592,9 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
         model_id=model_id,
         midi=midi,
         reference_pcm=ref_pcm,
+        max_new_tokens=int_param(kwargs, "max_new_tokens", 512),
+        guidance_scale=float_param(kwargs, "guidance_scale", 3.0),
+        temperature=float_param(kwargs, "temperature", 1.0),
     )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="GenerateAudio")
     cache.write_audio(out_buffer, pcm)
@@ -647,8 +786,44 @@ def generate_audio_waveform(
     model_id: str,
     midi: MidiBuffer | None = None,
     reference_pcm: np.ndarray | None = None,
+    max_new_tokens: int = 512,
+    guidance_scale: float = 3.0,
+    temperature: float = 1.0,
 ) -> np.ndarray:
-    _ = model_id, reference_pcm
+    from groovy.nodes.ai.inference_env import inference_stub_enabled, musicgen_small_available
+
+    _ = reference_pcm
+    if model_id == "musicgen-small":
+        if musicgen_small_available() and not inference_stub_enabled():
+            from groovy.nodes.ai.backends.musicgen_small_runner import generate_from_text
+
+            return generate_from_text(
+                prompt,
+                sample_rate=sample_rate,
+                max_new_tokens=max_new_tokens,
+                guidance_scale=guidance_scale,
+                temperature=temperature,
+            )
+        if inference_stub_enabled():
+            return _generate_audio_stub(prompt, sample_rate=sample_rate, midi=midi, model_id=model_id)
+        raise RuntimeError(
+            "MusicGen Small inference is not installed. Run: ./scripts/setup-inference.sh "
+            "(requires torch, transformers) then install musicgen-small from Model Browser."
+        )
+
+    if inference_stub_enabled():
+        return _generate_audio_stub(prompt, sample_rate=sample_rate, midi=midi, model_id=model_id)
+
+    raise RuntimeError(f"Unsupported text-to-music model for real inference: {model_id}")
+
+
+def _generate_audio_stub(
+    prompt: str,
+    *,
+    sample_rate: int,
+    midi: MidiBuffer | None,
+    model_id: str,
+) -> np.ndarray:
     seed = sum(ord(c) for c in prompt) % 11
     duration = 2.0
     if midi is not None:
@@ -657,7 +832,7 @@ def generate_audio_waveform(
     f1 = 130 + seed * 12
     f2 = 196 + seed * 8
     tone = 0.12 * (np.sin(2 * np.pi * f1 * t) + 0.5 * np.sin(2 * np.pi * f2 * t))
-    if midi is not None:
+    if midi is not None and model_id == "musicgen-melody-small":
         melody = midi_to_audio_waveform(midi, sample_rate=sample_rate, model_id=model_id, prompt=prompt)
         min_len = min(tone.shape[-1], melody.shape[-1])
         tone = tone[:min_len] + 0.5 * melody[0, :min_len]

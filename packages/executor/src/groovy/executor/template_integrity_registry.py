@@ -18,6 +18,7 @@ TerminalOutputType = Literal["AUDIO", "MIDI", "TEXT", "AUTHENTICITY", "NONE"]
 TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "Preview": "AUDIO",
     "WhisperSTT": "TEXT",
+    "DiarizeTranscribe": "TEXT",
     "AudioToMIDI": "MIDI",
     "AuthenticitySummary": "AUTHENTICITY",
     "MIDIOutDevice": "NONE",
@@ -82,6 +83,20 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         # n3 = text Preview (Whisper); n4 = audio Preview (source waveform).
         "terminal_output_type": "TEXT",
         "required_outputs": (("n2", "TEXT"), ("n3", "TEXT"), ("n4", "AUDIO")),
+    },
+    "cleanup-and-transcribe": {
+        "terminal_output_type": "TEXT",
+        "required_outputs": (("n4", "TEXT"), ("n5", "TEXT"), ("n6", "AUDIO")),
+    },
+    "diarize-and-transcribe": {
+        "terminal_output_type": "TEXT",
+        "required_outputs": (("n2", "TEXT"), ("n3", "TEXT"), ("n4", "AUDIO")),
+    },
+    "karaoke-stems": {
+        "sample_path": "assets/samples/male-1.wav",
+        "expect_stems_node": "n2",
+        "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
+        "required_outputs": (("n5", "AUDIO"), ("n6", "AUDIO")),
     },
     "transcribe-to-midi": {"terminal_output_type": "MIDI"},
     "transcribe-to-synth": {

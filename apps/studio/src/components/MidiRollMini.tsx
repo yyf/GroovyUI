@@ -19,8 +19,29 @@ type Props = {
   className?: string;
 };
 
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
+
 function ratioFromPointer(clientX: number, rect: DOMRect): number {
   return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+}
+
+/** Typical piano-roll label: note name + octave (MIDI pitch). */
+function midiToLabel(pitch: number): string {
+  const clamped = Math.round(pitch);
+  const name = NOTE_NAMES[((clamped % 12) + 12) % 12];
+  const octave = Math.floor(clamped / 12) - 1;
+  return `${name}${octave}`;
+}
+
+function PitchScale({ minPitch, maxPitch }: { minPitch: number; maxPitch: number }) {
+  const mid = Math.round((minPitch + maxPitch) / 2);
+  return (
+    <div className="midi-roll-mini__scale" aria-label="MIDI pitch">
+      <span className="midi-roll-mini__scale-mark midi-roll-mini__scale-mark--top">{midiToLabel(maxPitch)}</span>
+      <span className="midi-roll-mini__scale-mark midi-roll-mini__scale-mark--mid">{midiToLabel(mid)}</span>
+      <span className="midi-roll-mini__scale-mark midi-roll-mini__scale-mark--bot">{midiToLabel(minPitch)}</span>
+    </div>
+  );
 }
 
 export default function MidiRollMini({
@@ -60,11 +81,16 @@ export default function MidiRollMini({
   const timeSpan = Math.max(0.001, duration);
   const clampedProgress = Math.min(1, Math.max(0, progress));
   const playheadPct = `${clampedProgress * 100}%`;
-  const rootClass = ["midi-roll-mini", onSeek ? "midi-roll-mini--seekable" : "", className]
+  const rootClass = [
+    "midi-roll-mini",
+    "midi-roll-mini--with-scale",
+    onSeek ? "midi-roll-mini--seekable" : "",
+    className,
+  ]
     .filter(Boolean)
     .join(" ");
 
-  const content = (
+  const plot = (
     <>
       <svg className="midi-roll-mini__svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden>
         {Array.from({ length: pitchSpan + 1 }, (_, index) => {
@@ -107,31 +133,41 @@ export default function MidiRollMini({
     </>
   );
 
-  if (!onSeek) {
-    return (
-      <div ref={fitContainer ? containerRef : undefined} className={rootClass}>
-        {content}
-      </div>
-    );
-  }
+  const plotProps = onSeek
+    ? {
+        onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          seekFromEvent(event.clientX);
+        },
+        onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          seekFromEvent(event.clientX);
+        },
+        onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        },
+        onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        },
+      }
+    : {};
 
   return (
-    <div
-      ref={containerRef}
-      className={rootClass}
-      onPointerDown={(event) => {
-        event.preventDefault();
-        seekFromEvent(event.clientX);
-        const onMove = (moveEvent: PointerEvent) => seekFromEvent(moveEvent.clientX);
-        const onUp = () => {
-          window.removeEventListener("pointermove", onMove);
-          window.removeEventListener("pointerup", onUp);
-        };
-        window.addEventListener("pointermove", onMove);
-        window.addEventListener("pointerup", onUp);
-      }}
-    >
-      {content}
+    <div className={rootClass}>
+      <PitchScale minPitch={minPitch} maxPitch={maxPitch} />
+      <div
+        ref={containerRef}
+        className={["midi-roll-mini__plot", onSeek ? "midi-roll-mini__plot--seekable" : ""].filter(Boolean).join(" ")}
+        {...plotProps}
+      >
+        {plot}
+      </div>
     </div>
   );
 }

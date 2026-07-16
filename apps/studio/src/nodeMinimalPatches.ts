@@ -293,12 +293,28 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     nodes: [load("n1", 0), { id: "n2", type: "WhisperSTT", x: 260, widgets: { model: "whisper-large-v3-turbo", language: "en" } }],
     links: [link("l1", "n1", "n2", "AUDIO")],
   },
+  DiarizeTranscribe: {
+    title: "Diarize + Transcribe",
+    description: "Speaker-labeled meeting/podcast transcript.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      {
+        id: "n2",
+        type: "DiarizeTranscribe",
+        x: 260,
+        widgets: { model: "whisper-large-v3-turbo", diarize_model: "pyannote-diarization-3.1", language: "en" },
+      },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "TEXT", 0, 1)],
+  },
   TTS: {
     title: "TTS",
     description: "Synthesize speech from text.",
     focusNodeId: "n1",
     nodes: [
-      { id: "n1", type: "TTS", x: 0, widgets: { text: "Hello from GroovyUI.", model: "cosyvoice-300m" } },
+      { id: "n1", type: "TTS", x: 0, widgets: { text: "Hello from GroovyUI.", model: "kokoro-82m" } },
       { id: "n2", type: "Normalize", x: 260, widgets: { mode: "lufs", target_lufs: -16 } },
       preview("n3", 520),
     ],
@@ -719,6 +735,10 @@ function appendSinkForOutput(
   const reservedIds = new Set([focusNodeId]);
   const sinkX = focusPos.x + PATCH_X_STEP;
   const sinkY = focusPos.y + outputIndex * PATCH_Y_STEP;
+  // Legacy STEMS bundle — SeparateStems now exposes per-stem AUDIO outs; no sink node.
+  if (output.type === "STEMS") {
+    return;
+  }
   const sinkId = nextAugmentPatchNodeId(patchNodes, reservedIds);
 
   if (output.type === "AUDIO") {
@@ -729,14 +749,6 @@ function appendSinkForOutput(
   if (output.type === "AUTHENTICITY") {
     patchNodes.push({ id: sinkId, type: "AuthenticitySummary", x: sinkX, y: sinkY, widgets: { spoof_threshold: 0.5 } });
     links.push(link(`l${linkIndex.value++}`, focusNodeId, sinkId, "AUTHENTICITY", outputSlot, 1));
-    return;
-  }
-  if (output.type === "STEMS") {
-    patchNodes.push({ id: sinkId, type: "StemPick", x: sinkX, y: sinkY, widgets: { stem: "vocals" } });
-    links.push(link(`l${linkIndex.value++}`, focusNodeId, sinkId, "STEMS", outputSlot, 0));
-    const previewId = nextAugmentPatchNodeId(patchNodes, reservedIds);
-    patchNodes.push({ id: previewId, type: "Preview", x: sinkX + PATCH_X_STEP, y: sinkY, widgets: {} });
-    links.push(link(`l${linkIndex.value++}`, sinkId, previewId, "AUDIO"));
     return;
   }
   if (output.type === "MIDI") {

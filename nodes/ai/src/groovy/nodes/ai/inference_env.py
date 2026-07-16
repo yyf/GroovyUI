@@ -18,16 +18,28 @@ def basic_pitch_available() -> bool:
         return False
 
 
-def musicgen_melody_available() -> bool:
+def musicgen_available() -> bool:
     try:
-        import pretty_midi  # noqa: F401
         import torch  # noqa: F401
-        import torchaudio  # noqa: F401
         import transformers  # noqa: F401
 
         return True
     except ImportError:
         return False
+
+
+def musicgen_melody_available() -> bool:
+    try:
+        import pretty_midi  # noqa: F401
+        import torchaudio  # noqa: F401
+
+        return musicgen_available()
+    except ImportError:
+        return False
+
+
+def musicgen_small_available() -> bool:
+    return musicgen_available()
 
 
 def demucs_available() -> bool:
@@ -55,14 +67,25 @@ def whisper_available() -> bool:
         return False
 
 
+def kokoro_available() -> bool:
+    try:
+        import kokoro  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "deepfilternet-v3": deepfilternet_available,
     "basic-pitch": basic_pitch_available,
     "demucs-v4": demucs_available,
     "demucs-v4-ht": demucs_available,
     "musicgen-melody-small": musicgen_melody_available,
+    "musicgen-small": musicgen_small_available,
     "whisper-large-v3-turbo": whisper_available,
     "whisper-small-en": whisper_available,
+    "kokoro-82m": kokoro_available,
 }
 
 

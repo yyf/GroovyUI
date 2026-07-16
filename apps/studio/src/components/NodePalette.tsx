@@ -52,7 +52,7 @@ const IMMERSIVE_NODES = new Set([
 
 const LIVE_NODES = new Set(["MIDIInDevice", "MIDIOutDevice", "OSCInLive"]);
 
-const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix", "StemPick"]);
+const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix"]);
 
 const AUTHENTICITY = new Set(["VerifyProvenance", "AuthenticitySummary", "DeepfakeDetect"]);
 
