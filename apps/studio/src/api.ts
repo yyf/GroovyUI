@@ -672,6 +672,49 @@ export async function fetchAuthenticity(reportId: string): Promise<Record<string
   return res.json();
 }
 
+export type AbCompareClip = {
+  cache_id: string;
+  label: string;
+  duration_sec: number;
+  sample_rate: number;
+  channels: number;
+  channel_layout: string;
+  peak: number;
+  rms: number;
+  lufs: number | null;
+  source_node_type: string | null;
+  peaks: number[];
+};
+
+export type AbCompareWaveformStats = {
+  mean_abs_diff: number;
+  max_abs_diff: number;
+  correlation: number;
+  raw_peak_delta_db: number;
+};
+
+export type AbComparePcmStats = {
+  identical: boolean;
+  aligned_frames: number;
+  max_sample_diff: number;
+  rms_residual: number;
+  snr_db: number | null;
+  changed_sample_pct: number;
+  duration_delta_sec: number;
+};
+
+export type AbCompareComparison = {
+  same_cache: boolean;
+  duration_delta_sec: number;
+  peak_delta_db: number;
+  rms_delta_db: number;
+  lufs_delta: number | null;
+  same_layout: boolean;
+  same_sample_rate: boolean;
+  waveform: AbCompareWaveformStats;
+  pcm: AbComparePcmStats;
+};
+
 export type AbCompareResult = {
   mode: "signal" | "transcript";
   model_id: string;
@@ -684,9 +727,9 @@ export type AbCompareResult = {
   facts: string[];
   transcript_a?: string;
   transcript_b?: string;
-  clip_a: Record<string, unknown>;
-  clip_b: Record<string, unknown>;
-  comparison: Record<string, unknown>;
+  clip_a: AbCompareClip;
+  clip_b: AbCompareClip;
+  comparison: AbCompareComparison;
 };
 
 export async function fetchCompareModels(): Promise<ModelCard[]> {

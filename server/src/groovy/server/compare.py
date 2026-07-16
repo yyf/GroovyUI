@@ -101,6 +101,7 @@ def analyze_ab_pair(
             model_name=model_name,
             facts=facts,
             verdict_summary=verdict_summary,
+            differences=difference_bullets,
         )
         return {
             "mode": "transcript",

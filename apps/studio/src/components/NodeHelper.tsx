@@ -18,6 +18,7 @@ import { joinSaveAudioPath, jobOutputAtSlot, wiredInputSupersedesWidget, wiredIn
 import { hasMinimalPatch } from "../nodeMinimalPatches";
 import { inferenceParamsForModel } from "../modelInferenceParams";
 import AudioFormatPanel from "./AudioFormatPanel";
+import CompareMetricsViz from "./CompareMetricsViz";
 import { ParamFader, ParamPot, ParamStepped, ParamSwitch } from "./ParamControls";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
@@ -33,6 +34,8 @@ type CompareEntry = {
 
 type Props = {
   node: WorkflowNode | null;
+  selectedNodes?: WorkflowNode[];
+  selectionOutputs?: Record<string, JobOutput> | null;
   workflow: Workflow;
   output?: JobOutput;
   previewUrl?: string | null;
@@ -52,6 +55,8 @@ type Props = {
 
 export default function NodeHelper({
   node,
+  selectedNodes = [],
+  selectionOutputs = null,
   workflow,
   output,
   previewUrl,
@@ -180,23 +185,39 @@ export default function NodeHelper({
     return params.filter((param) => !widgetNames.has(param.name));
   }, [modelCard, schema, selectedModelId]);
 
+  if (showCompare) {
+    return (
+      <aside className="node-helper node-helper--compare-only">
+        <div className="node-helper__scroll">
+          <ComparePanel
+            comparePair={comparePair}
+            compareNote={compareNote}
+            compareMissingRender={compareMissingRender}
+            chainHops={chainHops}
+            waveforms={compareWaveforms}
+            onCompareAudition={onCompareAudition}
+            onSelectCompareHop={onSelectCompareHop}
+          />
+        </div>
+      </aside>
+    );
+  }
+
+  if (selectedNodes.length > 2) {
+    return (
+      <aside className="node-helper node-helper--selection-only">
+        <div className="node-helper__scroll">
+          <MultiSelectSummary nodes={selectedNodes} workflow={workflow} outputs={selectionOutputs} />
+        </div>
+      </aside>
+    );
+  }
+
   if (!node) {
     return (
       <aside className="node-helper node-helper--compare-only">
         <div className="node-helper__scroll">
-          {showCompare ? (
-            <ComparePanel
-              comparePair={comparePair}
-              compareNote={compareNote}
-              compareMissingRender={compareMissingRender}
-              chainHops={chainHops}
-              waveforms={compareWaveforms}
-              onCompareAudition={onCompareAudition}
-              onSelectCompareHop={onSelectCompareHop}
-            />
-          ) : (
-            <p className="node-helper__empty-hint">Select a node to edit parameters.</p>
-          )}
+          <p className="node-helper__empty-hint">Select a node to edit parameters.</p>
         </div>
       </aside>
     );
@@ -221,17 +242,6 @@ export default function NodeHelper({
         </div>
       ) : null}
       <div className="node-helper__scroll">
-        {showCompare ? (
-          <ComparePanel
-            comparePair={comparePair}
-            compareNote={compareNote}
-            compareMissingRender={compareMissingRender}
-            chainHops={chainHops}
-            waveforms={compareWaveforms}
-            onCompareAudition={onCompareAudition}
-            onSelectCompareHop={onSelectCompareHop}
-          />
-        ) : null}
         {schema?.description ? <p className="node-helper__desc">{schema.description}</p> : null}
         {hasMinimalPatch(node.type) ? (
           <p className="node-helper__hint">Press <kbd>Tab</kbd> to wire missing example inputs and outputs for this node.</p>
@@ -490,6 +500,133 @@ export default function NodeHelper({
   );
 }
 
+function MultiSelectSummary({
+  nodes,
+  workflow,
+  outputs,
+}: {
+  nodes: WorkflowNode[];
+  workflow: Workflow;
+  outputs?: Record<string, JobOutput> | null;
+}) {
+  const typeCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const node of nodes) {
+      counts.set(node.type, (counts.get(node.type) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [nodes]);
+
+  const selectedIds = useMemo(() => new Set(nodes.map((node) => node.id)), [nodes]);
+
+  const internalLinks = useMemo(
+    () =>
+      workflow.links.filter(
+        (link) => selectedIds.has(String(link.from[0])) && selectedIds.has(String(link.to[0])),
+      ).length,
+    [workflow.links, selectedIds],
+  );
+
+  const externalLinks = useMemo(
+    () =>
+      workflow.links.filter((link) => {
+        const src = selectedIds.has(String(link.from[0]));
+        const dst = selectedIds.has(String(link.to[0]));
+        return src !== dst;
+      }).length,
+    [workflow.links, selectedIds],
+  );
+
+  const renderedCount = useMemo(() => {
+    if (!outputs) return 0;
+    return nodes.filter((node) => {
+      const out = outputs[node.id];
+      return Boolean(out?.cache_id || out?.midi_id || out?.text || out?.stems);
+    }).length;
+  }, [nodes, outputs]);
+
+  const groupCount = useMemo(() => {
+    const groupIds = new Set<string>();
+    for (const group of workflow.groups) {
+      if (group.node_ids.some((id) => selectedIds.has(id))) groupIds.add(group.id);
+    }
+    return groupIds.size;
+  }, [workflow.groups, selectedIds]);
+
+  return (
+    <section className="node-helper__selection">
+      <header className="node-helper__compare-header">
+        <h3 className="node-helper__compare-title">Selection</h3>
+        <span className="node-helper__selection-count">{nodes.length} nodes</span>
+      </header>
+
+      <dl className="node-helper__compare-meta">
+        <div className="node-helper__compare-meta-row">
+          <dt>Selected</dt>
+          <dd>{nodes.length}</dd>
+        </div>
+        <div className="node-helper__compare-meta-row">
+          <dt>Types</dt>
+          <dd>{typeCounts.length}</dd>
+        </div>
+        <div className="node-helper__compare-meta-row">
+          <dt>Rendered</dt>
+          <dd>
+            {renderedCount}/{nodes.length}
+          </dd>
+        </div>
+        <div className="node-helper__compare-meta-row">
+          <dt>Links</dt>
+          <dd>
+            {internalLinks} internal · {externalLinks} boundary
+          </dd>
+        </div>
+        {groupCount > 0 ? (
+          <div className="node-helper__compare-meta-row">
+            <dt>Groups</dt>
+            <dd>{groupCount}</dd>
+          </div>
+        ) : null}
+      </dl>
+
+      <div className="node-helper__compare-section">
+        <h4 className="node-helper__compare-section-title">By type</h4>
+        <ul className="node-helper__selection-types">
+          {typeCounts.map(([type, count]) => (
+            <li key={type}>
+              <span className="node-helper__selection-type">{type}</span>
+              <span className="node-helper__selection-type-count">×{count}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="node-helper__compare-section">
+        <h4 className="node-helper__compare-section-title">Nodes</h4>
+        <ul className="node-helper__selection-nodes">
+          {nodes.map((node) => {
+            const out = outputs?.[node.id];
+            const hasRender = Boolean(out?.cache_id || out?.midi_id || out?.text || out?.stems);
+            return (
+              <li key={node.id}>
+                <span className="node-helper__selection-id">{node.id}</span>
+                <span className="node-helper__selection-node-type">{node.type}</span>
+                <span
+                  className={`node-helper__selection-status${hasRender ? " node-helper__selection-status--ready" : ""}`}
+                >
+                  {hasRender ? "rendered" : "—"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <p className="node-helper__hint">Select one node to edit, or exactly two for A/B compare.</p>
+    </section>
+  );
+}
+
 function ComparePanel({
   comparePair,
   compareNote,
@@ -512,9 +649,11 @@ function ComparePanel({
   const [models, setModels] = useState<ModelCard[]>([]);
   const [modelId, setModelId] = useState("groovy-signal-diff");
   const [question, setQuestion] = useState("What are the differences between A and B?");
+  const [askOpen, setAskOpen] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AbCompareResult | null>(null);
+  const [resultTab, setResultTab] = useState<"summary" | "metrics">("summary");
 
   const labelA = a ? `${a.node.type} · ${a.node.id}` : "A";
   const labelB = b ? `${b.node.type} · ${b.node.id}` : "B";
@@ -537,6 +676,7 @@ function ComparePanel({
   useEffect(() => {
     setResult(null);
     setError(null);
+    setResultTab("summary");
   }, [a?.output.cache_id, b?.output.cache_id, modelId]);
 
   const runAnalysis = useCallback(async () => {
@@ -554,6 +694,7 @@ function ComparePanel({
         question: question.trim() || undefined,
       });
       setResult(analysis);
+      setResultTab("summary");
     } catch (err) {
       setResult(null);
       setError(err instanceof Error ? err.message : "Analysis failed");
@@ -565,7 +706,9 @@ function ComparePanel({
   if (!a || !b) {
     return (
       <section className="node-helper__compare">
-        <h3 className="node-helper__compare-title">A/B compare</h3>
+        <header className="node-helper__compare-header">
+          <h3 className="node-helper__compare-title">A/B compare</h3>
+        </header>
         {compareMissingRender ? (
           <p className="node-helper__compare-warning">{compareNote}</p>
         ) : compareNote ? (
@@ -595,38 +738,38 @@ function ComparePanel({
   const [peaksA, peaksB] = waveforms;
   const selectedModel = models.find((model) => model.id === modelId);
   const sameCache = a.output.cache_id === b.output.cache_id;
+  const notice = compareNote || (sameCache ? `Same cache ${a.output.cache_id?.slice(0, 8)}…` : null);
 
   return (
     <section className="node-helper__compare">
-      <h3 className="node-helper__compare-title">A/B compare</h3>
-      {compareNote ? <p className="node-helper__compare-info">{compareNote}</p> : null}
-      <p className="node-helper__hint">
-        Comparing rendered audio between two nodes. Shift- or ⌘/Ctrl-click to change selection.
-      </p>
-      {sameCache && !compareNote ? (
-        <p className="node-helper__compare-warning">
-          A and B share the same cached audio ({a.output.cache_id?.slice(0, 8)}…).
-        </p>
-      ) : null}
-      <WaveformCompare
-        peaksA={peaksA}
-        peaksB={peaksB}
-        labelA={legendA}
-        labelB={legendB}
-        titleA={labelA}
-        titleB={labelB}
-      />
-      <div className="node-helper__compare-actions">
-        <button type="button" className="node-helper__audition" onClick={() => onCompareAudition?.(a.node.id)}>
-          ▶ A
-        </button>
-        <button type="button" className="node-helper__audition" onClick={() => onCompareAudition?.(b.node.id)}>
-          ▶ B
-        </button>
+      <header className="node-helper__compare-header">
+        <h3 className="node-helper__compare-title">A/B compare</h3>
+        <div className="node-helper__compare-actions">
+          <button type="button" className="node-helper__audition" onClick={() => onCompareAudition?.(a.node.id)}>
+            ▶ A
+          </button>
+          <button type="button" className="node-helper__audition" onClick={() => onCompareAudition?.(b.node.id)}>
+            ▶ B
+          </button>
+        </div>
+      </header>
+
+      {notice ? <p className="node-helper__compare-info">{notice}</p> : null}
+
+      <div className="node-helper__compare-signal">
+        <WaveformCompare
+          peaksA={peaksA}
+          peaksB={peaksB}
+          labelA={legendA}
+          labelB={legendB}
+          titleA={labelA}
+          titleB={labelB}
+        />
       </div>
+
       {chainHops.length > 1 ? (
         <div className="node-helper__compare-hops">
-          <span className="node-helper__compare-subtitle">Other hops</span>
+          <span className="node-helper__compare-subtitle">Hops</span>
           {chainHops
             .filter((hop) => !(hop.a === a.node.id && hop.b === b.node.id))
             .map((hop) => (
@@ -643,77 +786,149 @@ function ComparePanel({
       ) : null}
 
       <div className="node-helper__compare-ask">
-        <h4 className="node-helper__compare-subtitle">Ask about differences</h4>
-        <label className="node-helper__field">
-          <span>Analysis model</span>
-          <select value={modelId} onChange={(event) => setModelId(event.target.value)} disabled={analyzing}>
-            {models.length === 0 ? <option value={modelId}>{modelId}</option> : null}
-            {models.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        {selectedModel?.description ? (
-          <p className="node-helper__hint">{selectedModel.description}</p>
-        ) : null}
-        <label className="node-helper__field">
-          <span>Your question</span>
-          <textarea
-            rows={3}
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="What are the differences between A and B?"
-            disabled={analyzing}
-          />
-        </label>
+        <div className="node-helper__compare-ask-row">
+          <label className="node-helper__field node-helper__field--inline">
+            <span>Model</span>
+            <select value={modelId} onChange={(event) => setModelId(event.target.value)} disabled={analyzing}>
+              {models.length === 0 ? <option value={modelId}>{modelId}</option> : null}
+              {models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="node-helper__compare-analyze"
+            onClick={() => void runAnalysis()}
+            disabled={analyzing || !a.output.cache_id || !b.output.cache_id}
+          >
+            {analyzing ? "…" : "Analyze"}
+          </button>
+        </div>
         <button
           type="button"
-          className="node-helper__compare-analyze"
-          onClick={() => void runAnalysis()}
-          disabled={analyzing || !a.output.cache_id || !b.output.cache_id}
+          className="node-helper__compare-ask-toggle"
+          onClick={() => setAskOpen((open) => !open)}
+          aria-expanded={askOpen}
         >
-          {analyzing ? "Analyzing…" : "Analyze differences"}
+          {askOpen ? "Hide question" : "Ask a question"}
         </button>
-        {error ? <p className="node-helper__compare-error">{error}</p> : null}
-        {result ? (
-          <div className="node-helper__compare-result">
-            <p className={`node-helper__compare-verdict node-helper__compare-verdict--${result.verdict}`}>
-              {result.verdict_summary}
-            </p>
-            {result.differences.length > 0 ? (
-              <ul className="node-helper__list node-helper__compare-diff-list">
-                {result.differences.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="node-helper__compare-result-scroll">
-              <p className="node-helper__compare-result-text">{formatNarrative(result.narrative)}</p>
-              {result.mode === "transcript" ? (
-                <details className="node-helper__compare-details">
-                  <summary>Transcripts</summary>
-                  <p className="node-helper__compare-transcript">
-                    <strong>A:</strong> {result.transcript_a}
-                  </p>
-                  <p className="node-helper__compare-transcript">
-                    <strong>B:</strong> {result.transcript_b}
-                  </p>
-                </details>
-              ) : null}
-              <details className="node-helper__compare-details">
-                <summary>Signal metrics ({result.facts.length})</summary>
-                <ul className="node-helper__list node-helper__compare-facts">
-                  {result.facts.map((fact) => (
-                    <li key={fact}>{fact}</li>
-                  ))}
-                </ul>
-              </details>
-            </div>
-          </div>
+        {askOpen ? (
+          <label className="node-helper__field">
+            <span>Question</span>
+            <textarea
+              rows={2}
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
+              placeholder="What are the differences between A and B?"
+              disabled={analyzing}
+            />
+          </label>
         ) : null}
+        {selectedModel?.description && askOpen ? (
+          <p className="node-helper__hint">{selectedModel.description}</p>
+        ) : null}
+        {error ? <p className="node-helper__compare-error">{error}</p> : null}
       </div>
+
+      {result ? (
+        <div className="node-helper__compare-result">
+          <div className="node-helper__compare-tabs" role="tablist" aria-label="Compare result">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={resultTab === "summary"}
+              className={`node-helper__compare-tab${resultTab === "summary" ? " node-helper__compare-tab--active" : ""}`}
+              onClick={() => setResultTab("summary")}
+            >
+              Summary
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={resultTab === "metrics"}
+              className={`node-helper__compare-tab${resultTab === "metrics" ? " node-helper__compare-tab--active" : ""}`}
+              onClick={() => setResultTab("metrics")}
+            >
+              Metrics
+            </button>
+          </div>
+
+          {resultTab === "summary" ? (
+            <div className="node-helper__compare-summary" role="tabpanel">
+              <p className={`node-helper__compare-verdict node-helper__compare-verdict--${result.verdict}`}>
+                <span className="node-helper__compare-verdict-tag">{result.verdict.replaceAll("_", " ")}</span>
+                {result.verdict_summary}
+              </p>
+
+              <dl className="node-helper__compare-meta">
+                <div className="node-helper__compare-meta-row">
+                  <dt>Model</dt>
+                  <dd>{models.find((model) => model.id === result.model_id)?.name ?? result.model_id}</dd>
+                </div>
+                <div className="node-helper__compare-meta-row">
+                  <dt>Clips</dt>
+                  <dd>
+                    {legendA} (A) vs {legendB} (B)
+                  </dd>
+                </div>
+              </dl>
+
+              {result.differences.length > 0 ? (
+                <div className="node-helper__compare-section">
+                  <h4 className="node-helper__compare-section-title">Detected differences</h4>
+                  <ul className="node-helper__list node-helper__compare-diff-list">
+                    {result.differences.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {measurementFacts(result.facts).length > 0 ? (
+                <div className="node-helper__compare-section">
+                  <h4 className="node-helper__compare-section-title">Measurements</h4>
+                  <dl className="node-helper__compare-fact-grid">
+                    {measurementFacts(result.facts).map((fact) => {
+                      const { label, value } = splitFact(fact);
+                      return (
+                        <div key={fact} className="node-helper__compare-fact-row">
+                          <dt>{label}</dt>
+                          <dd>{value}</dd>
+                        </div>
+                      );
+                    })}
+                  </dl>
+                </div>
+              ) : null}
+
+              {result.mode === "transcript" ? (
+                <div className="node-helper__compare-transcripts">
+                  <h4 className="node-helper__compare-section-title">Transcripts</h4>
+                  <p className="node-helper__compare-transcript">
+                    <strong>A</strong> {result.transcript_a}
+                  </p>
+                  <p className="node-helper__compare-transcript">
+                    <strong>B</strong> {result.transcript_b}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="node-helper__compare-metrics-panel" role="tabpanel">
+              <CompareMetricsViz
+                clipA={result.clip_a}
+                clipB={result.clip_b}
+                comparison={result.comparison}
+                labelA={legendA}
+                labelB={legendB}
+              />
+            </div>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -826,8 +1041,24 @@ function OutputSnapshot({
   );
 }
 
-function formatNarrative(narrative: string): string {
-  return narrative.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1");
+function measurementFacts(facts: string[]): string[] {
+  return facts.filter((fact) => {
+    const trimmed = fact.trim();
+    if (!trimmed) return false;
+    if (trimmed === "Detected differences:") return false;
+    if (trimmed.startsWith("•") || trimmed.startsWith("- ")) return false;
+    // Keep "Label: value" measurement / transcript rows.
+    return /^[A-Za-z][^:]{0,40}:\s/.test(trimmed);
+  });
+}
+
+function splitFact(fact: string): { label: string; value: string } {
+  const idx = fact.indexOf(":");
+  if (idx <= 0) return { label: "Note", value: fact };
+  return {
+    label: fact.slice(0, idx).trim(),
+    value: fact.slice(idx + 1).trim(),
+  };
 }
 
 function widgetLabel(name: string, nodeType: string): string {

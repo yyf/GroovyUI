@@ -248,19 +248,13 @@ def build_signal_facts(
     b: ClipMetrics,
     comparison: dict[str, Any],
     *,
-    difference_bullets: list[str],
-    verdict: str,
-    verdict_summary: str,
+    difference_bullets: list[str] | None = None,
+    verdict: str | None = None,
+    verdict_summary: str | None = None,
 ) -> list[str]:
-    facts: list[str] = [verdict_summary]
-    if difference_bullets:
-        facts.append("Detected differences:")
-        facts.extend(f"  • {bullet}" for bullet in difference_bullets)
-    elif verdict == "no_difference":
-        facts.append("No measurable differences in level, duration, or sample data.")
-    else:
-        facts.append("Differences are subtle; see metrics below.")
-
+    # Measurement rows only — verdict / difference bullets are returned separately.
+    _ = (difference_bullets, verdict, verdict_summary)
+    facts: list[str] = []
     facts.append(
         f"Duration: A {a.duration_sec:.2f}s → B {b.duration_sec:.2f}s "
         f"({comparison['duration_delta_sec']:+.2f}s)"
@@ -305,18 +299,23 @@ def format_compare_answer(
     model_name: str,
     facts: list[str],
     verdict_summary: str,
+    differences: list[str] | None = None,
 ) -> str:
     prompt = (question or "What are the differences between A and B?").strip()
     lines = [
-        f"**{prompt}**",
+        prompt,
         "",
         verdict_summary,
         "",
-        f"*Analysis model: {model_name}*",
-        f"*Clips: {label_a} (A) vs {label_b} (B)*",
-        "",
+        f"Analysis model: {model_name}",
+        f"Clips: {label_a} (A) vs {label_b} (B)",
     ]
-    lines.extend(f"- {fact}" for fact in facts)
+    if differences:
+        lines.extend(["", "Detected differences:"])
+        lines.extend(f"• {bullet}" for bullet in differences)
+    if facts:
+        lines.extend(["", "Measurements:"])
+        lines.extend(facts)
     return "\n".join(lines)
 
 
@@ -352,6 +351,7 @@ def analyze_signal_pair(
         model_name=model_name,
         facts=facts,
         verdict_summary=verdict_summary,
+        differences=difference_bullets,
     )
     return {
         "mode": "signal",

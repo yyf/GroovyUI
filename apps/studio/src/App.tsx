@@ -724,6 +724,11 @@ export default function App() {
   }, [workflow, currentNode]);
 
   const selectedNode = workflow?.nodes.find((n) => n.id === selectedNodeId) ?? null;
+  const selectedNodes = useMemo(() => {
+    if (!workflow) return [];
+    const byId = new Map(workflow.nodes.map((node) => [node.id, node]));
+    return selectedNodeIds.map((id) => byId.get(id)).filter((node): node is NonNullable<typeof node> => Boolean(node));
+  }, [workflow, selectedNodeIds]);
   const selectedOutput = selectedNodeId && lastJob?.outputs ? lastJob.outputs[selectedNodeId] : undefined;
   const selectedListenOutput =
     workflow && selectedNodeId
@@ -1005,6 +1010,8 @@ export default function App() {
             <SidePanel side="right" label="Inspector" open={helperOpen} onToggle={() => setHelperOpen((prev) => !prev)}>
               <NodeHelper
                 node={selectedNode}
+                selectedNodes={selectedNodes}
+                selectionOutputs={lastJob?.outputs ?? null}
                 workflow={workflow}
                 output={selectedInspectorOutput}
                 previewUrl={selectedNodePreview}
