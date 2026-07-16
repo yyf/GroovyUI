@@ -50,6 +50,7 @@ ${body}
 export function openAboutWindow(): void {
   const body = `
   <h1>GroovyUI Studio</h1>
+  <p class="sub">Patch-bay for AI audio.</p>
   <p class="sub">Version ${STUDIO_VERSION}</p>
   <p class="sub">A node-graph studio purpose-built for AI audio — patch models and operators, render with sample accuracy, and stay in the graph while you explore, compare, and share.</p>
   <p class="sub">General-purpose graph tools spread audio across scattered custom nodes. GroovyUI fills that gap with an audio-native registry, typed signal flow, provenance, and modular-synth ergonomics in one workflow.</p>
