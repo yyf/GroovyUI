@@ -24,13 +24,13 @@ import {
   fetchMidiRoll,
   listTemplates,
   saveUserTemplate,
+  deleteUserTemplate,
   previewUrl,
   uploadProjectAudio,
   type TemplateListItem,
 } from "./api";
 import ComplianceDrawer from "./components/ComplianceDrawer";
 import FlowViewportBridge from "./components/FlowViewportBridge";
-import SettingsDrawer from "./components/SettingsDrawer";
 import GroovyFlowNode from "./components/GroovyFlowNode";
 import type { GroovyNodeData } from "./components/GroovyFlowNode";
 import ModuleGroupNode from "./components/ModuleGroupNode";
@@ -53,7 +53,6 @@ import {
   connectNodes,
   addNodeToWorkflow,
   applyDroppedAudio,
-  downloadTemplateJson,
   downloadWorkflow,
   groupForSelection,
   edgeIdsOnPathToNode,
@@ -115,7 +114,6 @@ export default function App() {
   const [modelBrowserLaunch, setModelBrowserLaunch] = useState<ModelBrowserLaunch | null>(null);
   const [modelPickTarget, setModelPickTarget] = useState<{ nodeId: string; widget: string } | null>(null);
   const [complianceOpen, setComplianceOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [complianceWarnings, setComplianceWarnings] = useState(0);
   const [focusMode, setFocusMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -691,15 +689,33 @@ export default function App() {
     try {
       const title = window.prompt("Template title", workflow.metadata.title) ?? workflow.metadata.title;
       const saved = await saveUserTemplate(workflow, title);
-      downloadTemplateJson(saved.template, `${saved.template_id}.groovy.json`);
       const nextTemplates = await listTemplates();
       setTemplates(nextTemplates);
+      // Stay on the current canvas — the graph is already what was saved.
+      // Share (workflow bar) is the explicit JSON export path.
       setActiveTemplateId(saved.template_id);
-      setStatus(`Template saved: ${saved.template_id}`);
+      setStatus(`Saved to Your templates: ${title.trim() || saved.template_id}`);
     } catch (err) {
       setStatus(`Template save failed: ${String(err)}`);
     }
   }, [workflow]);
+
+  const handleDeleteUserTemplate = useCallback(
+    async (templateId: string) => {
+      try {
+        await deleteUserTemplate(templateId);
+        const nextTemplates = await listTemplates();
+        setTemplates(nextTemplates);
+        if (activeTemplateId === templateId) {
+          await loadTemplate(DEFAULT_TEMPLATE);
+        }
+        setStatus(`Removed from Your templates: ${templateId}`);
+      } catch (err) {
+        setStatus(`Template remove failed: ${String(err)}`);
+      }
+    },
+    [activeTemplateId, loadTemplate],
+  );
 
   const currentNodeLabel = useMemo(() => {
     if (!workflow || !currentNode) return undefined;
@@ -895,6 +911,7 @@ export default function App() {
           templates={templates}
           selectedTemplateId={selectedTemplateId}
           onSelectTemplate={(id) => void loadTemplate(id)}
+          onDeleteUserTemplate={(id) => void handleDeleteUserTemplate(id)}
           onApplyWorkflow={applyWorkflow}
           complianceWarnings={complianceWarnings}
           onModelBrowser={() => openModelBrowser()}
@@ -906,7 +923,6 @@ export default function App() {
             groupCollapsed: activeGroup ? (activeGroup.collapsed ?? false) : null,
             paletteOpen,
             helperOpen,
-            onOpenIoSettings: () => setSettingsOpen(true),
             onSaveAsTemplate: () => void handleSaveAsTemplate(),
             onToggleGroupCollapse: handleToggleGroupCollapse,
             onTogglePalette: () => setPaletteOpen((prev) => !prev),
@@ -1067,7 +1083,6 @@ export default function App() {
           onBrowseModels={handleBrowseModelsFromCompliance}
           onApplyModelSwap={handleApplyModelSwap}
         />
-        <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <OnboardingOverlay
           open={onboardingOpen}
           onClose={() => setOnboardingOpen(false)}

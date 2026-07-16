@@ -255,9 +255,7 @@ function placeholderOutputSockets(count: number): NodeSocketSpec[] {
 
 /** Preserve React Flow interaction state when syncing derived nodes from workflow. */
 export function mergeFlowNodes<T extends Node>(current: T[], next: T[]): T[] {
-  if (next.length === 0 && current.length > 0) {
-    return current;
-  }
+  // Trust an empty `next` — blank user templates must clear the previous canvas.
   const currentById = new Map(current.map((node) => [node.id, node]));
   const merged: T[] = [];
   const seen = new Set<string>();
@@ -282,9 +280,7 @@ export function mergeFlowNodes<T extends Node>(current: T[], next: T[]): T[] {
 
 /** Preserve React Flow interaction state when syncing derived edges from workflow. */
 export function mergeFlowEdges<T extends Edge>(current: T[], next: T[]): T[] {
-  if (next.length === 0 && current.length > 0) {
-    return current;
-  }
+  // Trust empty `next` the same as nodes (blank templates / cleared graphs).
   const merged: T[] = [];
   for (const fresh of next) {
     const existing = current.find((edge) => edge.id === fresh.id);

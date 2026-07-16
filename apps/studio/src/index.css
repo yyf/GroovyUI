@@ -274,6 +274,34 @@ body {
   cursor: pointer;
 }
 
+.template-select__row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.template-select__row .template-select__option {
+  flex: 1;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.template-select__remove {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.template-select__remove:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .template-select__option:hover {
   background: rgba(255, 255, 255, 0.05);
 }
@@ -3558,6 +3586,48 @@ body {
 .settings-section h3 {
   margin: 0 0 8px;
   font-size: 14px;
+}
+
+.settings-disclosure {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-dim);
+}
+
+.settings-disclosure > summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.settings-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-disclosure > summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 8px;
+  color: var(--text-muted);
+}
+
+.settings-disclosure[open] > summary::before {
+  content: "▾";
+}
+
+.settings-disclosure > summary:hover {
+  color: var(--text-primary);
+}
+
+.settings-disclosure[open] > summary {
+  margin-bottom: 8px;
+  color: var(--text-primary);
 }
 
 .settings-row {

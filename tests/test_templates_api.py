@@ -56,6 +56,51 @@ def test_save_user_template_listed(client: TestClient, tmp_path: Path, monkeypat
     assert loaded.status_code == 200
     assert loaded.json()["metadata"]["title"] == "My Custom Export"
 
+    deleted = client.delete(f"/api/templates/{body['template_id']}")
+    assert deleted.status_code == 200
+    assert deleted.json()["ok"] is True
+
+    listed_after = client.get("/api/templates").json()["templates"]
+    assert not any(t["id"] == body["template_id"] for t in listed_after)
+    assert client.get(f"/api/templates/{body['template_id']}").status_code == 404
+
+
+def test_delete_bundled_template_rejected(client: TestClient) -> None:
+    res = client.delete("/api/templates/hello-groovy")
+    assert res.status_code == 403
+
+
+def test_save_user_template_does_not_shadow_bundled(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("GROOVY_PROJECT_DIR", str(tmp_path))
+    import groovy.server.main as main
+
+    monkeypatch.setattr(main, "PROJECT_DIR", tmp_path.resolve())
+    monkeypatch.setattr(main, "USER_TEMPLATES_DIR", tmp_path.resolve() / "templates")
+
+    bundled = client.get("/api/templates/podcast-denoise").json()
+    assert len(bundled["nodes"]) > 0
+
+    empty = {**bundled, "nodes": [], "links": [], "groups": []}
+    res = client.post(
+        "/api/templates",
+        json={"workflow": empty, "title": "Podcast Denoise"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["template_id"] != "podcast-denoise"
+    assert body["template_id"].startswith("podcast-denoise-")
+    assert body["source"] == "user"
+
+    loaded = client.get("/api/templates/podcast-denoise").json()
+    assert loaded["metadata"]["title"] == "Podcast Denoise"
+    assert len(loaded["nodes"]) > 0
+    assert loaded["nodes"] == bundled["nodes"]
+
+    user_loaded = client.get(f"/api/templates/{body['template_id']}").json()
+    assert user_loaded["nodes"] == []
+
 
 def test_get_template(client: TestClient) -> None:
     res = client.get("/api/templates/hello-groovy")

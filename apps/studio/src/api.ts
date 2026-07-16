@@ -816,6 +816,22 @@ export async function saveUserTemplate(
   return res.json();
 }
 
+export async function deleteUserTemplate(templateId: string): Promise<void> {
+  const res = await fetch(`${API}/api/templates/${encodeURIComponent(templateId)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    let message = `Failed to delete template (${res.status})`;
+    try {
+      const body = (await res.json()) as { detail?: string };
+      if (body.detail) message = body.detail;
+    } catch {
+      /* keep status message */
+    }
+    throw new Error(message);
+  }
+}
+
 export function previewUrl(cacheId: string): string {
   return `${API}/api/cache/${cacheId}/preview?format=wav`;
 }
