@@ -7,10 +7,17 @@ from typing import Any
 
 TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\b(hello|normalize|first)\b", re.I), "hello-groovy", "Simple normalize chain"),
+    (
+        re.compile(r"\b(cleanup.?and.?transcrib|denoise.+(transcrib|whisper)|clean.+(transcrib|whisper))\b", re.I),
+        "cleanup-and-transcribe",
+        "Cleanup then transcribe",
+    ),
     (re.compile(r"\b(podcast|denoise|clean)\b", re.I), "podcast-denoise", "Podcast denoise pipeline"),
+    (re.compile(r"\b(karaoke|instrumental|accompaniment)\b", re.I), "karaoke-stems", "Vocals vs instrumental"),
     (re.compile(r"\b(stem|vocals?|separate)\b", re.I), "stem-split-vocals", "Stem separation"),
+    (re.compile(r"\b(diariz|speaker|meeting|who.?spoke)\b", re.I), "diarize-and-transcribe", "Speaker-labeled transcript"),
     (re.compile(r"\b(transcrib|stt|subtitle|speech.to.text)\b", re.I), "transcribe-dialogue", "Speech transcription"),
-    (re.compile(r"\b(tts|text.to.speech|voiceover)\b", re.I), "tts-greeting", "Text-to-speech"),
+    (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro)\b", re.I), "tts-greeting", "Text-to-speech"),
     (re.compile(r"\b(voice.?convert|rvc|clone)\b", re.I), "voice-convert-demo", "Voice conversion"),
     (re.compile(r"\b(authentic|deepfake|provenance.?verify)\b", re.I), "authenticity-check", "Authenticity analysis"),
     (re.compile(r"\b(audio.?to.?midi|midi.?transcrib)\b", re.I), "transcribe-to-midi", "Audio to MIDI"),

@@ -67,10 +67,10 @@ function WaveformBars({
 
 function VolumeScale() {
   return (
-    <div className="waveform-mini__scale" aria-label="Amplitude relative to clip peak (linear)">
-      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--top">1</span>
-      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--mid">½</span>
-      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--bot">0</span>
+    <div className="waveform-mini__scale" aria-label="Normalized amplitude">
+      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--top">+1</span>
+      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--mid">0</span>
+      <span className="waveform-mini__scale-mark waveform-mini__scale-mark--bot">−1</span>
     </div>
   );
 }
@@ -108,6 +108,31 @@ export default function WaveformMini({
     if (rect.width <= 0) return;
     onSeek(ratioFromPointer(clientX, rect));
   };
+
+  const plotProps = onSeek
+    ? {
+        onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          seekFromEvent(event.clientX);
+        },
+        onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+          seekFromEvent(event.clientX);
+        },
+        onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        },
+        onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+        },
+      }
+    : {};
 
   if (!peaks.length) {
     return (
@@ -165,22 +190,6 @@ export default function WaveformMini({
       <WaveformBars samples={samples} max={max} height={height} barClass="waveform-mini__bar" />
     </svg>
   );
-
-  const plotProps = onSeek
-    ? {
-        onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
-          event.preventDefault();
-          seekFromEvent(event.clientX);
-          const onMove = (moveEvent: PointerEvent) => seekFromEvent(moveEvent.clientX);
-          const onUp = () => {
-            window.removeEventListener("pointermove", onMove);
-            window.removeEventListener("pointerup", onUp);
-          };
-          window.addEventListener("pointermove", onMove);
-          window.addEventListener("pointerup", onUp);
-        },
-      }
-    : {};
 
   return (
     <div className={rootClass}>

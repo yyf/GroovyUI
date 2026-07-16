@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-cleanuptrans01",
+  "metadata": {
+    "title": "Cleanup and Transcribe",
+    "author": "groovy",
+    "description": "Denoise speech, then Whisper STT — podcast editorial loop. Preview transcript; save cleaned audio.",
+    "tags": ["featured", "ai", "denoise", "stt", "podcast", "transcribe"],
+    "created_at": "2026-07-15T12:00:00Z",
+    "modified_at": "2026-07-15T12:00:00Z"
+  },
+  "nodes": [
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 40 }, "widgets": { "path": "assets/samples/male-1.wav" } },
+    { "id": "n2", "type": "Denoise", "pos": { "x": 260, "y": 40 }, "widgets": { "model": "deepfilternet-v3", "strength": 1.0 } },
+    { "id": "n3", "type": "Normalize", "pos": { "x": 520, "y": 40 }, "widgets": { "mode": "lufs", "target_lufs": -16.0 } },
+    { "id": "n4", "type": "WhisperSTT", "pos": { "x": 780, "y": 0 }, "widgets": { "model": "whisper-large-v3-turbo", "language": "en" } },
+    { "id": "n5", "type": "Preview", "pos": { "x": 1040, "y": 0 }, "widgets": {} },
+    { "id": "n6", "type": "Preview", "pos": { "x": 1040, "y": 160 }, "widgets": {} },
+    { "id": "n7", "type": "SaveAudio", "pos": { "x": 780, "y": 200 }, "widgets": { "path": "exports", "filename": "cleaned-dialogue.wav", "format": "wav" } }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
+    { "id": "l3", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO" },
+    { "id": "l4", "from": ["n4", 0], "to": ["n5", 1], "type": "TEXT" },
+    { "id": "l5", "from": ["n3", 0], "to": ["n6", 0], "type": "AUDIO" },
+    { "id": "l6", "from": ["n3", 0], "to": ["n7", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

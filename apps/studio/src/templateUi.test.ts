@@ -16,17 +16,25 @@ describe("templatesVisibleInUi", () => {
     bundled("podcast-denoise"),
     bundled("stem-split-vocals"),
     bundled("transcribe-dialogue"),
-    bundled("transcribe-and-regenerate"),
+    bundled("diarize-and-transcribe"),
+    bundled("cleanup-and-transcribe"),
+    bundled("tts-greeting"),
     bundled("text-to-music"),
+    bundled("karaoke-stems"),
+    bundled("transcribe-and-regenerate"),
+    bundled("authenticity-check"),
   ];
 
-  it("shows only featured bundled templates", () => {
+  it("shows featured bundled templates in portfolio order", () => {
     const visible = templatesVisibleInUi(allBundled);
     expect(visible.map((t) => t.id)).toEqual([
       "podcast-denoise",
       "stem-split-vocals",
-      "transcribe-and-regenerate",
       "transcribe-dialogue",
+      "diarize-and-transcribe",
+      "tts-greeting",
+      "text-to-music",
+      "transcribe-and-regenerate",
       "hello-groovy",
     ]);
   });
@@ -34,12 +42,11 @@ describe("templatesVisibleInUi", () => {
   it("always shows user templates", () => {
     const visible = templatesVisibleInUi([...allBundled, user("my-export")]);
     expect(visible.some((t) => t.id === "my-export")).toBe(true);
-    expect(visible.some((t) => t.id === "text-to-music")).toBe(false);
+    expect(visible.some((t) => t.id === "authenticity-check")).toBe(false);
   });
 
   it("keeps the active bundled template visible when it is not featured", () => {
-    const visible = templatesVisibleInUi(allBundled, "transcribe-dialogue");
-    expect(visible.map((t) => t.id)).toContain("transcribe-dialogue");
-    expect(visible.map((t) => t.id)).not.toContain("text-to-music");
+    const visible = templatesVisibleInUi(allBundled, "authenticity-check");
+    expect(visible.map((t) => t.id)).toContain("authenticity-check");
   });
 });

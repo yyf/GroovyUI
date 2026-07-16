@@ -9,6 +9,7 @@ def register_all() -> None:
         Denoise,
         SeparateStems,
         WhisperSTT,
+        DiarizeTranscribe,
         TTS,
         VoiceConvert,
         AudioToMIDI,
@@ -105,6 +106,36 @@ class WhisperSTT(GroovyNode):
 
 
 @register_node
+class DiarizeTranscribe(GroovyNode):
+    """Speaker-labeled transcript for meetings/podcasts (Whisper + diarization)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = ["whisper-large-v3-turbo", "whisper-small-en"]
+    RETURN_TYPES = ("TEXT",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "model": ("MODEL_REF", {"default": "whisper-large-v3-turbo"}),
+            },
+            "optional": {
+                "diarize_model": ("STRING", {"default": "pyannote-diarization-3.1"}),
+                "language": ("STRING", {"default": "en"}),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("DiarizeTranscribe must run in AI worker subprocess")
+
+
+@register_node
 class TTS(GroovyNode):
     CATEGORY = "GroovyUI/AI"
     EXPORT_TIER = "OFFLINE_RENDER"
@@ -112,14 +143,14 @@ class TTS(GroovyNode):
     DETERMINISTIC = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_generated"
-    COMPATIBLE_MODELS = ["f5-tts-base", "cosyvoice-300m", "gpt-sovits-v2"]
+    COMPATIBLE_MODELS = ["kokoro-82m", "cosyvoice-300m", "f5-tts-base", "gpt-sovits-v2"]
     RETURN_TYPES = ("AUDIO",)
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model": ("MODEL_REF", {"default": "f5-tts-base"}),
+                "model": ("MODEL_REF", {"default": "kokoro-82m"}),
             },
             "optional": {
                 "transcript": ("TEXT",),
