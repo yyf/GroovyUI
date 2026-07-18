@@ -9,6 +9,7 @@ describe("resolveWidgetControl", () => {
   it("keeps free text as text", () => {
     expect(resolveWidgetControl({ name: "prompt", type: "STRING" }).kind).toBe("text");
     expect(resolveWidgetControl({ name: "path", type: "STRING" }).kind).toBe("text");
+    expect(resolveWidgetControl({ name: "seed", type: "INT", default: -1, min: -1 }).kind).toBe("text");
   });
 
   it("maps known string enums to stepped switches", () => {

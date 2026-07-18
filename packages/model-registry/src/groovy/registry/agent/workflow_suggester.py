@@ -17,6 +17,12 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\b(stem|vocals?|separate)\b", re.I), "stem-split-vocals", "Stem separation"),
     (re.compile(r"\b(diariz|speaker|meeting|who.?spoke)\b", re.I), "diarize-and-transcribe", "Speaker-labeled transcript"),
     (re.compile(r"\b(transcrib|stt|subtitle|speech.to.text)\b", re.I), "transcribe-dialogue", "Speech transcription"),
+    (
+        re.compile(r"\b(prompt.+(tts|speech)|modular.+(tts|prompt|control)|control.?curve.+tts|fade.+tts)\b", re.I),
+        "prompt-tts-modular",
+        "Prompt into TTS with control fade",
+    ),
+    (re.compile(r"\b(modular|prompt.?node|automation.?apply)\b", re.I), "prompt-tts-modular", "Modular prompt + TTS"),
     (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro)\b", re.I), "tts-greeting", "Text-to-speech"),
     (re.compile(r"\b(voice.?convert|rvc|clone)\b", re.I), "voice-convert-demo", "Voice conversion"),
     (re.compile(r"\b(authentic|deepfake|provenance.?verify)\b", re.I), "authenticity-check", "Authenticity analysis"),

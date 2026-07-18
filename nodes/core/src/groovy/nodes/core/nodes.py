@@ -714,6 +714,11 @@ class ControlCurve(GroovyNode):
                 "end_value": ("FLOAT", {"default": 1.0}),
                 "frame_count": ("INT", {"default": 48000}),
                 "sample_rate": ("INT", {"default": 48000}),
+                # JSON list of {t,v} with t in [0,1]; edited in Node Helper curve UI.
+                "points": (
+                    "STRING",
+                    {"default": '[{"t":0,"v":0},{"t":1,"v":1}]'},
+                ),
             },
         }
 
@@ -723,15 +728,24 @@ class ControlCurve(GroovyNode):
         end_value: float = 1.0,
         frame_count: int = 48000,
         sample_rate: int = 48000,
+        points: str = '[{"t":0,"v":0},{"t":1,"v":1}]',
         **kwargs,
     ) -> tuple[AutomationBuffer]:
         if not self._ctx:
             raise RuntimeError("Node context not bound")
+        from groovy.executor.control import values_from_curve_points
+
         start_value = float(kwargs.get("start_value", start_value))
         end_value = float(kwargs.get("end_value", end_value))
         frame_count = int(kwargs.get("frame_count", frame_count))
         sample_rate = int(kwargs.get("sample_rate", sample_rate))
-        values = np.linspace(start_value, end_value, frame_count)
+        points = kwargs.get("points", points)
+        values = values_from_curve_points(
+            points,
+            frame_count,
+            start_value=start_value,
+            end_value=end_value,
+        )
         curve = AutomationBuffer.from_values(values, sample_rate=sample_rate, source_node_type="ControlCurve")
         self._ctx.cache.write_automation(curve)
         return (curve,)

@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-25 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+26 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -13,6 +13,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Cleanup and Transcribe | [cleanup-and-transcribe.groovy.json](cleanup-and-transcribe.groovy.json) | 1 / **featured** | deepfilternet + whisper |
 | Diarize and Transcribe | [diarize-and-transcribe.groovy.json](diarize-and-transcribe.groovy.json) | 1 / **featured** | whisper + pyannote (energy fallback) |
 | TTS Greeting | [tts-greeting.groovy.json](tts-greeting.groovy.json) | 1 / **featured** | `kokoro-82m` |
+| Prompt TTS Modular | [prompt-tts-modular.groovy.json](prompt-tts-modular.groovy.json) | 2 / **featured** | `kokoro-82m` |
 | Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 / **featured** | `demucs-v4` |
 | Text to Music | [text-to-music.groovy.json](text-to-music.groovy.json) | 2 / **featured** | `musicgen-small` |
 | Voice Convert Demo | [voice-convert-demo.groovy.json](voice-convert-demo.groovy.json) | 1 | `rvc-v2-base` |

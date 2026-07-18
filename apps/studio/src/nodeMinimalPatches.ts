@@ -165,7 +165,7 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     focusNodeId: "n1",
     nodes: [
       { id: "n1", type: "Prompt", x: 0, widgets: { text: "warm lo-fi beat with soft piano" } },
-      { id: "n2", type: "GenerateAudio", x: 260, widgets: { model: "musicgen-small" } },
+      { id: "n2", type: "GenerateAudio", x: 260, widgets: { model: "musicgen-small", prompt: "", seed: -1 } },
       preview("n3", 520),
     ],
     links: [link("l1", "n1", "n2", "TEXT"), link("l2", "n2", "n3", "AUDIO")],
@@ -367,7 +367,12 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     focusNodeId: "n2",
     nodes: [
       { id: "n1", type: "Prompt", x: 0, widgets: { text: "warm lo-fi beat with soft piano" } },
-      { id: "n2", type: "GenerateAudio", x: 260, widgets: { model: "musicgen-small" } },
+      {
+        id: "n2",
+        type: "GenerateAudio",
+        x: 260,
+        widgets: { model: "musicgen-small", prompt: "warm lo-fi beat with soft piano", seed: -1 },
+      },
       preview("n3", 520),
     ],
     links: [link("l1", "n1", "n2", "TEXT"), link("l2", "n2", "n3", "AUDIO")],

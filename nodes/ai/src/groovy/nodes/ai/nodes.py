@@ -155,6 +155,7 @@ class TTS(GroovyNode):
             "optional": {
                 "transcript": ("TEXT",),
                 "text": ("STRING", {"default": "Hello from GroovyUI."}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
             },
         }
 
@@ -258,6 +259,7 @@ class MIDIToAudio(GroovyNode):
             "optional": {
                 "text": ("TEXT",),
                 "prompt": ("STRING", {"default": "regenerated melody"}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
                 "reference_audio": ("AUDIO",),
             },
         }
@@ -281,10 +283,13 @@ class GenerateAudio(GroovyNode):
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "prompt": ("TEXT",),
                 "model": ("MODEL_REF", {"default": "musicgen-small"}),
             },
             "optional": {
+                # TEXT wire (optional) supersedes local prompt widget — same dual path as MIDIToAudio.
+                "text": ("TEXT",),
+                "prompt": ("STRING", {"default": ""}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
                 "midi": ("MIDI",),
                 "reference_audio": ("AUDIO",),
             },
@@ -315,6 +320,7 @@ class SingFromMIDI(GroovyNode):
             "optional": {
                 "lyrics": ("TEXT",),
                 "text": ("STRING", {"default": "la la la"}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
                 "reference_audio": ("AUDIO",),
             },
         }

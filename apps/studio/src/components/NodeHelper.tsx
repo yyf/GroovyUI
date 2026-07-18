@@ -19,11 +19,17 @@ import { hasMinimalPatch } from "../nodeMinimalPatches";
 import { inferenceParamsForModel } from "../modelInferenceParams";
 import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
+import ControlCurvePreview, { syncPointsFromStartEnd } from "./ControlCurvePreview";
 import { ParamFader, ParamPot, ParamStepped, ParamSwitch } from "./ParamControls";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
 import WaveformMini from "./WaveformMini";
 import { resolveWidgetControl } from "../widgetControls";
+
+const GENERATIVE_NODE_TYPES = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "SingFromMIDI"]);
+
+/** Pin exploration controls (model → prompt-like → seed) above the rest of Config. */
+const EXPLORATION_WIDGET_ORDER = ["model", "prompt", "text", "lyrics", "seed"];
 
 type Tab = "config" | "inputs" | "outputs" | "provenance";
 
@@ -322,55 +328,98 @@ export default function NodeHelper({
                 </ul>
               </section>
             ) : null}
-            {schema.widgets.map((widget) => {
-              const supersededBy = wiredInputSupersedesWidget(node.type, widget.name, inputRows);
-              const wiredPreview = supersededBy ? wiredPromptPreview(supersededBy.sourceNode) : null;
-              return (
-              <label
-                key={widget.name}
-                className={[
-                  "node-helper__field",
-                  supersededBy ? "node-helper__field--superseded" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-              >
-                <span>{widgetLabel(widget.name, node.type)}</span>
-                {widget.description ? <small className="node-helper__hint">{widget.description}</small> : null}
-                {supersededBy ? (
-                  <small className="node-helper__hint node-helper__hint--wired">
-                    Wired from {supersededBy.sourceNode?.type ?? "upstream"}
-                    {supersededBy.sourceNode?.id ? (
-                      <>
-                        {" "}
-                        <span className="node-helper__mono">({supersededBy.sourceNode.id})</span>
-                      </>
-                    ) : null}
-                    — edit on the source node.
-                  </small>
-                ) : null}
-                {wiredPreview ? (
-                  <p className="node-helper__wired-preview" title="Resolved prompt at render">
-                    {wiredPreview}
-                  </p>
-                ) : null}
-                <WidgetInput
-                  spec={widget}
-                  value={node.widgets[widget.name] ?? widget.default ?? ""}
-                  onChange={(value) => onWidgetChange(node.id, widget.name, value)}
-                  disabled={Boolean(supersededBy)}
-                  nodeType={node.type}
-                  nodeWidgets={node.widgets}
-                  onMultiWidgetChange={(name, value) => onWidgetChange(node.id, name, value)}
-                  onBrowse={
-                    widget.type === "MODEL_REF"
-                      ? () => onBrowseModel?.(node.id, widget.name)
-                      : undefined
-                  }
+            {node.type === "ControlCurve" ? (
+              <section className="node-helper__curve-panel">
+                <h4 className="node-helper__compare-subtitle">Curve</h4>
+                <ControlCurvePreview
+                  widgets={node.widgets}
+                  onChange={(patch) => {
+                    for (const [name, value] of Object.entries(patch)) {
+                      onWidgetChange(node.id, name, value);
+                    }
+                  }}
                 />
-              </label>
-            );
-            })}
+              </section>
+            ) : null}
+            {(() => {
+              const widgetsForForm =
+                node.type === "ControlCurve"
+                  ? schema.widgets.filter((widget) => widget.name !== "points")
+                  : schema.widgets;
+              const { pinned, rest } = partitionExplorationWidgets(widgetsForForm, node.type);
+              const renderWidget = (widget: (typeof schema.widgets)[number]) => {
+                const supersededBy = wiredInputSupersedesWidget(node.type, widget.name, inputRows);
+                const wiredPreview = supersededBy ? wiredPromptPreview(supersededBy.sourceNode) : null;
+                return (
+                  <label
+                    key={widget.name}
+                    className={[
+                      "node-helper__field",
+                      supersededBy ? "node-helper__field--superseded" : "",
+                      isPromptLikeWidget(widget.name) ? "node-helper__field--prompt" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <span>{widgetLabel(widget.name, node.type)}</span>
+                    {widget.description ? <small className="node-helper__hint">{widget.description}</small> : null}
+                    {supersededBy ? (
+                      <small className="node-helper__hint node-helper__hint--wired">
+                        Wired from {supersededBy.sourceNode?.type ?? "upstream"}
+                        {supersededBy.sourceNode?.id ? (
+                          <>
+                            {" "}
+                            <span className="node-helper__mono">({supersededBy.sourceNode.id})</span>
+                          </>
+                        ) : null}
+                        — edit on the source node.
+                      </small>
+                    ) : null}
+                    {wiredPreview ? (
+                      <p className="node-helper__wired-preview" title="Resolved prompt at render">
+                        {wiredPreview}
+                      </p>
+                    ) : null}
+                    <WidgetInput
+                      spec={widget}
+                      value={node.widgets[widget.name] ?? widget.default ?? ""}
+                      onChange={(value) => {
+                        if (node.type === "ControlCurve") {
+                          const synced = syncPointsFromStartEnd(node.widgets, widget.name, value);
+                          if (synced) {
+                            for (const [name, next] of Object.entries(synced)) {
+                              onWidgetChange(node.id, name, next);
+                            }
+                            return;
+                          }
+                        }
+                        onWidgetChange(node.id, widget.name, value);
+                      }}
+                      disabled={Boolean(supersededBy)}
+                      nodeType={node.type}
+                      nodeWidgets={node.widgets}
+                      onMultiWidgetChange={(name, value) => onWidgetChange(node.id, name, value)}
+                      onBrowse={
+                        widget.type === "MODEL_REF"
+                          ? () => onBrowseModel?.(node.id, widget.name)
+                          : undefined
+                      }
+                    />
+                  </label>
+                );
+              };
+              return (
+                <>
+                  {pinned.length > 0 ? (
+                    <section className="node-helper__exploration">
+                      <h4 className="node-helper__compare-subtitle">Exploration</h4>
+                      {pinned.map(renderWidget)}
+                    </section>
+                  ) : null}
+                  {rest.map(renderWidget)}
+                </>
+              );
+            })()}
             {modelParamRows.length > 0 ? (
               <section className="node-helper__model-params">
                 <h4 className="node-helper__compare-subtitle">Model parameters</h4>
@@ -1072,7 +1121,51 @@ function widgetLabel(name: string, nodeType: string): string {
     if (name === "target_sample_rate") return "Target sample rate (Hz)";
     if (name === "quality") return "Quality";
   }
+  if (GENERATIVE_NODE_TYPES.has(nodeType)) {
+    if (name === "prompt" || (name === "text" && nodeType !== "SingFromMIDI")) return "Prompt";
+    if (name === "text" && nodeType === "SingFromMIDI") return "Lyrics";
+    if (name === "seed") return "Seed";
+    if (name === "model") return "Model";
+  }
+  if (nodeType === "ControlCurve") {
+    if (name === "start_value") return "Start value";
+    if (name === "end_value") return "End value";
+    if (name === "frame_count") return "Frame count";
+    if (name === "sample_rate") return "Sample rate (Hz)";
+  }
   return name;
+}
+
+function isPromptLikeWidget(name: string): boolean {
+  return name === "prompt" || name === "text" || name === "lyrics";
+}
+
+function promptPlaceholder(widgetName: string, nodeType: string): string | undefined {
+  if (!GENERATIVE_NODE_TYPES.has(nodeType)) return undefined;
+  if (widgetName === "prompt") return "describe the sound.";
+  if (widgetName === "text" && nodeType === "TTS") return "describe the sound.";
+  if (widgetName === "text" && nodeType === "SingFromMIDI") return "type the lyrics.";
+  return undefined;
+}
+
+function partitionExplorationWidgets<T extends { name: string }>(
+  widgets: T[],
+  nodeType: string,
+): { pinned: T[]; rest: T[] } {
+  if (!GENERATIVE_NODE_TYPES.has(nodeType)) {
+    return { pinned: [], rest: widgets };
+  }
+  const byName = new Map(widgets.map((widget) => [widget.name, widget]));
+  const pinned: T[] = [];
+  const pinnedNames = new Set<string>();
+  for (const name of EXPLORATION_WIDGET_ORDER) {
+    const widget = byName.get(name);
+    if (!widget) continue;
+    pinned.push(widget);
+    pinnedNames.add(name);
+  }
+  const rest = widgets.filter((widget) => !pinnedNames.has(widget.name));
+  return { pinned, rest };
 }
 
 type WidgetInputProps = {
@@ -1272,6 +1365,43 @@ function WidgetInput({
           Browse…
         </button>
       </div>
+    );
+  }
+
+  if (spec.name === "seed" && (spec.type === "INT" || spec.type === "FLOAT")) {
+    const display =
+      typeof value === "number" || typeof value === "string" ? String(value) : String(spec.default ?? -1);
+    return (
+      <input
+        type="number"
+        value={display}
+        disabled={disabled}
+        min={typeof spec.min === "number" ? spec.min : -1}
+        max={typeof spec.max === "number" ? spec.max : undefined}
+        step={1}
+        onChange={(e) => {
+          const parsed = parseInt(e.target.value, 10);
+          onChange(Number.isFinite(parsed) ? parsed : -1);
+        }}
+      />
+    );
+  }
+
+  if (
+    nodeType &&
+    GENERATIVE_NODE_TYPES.has(nodeType) &&
+    isPromptLikeWidget(spec.name) &&
+    (spec.type === "STRING" || spec.type === "TEXT")
+  ) {
+    const str = typeof value === "string" ? value : String(value ?? "");
+    return (
+      <textarea
+        rows={3}
+        value={str}
+        disabled={disabled}
+        placeholder={promptPlaceholder(spec.name, nodeType)}
+        onChange={(e) => onChange(e.target.value)}
+      />
     );
   }
 
