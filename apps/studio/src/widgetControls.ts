@@ -22,6 +22,7 @@ const TEXT_NAMES = new Set([
   "language",
   "external_id",
   "description",
+  "seed",
 ]);
 
 const FADER_NAMES = /^(gain|gain_[ab]|volume|level|wet|dry|amount|mix|select|strength|opacity|balance)$/i;
@@ -52,6 +53,7 @@ type SpecLike = {
 
 function isTextLike(name: string, type: string): boolean {
   if (type === "MODEL_REF") return true;
+  if (name === "seed") return true;
   if (type !== "STRING" && type !== "TEXT") return false;
   if (TEXT_NAMES.has(name)) return true;
   if (STRING_OPTIONS[name]) return false;

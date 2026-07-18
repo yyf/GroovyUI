@@ -4,19 +4,17 @@ import { DEFAULT_LOAD_AUDIO_PATH } from "../sampleDefaults";
 
 type NodeTypeInfo = { type: string; category: string };
 
-type PaletteTier = "core" | "modular" | "immersive" | "live" | "all";
+type PaletteTier = "core" | "modular" | "all";
 
 type GroupId =
   | "core-io"
   | "core-dsp"
-  | "ai"
+  | "ai-generate"
+  | "ai-transform"
+  | "ai-analyze"
   | "authenticity"
   | "control"
-  | "subgraph"
-  | "multichannel"
-  | "ambisonics"
-  | "oba"
-  | "live-io";
+  | "subgraph";
 
 type Props = {
   onAddNode: (nodeType: string) => void;
@@ -35,7 +33,8 @@ const MODULAR_NODES = new Set([
   "ModuleOutlet",
 ]);
 
-const IMMERSIVE_NODES = new Set([
+/** Immersive + Live I/O are deprioritized — hide from the nodes menu entirely. */
+const HIDDEN_FROM_PALETTE = new Set([
   "ChannelConvert",
   "Transcode",
   "MultichannelNormalize",
@@ -48,42 +47,39 @@ const IMMERSIVE_NODES = new Set([
   "RenderObjectScene",
   "ObjectPlacement",
   "SeparateToObjects",
+  "MIDIInDevice",
+  "MIDIOutDevice",
+  "OSCInLive",
 ]);
-
-const LIVE_NODES = new Set(["MIDIInDevice", "MIDIOutDevice", "OSCInLive"]);
 
 const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix"]);
 
 const AUTHENTICITY = new Set(["VerifyProvenance", "AuthenticitySummary", "DeepfakeDetect"]);
 
-const OBA_NODES = new Set([
-  "ObjectFromAudio",
-  "ObjectMerge",
-  "ObjectAnimate",
-  "RenderObjectScene",
-  "ObjectPlacement",
-  "SeparateToObjects",
-]);
+/** Create audio from text / MIDI / prompts (sources). */
+const AI_GENERATE = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "SingFromMIDI"]);
+
+/** Shape or convert existing audio (processors). */
+const AI_TRANSFORM = new Set(["Denoise", "SeparateStems", "VoiceConvert"]);
+
+/** Read audio into text / MIDI (analysis — neither generate nor transform). */
+const AI_ANALYZE = new Set(["WhisperSTT", "DiarizeTranscribe", "AudioToMIDI"]);
 
 const TIERS: Array<{ id: PaletteTier; label: string; description: string }> = [
   { id: "core", label: "Core", description: "Essential I/O, processing, and AI exploration." },
   { id: "modular", label: "Modular", description: "Control wires, MIDI, automation, and subgraph boundaries." },
-  { id: "immersive", label: "Immersive", description: "Multichannel beds, ambisonics, and object-based spatial audio." },
-  { id: "live", label: "Live I/O", description: "Hardware MIDI devices and live OSC (opt-in)." },
-  { id: "all", label: "All", description: "Full node catalog across every tier." },
+  { id: "all", label: "All", description: "Core and modular nodes (immersive / live I/O hidden)." },
 ];
 
 const GROUP_ORDER: GroupId[] = [
   "core-io",
   "core-dsp",
-  "ai",
+  "ai-generate",
+  "ai-transform",
+  "ai-analyze",
   "authenticity",
   "control",
   "subgraph",
-  "multichannel",
-  "ambisonics",
-  "oba",
-  "live-io",
 ];
 
 const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteTier[] }> = {
@@ -97,9 +93,19 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
     hint: "Level, trim, resample",
     tiers: ["core", "all"],
   },
-  ai: {
-    title: "AI models",
-    hint: "Denoise, stems, TTS, music",
+  "ai-generate": {
+    title: "AI generate",
+    hint: "Text-to-audio, TTS, MIDI-conditioned synth",
+    tiers: ["core", "all"],
+  },
+  "ai-transform": {
+    title: "AI transform",
+    hint: "Denoise, stems, voice convert",
+    tiers: ["core", "all"],
+  },
+  "ai-analyze": {
+    title: "AI analyze",
+    hint: "Speech-to-text, audio-to-MIDI",
     tiers: ["core", "all"],
   },
   authenticity: {
@@ -117,31 +123,17 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
     hint: "Module inlets and outlets",
     tiers: ["modular", "all"],
   },
-  multichannel: {
-    title: "Multichannel",
-    hint: "Layouts, loudness, transcode",
-    tiers: ["immersive", "all"],
-  },
-  ambisonics: {
-    title: "Ambisonics",
-    hint: "FOA encode, decode, rotate",
-    tiers: ["immersive", "all"],
-  },
-  oba: {
-    title: "Object-based audio",
-    hint: "Scenes, placement, render",
-    tiers: ["immersive", "all"],
-  },
-  "live-io": {
-    title: "Hardware & OSC",
-    hint: "MIDI in/out, live OSC",
-    tiers: ["live", "all"],
-  },
 };
+
+function isPaletteVisible(node: NodeTypeInfo): boolean {
+  if (HIDDEN_FROM_PALETTE.has(node.type)) return false;
+  if (node.category.includes("Immersive") || node.category.includes("Live")) return false;
+  return true;
+}
 
 function tierForNode(node: NodeTypeInfo): PaletteTier[] {
   const tiers: PaletteTier[] = ["all"];
-  if (node.category.includes("Core") && !MODULAR_NODES.has(node.type) && !IMMERSIVE_NODES.has(node.type)) {
+  if (node.category.includes("Core") && !MODULAR_NODES.has(node.type)) {
     tiers.push("core");
   }
   if (MODULAR_NODES.has(node.type) || node.type.includes("MIDI") || node.type.includes("Automation")) {
@@ -150,27 +142,22 @@ function tierForNode(node: NodeTypeInfo): PaletteTier[] {
   if (node.category.includes("Modular")) {
     tiers.push("modular");
   }
-  if (IMMERSIVE_NODES.has(node.type) || node.category.includes("Immersive")) {
-    tiers.push("immersive");
-  }
-  if (LIVE_NODES.has(node.type) || node.category.includes("Live")) {
-    tiers.push("live");
-  }
   if (node.category.includes("AI")) {
     tiers.push("core");
   }
   return tiers;
 }
 
+function aiPaletteGroup(nodeType: string): GroupId {
+  if (AI_GENERATE.has(nodeType)) return "ai-generate";
+  if (AI_TRANSFORM.has(nodeType)) return "ai-transform";
+  if (AI_ANALYZE.has(nodeType)) return "ai-analyze";
+  return "ai-transform";
+}
+
 function paletteGroup(node: NodeTypeInfo): GroupId {
   if (AUTHENTICITY.has(node.type)) return "authenticity";
-  if (node.category.includes("AI")) {
-    return OBA_NODES.has(node.type) ? "oba" : "ai";
-  }
-  if (LIVE_NODES.has(node.type) || node.category.includes("Live")) return "live-io";
-  if (node.type.startsWith("Ambisonic")) return "ambisonics";
-  if (OBA_NODES.has(node.type)) return "oba";
-  if (IMMERSIVE_NODES.has(node.type) || node.category.includes("Immersive")) return "multichannel";
+  if (node.category.includes("AI")) return aiPaletteGroup(node.type);
   if (node.type === "ModuleInlet" || node.type === "ModuleOutlet") return "subgraph";
   if (MODULAR_NODES.has(node.type) || node.type.includes("Float")) return "control";
   if (CORE_IO.has(node.type)) return "core-io";
@@ -189,7 +176,7 @@ export default function NodePalette({ onAddNode }: Props) {
           type: n.type,
           category: n.category,
         }));
-        setNodes(list);
+        setNodes(list.filter(isPaletteVisible));
       })
       .catch(() => setNodes([]));
   }, []);

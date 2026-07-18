@@ -59,6 +59,7 @@ def regenerate_audio_from_midi(
     reference_weight: float = 0.45,
     guidance_scale: float = 3.0,
     temperature: float = 1.0,
+    seed: int | None = None,
 ) -> np.ndarray:
     melody_audio = _melody_audio_from_midi(midi)
     if reference_pcm is not None:
@@ -81,6 +82,11 @@ def regenerate_audio_from_midi(
     )
     inputs = {key: value.to(device) for key, value in inputs.items()}
 
+    generator = None
+    if seed is not None and seed >= 0:
+        generator = torch.Generator(device=device)
+        generator.manual_seed(int(seed) % (2**63 - 1))
+
     with torch.no_grad():
         with contextlib.redirect_stdout(io.StringIO()):
             generate_kwargs: dict[str, object] = {
@@ -90,6 +96,8 @@ def regenerate_audio_from_midi(
             if temperature > 0:
                 generate_kwargs["do_sample"] = True
                 generate_kwargs["temperature"] = float(temperature)
+            if generator is not None:
+                generate_kwargs["generator"] = generator
             generated = model.generate(**inputs, **generate_kwargs)
 
     waveform = generated[0, 0].detach().cpu().numpy().astype(np.float64)

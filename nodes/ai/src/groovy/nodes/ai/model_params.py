@@ -19,6 +19,29 @@ def int_param(kwargs: dict[str, Any], name: str, default: int) -> int:
         return default
 
 
+def seed_param(kwargs: dict[str, Any], *, fallback: str = "") -> int:
+    """Return an explicit non-negative seed, or a stable hash of *fallback* when seed is -1/unset."""
+    raw = kwargs.get("seed", -1)
+    try:
+        seed = int(raw)
+    except (TypeError, ValueError):
+        seed = -1
+    if seed >= 0:
+        return seed
+    material = fallback or "groovy"
+    return sum(ord(c) for c in material) % 2147483647
+
+
+def optional_seed(kwargs: dict[str, Any]) -> int | None:
+    """Return seed when explicitly set (>= 0), else None (backend may sample randomly)."""
+    raw = kwargs.get("seed", -1)
+    try:
+        seed = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return seed if seed >= 0 else None
+
+
 def bool_param(kwargs: dict[str, Any], name: str, default: bool) -> bool:
     raw = kwargs.get(name, default)
     if isinstance(raw, bool):

@@ -73,6 +73,7 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
     },
     "text-to-music": {"fixture": "none", "sample_path": None},
     "tts-greeting": {"fixture": "none", "sample_path": None},
+    "prompt-tts-modular": {"fixture": "none", "sample_path": None},
     "keyboard-to-music": {"fixture": "none", "sample_path": None},
     "ai-midi-to-hardware": {
         "fixture": "none",

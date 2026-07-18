@@ -32,6 +32,7 @@ def generate_from_text(
     max_new_tokens: int = 512,
     guidance_scale: float = 3.0,
     temperature: float = 1.0,
+    seed: int | None = None,
 ) -> np.ndarray:
     processor, model, device = _load_musicgen_small()
     inputs = processor(
@@ -40,6 +41,11 @@ def generate_from_text(
         return_tensors="pt",
     )
     inputs = {key: value.to(device) for key, value in inputs.items()}
+
+    generator = None
+    if seed is not None and seed >= 0:
+        generator = torch.Generator(device=device)
+        generator.manual_seed(int(seed) % (2**63 - 1))
 
     with torch.no_grad():
         with contextlib.redirect_stdout(io.StringIO()):
@@ -50,6 +56,8 @@ def generate_from_text(
             if temperature > 0:
                 generate_kwargs["do_sample"] = True
                 generate_kwargs["temperature"] = float(temperature)
+            if generator is not None:
+                generate_kwargs["generator"] = generator
             generated = model.generate(**inputs, **generate_kwargs)
 
     waveform = generated[0, 0].detach().cpu().numpy().astype(np.float64)

@@ -37,7 +37,11 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
     },
     "TTS": {
         "description": "Synthesize speech from a text prompt using a TTS model.",
-        "widgets": {"model": "Text-to-speech model (default Kokoro-82M).", "text": "Script or prompt to speak."},
+        "widgets": {
+            "model": "Text-to-speech model (default Kokoro-82M).",
+            "text": "Script or prompt to speak.",
+            "seed": "Random seed (−1 = random).",
+        },
     },
     "VoiceConvert": {
         "description": "Convert speaker timbre while preserving timing and intelligibility.",
@@ -52,16 +56,21 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "widgets": {
             "model": "MIDI-to-audio model (e.g. MusicGen Melody).",
             "prompt": "Style or instrument description for generation.",
+            "seed": "Random seed (−1 = random). Same seed + prompt → repeatable output.",
         },
     },
     "GenerateAudio": {
         "description": "Generate music or soundscapes from a text prompt (optional MIDI conditioning).",
         "inputs": {
-            "prompt": "Text description of the desired audio.",
+            "text": "Optional TEXT wire; when connected, overrides the local prompt widget.",
             "midi": "Optional MIDI melody conditioning.",
             "reference_audio": "Optional timbre/style reference clip.",
         },
-        "widgets": {"model": "Text-to-audio model (e.g. MusicGen Small)."},
+        "widgets": {
+            "model": "Text-to-audio model (e.g. MusicGen Small).",
+            "prompt": "Describe the sound you want to generate.",
+            "seed": "Random seed (−1 = random). Same seed + prompt → repeatable output.",
+        },
     },
     "SingFromMIDI": {
         "description": "Synthesize singing voice from MIDI notes and lyrics.",
@@ -73,6 +82,7 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "widgets": {
             "model": "Singing synthesis model (e.g. DiffSinger).",
             "text": "Fallback lyrics when no TEXT wire is connected.",
+            "seed": "Random seed (−1 = random).",
         },
     },
     "AutomationApply": {

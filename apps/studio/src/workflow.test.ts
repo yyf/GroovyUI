@@ -165,12 +165,16 @@ describe("wiredInputsForNode", () => {
       type: "GenerateAudio",
       category: "GroovyUI/AI",
       inputs: [
-        { name: "prompt", type: "TEXT" },
+        { name: "text", type: "TEXT", optional: true },
         { name: "midi", type: "MIDI", optional: true },
         { name: "reference_audio", type: "AUDIO", optional: true },
       ],
       outputs: [{ name: "output_0", type: "AUDIO" }],
-      widgets: [{ name: "model", type: "MODEL_REF" }],
+      widgets: [
+        { name: "model", type: "MODEL_REF" },
+        { name: "prompt", type: "STRING" },
+        { name: "seed", type: "INT", default: -1 },
+      ],
     };
     const rows = wiredInputsForNode(workflow, "n4", schema.inputs);
     expect(rows[0]?.connected).toBe(true);
@@ -210,6 +214,32 @@ describe("wiredInputSupersedesWidget", () => {
     ];
     const rows = wiredInputsForNode(sampleWorkflow(), "n1", inputs);
     expect(wiredInputSupersedesWidget("MIDIToAudio", "prompt", rows)).toBeNull();
+  });
+
+  it("disables GenerateAudio prompt when text socket is wired", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        ...sampleWorkflow().nodes,
+        { id: "p1", type: "Prompt", pos: { x: 0, y: 120 }, widgets: { text: "lo-fi bed" } },
+        {
+          id: "g1",
+          type: "GenerateAudio",
+          pos: { x: 280, y: 0 },
+          widgets: { model: "musicgen-small", prompt: "stale", seed: -1 },
+        },
+      ],
+      links: [{ id: "l3", from: ["p1", 0], to: ["g1", 0], type: "TEXT" }],
+    };
+    const inputs = [
+      { name: "text", type: "TEXT", optional: true },
+      { name: "midi", type: "MIDI", optional: true },
+      { name: "reference_audio", type: "AUDIO", optional: true },
+    ];
+    const rows = wiredInputsForNode(workflow, "g1", inputs);
+    const superseded = wiredInputSupersedesWidget("GenerateAudio", "prompt", rows);
+    expect(superseded?.name).toBe("text");
+    expect(wiredPromptPreview(superseded?.sourceNode)).toBe("lo-fi bed");
   });
 });
 

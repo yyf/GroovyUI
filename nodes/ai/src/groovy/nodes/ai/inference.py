@@ -196,10 +196,18 @@ def run_diarize_transcribe(cache: CacheStore, kwargs: dict) -> list[dict]:
 
 
 def run_tts(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import optional_seed, seed_param
+
     text = str(kwargs.get("transcript") or kwargs.get("text") or "Hello from GroovyUI.")
     model_id = str(kwargs.get("model", "kokoro-82m"))
     sample_rate = 48000
-    pcm = synthesize_speech(text, sample_rate=sample_rate, model_id=model_id)
+    pcm = synthesize_speech(
+        text,
+        sample_rate=sample_rate,
+        model_id=model_id,
+        seed=optional_seed(kwargs),
+        stub_seed=seed_param(kwargs, fallback=text),
+    )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="TTS")
     cache.write_audio(out_buffer, pcm)
     return [{"type": "AUDIO", "cache_id": out_buffer.id}]
@@ -479,18 +487,32 @@ def _format_diarized_transcript(
     return "\n".join(lines)
 
 
-def synthesize_speech(text: str, *, sample_rate: int, model_id: str) -> np.ndarray:
+def synthesize_speech(
+    text: str,
+    *,
+    sample_rate: int,
+    model_id: str,
+    seed: int | None = None,
+    stub_seed: int | None = None,
+) -> np.ndarray:
     from groovy.nodes.ai.inference_env import inference_stub_enabled
+
+    _ = seed  # reserved for backends that support deterministic sampling
+    effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
 
     if model_id == "kokoro-82m":
         if not inference_stub_enabled():
             from groovy.nodes.ai.backends.kokoro_runner import synthesize_pcm
 
             return synthesize_pcm(text, sample_rate=sample_rate)
-        return _synthesize_speech_stub(text, sample_rate=sample_rate, model_id=model_id)
+        return _synthesize_speech_stub(
+            text, sample_rate=sample_rate, model_id=model_id, seed=effective_stub
+        )
 
     if inference_stub_enabled():
-        return _synthesize_speech_stub(text, sample_rate=sample_rate, model_id=model_id)
+        return _synthesize_speech_stub(
+            text, sample_rate=sample_rate, model_id=model_id, seed=effective_stub
+        )
 
     raise RuntimeError(
         f"Unsupported TTS model for real inference: {model_id}. "
@@ -498,11 +520,14 @@ def synthesize_speech(text: str, *, sample_rate: int, model_id: str) -> np.ndarr
     )
 
 
-def _synthesize_speech_stub(text: str, *, sample_rate: int, model_id: str) -> np.ndarray:
+def _synthesize_speech_stub(
+    text: str, *, sample_rate: int, model_id: str, seed: int = 0
+) -> np.ndarray:
     duration = min(3.0, max(0.5, len(text) * 0.05))
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    # Slight pitch difference per model so stub A/B is audible.
-    freq = 196.0 if "kokoro" in model_id else 220.0
+    # Slight pitch difference per model so stub A/B is audible; seed nudges frequency.
+    base = 196.0 if "kokoro" in model_id else 220.0
+    freq = base + (seed % 17) * 3.0
     tone = 0.2 * np.sin(2 * np.pi * freq * t)
     return tone.reshape(1, -1)
 
@@ -547,7 +572,7 @@ def run_audio_to_midi(cache: CacheStore, kwargs: dict) -> list[dict]:
 
 
 def run_midi_to_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
-    from groovy.nodes.ai.model_params import float_param, int_param
+    from groovy.nodes.ai.model_params import float_param, int_param, optional_seed, seed_param
 
     midi_id = kwargs["midi_id"]
     model_id = str(kwargs.get("model", "musicgen-melody-small"))
@@ -568,6 +593,8 @@ def run_midi_to_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
         reference_weight=float_param(kwargs, "reference_weight", 0.45),
         guidance_scale=float_param(kwargs, "guidance_scale", 3.0),
         temperature=float_param(kwargs, "temperature", 1.0),
+        seed=optional_seed(kwargs),
+        stub_seed=seed_param(kwargs, fallback=prompt + midi.id),
     )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="MIDIToAudio")
     cache.write_audio(out_buffer, pcm)
@@ -575,10 +602,10 @@ def run_midi_to_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
 
 
 def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
-    from groovy.nodes.ai.model_params import float_param, int_param
+    from groovy.nodes.ai.model_params import float_param, int_param, optional_seed, seed_param
 
     model_id = str(kwargs.get("model", "musicgen-small"))
-    prompt = str(kwargs.get("prompt") or kwargs.get("text") or "ambient music")
+    prompt = str(kwargs.get("text") or kwargs.get("prompt") or "ambient music")
     sample_rate = 48000
     midi = None
     if kwargs.get("midi_id"):
@@ -595,6 +622,8 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
         max_new_tokens=int_param(kwargs, "max_new_tokens", 512),
         guidance_scale=float_param(kwargs, "guidance_scale", 3.0),
         temperature=float_param(kwargs, "temperature", 1.0),
+        seed=optional_seed(kwargs),
+        stub_seed=seed_param(kwargs, fallback=prompt),
     )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="GenerateAudio")
     cache.write_audio(out_buffer, pcm)
@@ -602,6 +631,8 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
 
 
 def run_sing_from_midi(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import seed_param
+
     midi_id = kwargs["midi_id"]
     model_id = str(kwargs.get("model", "diffsinger-opencpop"))
     lyrics = str(kwargs.get("lyrics") or kwargs.get("text") or "la la la")
@@ -616,6 +647,7 @@ def run_sing_from_midi(cache: CacheStore, kwargs: dict) -> list[dict]:
         sample_rate=sample_rate,
         model_id=model_id,
         reference_pcm=ref_pcm,
+        stub_seed=seed_param(kwargs, fallback=lyrics),
     )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="SingFromMIDI")
     cache.write_audio(out_buffer, pcm)
@@ -738,6 +770,8 @@ def midi_to_audio_waveform(
     reference_weight: float = 0.45,
     guidance_scale: float = 3.0,
     temperature: float = 1.0,
+    seed: int | None = None,
+    stub_seed: int | None = None,
 ) -> np.ndarray:
     from groovy.nodes.ai.inference_env import inference_stub_enabled, musicgen_melody_available
 
@@ -757,10 +791,16 @@ def midi_to_audio_waveform(
             reference_weight=reference_weight,
             guidance_scale=guidance_scale,
             temperature=temperature,
+            seed=seed,
         )
 
     if inference_stub_enabled():
-        return _midi_to_audio_stub(midi, sample_rate=sample_rate, prompt=prompt)
+        return _midi_to_audio_stub(
+            midi,
+            sample_rate=sample_rate,
+            prompt=prompt,
+            seed=stub_seed if stub_seed is not None else (seed if seed is not None else 0),
+        )
 
     raise RuntimeError(
         "MusicGen Melody inference is not installed. Run: ./scripts/setup-inference.sh "
@@ -768,13 +808,15 @@ def midi_to_audio_waveform(
     )
 
 
-def _midi_to_audio_stub(midi: MidiBuffer, *, sample_rate: int, prompt: str) -> np.ndarray:
+def _midi_to_audio_stub(
+    midi: MidiBuffer, *, sample_rate: int, prompt: str, seed: int = 0
+) -> np.ndarray:
     _ = prompt
     duration = max(0.5, midi.frame_count / sample_rate)
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    seed = sum(ord(c) for c in midi.id) % 7
-    f1 = 220 + seed * 20
-    f2 = 330 + seed * 15
+    nudge = seed % 7
+    f1 = 220 + nudge * 20
+    f2 = 330 + nudge * 15
     tone = 0.15 * (np.sin(2 * np.pi * f1 * t) + 0.7 * np.sin(2 * np.pi * f2 * t))
     return tone.reshape(1, -1)
 
@@ -789,10 +831,13 @@ def generate_audio_waveform(
     max_new_tokens: int = 512,
     guidance_scale: float = 3.0,
     temperature: float = 1.0,
+    seed: int | None = None,
+    stub_seed: int | None = None,
 ) -> np.ndarray:
     from groovy.nodes.ai.inference_env import inference_stub_enabled, musicgen_small_available
 
     _ = reference_pcm
+    effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
     if model_id == "musicgen-small":
         if musicgen_small_available() and not inference_stub_enabled():
             from groovy.nodes.ai.backends.musicgen_small_runner import generate_from_text
@@ -803,16 +848,21 @@ def generate_audio_waveform(
                 max_new_tokens=max_new_tokens,
                 guidance_scale=guidance_scale,
                 temperature=temperature,
+                seed=seed,
             )
         if inference_stub_enabled():
-            return _generate_audio_stub(prompt, sample_rate=sample_rate, midi=midi, model_id=model_id)
+            return _generate_audio_stub(
+                prompt, sample_rate=sample_rate, midi=midi, model_id=model_id, seed=effective_stub
+            )
         raise RuntimeError(
             "MusicGen Small inference is not installed. Run: ./scripts/setup-inference.sh "
             "(requires torch, transformers) then install musicgen-small from Model Browser."
         )
 
     if inference_stub_enabled():
-        return _generate_audio_stub(prompt, sample_rate=sample_rate, midi=midi, model_id=model_id)
+        return _generate_audio_stub(
+            prompt, sample_rate=sample_rate, midi=midi, model_id=model_id, seed=effective_stub
+        )
 
     raise RuntimeError(f"Unsupported text-to-music model for real inference: {model_id}")
 
@@ -823,17 +873,20 @@ def _generate_audio_stub(
     sample_rate: int,
     midi: MidiBuffer | None,
     model_id: str,
+    seed: int = 0,
 ) -> np.ndarray:
-    seed = sum(ord(c) for c in prompt) % 11
+    nudge = seed % 11
     duration = 2.0
     if midi is not None:
         duration = max(1.0, midi.frame_count / sample_rate)
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    f1 = 130 + seed * 12
-    f2 = 196 + seed * 8
+    f1 = 130 + nudge * 12
+    f2 = 196 + nudge * 8
     tone = 0.12 * (np.sin(2 * np.pi * f1 * t) + 0.5 * np.sin(2 * np.pi * f2 * t))
     if midi is not None and model_id == "musicgen-melody-small":
-        melody = midi_to_audio_waveform(midi, sample_rate=sample_rate, model_id=model_id, prompt=prompt)
+        melody = midi_to_audio_waveform(
+            midi, sample_rate=sample_rate, model_id=model_id, prompt=prompt, stub_seed=seed
+        )
         min_len = min(tone.shape[-1], melody.shape[-1])
         tone = tone[:min_len] + 0.5 * melody[0, :min_len]
         tone = tone.reshape(1, -1)
@@ -849,12 +902,13 @@ def sing_from_midi_waveform(
     sample_rate: int,
     model_id: str,
     reference_pcm: np.ndarray | None = None,
+    stub_seed: int | None = None,
 ) -> np.ndarray:
     _ = model_id, reference_pcm
     duration = max(1.0, midi.frame_count / sample_rate)
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
-    seed = sum(ord(c) for c in lyrics) % 9
-    carrier = 440 + seed * 10
+    nudge = (stub_seed if stub_seed is not None else sum(ord(c) for c in lyrics)) % 9
+    carrier = 440 + nudge * 10
     # vocal-like AM envelope from syllable count
     syllables = max(1, len(lyrics.split()))
     env = 0.5 + 0.5 * np.sin(2 * np.pi * syllables * t / duration)
