@@ -28,7 +28,7 @@ def project_dir(tmp_path: Path) -> Path:
     sr = 48000
     t = np.linspace(0, 0.25, int(sr * 0.25), endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "dialogue_48k.wav", tone, sr)
+    sf.write(assets / "male-1.wav", tone, sr)
     return tmp_path
 
 

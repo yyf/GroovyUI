@@ -64,6 +64,7 @@ import {
   previewCacheId,
   previewMidiId,
   savedFilePath,
+  savedProvenancePath,
   duplicateSelection,
   extractSelection,
   pasteSelection,
@@ -404,14 +405,21 @@ export default function App() {
           setFailedNodeId(null);
           const outputs = job.outputs ?? {};
           setNodeStatus((prev) => ({ ...prev, ...cachedStatusFromOutputs(workflow, outputs) }));
-          const saved = targets
+          const savedOutput = targets
             .map((nodeId) => {
               const node = workflow.nodes.find((n) => n.id === nodeId);
-              const path = savedFilePath(outputs[nodeId]);
-              return node?.type === "SaveAudio" && path ? path : null;
+              return node?.type === "SaveAudio" ? outputs[nodeId] : undefined;
             })
             .find(Boolean);
-          setStatus(saved ? `Saved to ${saved}` : "Complete");
+          const saved = savedFilePath(savedOutput);
+          const provenance = savedProvenancePath(savedOutput);
+          setStatus(
+            saved && provenance
+              ? `Saved audio + provenance: ${saved}`
+              : saved
+                ? `Saved to ${saved}`
+                : "Complete",
+          );
         } else if (job.status === "cancelled") {
           const outputs = job.outputs ?? {};
           setNodeStatus((prev) => ({ ...prev, ...cachedStatusFromOutputs(workflow, outputs) }));
@@ -1030,6 +1038,7 @@ export default function App() {
                   if (selectedNodeId) auditionNode(selectedNodeId);
                 }}
                 onCompareAudition={(nodeId) => auditionNode(nodeId)}
+                onOpenCompliance={() => setComplianceOpen(true)}
                 renderIssue={selectedNodeId ? nodeIssues[selectedNodeId] : null}
                 renderIssueDetail={
                   failedNodeId === selectedNodeId && lastJob?.status === "failed"

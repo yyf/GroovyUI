@@ -169,6 +169,8 @@ def test_save_audio_round_trip_lossless(project_dir: Path) -> None:
     executor = Executor(project_dir)
     save_result = executor.execute(load_save, target_nodes=["n2"])
     assert save_result.status == "completed", save_result.error
+    saved_path = Path(save_result.outputs["n2"]["path"])
+    reload.nodes[0].widgets["path"] = str(saved_path.relative_to(project_dir))
     reload_result = executor.execute(reload, target_nodes=["n3"])
     assert reload_result.status == "completed", reload_result.error
 

@@ -28,6 +28,9 @@ class GroovyNode:
     EXPORT_TIER = "EXPORTABLE"
     SAMPLE_ACCURATE = True
     DETERMINISTIC = True
+    # Side-effecting sinks (e.g. SaveAudio) set this False so the executor never
+    # serves a stale cached result — they must re-run and re-emit fresh outputs.
+    CACHEABLE = True
     run_in_worker = False
     NETWORK_REQUIRED = False
     PROVENANCE_CLASS = "human_edited"

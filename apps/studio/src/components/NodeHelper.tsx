@@ -55,6 +55,7 @@ type Props = {
   onBrowseModel?: (nodeId: string, widgetName: string) => void;
   onAudition?: () => void;
   onCompareAudition?: (nodeId: string) => void;
+  onOpenCompliance?: () => void;
   renderIssue?: string | null;
   renderIssueDetail?: string | null;
 };
@@ -76,6 +77,7 @@ export default function NodeHelper({
   onBrowseModel,
   onAudition,
   onCompareAudition,
+  onOpenCompliance,
   renderIssue,
   renderIssueDetail,
 }: Props) {
@@ -267,14 +269,16 @@ export default function NodeHelper({
         >
           Outputs
         </button>
-        <button
-          type="button"
-          className={tab === "provenance" ? "active" : ""}
-          onClick={() => setTab("provenance")}
-          disabled={!jobOutputAtSlot(output, 0)?.cache_id && !output?.cache_id}
-        >
-          Provenance
-        </button>
+        {node.type !== "SaveAudio" ? (
+          <button
+            type="button"
+            className={tab === "provenance" ? "active" : ""}
+            onClick={() => setTab("provenance")}
+            disabled={!jobOutputAtSlot(output, 0)?.cache_id && !output?.cache_id}
+          >
+            Provenance
+          </button>
+        ) : null}
       </nav>
       <div className="node-helper__body">
         {tab === "config" && schema ? (
@@ -437,10 +441,15 @@ export default function NodeHelper({
               </section>
             ) : null}
             {node.type === "SaveAudio" ? (
-              <p className="node-helper__hint">
-                Output path: <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code> (relative to
-                project folder). Use Choose file… on the file name field to pick a name and folder.
-              </p>
+              <>
+                <p className="node-helper__hint">
+                  Filename template: <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code>. A UTC
+                  timestamp is appended when rendered. Use Choose file… to pick the folder and base name.
+                </p>
+                {output?.type === "STRING" && output.path && output.provenance_path ? (
+                  <SaveAudioExportPair output={output} onOpenCompliance={onOpenCompliance} />
+                ) : null}
+              </>
             ) : null}
             {node.type === "LoadAudio" ? (
               <p className="node-helper__hint">
@@ -509,6 +518,7 @@ export default function NodeHelper({
                     <OutputSnapshot
                       output={slotOutput}
                       socketType={socket.type}
+                      onOpenCompliance={node.type === "SaveAudio" ? onOpenCompliance : undefined}
                     />
                   ) : (
                     <p className="node-helper__hint">Render to populate this output.</p>
@@ -990,9 +1000,11 @@ function formatPeakDb(peak: number): string {
 function OutputSnapshot({
   output,
   socketType,
+  onOpenCompliance,
 }: {
   output: JobOutput;
   socketType: string;
+  onOpenCompliance?: () => void;
 }) {
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
   const [signalMetrics, setSignalMetrics] = useState<CacheSignalMetrics | null>(null);
@@ -1032,7 +1044,9 @@ function OutputSnapshot({
       <p className="node-helper__socket-wire">
         <SocketTypeBadge type={socketType} /> {output.type === "STRING" ? "written" : "cached"}
       </p>
-      {output.type === "STRING" && output.path ? (
+      {output.type === "STRING" && output.path && output.provenance_path ? (
+        <SaveAudioExportPair output={output} onOpenCompliance={onOpenCompliance} />
+      ) : output.type === "STRING" && output.path ? (
         <p className="node-helper__text">
           <code>{output.path}</code>
         </p>
@@ -1087,6 +1101,33 @@ function OutputSnapshot({
         <p className="node-helper__hint">Render to populate output metadata.</p>
       ) : null}
     </div>
+  );
+}
+
+function SaveAudioExportPair({
+  output,
+  onOpenCompliance,
+}: {
+  output: JobOutput;
+  onOpenCompliance?: () => void;
+}) {
+  if (!output.path || !output.provenance_path) return null;
+  return (
+    <section className="node-helper__export-pair" aria-label="Saved audio and provenance">
+      <div className="node-helper__export-artifact">
+        <span className="node-helper__export-label">Output file</span>
+        <code title={output.path}>{output.path}</code>
+      </div>
+      <div className="node-helper__export-artifact">
+        <span className="node-helper__export-label">Compliance sidecar</span>
+        <code title={output.provenance_path}>{output.provenance_path}</code>
+      </div>
+      {onOpenCompliance ? (
+        <button type="button" className="node-helper__export-compliance" onClick={onOpenCompliance}>
+          Review compliance
+        </button>
+      ) : null}
+    </section>
   );
 }
 

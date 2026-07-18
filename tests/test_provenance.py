@@ -67,9 +67,6 @@ def test_save_audio_writes_provenance_sidecar(project_dir: Path) -> None:
     assert result.status == "completed"
 
     cache_id = result.outputs["n2"]["cache_id"]
-    out = project_dir / "exports" / "test-out.wav"
-    out.parent.mkdir(parents=True, exist_ok=True)
-
     from groovy.nodes.core.nodes import SaveAudio
 
     node = SaveAudio()
@@ -78,6 +75,8 @@ def test_save_audio_writes_provenance_sidecar(project_dir: Path) -> None:
     ctx = JobContext(project_dir=project_dir, cache=executor.cache, job_id="test")
     node.bind_context(ctx)
     buffer, _ = executor.cache.load_audio(cache_id)
-    node.run(audio=buffer, filename="exports/test-out.wav")
-    sidecar = out.with_name("test-out.provenance.json")
+    written, = node.run(audio=buffer, filename="exports/test-out.wav")
+    out = Path(written)
+    sidecar = out.with_name(f"{out.stem}.provenance.json")
+    assert out.name.startswith("test-out-")
     assert sidecar.exists()

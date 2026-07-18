@@ -2914,6 +2914,43 @@ body {
   margin-top: 6px;
 }
 
+.node-helper__export-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.node-helper__export-artifact {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border-dim);
+  background: var(--bg-recessed);
+}
+
+.node-helper__export-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.node-helper__export-artifact code {
+  display: block;
+  color: var(--text-primary);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.node-helper__export-compliance {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
 .socket-type-badge {
   display: inline-flex;
   align-items: center;

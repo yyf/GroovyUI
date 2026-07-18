@@ -118,7 +118,8 @@ def test_preview_audio_and_text_attaches_transcript(project_dir: Path) -> None:
     assert preview["type"] == "AUDIO"
     assert preview["cache_id"] == result.outputs["n1"]["cache_id"]
     assert preview.get("text") == "side transcript"
-    saved = project_dir / "exports" / "from-preview.wav"
+    saved = Path(result.outputs["n4"]["path"])
+    assert saved.name.startswith("from-preview-")
     assert saved.exists() and saved.stat().st_size > 100
 
 
