@@ -77,7 +77,8 @@ def test_podcast_denoise_cold_machine_gate(project_dir: Path) -> None:
     assert "n2" in result.outputs
     assert "n5" in result.outputs
 
-    saved = project_dir / "exports" / "podcast-denoised.wav"
+    saved = Path(result.outputs["n5"]["path"])
+    assert saved.name.startswith("podcast-denoised-")
     assert saved.exists()
     assert saved.stat().st_size > 1_000
 
@@ -128,6 +129,7 @@ def test_transcribe_dialogue_cold_machine_gate(project_dir: Path) -> None:
     assert audio_preview["type"] == "AUDIO"
     assert audio_preview["cache_id"] == result.outputs["n1"]["cache_id"]
 
-    saved = project_dir / "exports" / "dialogue-source.wav"
+    saved = Path(result.outputs["n5"]["path"])
+    assert saved.name.startswith("dialogue-source-")
     assert saved.exists()
     assert saved.stat().st_size > 1_000

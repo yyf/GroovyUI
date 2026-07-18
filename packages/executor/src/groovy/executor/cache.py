@@ -107,7 +107,9 @@ class CacheStore:
         if not record:
             raise FileNotFoundError(f"No provenance for cache entry: {cache_id}")
         sidecar = output_path.with_name(f"{output_path.stem}.provenance.json")
-        sidecar.write_text(json.dumps(record, indent=2))
+        temporary = sidecar.with_suffix(f"{sidecar.suffix}.tmp")
+        temporary.write_text(json.dumps(record, indent=2))
+        temporary.replace(sidecar)
         return sidecar
 
     def write_midi(self, midi: MidiBuffer, midi_bytes: bytes | None = None) -> MidiBuffer:

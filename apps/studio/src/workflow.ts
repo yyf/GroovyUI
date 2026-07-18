@@ -155,6 +155,12 @@ export function resolveNodeInspectorOutput(
       text: direct.text,
     };
   }
+  // SaveAudio: keep the written-file STRING payload (path + provenance sidecar)
+  // so the Inspector can show the output path and Review compliance action.
+  // Auditioning still works via the separately-resolved listen id.
+  if (direct?.type === "STRING" && direct.path) {
+    return direct;
+  }
   return listen ?? direct;
 }
 
@@ -170,6 +176,12 @@ export function savedFilePath(output?: JobOutput): string | null {
     return output.text;
   }
   return null;
+}
+
+export function savedProvenancePath(output?: JobOutput): string | null {
+  return output?.type === "STRING" && output.provenance_path
+    ? output.provenance_path
+    : null;
 }
 
 /** Join SaveAudio path + filename widgets into a project-relative output path. */

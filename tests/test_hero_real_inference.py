@@ -145,7 +145,8 @@ def test_podcast_denoise_real_inference_tolerance(project_dir: Path) -> None:
     except ImportError:
         pass
 
-    saved = project_dir / "exports" / "podcast-denoised.wav"
+    saved = Path(result.outputs["n5"]["path"])
+    assert saved.name.startswith("podcast-denoised-")
     assert saved.exists() and saved.stat().st_size > 1_000
 
     # Cache rerun must be stable (sample-accurate offline path).
@@ -203,7 +204,8 @@ def test_stem_split_vocals_real_inference_tolerance(project_dir: Path) -> None:
     vocals_id = next(slot["cache_id"] for slot in multi["outputs"] if slot.get("name") == "vocals")
     assert result.outputs["n3"]["cache_id"] == vocals_id
 
-    saved = project_dir / "exports" / "vocals.wav"
+    saved = Path(result.outputs["n4"]["path"])
+    assert saved.name.startswith("vocals-")
     assert saved.exists() and saved.stat().st_size > 1_000
 
     again = executor.execute(workflow, target_nodes=["n3", "n4"])
@@ -242,7 +244,8 @@ def test_transcribe_dialogue_real_inference_tolerance(project_dir: Path) -> None
     assert int(load_meta["sample_rate"]) == 48_000
     assert int(load_meta["frame_count"]) > 0
 
-    saved = project_dir / "exports" / "dialogue-source.wav"
+    saved = Path(result.outputs["n5"]["path"])
+    assert saved.name.startswith("dialogue-source-")
     assert saved.exists() and saved.stat().st_size > 1_000
 
     again = executor.execute(workflow, target_nodes=["n2", "n3", "n4", "n5"])

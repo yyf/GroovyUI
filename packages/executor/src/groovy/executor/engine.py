@@ -127,7 +127,12 @@ class Executor:
                     kwargs[_input_name(node_cls, input_idx)] = src_outputs[src_out_idx]
 
                 signature = compute_node_signature(node.type, dict(node.widgets), kwargs)
-                cached_state = None if force_rebuild else ctx.cache.read_node_cache(workflow.id, node_id)
+                cacheable = getattr(node_cls, "CACHEABLE", True)
+                cached_state = (
+                    None
+                    if force_rebuild or not cacheable
+                    else ctx.cache.read_node_cache(workflow.id, node_id)
+                )
                 cache_hit = False
                 cached_output_meta = (
                     self._normalize_output_meta(node_cls, cached_state.get("output"))
@@ -198,7 +203,7 @@ class Executor:
                         "output": manifest_output,
                     }
                 )
-                if output_meta:
+                if output_meta and cacheable:
                     ctx.cache.write_node_cache(
                         workflow.id, node_id, signature=signature, output_meta=output_meta
                     )
@@ -396,7 +401,20 @@ class Executor:
                 }
             if isinstance(item, str):
                 if node.type == "SaveAudio":
-                    return {"type": "STRING", "path": item}
+                    output_path = Path(item)
+                    provenance_path = output_path.with_name(
+                        f"{output_path.stem}.provenance.json"
+                    )
+                    if not provenance_path.is_file():
+                        raise RuntimeError(
+                            f"SaveAudio wrote audio but provenance sidecar is missing: "
+                            f"{provenance_path}"
+                        )
+                    return {
+                        "type": "STRING",
+                        "path": item,
+                        "provenance_path": str(provenance_path),
+                    }
                 return {"type": "TEXT", "text": item}
         return None
 

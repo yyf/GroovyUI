@@ -14,6 +14,8 @@ import {
   previewMidiId,
   previewListenId,
   previewTextSnippet,
+  savedFilePath,
+  savedProvenancePath,
   resolveNodeInspectorOutput,
   pasteSelection,
   removeNodesFromWorkflow,
@@ -120,6 +122,22 @@ describe("previewTextSnippet", () => {
       { type: "AUDIO", cache_id: "load" },
     );
     expect(merged).toMatchObject({ type: "AUDIO", cache_id: "preview", text: "from whisper" });
+  });
+
+  it("keeps SaveAudio STRING payload over upstream listen AUDIO", () => {
+    const merged = resolveNodeInspectorOutput(
+      {
+        type: "STRING",
+        path: "exports/renders/take-20260717.wav",
+        provenance_path: "exports/renders/take-20260717.provenance.json",
+      },
+      { type: "AUDIO", cache_id: "upstream" },
+    );
+    expect(merged).toMatchObject({
+      type: "STRING",
+      path: "exports/renders/take-20260717.wav",
+      provenance_path: "exports/renders/take-20260717.provenance.json",
+    });
   });
 
   it("attaches previewText on TEXT job outputs in flow nodes", () => {
@@ -605,6 +623,21 @@ describe("preview ids", () => {
     };
     expect(previewListenId(multi, 0)).toBe("vocals");
     expect(previewListenId(multi, 1)).toBe("drums");
+  });
+});
+
+describe("saved artifact paths", () => {
+  const output: JobOutput = {
+    type: "STRING",
+    path: "/project/exports/render.wav",
+    provenance_path: "/project/exports/render.provenance.json",
+  };
+
+  it("returns paired SaveAudio artifact paths", () => {
+    expect(savedFilePath(output)).toBe("/project/exports/render.wav");
+    expect(savedProvenancePath(output)).toBe(
+      "/project/exports/render.provenance.json",
+    );
   });
 });
 

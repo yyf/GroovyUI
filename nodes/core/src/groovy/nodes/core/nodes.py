@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -116,6 +117,8 @@ class LoadAudio(GroovyNode):
 @register_node
 class SaveAudio(GroovyNode):
     RETURN_TYPES = ("STRING",)
+    # Writes a timestamped file + provenance sidecar on every render; never cache.
+    CACHEABLE = False
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -133,7 +136,7 @@ class SaveAudio(GroovyNode):
                     "STRING",
                     {
                         "default": "output.wav",
-                        "description": "File name including extension",
+                        "description": "Base file name; a UTC timestamp is appended when written",
                     },
                 ),
                 "format": ("STRING", {"default": "wav"}),
@@ -153,6 +156,16 @@ class SaveAudio(GroovyNode):
         if folder:
             return f"{folder}/{name}"
         return name
+
+    @staticmethod
+    def _timestamped_relative(relative: str, now: datetime | None = None) -> str:
+        instant = now or datetime.now(UTC)
+        stamp = (
+            instant.strftime("%Y%m%dT%H%M%S")
+            + f"{instant.microsecond // 1000:03d}Z"
+        )
+        path = Path(relative)
+        return str(path.with_name(f"{path.stem}-{stamp}{path.suffix}"))
 
     def run(
         self,
@@ -175,7 +188,9 @@ class SaveAudio(GroovyNode):
         name = str(kwargs.get("filename", filename))
         fmt = str(kwargs.get("format", format))
         depth = str(kwargs.get("bit_depth", bit_depth))
-        relative = self._resolve_output_relative(folder, name)
+        relative = self._timestamped_relative(
+            self._resolve_output_relative(folder, name)
+        )
         out_path = self._ctx.cache.resolve_project_path(relative)
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -183,10 +198,16 @@ class SaveAudio(GroovyNode):
         interleaved = pcm.T
         subtype = "FLOAT" if depth == "float" else "PCM_24"
         sf.write(out_path, interleaved, audio_in.sample_rate, format=fmt.upper(), subtype=subtype)
+        # A successful SaveAudio render always produces the paired provenance
+        # artifact. Missing provenance or a failed sidecar write must fail the
+        # node instead of silently leaving an incomplete handoff.
         try:
             self._ctx.cache.export_provenance_sidecar(audio_in.id, out_path)
-        except FileNotFoundError:
-            pass
+        except Exception as exc:
+            out_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"SaveAudio could not write provenance sidecar for {relative}: {exc}"
+            ) from exc
         return (str(out_path),)
 
 

@@ -159,6 +159,7 @@ export type JobOutput = {
   name?: string;
   text?: string;
   path?: string;
+  provenance_path?: string;
   stems_id?: string;
   stems?: Record<string, string>;
   midi_id?: string;
