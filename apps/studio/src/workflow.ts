@@ -68,6 +68,22 @@ export function resolveNodeListenId(
   return previewCacheId(listenOutput) ?? previewMidiId(listenOutput);
 }
 
+/** Prefer a Preview sink for post-render audition, then the last listenable node. */
+export function preferredAuditionNodeId(
+  workflow: Workflow,
+  outputs?: Record<string, JobOutput>,
+): string | null {
+  const preview = workflow.nodes.find(
+    (node) => node.type === "Preview" && resolveNodeListenId(workflow, node.id, outputs),
+  );
+  if (preview) return preview.id;
+  return (
+    [...workflow.nodes]
+      .reverse()
+      .find((node) => resolveNodeListenId(workflow, node.id, outputs))?.id ?? null
+  );
+}
+
 export function nodeHasListenableOutput(
   workflow: Workflow,
   nodeId: string,

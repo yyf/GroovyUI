@@ -20,6 +20,7 @@ import {
   fetchTemplate,
   fetchModelCard,
   findMissingWorkflowModels,
+  installModelWithProgress,
   fetchWaveform,
   fetchMidiRoll,
   listTemplates,
@@ -46,6 +47,7 @@ import { AuditionContext } from "./context/AuditionContext";
 import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
 import { useLiveIo } from "./hooks/useLiveIo";
 import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
+import { applyModelSwaps, runFastPathSequence, type FastPathRunResult } from "./fastPath";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import {
@@ -68,6 +70,7 @@ import {
   duplicateSelection,
   extractSelection,
   pasteSelection,
+  preferredAuditionNodeId,
   removeLinks,
   removeNodesFromWorkflow,
   resolveComparePair,
@@ -111,15 +114,18 @@ export default function App() {
   const [renderStartedAt, setRenderStartedAt] = useState<number | undefined>();
   const [lastProgressAt, setLastProgressAt] = useState<number | undefined>();
   const activeExecutionRef = useRef<{ cancel: () => Promise<void> } | null>(null);
+  const fastPathStopRef = useRef(false);
   const [modelBrowserOpen, setModelBrowserOpen] = useState(false);
   const [modelBrowserLaunch, setModelBrowserLaunch] = useState<ModelBrowserLaunch | null>(null);
   const [modelPickTarget, setModelPickTarget] = useState<{ nodeId: string; widget: string } | null>(null);
   const [complianceOpen, setComplianceOpen] = useState(false);
   const [complianceWarnings, setComplianceWarnings] = useState(0);
+  const [complianceFastPath, setComplianceFastPath] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);
   const [workflowBarOpen, setWorkflowBarOpen] = useState(true);
+  const [generateOpenNonce, setGenerateOpenNonce] = useState(0);
   const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboardingComplete());
   const [dropHint, setDropHint] = useState(false);
   const [transportWaveform, setTransportWaveform] = useState<number[]>([]);
@@ -182,6 +188,7 @@ export default function App() {
       setStatus("Loading template…");
       setLastJob(null);
       setNodeStatus({});
+      setComplianceFastPath(false);
       clipboardRef.current = null;
       pasteCountRef.current = 0;
       const data = await fetchTemplate(templateId);
@@ -333,13 +340,13 @@ export default function App() {
   );
 
   const runRender = useCallback(
-    async (targetNodeId?: string, renderAll = false) => {
-      if (!workflow) return;
+    async (targetNodeId?: string, renderAll = false, autoAudition = false) => {
+      if (!workflow) return false;
       const singleTarget = targetNodeId ?? resolveTargetNode(workflow, selectedNodeId);
       const targets = renderAll ? resolveRenderAllTargets(workflow) : singleTarget ? [singleTarget] : [];
       if (!targets.length) {
         setStatus("No render target — add nodes to the canvas");
-        return;
+        return false;
       }
       setRunning(true);
       setCancelling(false);
@@ -374,7 +381,7 @@ export default function App() {
             requiredModelIds: missing.map((entry) => entry.modelId),
           });
           setRunning(false);
-          return;
+          return false;
         }
 
         setStatus("Rendering…");
@@ -405,6 +412,19 @@ export default function App() {
           setFailedNodeId(null);
           const outputs = job.outputs ?? {};
           setNodeStatus((prev) => ({ ...prev, ...cachedStatusFromOutputs(workflow, outputs) }));
+          if (autoAudition) {
+            const auditionNodeId = preferredAuditionNodeId(workflow, outputs);
+            if (auditionNodeId) {
+              setNodes((current) =>
+                current.map((node) => ({
+                  ...node,
+                  selected: node.id === auditionNodeId,
+                })),
+              );
+              setActiveEdgeIds(edgeIdsOnPathToNode(workflow, auditionNodeId));
+              setAuditionNonce((nonce) => nonce + 1);
+            }
+          }
           const savedOutput = targets
             .map((nodeId) => {
               const node = workflow.nodes.find((n) => n.id === nodeId);
@@ -438,8 +458,10 @@ export default function App() {
             setNodeIssues((prev) => ({ ...prev, [lastRunningNode!]: message }));
           }
         }
+        return job.status === "completed";
       } catch (err) {
         setStatus(`Error: ${formatJobError(String(err))}`);
+        return false;
       } finally {
         activeExecutionRef.current = null;
         setRunning(false);
@@ -451,7 +473,7 @@ export default function App() {
         setProgress(undefined);
       }
     },
-    [workflow, selectedNodeId, openModelBrowser],
+    [workflow, selectedNodeId, openModelBrowser, setNodes],
   );
 
   const cancelRender = useCallback(() => {
@@ -517,6 +539,12 @@ export default function App() {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         openModelBrowser();
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        setWorkflowBarOpen(true);
+        setGenerateOpenNonce((n) => n + 1);
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
@@ -871,11 +899,61 @@ export default function App() {
       resetHistory(next);
       setLastJob(null);
       setNodeStatus({});
+      setComplianceFastPath(false);
       setStatus("Workflow applied — ready to render");
       setLoadError(null);
     },
     [resetHistory],
   );
+
+  const applyGeneratedWorkflow = useCallback(
+    (next: Workflow) => {
+      applyWorkflow(next);
+      setComplianceFastPath(true);
+      setComplianceOpen(true);
+      setStatus("Review licenses before installing or rendering");
+    },
+    [applyWorkflow],
+  );
+
+  const installRenderAndAudition = useCallback(async (): Promise<FastPathRunResult> => {
+    const current = workflowRef.current;
+    if (!current) throw new Error("No workflow is loaded.");
+    fastPathStopRef.current = false;
+    try {
+      const result = await runFastPathSequence({
+        workflow: current,
+        findMissing: findMissingWorkflowModels,
+        installModel: installModelWithProgress,
+        shouldStop: () => fastPathStopRef.current,
+        onInstallProgress: (model, index, total, state) => {
+          const percent = Math.round((state.progress ?? 0) * 100);
+          setStatus(
+            `Installing ${model.name || model.modelId} (${index + 1}/${total}) — ${percent}%`,
+          );
+        },
+        renderAll: async () => {
+          setComplianceOpen(false);
+          setStatus("Models ready — rendering all…");
+          return runRender(undefined, true, true);
+        },
+      });
+      if (result === "cancelled") {
+        setStatus("Install chain stopped safely — render was not started");
+        return result;
+      }
+      setComplianceFastPath(false);
+      return result;
+    } catch (err) {
+      setStatus(`Fast path stopped: ${formatJobError(String(err))}`);
+      throw err;
+    }
+  }, [runRender]);
+
+  const stopFastPathInstall = useCallback(() => {
+    fastPathStopRef.current = true;
+    setStatus("Stopping safely after the current model finishes…");
+  }, []);
 
   const handleBrowseModelsFromCompliance = useCallback(
     (opts: { nodeType?: string; commercialOnly?: boolean; query?: string }) => {
@@ -894,10 +972,23 @@ export default function App() {
   const handleApplyModelSwap = useCallback(
     (nodeId: string, modelId: string) => {
       updateWidget(nodeId, "model", modelId);
-      setComplianceOpen(false);
+      if (!complianceFastPath) setComplianceOpen(false);
       setStatus(`Swapped ${nodeId} model → ${modelId}`);
     },
-    [updateWidget],
+    [complianceFastPath, updateWidget],
+  );
+
+  const handleApplyModelSwaps = useCallback(
+    (swaps: Array<{ nodeId: string; modelId: string }>) => {
+      setWorkflow((prev) => (prev ? applyModelSwaps(prev, swaps) : prev));
+      setNodeStatus((prev) => {
+        const next = { ...prev };
+        for (const swap of swaps) next[swap.nodeId] = "stale";
+        return next;
+      });
+      setStatus(`Applied ${swaps.length} commercial-safe model replacement${swaps.length === 1 ? "" : "s"}`);
+    },
+    [setWorkflow],
   );
 
   if (loadError) {
@@ -925,7 +1016,8 @@ export default function App() {
           selectedTemplateId={selectedTemplateId}
           onSelectTemplate={(id) => void loadTemplate(id)}
           onDeleteUserTemplate={(id) => void handleDeleteUserTemplate(id)}
-          onApplyWorkflow={applyWorkflow}
+          onApplyWorkflow={applyGeneratedWorkflow}
+          generateOpenNonce={generateOpenNonce}
           complianceWarnings={complianceWarnings}
           onModelBrowser={() => openModelBrowser()}
           onCompliance={() => setComplianceOpen(true)}
@@ -1082,7 +1174,7 @@ export default function App() {
           }}
           onSelectModel={handleModelSelect}
           onDropModel={handleDropModel}
-          onApplyWorkflow={applyWorkflow}
+          onApplyWorkflow={applyGeneratedWorkflow}
           launch={modelBrowserLaunch}
           filterNodeType={
             modelPickTarget
@@ -1098,6 +1190,10 @@ export default function App() {
           onClose={() => setComplianceOpen(false)}
           onBrowseModels={handleBrowseModelsFromCompliance}
           onApplyModelSwap={handleApplyModelSwap}
+          onApplyModelSwaps={handleApplyModelSwaps}
+          fastPath={complianceFastPath}
+          onInstallRenderAudition={installRenderAndAudition}
+          onCancelInstall={stopFastPathInstall}
         />
         <OnboardingOverlay
           open={onboardingOpen}

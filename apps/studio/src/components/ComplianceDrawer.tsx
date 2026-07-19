@@ -1,8 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import { downloadComplianceReport, fetchAuthenticity, fetchLicenseScan, fetchProvenance } from "../api";
-import type { JobOutput, LicenseScanSummary, ProvenanceSummary, Workflow } from "../types";
+import {
+  downloadComplianceReport,
+  fetchAuthenticity,
+  fetchLicenseScan,
+  fetchProvenance,
+  findMissingWorkflowModels,
+} from "../api";
+import type { FastPathRunResult } from "../fastPath";
+import type {
+  JobOutput,
+  LicenseScanSummary,
+  ProvenanceSummary,
+  Workflow,
+} from "../types";
 
 type Tab = "license" | "provenance" | "authenticity" | "disclosure";
+export type ComplianceIntent = "commercial" | "evaluation";
+
+export function fastPathBlockReason(
+  license: LicenseScanSummary | null,
+  intent: ComplianceIntent,
+): string | null {
+  if (!license) return "Compliance scan is still loading.";
+  if (license.flags.some((flag) => flag.code === "UNKNOWN_MODEL")) {
+    return "Resolve unknown model references before continuing.";
+  }
+  if (intent === "commercial" && !license.scan_ok) {
+    return "Choose a commercial-safe alternative for each flagged model, or switch to evaluation use.";
+  }
+  return null;
+}
 
 type Props = {
   open: boolean;
@@ -12,6 +39,10 @@ type Props = {
   onClose: () => void;
   onBrowseModels?: (opts: { nodeType?: string; commercialOnly?: boolean; query?: string }) => void;
   onApplyModelSwap?: (nodeId: string, modelId: string) => void;
+  onApplyModelSwaps?: (swaps: Array<{ nodeId: string; modelId: string }>) => void;
+  fastPath?: boolean;
+  onInstallRenderAudition?: () => Promise<FastPathRunResult>;
+  onCancelInstall?: () => void;
 };
 
 export default function ComplianceDrawer({
@@ -22,6 +53,10 @@ export default function ComplianceDrawer({
   onClose,
   onBrowseModels,
   onApplyModelSwap,
+  onApplyModelSwaps,
+  fastPath = false,
+  onInstallRenderAudition,
+  onCancelInstall,
 }: Props) {
   const [tab, setTab] = useState<Tab>("license");
   const [license, setLicense] = useState<LicenseScanSummary | null>(null);
@@ -29,6 +64,12 @@ export default function ComplianceDrawer({
   const [authenticity, setAuthenticity] = useState<Record<string, unknown> | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [intent, setIntent] = useState<ComplianceIntent>("commercial");
+  const [missingModelCount, setMissingModelCount] = useState(0);
+  const [fastPathBusy, setFastPathBusy] = useState(false);
+  const [fastPathStopping, setFastPathStopping] = useState(false);
+  const [fastPathResult, setFastPathResult] = useState<string | null>(null);
+  const [fastPathError, setFastPathError] = useState<string | null>(null);
 
   const authenticityId = useMemo(() => {
     if (!outputs) return null;
@@ -46,6 +87,19 @@ export default function ComplianceDrawer({
       .then(setLicense)
       .catch(() => setLicense(null));
   }, [open, workflow]);
+
+  useEffect(() => {
+    if (!open || !fastPath) {
+      setMissingModelCount(0);
+      return;
+    }
+    setTab("license");
+    setFastPathError(null);
+    setFastPathResult(null);
+    findMissingWorkflowModels(workflow)
+      .then((models) => setMissingModelCount(models.length))
+      .catch(() => setMissingModelCount(0));
+  }, [fastPath, open, workflow]);
 
   useEffect(() => {
     if (!open || !outputs || Object.keys(outputs).length === 0) {
@@ -116,6 +170,27 @@ export default function ComplianceDrawer({
   const overall = authenticity?.overall as { label?: string; confidence?: number; summary?: string } | undefined;
   const provCheck = authenticity?.provenance_check as Record<string, unknown> | undefined;
   const mlDet = authenticity?.ml_detection as Record<string, unknown> | undefined;
+  const blockReason = fastPathBlockReason(license, intent);
+  const intentBlocked = blockReason != null;
+  const optimizationPlan = license?.optimization_plan;
+  const preflight = license?.preflight;
+  const runFastPath = async () => {
+    if (!onInstallRenderAudition || intentBlocked) return;
+    setFastPathBusy(true);
+    setFastPathStopping(false);
+    setFastPathResult(null);
+    setFastPathError(null);
+    try {
+      const result = await onInstallRenderAudition();
+      if (result === "cancelled") {
+        setFastPathResult("Stopped safely after the current model. Render did not start.");
+      }
+    } catch (err) {
+      setFastPathError(err instanceof Error ? err.message : "Install or render failed");
+    } finally {
+      setFastPathBusy(false);
+    }
+  };
 
   return (
     <div className="compliance-backdrop" onClick={onClose}>
@@ -153,6 +228,222 @@ export default function ComplianceDrawer({
         </nav>
         {tab === "license" && license ? (
           <div className="compliance-body">
+            {fastPath ? (
+              <section className="compliance-preflight" aria-label="Pre-install compliance review">
+                <div className="compliance-preflight__heading">
+                  <div>
+                    <span className="compliance-preflight__eyebrow">Pre-install review</span>
+                    <h3>Choose a licensing strategy</h3>
+                  </div>
+                  <span className="pill">Registry metadata only</span>
+                </div>
+                <p className="compliance-hint">
+                  No model weights have been downloaded and no inference has run.
+                  Review the full chain, swap models if needed, then commit once.
+                </p>
+                <div className="compliance-intent" role="radiogroup" aria-label="Licensing intent">
+                  <label>
+                    <input
+                      type="radio"
+                      name="compliance-intent"
+                      checked={intent === "commercial"}
+                      onChange={() => setIntent("commercial")}
+                    />
+                    <span>
+                      <strong>Commercial-safe</strong>
+                      <small>Require every model to allow commercial use.</small>
+                    </span>
+                  </label>
+                  <label>
+                    <input
+                      type="radio"
+                      name="compliance-intent"
+                      checked={intent === "evaluation"}
+                      onChange={() => setIntent("evaluation")}
+                    />
+                    <span>
+                      <strong>Evaluation / non-commercial</strong>
+                      <small>Allow restricted models; warnings remain in the review.</small>
+                    </span>
+                  </label>
+                </div>
+                {intent === "commercial" && optimizationPlan?.swaps.length ? (
+                  <section className="compliance-optimizer">
+                    <div className="compliance-optimizer__heading">
+                      <div>
+                        <span className="compliance-preflight__eyebrow">License optimizer</span>
+                        <h4>Most permissive compatible chain</h4>
+                      </div>
+                      <span className="pill pill--ready">
+                        {optimizationPlan.swaps.length} replacement
+                        {optimizationPlan.swaps.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <ul className="compliance-optimizer__plan">
+                      {optimizationPlan.swaps.map((swap) => (
+                        <li key={swap.node_id}>
+                          <strong>{swap.node_type}</strong>
+                          <code>{swap.from_model_id}</code>
+                          <span>→</span>
+                          <code>{swap.to_model_id}</code>
+                          <span className="pill pill--ready">{swap.license_spdx}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {optimizationPlan.unresolved.length > 0 ? (
+                      <p className="compliance-hint compliance-hint--error">
+                        The full chain cannot be optimized automatically:{" "}
+                        {optimizationPlan.unresolved.map((item) => item.node_id).join(", ")} has no cleared compatible alternative.
+                      </p>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="compliance-optimizer__apply"
+                      disabled={
+                        fastPathBusy ||
+                        !optimizationPlan.can_optimize ||
+                        !onApplyModelSwaps
+                      }
+                      onClick={() =>
+                        onApplyModelSwaps?.(
+                          optimizationPlan.swaps.map((swap) => ({
+                            nodeId: swap.node_id,
+                            modelId: swap.to_model_id,
+                          })),
+                        )
+                      }
+                    >
+                      Confirm &amp; apply optimized chain
+                    </button>
+                  </section>
+                ) : null}
+                {preflight ? (
+                  <section className="compliance-estimates" aria-label="Preflight estimates">
+                    <div className="compliance-optimizer__heading">
+                      <div>
+                        <span className="compliance-preflight__eyebrow">Before you commit</span>
+                        <h4>Preflight estimates</h4>
+                      </div>
+                      <span className="pill">Rough · offline</span>
+                    </div>
+                    <div className="compliance-estimates__grid">
+                      <div>
+                        <span>Missing download</span>
+                        <strong>
+                          {preflight.download.known_mb >= 1000
+                            ? `~${(preflight.download.known_mb / 1000).toFixed(1)} GB`
+                            : `~${Math.round(preflight.download.known_mb)} MB`}
+                        </strong>
+                        {preflight.download.unknown_models.length > 0 ? (
+                          <small>
+                            + {preflight.download.unknown_models.length} unestimated model
+                            {preflight.download.unknown_models.length === 1 ? "" : "s"}
+                          </small>
+                        ) : null}
+                      </div>
+                      <div>
+                        <span>Peak VRAM</span>
+                        <strong>
+                          {preflight.peak_vram_gb > 0
+                            ? `~${preflight.peak_vram_gb} GB`
+                            : "CPU / negligible"}
+                        </strong>
+                        <small>Peak, not sum (sequential executor)</small>
+                      </div>
+                      <div>
+                        <span>Render · 1 min audio</span>
+                        <strong>
+                          ~{preflight.render_time.low_seconds}–{preflight.render_time.high_seconds}s
+                        </strong>
+                        <small>Hardware-agnostic range</small>
+                      </div>
+                    </div>
+                    <p className="compliance-hint">{preflight.render_time.note}</p>
+                  </section>
+                ) : null}
+                <div className="compliance-chain">
+                  <h4>Chain preflight</h4>
+                  {workflow.nodes.map((node) => {
+                    const modelId =
+                      typeof node.widgets.model === "string" ? node.widgets.model : null;
+                    const modelRow = modelId
+                      ? license.license_rows.find(
+                          (row) => row.kind === "model" && row.component_id === modelId,
+                        )
+                      : null;
+                    const nodeRow = license.license_rows.find(
+                      (row) => row.kind === "node" && row.component_id === node.id,
+                    );
+                    const flagged = modelId != null && modelRow?.commercial_ok === false;
+                    const swap = license.swap_suggestions.find((entry) => entry.node_id === node.id);
+                    const alternatives = swap?.alternatives ?? [];
+                    return (
+                      <div
+                        key={node.id}
+                        className={`compliance-chain__node${flagged ? " compliance-chain__node--flagged" : ""}`}
+                      >
+                        <div>
+                          <strong>{node.type}</strong>
+                          <span className="node-helper__mono"> {node.id}</span>
+                        </div>
+                        <div className="compliance-chain__badges">
+                          <span className={`pill ${flagged ? "pill--warning" : "pill--ready"}`}>
+                            {modelRow?.license_spdx ?? nodeRow?.license_spdx ?? "Unknown license"}
+                          </span>
+                        </div>
+                        <small>
+                          {modelId ? `Model: ${modelId}` : "Built-in node; no model install required"}
+                        </small>
+                        {flagged ? (
+                          <div className="compliance-chain__swap">
+                            <span className="compliance-chain__swap-label">
+                              Not cleared for commercial use — choose a cleared alternative:
+                            </span>
+                            {alternatives.length > 0 ? (
+                              <div className="compliance-chain__alts">
+                                {alternatives.map((alt) => (
+                                  <button
+                                    key={alt.model_id}
+                                    type="button"
+                                    className="compliance-chain__alt"
+                                    title={`Replace ${modelId} with ${alt.model_id} (${alt.license_spdx})`}
+                                    disabled={fastPathBusy || !onApplyModelSwap}
+                                    onClick={() => onApplyModelSwap?.(node.id, alt.model_id)}
+                                  >
+                                    <span className="compliance-chain__alt-name">{alt.name}</span>
+                                    <span className="compliance-chain__alt-license">{alt.license_spdx}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="compliance-chain__no-alt">
+                                No cleared offline model for this node yet.
+                              </span>
+                            )}
+                            {onBrowseModels ? (
+                              <button
+                                type="button"
+                                className="compliance-chain__online"
+                                disabled={fastPathBusy}
+                                onClick={() =>
+                                  onBrowseModels({
+                                    nodeType: node.type,
+                                    commercialOnly: true,
+                                    query: swap?.alternatives?.[0]?.task_types?.[0] ?? node.type,
+                                  })
+                                }
+                              >
+                                Find online (cleared license) →
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
             {license.warnings.length > 0 ? (
               <ul className="compliance-warnings">
                 {license.warnings.map((w) => (
@@ -169,7 +460,7 @@ export default function ComplianceDrawer({
                 ))}
               </ul>
             ) : null}
-            {license.swap_suggestions.length > 0 ? (
+            {!fastPath && license.swap_suggestions.length > 0 ? (
               <section className="compliance-swaps">
                 <h3>Commercial-safe alternatives</h3>
                 {license.swap_suggestions.map((swap) => (
@@ -232,6 +523,49 @@ export default function ComplianceDrawer({
                 ))}
               </tbody>
             </table>
+            {fastPath ? (
+              <section className="compliance-preflight__commit">
+                {intentBlocked ? (
+                  <p className="compliance-hint compliance-hint--error">
+                    {blockReason}
+                  </p>
+                ) : (
+                  <p className="compliance-hint">
+                    {missingModelCount > 0
+                      ? `${missingModelCount} model${missingModelCount === 1 ? "" : "s"} will be installed, then the workflow will render and audition its Preview output.`
+                      : "Models are ready. The workflow will render all targets and audition its Preview output."}
+                  </p>
+                )}
+                {fastPathError ? (
+                  <p className="compliance-hint compliance-hint--error">{fastPathError}</p>
+                ) : null}
+                {fastPathResult ? <p className="compliance-hint">{fastPathResult}</p> : null}
+                {fastPathBusy ? (
+                  <button
+                    type="button"
+                    className="compliance-preflight__cancel"
+                    disabled={fastPathStopping || !onCancelInstall}
+                    onClick={() => {
+                      setFastPathStopping(true);
+                      onCancelInstall?.();
+                    }}
+                  >
+                    {fastPathStopping ? "Stopping after current model…" : "Stop after current model"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="compliance-preflight__run"
+                    disabled={intentBlocked || !onInstallRenderAudition}
+                    onClick={() => void runFastPath()}
+                  >
+                    {missingModelCount > 0
+                      ? "Install chain, render all & audition"
+                      : "Render all & audition"}
+                  </button>
+                )}
+              </section>
+            ) : null}
           </div>
         ) : null}
         {tab === "provenance" ? (

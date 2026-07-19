@@ -17,6 +17,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 50,
       "compatible_nodes": ["Denoise"],
       "install": {
         "python_deps": [
@@ -55,6 +56,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 100,
       "compatible_nodes": ["SeparateStems"],
       "install": {
         "python_deps": [
@@ -114,6 +116,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 100,
       "compatible_nodes": ["SeparateStems"],
       "install": {
         "dev_stub": false,
@@ -170,6 +173,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 1600,
       "compatible_nodes": ["WhisperSTT"],
       "install": {
         "dev_stub": false,
@@ -210,6 +214,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 500,
       "compatible_nodes": ["WhisperSTT"],
       "install": {
         "dev_stub": false,
@@ -250,6 +255,7 @@
         "confidence": 0.8
       },
       "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 200,
       "compatible_nodes": ["DiarizeTranscribe"],
       "install": {
         "dev_stub": true,
@@ -274,6 +280,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 6,
+      "download_size_mb_estimate": 1300,
       "compatible_nodes": ["TTS"],
       "install": { "dev_stub": true },
       "similar_models": ["cosyvoice-300m", "gpt-sovits-v2", "kokoro-82m"]
@@ -294,6 +301,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 350,
       "compatible_nodes": ["TTS"],
       "install": {
         "dev_stub": false,
@@ -318,6 +326,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 2000,
       "compatible_nodes": ["TTS"],
       "install": { "dev_stub": true },
       "similar_models": ["f5-tts-base", "gpt-sovits-v2"]
@@ -338,6 +347,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 250,
       "compatible_nodes": ["VoiceConvert"],
       "install": { "dev_stub": true },
       "similar_models": ["openvoice-v2"]
@@ -358,6 +368,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 600,
       "compatible_nodes": ["SeparateStems"],
       "install": { "dev_stub": true },
       "similar_models": ["demucs-v4", "spleeter-2stems"]
@@ -378,6 +389,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 120,
       "compatible_nodes": ["SeparateStems"],
       "install": { "dev_stub": true },
       "similar_models": ["uvr-mdx-net", "demucs-v4"]
@@ -398,6 +410,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 30,
       "compatible_nodes": ["AudioToMIDI"],
       "install": {
         "dev_stub": false,
@@ -478,6 +491,7 @@
         "confidence": 0.5
       },
       "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 100,
       "compatible_nodes": ["DeepfakeDetect"],
       "install": { "dev_stub": true },
       "inference_params": [
@@ -508,6 +522,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 2400,
       "compatible_nodes": ["MIDIToAudio"],
       "install": {
         "dev_stub": false,
@@ -580,6 +595,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 2400,
       "compatible_nodes": ["GenerateAudio"],
       "install": {
         "dev_stub": false,
@@ -634,6 +650,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 800,
       "compatible_nodes": ["SingFromMIDI"],
       "install": { "dev_stub": true },
       "similar_models": []
@@ -654,6 +671,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 6,
+      "download_size_mb_estimate": 100,
       "compatible_nodes": ["SeparateToObjects"],
       "install": { "dev_stub": true },
       "similar_models": ["demucs-v4"]
@@ -674,6 +692,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 0,
+      "download_size_mb_estimate": 0,
       "compatible_nodes": ["ObjectPlacement"],
       "install": { "dev_stub": true },
       "similar_models": []
@@ -694,6 +713,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 0,
+      "download_size_mb_estimate": 0.1,
       "compatible_nodes": [],
       "install": {
         "dev_stub": false,
@@ -723,6 +743,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 0,
+      "download_size_mb_estimate": 0,
       "compatible_nodes": [],
       "install": { "dev_stub": true },
       "similar_models": ["whisper-ab-compare"]
@@ -743,6 +764,7 @@
         "confidence": 1.0
       },
       "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 500,
       "compatible_nodes": [],
       "install": { "dev_stub": true },
       "similar_models": ["groovy-signal-diff", "whisper-large-v3-turbo", "whisper-small-en"]

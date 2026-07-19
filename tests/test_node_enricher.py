@@ -20,3 +20,9 @@ def test_enrich_unknown_node_has_fallback() -> None:
     enriched = enrich_node_schema("Mix", base)
     assert enriched["description"]
     assert enriched["inputs"] or enriched["widgets"]
+
+
+def test_schema_exposes_expected_provenance_class() -> None:
+    node_cls = get_node_class("Normalize")
+    enriched = enrich_node_schema("Normalize", node_cls.describe())
+    assert enriched["provenance_class"] == node_cls.PROVENANCE_CLASS
