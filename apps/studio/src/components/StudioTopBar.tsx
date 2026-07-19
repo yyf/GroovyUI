@@ -11,6 +11,7 @@ type Props = {
   onSelectTemplate: (templateId: string) => void;
   onDeleteUserTemplate?: (templateId: string) => void | Promise<void>;
   onApplyWorkflow: (workflow: Workflow) => void;
+  generateOpenNonce?: number;
   complianceWarnings: number;
   onModelBrowser: () => void;
   onCompliance: () => void;
@@ -29,6 +30,7 @@ export default function StudioTopBar({
   onSelectTemplate,
   onDeleteUserTemplate,
   onApplyWorkflow,
+  generateOpenNonce = 0,
   complianceWarnings,
   onModelBrowser,
   onCompliance,
@@ -53,10 +55,15 @@ export default function StudioTopBar({
             onSelect={onSelectTemplate}
             onDeleteUserTemplate={onDeleteUserTemplate}
           />
-          <WorkflowGenerateButton onApply={onApplyWorkflow} />
+          <WorkflowGenerateButton onApply={onApplyWorkflow} openNonce={generateOpenNonce} />
         </div>
         <div className="top-bar__tools">
-          <button type="button" className="top-bar__tool" onClick={onModelBrowser}>
+          <button
+            type="button"
+            className="top-bar__tool"
+            onClick={onModelBrowser}
+            title="Model Browser (⌘K / Ctrl+K)"
+          >
             Models
           </button>
           <button

@@ -13,9 +13,11 @@ type Suggestion = {
 
 type Props = {
   onApply: (workflow: Workflow) => void;
+  /** Bump to open the panel (e.g. Cmd/Ctrl+G). */
+  openNonce?: number;
 };
 
-export default function WorkflowGenerateButton({ onApply }: Props) {
+export default function WorkflowGenerateButton({ onApply, openNonce = 0 }: Props) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,6 +25,17 @@ export default function WorkflowGenerateButton({ onApply }: Props) {
   const [results, setResults] = useState<Suggestion[]>([]);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const lastOpenNonce = useRef(openNonce);
+
+  useEffect(() => {
+    if (openNonce === lastOpenNonce.current) return;
+    lastOpenNonce.current = openNonce;
+    if (openNonce > 0) {
+      setOpen(true);
+      // Re-focus when reopening via shortcut while already open.
+      queueMicrotask(() => inputRef.current?.focus());
+    }
+  }, [openNonce]);
 
   useEffect(() => {
     if (!open) return;
@@ -74,13 +87,19 @@ export default function WorkflowGenerateButton({ onApply }: Props) {
         type="button"
         className={`workflow-generate__trigger${open ? " workflow-generate__trigger--open" : ""}`}
         onClick={() => setOpen((prev) => !prev)}
-        title="Describe a task to generate a workflow template"
+        title="Describe a task, review licenses, then install and audition (⌘G / Ctrl+G)"
+        aria-keyshortcuts="Meta+G Control+G"
       >
         Generate
+        <kbd className="workflow-generate__kbd">⌘G</kbd>
       </button>
       {open ? (
         <div className="workflow-generate__panel">
-          <p className="workflow-generate__hint">Describe your audio task — GroovyUI will suggest a starter workflow.</p>
+          <p className="workflow-generate__hint">
+            Press <kbd>⌘G</kbd> anytime to open. Describe your audio task, choose a
+            workflow, then review every model&apos;s license before anything is
+            installed or rendered.
+          </p>
           <textarea
             ref={inputRef}
             className="workflow-generate__input"
@@ -108,6 +127,7 @@ export default function WorkflowGenerateButton({ onApply }: Props) {
                   <button type="button" className="workflow-generate__result" onClick={() => applySuggestion(item)}>
                     <span className="workflow-generate__result-title">{item.title}</span>
                     <span className="workflow-generate__result-rationale">{item.rationale}</span>
+                    <span className="workflow-generate__result-next">Apply &amp; review compliance →</span>
                   </button>
                 </li>
               ))}

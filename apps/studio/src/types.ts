@@ -121,6 +121,7 @@ export type ModelCard = {
   author?: string;
   license: { spdx: string; commercial_ok: boolean; attribution_required: boolean };
   vram_gb_estimate: number;
+  download_size_mb_estimate?: number | null;
   compatible_nodes: string[];
   install_status: string;
   install_progress?: number;
@@ -148,6 +149,7 @@ export type NodeSchema = {
   category: string;
   description?: string;
   enriched?: boolean;
+  provenance_class?: string;
   inputs: Array<{ name: string; type: string; optional?: boolean; description?: string }>;
   outputs: Array<{ name: string; type: string; description?: string }>;
   widgets: NodeWidgetSpec[];
@@ -173,6 +175,7 @@ export type ComplianceSummary = {
   workflow_title: string;
   license_rows: Array<{
     component: string;
+    component_id?: string;
     kind: string;
     license_spdx: string;
     commercial_ok: boolean;
@@ -193,6 +196,10 @@ export type LicenseSwapSuggestion = {
     model_id: string;
     name: string;
     license_spdx: string;
+    attribution_required?: boolean;
+    license_confidence?: number;
+    vram_gb_estimate?: number;
+    download_size_mb_estimate?: number | null;
     task_types: string[];
     rationale: string;
   }>;
@@ -208,6 +215,51 @@ export type LicenseScanSummary = ComplianceSummary & {
     model_id?: string;
   }>;
   swap_suggestions: LicenseSwapSuggestion[];
+  optimization_plan?: {
+    intent: "commercial";
+    swaps: Array<{
+      node_id: string;
+      node_type: string;
+      from_model_id: string;
+      to_model_id: string;
+      to_model_name: string;
+      license_spdx: string;
+      rationale: string;
+    }>;
+    unresolved: Array<{
+      node_id: string;
+      node_type: string;
+      model_id?: string;
+      message: string;
+    }>;
+    can_optimize: boolean;
+  };
+  preflight?: {
+    download: {
+      known_mb: number;
+      unknown_models: string[];
+      already_installed: string[];
+    };
+    peak_vram_gb: number;
+    render_time: {
+      basis_audio_seconds: number;
+      low_seconds: number;
+      high_seconds: number;
+      confidence: "rough";
+      note: string;
+    };
+    models: Array<{
+      model_id: string;
+      installed: boolean;
+      download_size_mb_estimate?: number | null;
+      vram_gb_estimate: number;
+    }>;
+    nodes: Array<{
+      node_id: string;
+      node_type: string;
+      seconds_per_audio_minute: { low: number; high: number };
+    }>;
+  };
   scan_ok: boolean;
   agent: string;
 };

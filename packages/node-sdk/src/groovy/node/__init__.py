@@ -121,6 +121,7 @@ class GroovyNode:
             "widgets": widgets,
             "run_in_worker": cls.run_in_worker,
             "deterministic": cls.DETERMINISTIC,
+            "provenance_class": cls.PROVENANCE_CLASS,
         }
 
 

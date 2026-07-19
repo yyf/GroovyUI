@@ -39,6 +39,9 @@ class ModelManifest(BaseModel):
     author: str = ""
     license: LicenseInfo
     vram_gb_estimate: float = 0
+    # Curated, approximate transfer size for model-specific assets/dependencies.
+    # None means the catalog cannot estimate without network access.
+    download_size_mb_estimate: float | None = None
     compatible_nodes: list[str] = Field(default_factory=list)
     install: InstallSpec = Field(default_factory=InstallSpec)
     similar_models: list[str] = Field(default_factory=list)

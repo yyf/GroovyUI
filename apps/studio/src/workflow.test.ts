@@ -20,6 +20,7 @@ import {
   pasteSelection,
   removeNodesFromWorkflow,
   nodeIssuesFromValidation,
+  preferredAuditionNodeId,
   resolveNodeListenId,
   resolveComparePair,
   resolveRenderAllTargets,
@@ -554,6 +555,15 @@ describe("resolveNodeListenId", () => {
     };
     const cached = cachedStatusFromOutputs(workflow, outputs);
     expect(cached.n3).toBe("cached");
+  });
+
+  it("prefers the Preview sink after render-all for automatic audition", () => {
+    const outputs: Record<string, JobOutput> = {
+      n1: { type: "AUDIO", cache_id: "source" },
+      n2: { type: "AUDIO", cache_id: "normalized" },
+      n3: { type: "AUDIO", cache_id: "preview" },
+    };
+    expect(preferredAuditionNodeId(workflow, outputs)).toBe("n3");
   });
   it("resolves compare pair for preview nodes wired to stem slots", () => {
     const workflow: Workflow = {
