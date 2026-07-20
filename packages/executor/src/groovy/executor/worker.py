@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -26,17 +27,21 @@ def run_ai_worker(
     else:
         cmd = [sys.executable, "-m", "groovy.nodes.ai.worker"]
 
+    resolved = project_dir.resolve()
     payload = {
         "node_type": node_type,
         "kwargs": _serialize_kwargs(kwargs),
-        "project_dir": str(project_dir.resolve()),
+        "project_dir": str(resolved),
     }
+    env = os.environ.copy()
+    env["GROOVY_PROJECT_DIR"] = str(resolved)
     proc = subprocess.Popen(
         cmd,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        env=env,
     )
     assert proc.stdin is not None
     proc.stdin.write(json.dumps(payload))

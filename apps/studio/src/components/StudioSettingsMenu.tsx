@@ -11,6 +11,7 @@ export type StudioSettingsMenuProps = {
   onTogglePalette: () => void;
   onToggleHelper: () => void;
   onToggleWorkflowBar: () => void;
+  onOpenStudioSettings: () => void;
 };
 
 export default function StudioSettingsMenu({
@@ -23,6 +24,7 @@ export default function StudioSettingsMenu({
   onTogglePalette,
   onToggleHelper,
   onToggleWorkflowBar,
+  onOpenStudioSettings,
 }: StudioSettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,7 @@ export default function StudioSettingsMenu({
               : null}
           </div>
           <div className="studio-menu__section studio-menu__section--tail">
+            {item("Studio settings…", onOpenStudioSettings)}
             {item("About GroovyUI", () => openAboutWindow())}
             {item("API status", () => void openApiStatusWindow())}
           </div>

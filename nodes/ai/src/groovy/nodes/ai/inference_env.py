@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 
 
 def inference_stub_enabled() -> bool:
-    return os.environ.get("GROOVY_INFERENCE_STUB", "").lower() in ("1", "true", "yes")
+    """Return True when AI nodes should use stub inference.
+
+    See ``groovy.registry.studio_settings.inference_stub_active`` for precedence.
+    """
+    from groovy.registry.studio_settings import inference_stub_active
+
+    return inference_stub_active()
 
 
 def basic_pitch_available() -> bool:

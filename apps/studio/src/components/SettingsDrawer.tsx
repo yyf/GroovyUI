@@ -1,84 +1,54 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  fetchAudioDevices,
-  fetchLiveIoSettings,
-  fetchMidiDevices,
+  API,
+  clearRenderCache,
   fetchStudioSettings,
-  updateLiveIoSettings,
   updateStudioSettings,
-  type AudioDevice,
-  type LiveIoSettings,
-  type MidiDevice,
   type StudioSettings,
 } from "../api";
-import { ParamSwitch } from "./ParamControls";
 
-/** Kept for Phase 4 Live I/O — not mounted in App until device routing ships. */
 type Props = {
   open: boolean;
   onClose: () => void;
+  onSettingsChange?: (settings: StudioSettings) => void;
+  onForceRebuildNext?: () => void;
 };
 
-function deviceLabel(device: AudioDevice | MidiDevice): string {
-  if ("channels" in device && device.channels > 0) {
-    const rate = Math.round(device.sample_rate);
-    return `${device.name} (${device.manufacturer}, ${device.channels} ch @ ${rate} Hz)`;
+async function copyText(value: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
   }
-  if (device.manufacturer) return `${device.name} (${device.manufacturer})`;
-  return device.name;
 }
 
-export default function SettingsDrawer({ open, onClose }: Props) {
-  const [settings, setSettings] = useState<LiveIoSettings | null>(null);
+export default function SettingsDrawer({
+  open,
+  onClose,
+  onSettingsChange,
+  onForceRebuildNext,
+}: Props) {
   const [studioSettings, setStudioSettings] = useState<StudioSettings | null>(null);
   const [hfTokenDraft, setHfTokenDraft] = useState("");
-  const [audioInputs, setAudioInputs] = useState<AudioDevice[]>([]);
-  const [audioOutputs, setAudioOutputs] = useState<AudioDevice[]>([]);
-  const [midiInputs, setMidiInputs] = useState<MidiDevice[]>([]);
-  const [midiOutputs, setMidiOutputs] = useState<MidiDevice[]>([]);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const warnings: string[] = [];
     try {
-      const liveSettings = await fetchLiveIoSettings();
-      setSettings(liveSettings);
-      const studio = await fetchStudioSettings().catch(() => null);
+      const studio = await fetchStudioSettings();
       setStudioSettings(studio);
+      onSettingsChange?.(studio);
       setHfTokenDraft("");
-
-      const [inAudio, outAudio, inMidi, outMidi] = await Promise.all([
-        fetchAudioDevices("in").catch(() => {
-          warnings.push("Audio input devices unavailable");
-          return [] as AudioDevice[];
-        }),
-        fetchAudioDevices("out").catch(() => {
-          warnings.push("Audio output devices unavailable");
-          return [] as AudioDevice[];
-        }),
-        fetchMidiDevices("in").catch(() => {
-          warnings.push("MIDI input devices unavailable");
-          return [] as MidiDevice[];
-        }),
-        fetchMidiDevices("out").catch(() => {
-          warnings.push("MIDI output devices unavailable");
-          return [] as MidiDevice[];
-        }),
-      ]);
-      setAudioInputs(inAudio);
-      setAudioOutputs(outAudio);
-      setMidiInputs(inMidi);
-      setMidiOutputs(outMidi);
-      setStatus(warnings.length ? warnings.join(". ") : "");
+      setStatus("");
     } catch {
-      setSettings(null);
+      setStudioSettings(null);
       setStatus("Could not load settings");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onSettingsChange]);
 
   useEffect(() => {
     if (!open) return;
@@ -94,20 +64,14 @@ export default function SettingsDrawer({ open, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const save = async (patch: Partial<LiveIoSettings>) => {
-    try {
-      const next = await updateLiveIoSettings(patch);
-      setSettings(next);
-      setStatus("Saved");
-    } catch {
-      setStatus("Could not save settings");
-    }
-  };
-
-  const saveStudio = async (patch: { hf_token?: string | null }) => {
+  const saveStudio = async (patch: {
+    hf_token?: string | null;
+    inference_mode?: "real" | "stub";
+  }) => {
     try {
       const next = await updateStudioSettings(patch);
       setStudioSettings(next);
+      onSettingsChange?.(next);
       setHfTokenDraft("");
       setStatus("Saved");
     } catch {
@@ -115,7 +79,19 @@ export default function SettingsDrawer({ open, onClose }: Props) {
     }
   };
 
+  const handleClearCache = async () => {
+    try {
+      const result = await clearRenderCache();
+      setStatus(`Cleared ${result.removed} cache file${result.removed === 1 ? "" : "s"}`);
+    } catch {
+      setStatus("Could not clear render cache");
+    }
+  };
+
   if (!open) return null;
+
+  const envLocksMode = studioSettings?.inference_effective_source === "environment";
+  const stubActive = studioSettings?.inference_stub_active ?? false;
 
   return (
     <div className="compliance-backdrop" onClick={onClose}>
@@ -127,8 +103,8 @@ export default function SettingsDrawer({ open, onClose }: Props) {
           </button>
         </header>
         <div className="compliance-body">
-          {loading && !settings ? <p className="compliance-hint">Loading settings…</p> : null}
-          {!loading && !settings ? (
+          {loading && !studioSettings ? <p className="compliance-hint">Loading settings…</p> : null}
+          {!loading && !studioSettings ? (
             <div className="settings-error">
               <p className="compliance-hint">{status || "Could not load settings."}</p>
               <button type="button" onClick={() => void refresh()}>
@@ -136,120 +112,62 @@ export default function SettingsDrawer({ open, onClose }: Props) {
               </button>
             </div>
           ) : null}
-          {settings ? (
+
+          {studioSettings ? (
             <>
               <section className="settings-section">
-                <h3>Audio I/O</h3>
+                <h3>Inference</h3>
                 <p className="compliance-hint">
-                  Opt-in audio capture and playback drivers. Device listing uses the local PortAudio
-                  stack when available; virtual devices are always available for preview routing.
+                  Real mode runs installed model weights. Stub mode uses lightweight DSP stand-ins for
+                  UI and CI — not for judging model quality. Default is real.
                 </p>
-                <div className="settings-row">
-                  <ParamSwitch
-                    checked={settings.audio_input_enabled}
-                    onChange={(checked) => void save({ audio_input_enabled: checked })}
-                  />
-                  <span>Enable audio input</span>
-                </div>
-                <div className="settings-row">
-                  <ParamSwitch
-                    checked={settings.audio_output_enabled}
-                    onChange={(checked) => void save({ audio_output_enabled: checked })}
-                  />
-                  <span>Enable audio output</span>
-                </div>
-                <label className="settings-field">
-                  Input driver
-                  <select
-                    value={settings.default_audio_input_id ?? ""}
-                    onChange={(e) => void save({ default_audio_input_id: e.target.value })}
+                <div className="settings-mode-toggle" role="group" aria-label="Inference mode">
+                  <button
+                    type="button"
+                    className={`settings-mode-toggle__btn${
+                      studioSettings.inference_mode === "real" ? " settings-mode-toggle__btn--active" : ""
+                    }`}
+                    disabled={envLocksMode}
+                    onClick={() => void saveStudio({ inference_mode: "real" })}
                   >
-                    {audioInputs.map((device) => (
-                      <option key={device.id} value={device.id}>
-                        {deviceLabel(device)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="settings-field">
-                  Output driver
-                  <select
-                    value={settings.default_audio_output_id ?? ""}
-                    onChange={(e) => void save({ default_audio_output_id: e.target.value })}
+                    Real
+                  </button>
+                  <button
+                    type="button"
+                    className={`settings-mode-toggle__btn${
+                      studioSettings.inference_mode === "stub" ? " settings-mode-toggle__btn--active" : ""
+                    }`}
+                    disabled={envLocksMode}
+                    onClick={() => void saveStudio({ inference_mode: "stub" })}
                   >
-                    {audioOutputs.map((device) => (
-                      <option key={device.id} value={device.id}>
-                        {deviceLabel(device)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </section>
-
-              <section className="settings-section">
-                <h3>Live I/O</h3>
-                <p className="compliance-hint">
-                  Hardware MIDI and OSC are opt-in. OSC binds localhost only; addresses must start
-                  with <code>/groovy/</code>.
-                </p>
-                <div className="settings-row">
-                  <ParamSwitch
-                    checked={settings.midi_input_enabled}
-                    onChange={(checked) => void save({ midi_input_enabled: checked })}
-                  />
-                  <span>Enable MIDI input</span>
+                    Stub
+                  </button>
                 </div>
-                <div className="settings-row">
-                  <ParamSwitch
-                    checked={settings.midi_output_enabled}
-                    onChange={(checked) => void save({ midi_output_enabled: checked })}
-                  />
-                  <span>Enable MIDI output</span>
-                </div>
-                <div className="settings-row">
-                  <ParamSwitch
-                    checked={settings.osc_live_enabled}
-                    onChange={(checked) => void save({ osc_live_enabled: checked })}
-                  />
-                  <span>Enable live OSC (UDP :9000 + POST /api/osc/in)</span>
-                </div>
-                <label className="settings-field">
-                  MIDI input
-                  <select
-                    value={settings.default_input_id ?? ""}
-                    onChange={(e) => void save({ default_input_id: e.target.value })}
-                  >
-                    {midiInputs.map((device) => (
-                      <option key={device.id} value={device.id}>
-                        {deviceLabel(device)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="settings-field">
-                  MIDI output
-                  <select
-                    value={settings.default_output_id ?? ""}
-                    onChange={(e) => void save({ default_output_id: e.target.value })}
-                  >
-                    {midiOutputs.map((device) => (
-                      <option key={device.id} value={device.id}>
-                        {deviceLabel(device)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {envLocksMode ? (
+                  <p className="compliance-hint">
+                    Locked by <code>GROOVY_INFERENCE_STUB</code> → effective{" "}
+                    <strong>{studioSettings.inference_effective}</strong>.
+                  </p>
+                ) : stubActive ? (
+                  <p className="compliance-hint settings-hint--stub">
+                    Stub inference is on — renders will not use real model weights.
+                  </p>
+                ) : (
+                  <p className="compliance-hint">
+                    Real inference — missing models or runtimes block render (no silent stub).
+                  </p>
+                )}
               </section>
 
               <section className="settings-section">
                 <h3>Model installs</h3>
                 <p className="compliance-hint">
-                  Hugging Face token for gated model weights. Environment variable <code>HF_TOKEN</code> takes
-                  precedence over this field.
+                  Hugging Face token for gated model weights. Environment variable{" "}
+                  <code>HF_TOKEN</code> takes precedence over this field.
                 </p>
-                {studioSettings?.hf_token_source === "environment" ? (
+                {studioSettings.hf_token_source === "environment" ? (
                   <p className="compliance-hint">Using HF_TOKEN from environment.</p>
-                ) : studioSettings?.hf_token_set ? (
+                ) : studioSettings.hf_token_set ? (
                   <p className="compliance-hint">Token saved in project settings.</p>
                 ) : (
                   <p className="compliance-hint">No token configured — gated downloads may fail.</p>
@@ -259,7 +177,7 @@ export default function SettingsDrawer({ open, onClose }: Props) {
                   <input
                     type="password"
                     autoComplete="off"
-                    placeholder={studioSettings?.hf_token_set ? "••••••••  (leave blank to keep)" : "hf_…"}
+                    placeholder={studioSettings.hf_token_set ? "••••••••  (leave blank to keep)" : "hf_…"}
                     value={hfTokenDraft}
                     onChange={(event) => setHfTokenDraft(event.target.value)}
                   />
@@ -272,7 +190,7 @@ export default function SettingsDrawer({ open, onClose }: Props) {
                   >
                     Save token
                   </button>
-                  {studioSettings?.hf_token_set && studioSettings.hf_token_source !== "environment" ? (
+                  {studioSettings.hf_token_set && studioSettings.hf_token_source !== "environment" ? (
                     <button type="button" onClick={() => void saveStudio({ hf_token: null })}>
                       Clear token
                     </button>
@@ -280,13 +198,81 @@ export default function SettingsDrawer({ open, onClose }: Props) {
                 </div>
               </section>
 
-              <button type="button" onClick={() => void refresh()}>
-                Refresh devices
-              </button>
+              <section className="settings-section">
+                <h3>Developer</h3>
+                <p className="compliance-hint">
+                  Project and render-cache paths for this workspace. Force rebuild skips the PCM cache
+                  on the next render only.
+                </p>
+                <label className="settings-field">
+                  Project
+                  <div className="settings-path-row">
+                    <code className="settings-path">{studioSettings.project_dir}</code>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyText(studioSettings.project_dir).then((ok) =>
+                          setStatus(ok ? "Copied project path" : "Copy failed"),
+                        )
+                      }
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </label>
+                <label className="settings-field">
+                  Render cache
+                  <div className="settings-path-row">
+                    <code className="settings-path">{studioSettings.cache_dir}</code>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void copyText(studioSettings.cache_dir).then((ok) =>
+                          setStatus(ok ? "Copied cache path" : "Copy failed"),
+                        )
+                      }
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </label>
+                <div className="model-card__actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onForceRebuildNext?.();
+                      setStatus("Next render will force rebuild");
+                    }}
+                  >
+                    Force rebuild next render
+                  </button>
+                  <button type="button" onClick={() => void handleClearCache()}>
+                    Clear render cache
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.open(`${API}${studioSettings.nodes_schema_url}`, "_blank")}
+                  >
+                    Open node schema
+                  </button>
+                </div>
+              </section>
             </>
           ) : null}
-          {status && settings ? (
-            <p className={`settings-status${status === "Saved" ? "" : " settings-status--warn"}`}>{status}</p>
+
+          {status && studioSettings ? (
+            <p
+              className={`settings-status${
+                status === "Saved" ||
+                status.startsWith("Copied") ||
+                status.startsWith("Cleared") ||
+                status.startsWith("Next")
+                  ? ""
+                  : " settings-status--warn"
+              }`}
+            >
+              {status}
+            </p>
           ) : null}
         </div>
       </aside>

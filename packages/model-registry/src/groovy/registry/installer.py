@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import shutil
 import subprocess
 import sys
@@ -11,7 +10,7 @@ from groovy.registry.catalog import ModelCatalog
 from groovy.registry.download import DownloadError, copy_bundle_file, download_file
 from groovy.registry.models import InstallState, ModelManifest
 from groovy.registry.store import InstallStore
-from groovy.registry.studio_settings import StudioSettingsStore
+from groovy.registry.studio_settings import StudioSettingsStore, inference_stub_active
 
 
 class ModelInstaller:
@@ -27,7 +26,7 @@ class ModelInstaller:
             return self.store.mark_failed(model_id, f"Unknown model: {model_id}")
 
         existing = self.store.get(model_id)
-        if existing.status == "ready" and _imports_verified(manifest):
+        if existing.status == "ready" and _imports_verified(manifest, project_dir=self.project_dir):
             return existing
 
         try:
@@ -39,7 +38,7 @@ class ModelInstaller:
                 self.store.mark_progress(model_id, "verifying", 0.7)
                 return self.store.mark_ready(model_id)
 
-            _install_python_deps(manifest, model_id, self.store)
+            _install_python_deps(manifest, model_id, self.store, project_dir=self.project_dir)
 
             weights = manifest.install.weights
             for index, weight in enumerate(weights):
@@ -64,8 +63,8 @@ class ModelInstaller:
                 )
 
             self.store.mark_progress(model_id, "verifying", 0.92)
-            _verify_imports(manifest)
-            _verify_runtime(manifest)
+            _verify_imports(manifest, project_dir=self.project_dir)
+            _verify_runtime(manifest, project_dir=self.project_dir)
             if manifest.install.weights or manifest.install.python_deps:
                 return self.store.mark_ready(model_id)
             raise NotImplementedError("Weight download not configured")
@@ -86,8 +85,14 @@ class ModelInstaller:
         }
 
 
-def _install_python_deps(manifest: ModelManifest, model_id: str, store: InstallStore) -> None:
-    if os.environ.get("GROOVY_INFERENCE_STUB", "").lower() in ("1", "true", "yes"):
+def _install_python_deps(
+    manifest: ModelManifest,
+    model_id: str,
+    store: InstallStore,
+    *,
+    project_dir: Path,
+) -> None:
+    if inference_stub_active(project_dir=project_dir):
         return
     deps = manifest.install.python_deps
     if not deps:
@@ -105,8 +110,8 @@ def _install_python_deps(manifest: ModelManifest, model_id: str, store: InstallS
         _run_pip_install(requirement, no_deps=no_deps)
 
 
-def _verify_runtime(manifest: ModelManifest) -> None:
-    if os.environ.get("GROOVY_INFERENCE_STUB", "").lower() in ("1", "true", "yes"):
+def _verify_runtime(manifest: ModelManifest, *, project_dir: Path | None = None) -> None:
+    if inference_stub_active(project_dir=project_dir):
         return
     if manifest.install.dev_stub:
         return
@@ -121,35 +126,42 @@ def _verify_runtime(manifest: ModelManifest) -> None:
         )
 
 
-def model_install_complete(manifest: ModelManifest, state: InstallState) -> bool:
+def model_install_complete(
+    manifest: ModelManifest,
+    state: InstallState,
+    *,
+    project_dir: Path | None = None,
+) -> bool:
     """True when registry install succeeded and runtime deps are importable."""
     if state.status != "ready":
         return False
-    return _imports_verified(manifest)
+    return _imports_verified(manifest, project_dir=project_dir)
 
 
-def _imports_verified(manifest: ModelManifest) -> bool:
-    if not _imports_verified_manifest(manifest):
+def _imports_verified(manifest: ModelManifest, *, project_dir: Path | None = None) -> bool:
+    if not _imports_verified_manifest(manifest, project_dir=project_dir):
         return False
     try:
-        _verify_runtime(manifest)
+        _verify_runtime(manifest, project_dir=project_dir)
         return True
     except RuntimeError:
         return False
 
 
-def _imports_verified_manifest(manifest: ModelManifest) -> bool:
+def _imports_verified_manifest(
+    manifest: ModelManifest, *, project_dir: Path | None = None
+) -> bool:
     if not manifest.install.verify_imports:
         return True
     try:
-        _verify_imports(manifest)
+        _verify_imports(manifest, project_dir=project_dir)
         return True
     except RuntimeError:
         return False
 
 
-def _verify_imports(manifest: ModelManifest) -> None:
-    if os.environ.get("GROOVY_INFERENCE_STUB", "").lower() in ("1", "true", "yes"):
+def _verify_imports(manifest: ModelManifest, *, project_dir: Path | None = None) -> None:
+    if inference_stub_active(project_dir=project_dir):
         return
     missing: list[str] = []
     for module in manifest.install.verify_imports:

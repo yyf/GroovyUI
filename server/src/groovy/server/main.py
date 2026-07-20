@@ -170,6 +170,7 @@ class LiveIoSettingsRequest(BaseModel):
 
 class StudioSettingsRequest(BaseModel):
     hf_token: str | None = None
+    inference_mode: str | None = None
 
 
 class MidiInEventRequest(BaseModel):
@@ -310,11 +311,15 @@ def root() -> dict[str, str]:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str | bool]:
+def health() -> dict[str, Any]:
+    studio = _studio_settings.public_view()
     return {
         "status": "ok",
         "groovy_version": GROOVY_VERSION,
         "compare_api": True,
+        "inference_mode": studio["inference_mode"],
+        "inference_effective": studio["inference_effective"],
+        "inference_stub_active": studio["inference_stub_active"],
     }
 
 
@@ -352,7 +357,26 @@ def get_studio_settings() -> dict[str, Any]:
 @app.post("/api/settings/studio")
 def update_studio_settings(body: StudioSettingsRequest) -> dict[str, Any]:
     patch = body.model_dump(exclude_unset=True)
+    mode = patch.get("inference_mode")
+    if mode is not None:
+        normalized = str(mode).strip().lower()
+        if normalized not in ("real", "stub"):
+            raise HTTPException(status_code=400, detail="inference_mode must be 'real' or 'stub'")
+        patch["inference_mode"] = normalized
     return _studio_settings.save(patch)
+
+
+@app.post("/api/cache/clear")
+def clear_render_cache() -> dict[str, Any]:
+    """Delete render cache files under ``.groovy/cache`` (not models or settings)."""
+    cache_dir = PROJECT_DIR / ".groovy" / "cache"
+    removed = 0
+    if cache_dir.is_dir():
+        for path in cache_dir.iterdir():
+            if path.is_file():
+                path.unlink()
+                removed += 1
+    return {"status": "ok", "removed": removed, "cache_dir": str(cache_dir)}
 
 
 @app.post("/api/midi/in/event")

@@ -183,13 +183,22 @@ export async function fetchStudioSettings(): Promise<import("./types").StudioSet
 
 export type { StudioSettings } from "./types";
 
-export async function updateStudioSettings(patch: { hf_token?: string | null }): Promise<import("./types").StudioSettings> {
+export async function updateStudioSettings(patch: {
+  hf_token?: string | null;
+  inference_mode?: "real" | "stub";
+}): Promise<import("./types").StudioSettings> {
   const res = await fetch(`${API}/api/settings/studio`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error("Failed to save studio settings");
+  return res.json();
+}
+
+export async function clearRenderCache(): Promise<{ status: string; removed: number; cache_dir: string }> {
+  const res = await fetch(`${API}/api/cache/clear`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to clear render cache");
   return res.json();
 }
 
@@ -898,11 +907,16 @@ export async function executeWorkflow(
   workflow: Workflow,
   targetNodes: string[],
   onProgress: JobProgressHandler,
+  options?: { forceRebuild?: boolean },
 ): Promise<WorkflowExecution> {
   const res = await fetch(`${API}/api/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ workflow, target_nodes: targetNodes }),
+    body: JSON.stringify({
+      workflow,
+      target_nodes: targetNodes,
+      force_rebuild: options?.forceRebuild ?? false,
+    }),
   });
   if (!res.ok) {
     throw new Error(`Execute failed: ${res.status}`);

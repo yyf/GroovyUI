@@ -13,6 +13,7 @@ type Props = {
   onApplyWorkflow: (workflow: Workflow) => void;
   generateOpenNonce?: number;
   complianceWarnings: number;
+  inferenceStubActive?: boolean;
   onModelBrowser: () => void;
   onCompliance: () => void;
   onShareWorkflow: () => void;
@@ -32,6 +33,7 @@ export default function StudioTopBar({
   onApplyWorkflow,
   generateOpenNonce = 0,
   complianceWarnings,
+  inferenceStubActive = false,
   onModelBrowser,
   onCompliance,
   onShareWorkflow,
@@ -58,6 +60,14 @@ export default function StudioTopBar({
           <WorkflowGenerateButton onApply={onApplyWorkflow} openNonce={generateOpenNonce} />
         </div>
         <div className="top-bar__tools">
+          {inferenceStubActive ? (
+            <span
+              className="top-bar__stub-pill"
+              title="Stub inference is active — AI nodes use stand-ins, not real weights. Change in Settings → Inference."
+            >
+              Stub inference
+            </span>
+          ) : null}
           <button
             type="button"
             className="top-bar__tool"

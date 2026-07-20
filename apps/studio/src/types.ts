@@ -100,6 +100,13 @@ export type DiscoverModelResult = {
 export type StudioSettings = {
   hf_token_set: boolean;
   hf_token_source: "environment" | "settings" | null;
+  inference_mode: "real" | "stub";
+  inference_effective: "real" | "stub";
+  inference_effective_source: "environment" | "settings";
+  inference_stub_active: boolean;
+  project_dir: string;
+  cache_dir: string;
+  nodes_schema_url: string;
 };
 
 export type MissingWorkflowModel = {
