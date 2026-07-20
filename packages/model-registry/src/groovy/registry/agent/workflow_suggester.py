@@ -22,7 +22,15 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
         "prompt-tts-modular",
         "Prompt into TTS with control fade",
     ),
-    (re.compile(r"\b(modular|prompt.?node|automation.?apply)\b", re.I), "prompt-tts-modular", "Modular prompt + TTS"),
+    (
+        re.compile(
+            r"\b(fm.?synth|simple.?fm|signal.?generat|oscillator|modular.?synth|phase.?mod)\b",
+            re.I,
+        ),
+        "simple-fm-synth",
+        "FM patched from oscillators + control curves",
+    ),
+    (re.compile(r"\b(modular|automation.?apply|control.?curve)\b", re.I), "simple-fm-synth", "Modular FM synth patch"),
     (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro)\b", re.I), "tts-greeting", "Text-to-speech"),
     (re.compile(r"\b(voice.?convert|rvc|clone)\b", re.I), "voice-convert-demo", "Voice conversion"),
     (re.compile(r"\b(authentic|deepfake|provenance.?verify)\b", re.I), "authenticity-check", "Authenticity analysis"),
@@ -31,7 +39,7 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\b(text.?to.?music|generate.?music|music.?from.?text)\b", re.I), "text-to-music", "Text to music generation"),
     (re.compile(r"\b(sing|vocal|diffsinger|lyrics)\b", re.I), "sing-from-midi", "Singing synthesis from MIDI"),
     (re.compile(r"\b(remix|stemforge)\b", re.I), "stem-to-remix", "Stem to remix chain"),
-    (re.compile(r"\b(automation|midi.?cc|control.?curve)\b", re.I), "midi-automation-demo", "MIDI automation demo"),
+    (re.compile(r"\b(automation|midi.?cc)\b", re.I), "midi-automation-demo", "MIDI automation demo"),
 ]
 
 

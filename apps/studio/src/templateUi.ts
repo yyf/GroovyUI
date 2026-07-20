@@ -8,6 +8,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "diarize-and-transcribe",
   "tts-greeting",
   "prompt-tts-modular",
+  "simple-fm-synth",
   "text-to-music",
   "transcribe-and-regenerate",
   "hello-groovy",

@@ -307,10 +307,78 @@ def write_midi_events_meta(cache: Any, midi: MidiBuffer, events: list[dict[str, 
     return midi
 
 
+def events_from_smf(
+    mid_path: Path | str,
+    *,
+    sample_rate: int,
+    frame_count: int | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Parse Standard MIDI File notes/CC into executor event dicts.
+
+    Channel is 0-based (PrettyMIDI / SMF). Duration frames are derived from the
+    file end time when *frame_count* is omitted.
+    """
+    from pretty_midi import PrettyMIDI
+
+    pm = PrettyMIDI(str(mid_path))
+    duration = max(0.25, float(pm.get_end_time()))
+    frames = frame_count if frame_count is not None else max(1, int(round(duration * sample_rate)))
+    events: list[dict[str, Any]] = []
+    for instrument in pm.instruments:
+        channel = int(getattr(instrument, "midi_channel", 0) or 0)
+        for note in instrument.notes:
+            start = max(0, min(frames - 1, int(round(note.start * sample_rate))))
+            end = max(start, min(frames - 1, int(round(note.end * sample_rate))))
+            events.append(
+                {
+                    "frame": start,
+                    "type": "note_on",
+                    "channel": channel,
+                    "note": int(note.pitch),
+                    "velocity": float(note.velocity) / 127.0,
+                }
+            )
+            events.append(
+                {
+                    "frame": end,
+                    "type": "note_off",
+                    "channel": channel,
+                    "note": int(note.pitch),
+                    "velocity": 0.0,
+                }
+            )
+        for cc in instrument.control_changes:
+            frame = max(0, min(frames - 1, int(round(cc.time * sample_rate))))
+            events.append(
+                {
+                    "frame": frame,
+                    "type": "cc",
+                    "channel": channel,
+                    "num": int(cc.number),
+                    "value": float(cc.value) / 127.0,
+                }
+            )
+    events.sort(key=lambda item: (int(item.get("frame", 0)), str(item.get("type", ""))))
+    return events, frames
+
+
 def load_midi_events(cache: Any, midi_id: str) -> list[dict[str, Any]]:
     events_path = cache.cache_dir / f"{midi_id}.midi.events.json"
     if events_path.exists():
         return json.loads(events_path.read_text())
+    mid_path = cache.cache_dir / f"{midi_id}.mid"
+    if mid_path.exists():
+        try:
+            midi = cache.load_midi(midi_id)
+            events, _frames = events_from_smf(
+                mid_path,
+                sample_rate=int(midi.sample_rate),
+                frame_count=int(midi.frame_count),
+            )
+            events_path.write_text(json.dumps(events, indent=2))
+            return events
+        except Exception:
+            return []
     return []
 
 
