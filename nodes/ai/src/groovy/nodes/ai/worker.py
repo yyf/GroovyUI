@@ -38,9 +38,12 @@ HANDLERS = {
 
 
 def main() -> None:
+    import os
+
     payload = json.loads(sys.stdin.read())
     node_type = payload["node_type"]
     project_dir = Path(payload["project_dir"])
+    os.environ.setdefault("GROOVY_PROJECT_DIR", str(project_dir.resolve()))
     kwargs = payload["kwargs"]
     cache = CacheStore(project_dir)
 

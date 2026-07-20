@@ -16,6 +16,7 @@ import {
   executeWorkflow,
   fetchCompliance,
   fetchAllNodeSchemas,
+  fetchStudioSettings,
   fetchWorkflowValidation,
   fetchTemplate,
   fetchModelCard,
@@ -39,6 +40,7 @@ import ModelBrowser from "./components/ModelBrowser";
 import NodeHelper from "./components/NodeHelper";
 import NodePalette, { defaultWidgetsForNode } from "./components/NodePalette";
 import OnboardingOverlay, { isOnboardingComplete } from "./components/OnboardingOverlay";
+import SettingsDrawer from "./components/SettingsDrawer";
 import SidePanel from "./components/SidePanel";
 import StudioTopBar from "./components/StudioTopBar";
 import TransportBar from "./components/TransportBar";
@@ -121,6 +123,9 @@ export default function App() {
   const [complianceOpen, setComplianceOpen] = useState(false);
   const [complianceWarnings, setComplianceWarnings] = useState(0);
   const [complianceFastPath, setComplianceFastPath] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [inferenceStubActive, setInferenceStubActive] = useState(false);
+  const [forceRebuildNext, setForceRebuildNext] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);
@@ -138,6 +143,13 @@ export default function App() {
   } | null>(null);
   const [activeEdgeIds, setActiveEdgeIds] = useState<Set<string>>(new Set());
   const [auditionNonce, setAuditionNonce] = useState(0);
+
+  const handleStudioSettingsChange = useCallback(
+    (settings: import("./types").StudioSettings) => {
+      setInferenceStubActive(settings.inference_stub_active);
+    },
+    [],
+  );
 
   const openModelBrowser = useCallback((launch?: ModelBrowserLaunch | null) => {
     setModelBrowserLaunch(launch ?? null);
@@ -228,6 +240,9 @@ export default function App() {
     listTemplates()
       .then(setTemplates)
       .catch(() => setTemplates([]));
+    fetchStudioSettings()
+      .then((settings) => setInferenceStubActive(settings.inference_stub_active))
+      .catch(() => setInferenceStubActive(false));
     loadTemplate(DEFAULT_TEMPLATE).catch((err) => {
       setLoadError(String(err));
       setStatus("Template load failed");
@@ -386,23 +401,30 @@ export default function App() {
 
         setStatus("Rendering…");
         let lastRunningNode: string | undefined;
-        const execution = await executeWorkflow(workflow, targets, (update) => {
-          setLastProgressAt(Date.now());
-          if (update.current_node) {
-            lastRunningNode = update.current_node;
-            setCurrentNode(update.current_node);
-            setNodeStatus((prev) => ({
-              ...prev,
-              [update.current_node!]: "running",
-            }));
-          }
-          if (update.message) {
-            setRenderMessage(update.message);
-          }
-          if (update.progress != null) {
-            setProgress(update.progress);
-          }
-        });
+        const forceRebuild = forceRebuildNext;
+        if (forceRebuild) setForceRebuildNext(false);
+        const execution = await executeWorkflow(
+          workflow,
+          targets,
+          (update) => {
+            setLastProgressAt(Date.now());
+            if (update.current_node) {
+              lastRunningNode = update.current_node;
+              setCurrentNode(update.current_node);
+              setNodeStatus((prev) => ({
+                ...prev,
+                [update.current_node!]: "running",
+              }));
+            }
+            if (update.message) {
+              setRenderMessage(update.message);
+            }
+            if (update.progress != null) {
+              setProgress(update.progress);
+            }
+          },
+          { forceRebuild },
+        );
         activeExecutionRef.current = execution;
         const job = await execution.promise;
         activeExecutionRef.current = null;
@@ -473,7 +495,7 @@ export default function App() {
         setProgress(undefined);
       }
     },
-    [workflow, selectedNodeId, openModelBrowser, setNodes],
+    [workflow, selectedNodeId, openModelBrowser, setNodes, forceRebuildNext],
   );
 
   const cancelRender = useCallback(() => {
@@ -1019,6 +1041,7 @@ export default function App() {
           onApplyWorkflow={applyGeneratedWorkflow}
           generateOpenNonce={generateOpenNonce}
           complianceWarnings={complianceWarnings}
+          inferenceStubActive={inferenceStubActive}
           onModelBrowser={() => openModelBrowser()}
           onCompliance={() => setComplianceOpen(true)}
           onShareWorkflow={() => downloadWorkflow(workflow)}
@@ -1032,6 +1055,7 @@ export default function App() {
             onToggleGroupCollapse: handleToggleGroupCollapse,
             onTogglePalette: () => setPaletteOpen((prev) => !prev),
             onToggleHelper: () => setHelperOpen((prev) => !prev),
+            onOpenStudioSettings: () => setSettingsOpen(true),
           }}
         />
         <div
@@ -1194,6 +1218,12 @@ export default function App() {
           fastPath={complianceFastPath}
           onInstallRenderAudition={installRenderAndAudition}
           onCancelInstall={stopFastPathInstall}
+        />
+        <SettingsDrawer
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onSettingsChange={handleStudioSettingsChange}
+          onForceRebuildNext={() => setForceRebuildNext(true)}
         />
         <OnboardingOverlay
           open={onboardingOpen}
