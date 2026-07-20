@@ -236,6 +236,19 @@ export async function uploadProjectAudio(file: File): Promise<string> {
   return data.path as string;
 }
 
+/** Reveal a project file/folder in the OS file manager (Finder / Explorer). */
+export async function revealProjectPath(path: string): Promise<void> {
+  const res = await fetch(`${API}/api/project/reveal`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(detail || `Reveal failed (${res.status})`);
+  }
+}
+
 export async function fetchHealth(): Promise<string> {
   const res = await fetch(`${API}/api/health`);
   const data = await res.json();

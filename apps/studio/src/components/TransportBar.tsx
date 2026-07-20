@@ -465,7 +465,8 @@ export default function TransportBar({
               className="transport__render-all"
               onClick={onRenderAll}
               disabled={running}
-              title="Shift+R"
+              title="Render entire graph (⌘R / Ctrl+R)"
+              aria-keyshortcuts="Meta+R Control+R"
             >
               Render all
             </button>

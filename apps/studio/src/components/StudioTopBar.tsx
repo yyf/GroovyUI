@@ -1,4 +1,5 @@
 import type { Workflow } from "../types";
+import { openAboutWindow } from "../aboutWindow";
 import StudioSettingsMenu, { type StudioSettingsMenuProps } from "./StudioSettingsMenu";
 import TemplateSelector from "./TemplateSelector";
 import WorkflowGenerateButton from "./WorkflowGenerateButton";
@@ -45,9 +46,15 @@ export default function StudioTopBar({
 
   return (
     <header className={`top-bar${open ? " top-bar--open" : ""}`}>
-      <div className="top-bar__brand" aria-label="GroovyUI">
+      <button
+        type="button"
+        className="top-bar__brand"
+        onClick={() => openAboutWindow()}
+        title="About GroovyUI"
+        aria-label="About GroovyUI"
+      >
         GroovyUI
-      </div>
+      </button>
 
       <div className={`top-bar__content${open ? "" : " top-bar__content--collapsed"}`}>
         <div className="top-bar__drawer">
@@ -73,8 +80,10 @@ export default function StudioTopBar({
             className="top-bar__tool"
             onClick={onModelBrowser}
             title="Model Browser (⌘K / Ctrl+K)"
+            aria-keyshortcuts="Meta+K Control+K"
           >
             Models
+            <kbd className="workflow-generate__kbd">⌘K</kbd>
           </button>
           <button
             type="button"
