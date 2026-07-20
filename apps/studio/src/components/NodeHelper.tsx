@@ -8,6 +8,7 @@ import {
   fetchModelCard,
   fetchNodeSchema,
   fetchWaveform,
+  revealProjectPath,
   uploadProjectAudio,
   type AbCompareResult,
   type CacheSignalMetrics,
@@ -1111,17 +1112,43 @@ function SaveAudioExportPair({
   output: JobOutput;
   onOpenCompliance?: () => void;
 }) {
+  const [revealError, setRevealError] = useState<string | null>(null);
+
+  const reveal = async (path: string) => {
+    setRevealError(null);
+    try {
+      await revealProjectPath(path);
+    } catch (err) {
+      setRevealError(err instanceof Error ? err.message : "Could not open file browser");
+    }
+  };
+
   if (!output.path || !output.provenance_path) return null;
   return (
     <section className="node-helper__export-pair" aria-label="Saved audio and provenance">
       <div className="node-helper__export-artifact">
         <span className="node-helper__export-label">Output file</span>
-        <code title={output.path}>{output.path}</code>
+        <button
+          type="button"
+          className="node-helper__export-path"
+          title={`Open in file browser\n${output.path}`}
+          onClick={() => void reveal(output.path!)}
+        >
+          <code>{output.path}</code>
+        </button>
       </div>
       <div className="node-helper__export-artifact">
         <span className="node-helper__export-label">Compliance sidecar</span>
-        <code title={output.provenance_path}>{output.provenance_path}</code>
+        <button
+          type="button"
+          className="node-helper__export-path"
+          title={`Open in file browser\n${output.provenance_path}`}
+          onClick={() => void reveal(output.provenance_path!)}
+        >
+          <code>{output.provenance_path}</code>
+        </button>
       </div>
+      {revealError ? <p className="node-helper__hint node-helper__export-error">{revealError}</p> : null}
       {onOpenCompliance ? (
         <button type="button" className="node-helper__export-compliance" onClick={onOpenCompliance}>
           Review compliance

@@ -60,7 +60,6 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
     <div
       className={`groovy-node groovy-node--${nodeData.status}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}`}
       style={{ minHeight }}
-      title={nodeData.issue ?? undefined}
     >
       <span className="groovy-node__ticks" aria-hidden />
       {inputs.map((socket, index) => (
@@ -112,7 +111,6 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             {nodeData.previewText}
           </p>
         ) : null}
-        {nodeData.issue ? <p className="groovy-node__issue">{nodeData.issue}</p> : null}
       </div>
       {outputs.map((socket, index) => (
         <Handle

@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import platform
+import subprocess
 import threading
 import uuid
 from contextlib import asynccontextmanager
@@ -171,6 +173,10 @@ class LiveIoSettingsRequest(BaseModel):
 class StudioSettingsRequest(BaseModel):
     hf_token: str | None = None
     inference_mode: str | None = None
+
+
+class RevealPathRequest(BaseModel):
+    path: str
 
 
 class MidiInEventRequest(BaseModel):
@@ -476,6 +482,45 @@ async def upload_project_asset(file: UploadFile = File(...)) -> dict[str, str]:
     dest = dest_dir / safe_name
     dest.write_bytes(await file.read())
     return {"path": f"assets/uploads/{safe_name}"}
+
+
+@app.post("/api/project/reveal")
+def reveal_project_path(body: RevealPathRequest) -> dict[str, str]:
+    """Reveal a project file or folder in the OS file manager (Finder / Explorer)."""
+    raw = str(body.path or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Missing path")
+    candidate = Path(raw).expanduser()
+    if not candidate.is_absolute():
+        candidate = (PROJECT_DIR / candidate).resolve()
+    else:
+        candidate = candidate.resolve()
+    project_root = PROJECT_DIR.resolve()
+    try:
+        candidate.relative_to(project_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Path escapes project directory") from exc
+    if not candidate.exists():
+        raise HTTPException(status_code=404, detail=f"Path not found: {candidate}")
+
+    system = platform.system()
+    try:
+        if system == "Darwin":
+            if candidate.is_dir():
+                subprocess.Popen(["open", str(candidate)], start_new_session=True)
+            else:
+                subprocess.Popen(["open", "-R", str(candidate)], start_new_session=True)
+        elif system == "Windows":
+            if candidate.is_dir():
+                subprocess.Popen(["explorer", str(candidate)], start_new_session=True)
+            else:
+                subprocess.Popen(["explorer", "/select,", str(candidate)], start_new_session=True)
+        else:
+            target = candidate if candidate.is_dir() else candidate.parent
+            subprocess.Popen(["xdg-open", str(target)], start_new_session=True)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not open file browser: {exc}") from exc
+    return {"status": "ok", "path": str(candidate)}
 
 
 @app.get("/api/project/audio-meta")

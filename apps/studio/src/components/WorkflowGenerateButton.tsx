@@ -108,13 +108,17 @@ export default function WorkflowGenerateButton({ onApply, openNonce = 0 }: Props
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                void handleGenerate();
-              }
+              if (event.key !== "Enter") return;
+              // Enter suggests; Shift+Enter inserts a newline (Cmd/Ctrl+Enter also suggests).
+              if (event.shiftKey) return;
+              event.preventDefault();
+              void handleGenerate();
             }}
           />
           <div className="workflow-generate__actions">
+            <span className="workflow-generate__enter-hint">
+              <kbd>Enter</kbd> suggest · <kbd>⇧Enter</kbd> newline
+            </span>
             <button type="button" className="workflow-generate__submit" disabled={loading || !prompt.trim()} onClick={() => void handleGenerate()}>
               {loading ? "Generating…" : "Suggest workflow"}
             </button>

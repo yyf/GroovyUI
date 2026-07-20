@@ -640,6 +640,11 @@ export default function App() {
         cancelRender();
         return;
       }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "r") {
+        event.preventDefault();
+        if (!running) void runRender(undefined, true);
+        return;
+      }
       if (event.shiftKey && event.key.toLowerCase() === "r") {
         event.preventDefault();
         if (!running) void runRender(undefined, true);

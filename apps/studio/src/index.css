@@ -360,11 +360,22 @@ body {
   align-items: center;
   height: 100%;
   padding: 0 12px;
+  margin: 0;
+  border: none;
   border-right: 1px solid var(--border-dim);
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.top-bar__brand:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .top-bar__content {
@@ -464,6 +475,7 @@ body {
   line-height: 1;
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   white-space: nowrap;
 }
 
@@ -605,8 +617,24 @@ body {
 
 .workflow-generate__actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
   margin-top: 8px;
+}
+
+.workflow-generate__enter-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.workflow-generate__enter-hint kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-dim);
+  padding: 0 3px;
 }
 
 .workflow-generate__submit {
@@ -2990,6 +3018,28 @@ body {
   font-size: 10px;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.node-helper__export-path {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.node-helper__export-path:hover code {
+  color: var(--text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.node-helper__export-error {
+  grid-column: 1 / -1;
+  color: #d4c4a0;
 }
 
 .node-helper__export-compliance {
