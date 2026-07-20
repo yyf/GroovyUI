@@ -45,7 +45,7 @@ def test_install_python_deps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
         install=InstallSpec(python_deps=[{"package": "DeepFilterNet-py312", "version": ">=0.5.7"}]),
     )
     store = InstallStore(tmp_path)
-    _install_python_deps(manifest, "test-deps", store)
+    _install_python_deps(manifest, "test-deps", store, project_dir=tmp_path)
     assert calls == [("DeepFilterNet-py312>=0.5.7", False)]
 
 
@@ -90,7 +90,7 @@ def test_install_python_deps_no_deps(tmp_path: Path, monkeypatch: pytest.MonkeyP
         ),
     )
     store = InstallStore(tmp_path)
-    _install_python_deps(manifest, "basic-pitch", store)
+    _install_python_deps(manifest, "basic-pitch", store, project_dir=tmp_path)
     assert calls == [("basic-pitch==0.4.0", True)]
 
 
