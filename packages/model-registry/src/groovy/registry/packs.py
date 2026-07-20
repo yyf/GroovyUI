@@ -60,6 +60,7 @@ PACK_CATALOG: dict[str, NodePackManifest] = {
             "AutomationApply",
             "FloatMath",
             "FloatRoute",
+            "SignalGenerator",
             "ModuleInlet",
             "ModuleOutlet",
         ],

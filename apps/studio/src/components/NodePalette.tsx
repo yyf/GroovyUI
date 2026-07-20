@@ -23,6 +23,7 @@ type Props = {
 const MODULAR_NODES = new Set([
   "LoadMIDI",
   "Prompt",
+  "SignalGenerator",
   "ControlCurve",
   "MIDIToFloat",
   "MIDINoteGate",
@@ -90,8 +91,8 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
   },
   "core-dsp": {
     title: "Processing",
-    hint: "Level, trim, resample",
-    tiers: ["core", "all"],
+    hint: "Level, trim, resample, oscillators",
+    tiers: ["core", "modular", "all"],
   },
   "ai-generate": {
     title: "AI generate",
@@ -133,6 +134,11 @@ function isPaletteVisible(node: NodeTypeInfo): boolean {
 
 function tierForNode(node: NodeTypeInfo): PaletteTier[] {
   const tiers: PaletteTier[] = ["all"];
+  // Oscillators are both Core sources and Modular synth building blocks.
+  if (node.type === "SignalGenerator") {
+    tiers.push("core", "modular");
+    return tiers;
+  }
   if (node.category.includes("Core") && !MODULAR_NODES.has(node.type)) {
     tiers.push("core");
   }
@@ -159,6 +165,7 @@ function paletteGroup(node: NodeTypeInfo): GroupId {
   if (AUTHENTICITY.has(node.type)) return "authenticity";
   if (node.category.includes("AI")) return aiPaletteGroup(node.type);
   if (node.type === "ModuleInlet" || node.type === "ModuleOutlet") return "subgraph";
+  if (node.type === "SignalGenerator") return "core-dsp";
   if (MODULAR_NODES.has(node.type) || node.type.includes("Float")) return "control";
   if (CORE_IO.has(node.type)) return "core-io";
   return "core-dsp";

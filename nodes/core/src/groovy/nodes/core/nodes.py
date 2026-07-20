@@ -42,6 +42,7 @@ def register_all() -> None:
         ChannelConvert,
         Transcode,
         MultichannelNormalize,
+        SignalGenerator,
         ControlCurve,
         MIDIToFloat,
         MIDINoteGate,
@@ -571,14 +572,123 @@ class LoadMIDI(GroovyNode):
         path = str(kwargs.get("path", path))
         midi_kind = str(kwargs.get("midi_kind", midi_kind))
         resolved, _canonical_path = resolve_project_media_path(self._ctx.cache, path)
+        from groovy.executor.live_midi import events_from_smf, write_midi_events_meta
+
+        sample_rate = 48000
+        midi_bytes = resolved.read_bytes()
+        try:
+            events, frame_count = events_from_smf(resolved, sample_rate=sample_rate)
+        except Exception:
+            events, frame_count = [], sample_rate
         midi = MidiBuffer.create(
-            sample_rate=48000,
-            frame_count=48000,
+            sample_rate=sample_rate,
+            frame_count=frame_count,
             source_node_type="LoadMIDI",
             midi_kind=midi_kind,
         )
-        self._ctx.cache.write_midi(midi, resolved.read_bytes())
+        self._ctx.cache.write_midi(midi, midi_bytes)
+        if events:
+            write_midi_events_meta(self._ctx.cache, midi, events)
         return (midi,)
+
+
+@register_node
+class SignalGenerator(GroovyNode):
+    """Offline oscillator building block.
+
+    Phase-accumulates *frequency* (Hz), then:
+      y = amplitude · wave(φ + phase_mod)
+
+    Patch classic FM/PM as:
+      mod  = Osc(f_m, amplitude=I)          → I·sin(2π f_m t)
+      out  = Osc(f_c, amplitude=A_c, phase_mod=mod)
+           = A_c · sin(2π f_c t + I·sin(2π f_m t))
+
+    With I = Δf / f_m via FloatMath(divide) into the modulator amplitude.
+    """
+
+    CATEGORY = "GroovyUI/Core"
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "frequency": ("AUTOMATION",),
+                "amplitude": ("AUTOMATION",),
+                "phase_mod": ("AUDIO",),
+                "waveform": ("STRING", {"default": "sine"}),
+                "frequency_hz": ("FLOAT", {"default": 440.0, "min": 1.0, "max": 20000.0}),
+                "amplitude_default": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 8.0}),
+                "duration_sec": ("FLOAT", {"default": 2.0, "min": 0.05, "max": 60.0}),
+                "sample_rate": ("INT", {"default": 48000, "min": 8000, "max": 192000}),
+            },
+        }
+
+    def run(self, **kwargs) -> tuple[AudioBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        freq_curve = kwargs.get("frequency")
+        amp_curve = kwargs.get("amplitude")
+        phase_mod = kwargs.get("phase_mod")
+        waveform = str(kwargs.get("waveform", "sine")).lower().strip()
+        freq_default = float(np.clip(float(kwargs.get("frequency_hz", 440.0)), 1.0, 20000.0))
+        amp_default = float(np.clip(float(kwargs.get("amplitude_default", 0.4)), 0.0, 8.0))
+        duration_sec = float(np.clip(float(kwargs.get("duration_sec", 2.0)), 0.05, 60.0))
+        sample_rate = int(np.clip(int(kwargs.get("sample_rate", 48000)), 8000, 192000))
+        frame_count = max(1, int(round(duration_sec * sample_rate)))
+
+        freq = _automation_or_const(freq_curve, frame_count, freq_default)
+        amp = _automation_or_const(amp_curve, frame_count, amp_default)
+        freq = np.clip(freq, 1.0, 20000.0)
+        amp = np.clip(amp, 0.0, 8.0)
+
+        dphase = 2.0 * np.pi * freq / sample_rate
+        phase = np.cumsum(dphase) - dphase
+
+        if phase_mod is not None:
+            _, mod_pcm = self._ctx.cache.load_audio(phase_mod.id)
+            mono = mod_pcm.mean(axis=0) if mod_pcm.ndim == 2 else mod_pcm.reshape(-1)
+            if mono.size != frame_count:
+                x_old = np.linspace(0.0, 1.0, max(1, mono.size))
+                x_new = np.linspace(0.0, 1.0, frame_count)
+                mono = np.interp(x_new, x_old, mono.astype(np.float64))
+            phase = phase + mono.astype(np.float64)
+
+        wave = _oscillator_from_phase(phase, waveform) * amp
+        pcm = wave.reshape(1, -1)
+        buffer = AudioBuffer.from_planar(
+            pcm,
+            sample_rate,
+            source_node_type="SignalGenerator",
+            channel_layout="mono",
+        )
+        self._ctx.cache.write_audio(buffer, pcm)
+        return (buffer,)
+
+
+def _automation_or_const(
+    curve: AutomationBuffer | None,
+    frame_count: int,
+    default: float,
+) -> np.ndarray:
+    if curve is None:
+        return np.full(frame_count, float(default), dtype=np.float64)
+    return np.asarray(curve.resample_to(frame_count), dtype=np.float64)
+
+
+def _oscillator_from_phase(phase: np.ndarray, waveform: str) -> np.ndarray:
+    """Band-limited-enough offline waveshapes from an unwrapped phase ramp."""
+    if waveform in {"saw", "sawtooth"}:
+        return 2.0 * (np.mod(phase / (2.0 * np.pi), 1.0) - 0.5)
+    if waveform in {"square", "sq"}:
+        return np.where(np.mod(phase, 2.0 * np.pi) < np.pi, 1.0, -1.0)
+    if waveform in {"triangle", "tri"}:
+        saw = 2.0 * (np.mod(phase / (2.0 * np.pi), 1.0) - 0.5)
+        return 2.0 * np.abs(saw) - 1.0
+    return np.sin(phase)
 
 
 @register_node
@@ -933,6 +1043,8 @@ class FloatMath(GroovyNode):
         vb = b.resample_to(length)
         if operation == "multiply":
             values = va * vb
+        elif operation in {"divide", "div"}:
+            values = va / np.maximum(vb, 1e-9)
         else:
             values = va + vb
         curve = AutomationBuffer.from_values(
