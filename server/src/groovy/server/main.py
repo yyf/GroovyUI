@@ -15,36 +15,41 @@ from urllib.parse import urlparse
 from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from groovy.executor.batch import run_batch_render
 from groovy.executor import Executor
+from groovy.executor.batch import run_batch_render
 from groovy.executor.engine import GROOVY_VERSION
-from groovy.node import NODE_REGISTRY, get_node_class
-from groovy.nodes.core import register_all as register_core
-from groovy.nodes.ai import register_all as register_ai
-from groovy.executor.provenance import summarize_workflow_outputs
-from groovy.registry import ModelRegistry
-from groovy.registry.catalog import ModelCatalog
-from groovy.registry.agent.install_recovery import install_recovery
-from groovy.registry.agent.node_enricher import enrich_node_schema
-from groovy.registry.agent.recommender import recommend_models
-from groovy.registry.agent.workflow_suggester import suggest_workflows
-from groovy.registry.agent.license_scanner import scan_workflow_licenses
-from groovy.registry.agent.curator import approve_draft, ingest_drafts, list_drafts, save_discover_draft
-from groovy.registry.discover import DiscoverError, discover_models
-from groovy.registry.agent.template_generator import generate_template_from_workflow
-from groovy.registry.agent.registry_freshness import scan_registry_freshness
-from groovy.registry.installer import model_install_complete
-from groovy.registry.studio_settings import StudioSettingsStore
-from groovy.registry.workflow_models import missing_models_for_workflow
-from groovy.registry.pack_installer import PackInstaller
-from groovy.registry.packs import list_packs
-from groovy.registry.compliance import summarize_compliance
-from groovy.registry.compliance_report import build_compliance_report, render_compliance_pdf
-from groovy.schema.models import Workflow
-from groovy.schema.validate import validate_workflow
-from groovy.schema.comfy_import import import_comfy_workflow
 from groovy.executor.live_midi import LiveIoState
 from groovy.executor.osc_live import OscCaptureStore
+from groovy.executor.provenance import summarize_workflow_outputs
+from groovy.node import NODE_REGISTRY, get_node_class
+from groovy.nodes.ai import register_all as register_ai
+from groovy.nodes.core import register_all as register_core
+from groovy.registry import ModelRegistry
+from groovy.registry.agent.curator import (
+    approve_draft,
+    ingest_drafts,
+    list_drafts,
+    save_discover_draft,
+)
+from groovy.registry.agent.install_recovery import install_recovery
+from groovy.registry.agent.license_scanner import scan_workflow_licenses
+from groovy.registry.agent.node_enricher import enrich_node_schema
+from groovy.registry.agent.recommender import recommend_models
+from groovy.registry.agent.registry_freshness import scan_registry_freshness
+from groovy.registry.agent.template_generator import generate_template_from_workflow
+from groovy.registry.agent.workflow_suggester import suggest_workflows
+from groovy.registry.catalog import ModelCatalog
+from groovy.registry.compliance import summarize_compliance
+from groovy.registry.compliance_report import build_compliance_report, render_compliance_pdf
+from groovy.registry.discover import DiscoverError, discover_models
+from groovy.registry.installer import model_install_complete
+from groovy.registry.pack_installer import PackInstaller
+from groovy.registry.packs import list_packs
+from groovy.registry.studio_settings import StudioSettingsStore
+from groovy.registry.workflow_models import missing_models_for_workflow
+from groovy.schema.comfy_import import import_comfy_workflow
+from groovy.schema.models import Workflow
+from groovy.schema.validate import validate_workflow
 from groovy.server.bootstrap import ensure_project_samples
 from groovy.server.compare import analyze_ab_pair
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
@@ -126,12 +131,15 @@ def _model_provenance_metadata(model_id: str) -> dict[str, Any] | None:
     }
 
 
+_studio_settings = StudioSettingsStore(PROJECT_DIR)
 _executor = Executor(
     PROJECT_DIR,
     model_metadata_resolver=_model_provenance_metadata,
+    content_credentials_mode_resolver=lambda: str(
+        _studio_settings.public_view()["content_credentials_effective"]
+    ),
 )
 _pack_installer = PackInstaller(PROJECT_DIR)
-_studio_settings = StudioSettingsStore(PROJECT_DIR)
 
 
 class ModelSearchRequest(BaseModel):
@@ -213,6 +221,7 @@ class LiveIoSettingsRequest(BaseModel):
 class StudioSettingsRequest(BaseModel):
     hf_token: str | None = None
     inference_mode: str | None = None
+    content_credentials_mode: str | None = None
 
 
 class RevealPathRequest(BaseModel):
@@ -373,6 +382,18 @@ def health() -> dict[str, Any]:
     }
 
 
+@app.get("/api/c2pa/status")
+def c2pa_status() -> dict[str, Any]:
+    studio = _studio_settings.public_view()
+    signer = _executor.content_credential_signer.public_status()
+    return {
+        "mode": studio["content_credentials_mode"],
+        "effective_mode": studio["content_credentials_effective"],
+        "effective_source": studio["content_credentials_effective_source"],
+        **signer,
+    }
+
+
 @app.get("/api/midi/devices")
 def midi_devices(direction: str | None = None) -> dict[str, list[dict[str, str]]]:
     devices = _live_io.list_devices(direction=direction)
@@ -413,6 +434,18 @@ def update_studio_settings(body: StudioSettingsRequest) -> dict[str, Any]:
         if normalized not in ("real", "stub"):
             raise HTTPException(status_code=400, detail="inference_mode must be 'real' or 'stub'")
         patch["inference_mode"] = normalized
+    credentials_mode = patch.get("content_credentials_mode")
+    if credentials_mode is not None:
+        normalized = str(credentials_mode).strip().lower()
+        if normalized not in ("off", "sign_if_configured", "required"):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "content_credentials_mode must be 'off', "
+                    "'sign_if_configured', or 'required'"
+                ),
+            )
+        patch["content_credentials_mode"] = normalized
     return _studio_settings.save(patch)
 
 
@@ -1066,7 +1099,7 @@ def batch_render_endpoint(body: BatchRenderRequest) -> dict[str, Any]:
 
 @app.post("/api/workflow/provenance")
 def workflow_provenance(body: ProvenanceRequest) -> dict[str, Any]:
-    workflow = _workflow_from_dict(body.workflow)
+    _workflow_from_dict(body.workflow)
     return summarize_workflow_outputs(
         _executor.cache,
         body.outputs,

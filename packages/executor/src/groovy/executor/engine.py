@@ -15,6 +15,12 @@ from groovy.executor.audio import AudioBuffer, StemsBuffer
 from groovy.executor.authenticity import AuthenticityReport
 from groovy.executor.cache import CacheStore
 from groovy.executor.cancel import JobCancelled
+from groovy.executor.content_credentials import (
+    ContentCredentialSigner,
+    ContentCredentialsMode,
+    NoOpContentCredentialSigner,
+    normalize_content_credentials_mode,
+)
 from groovy.executor.control import AutomationBuffer
 from groovy.executor.midi import MidiBuffer
 from groovy.executor.node_cache import compute_node_signature
@@ -35,6 +41,10 @@ class JobContext:
     project_dir: Path
     cache: CacheStore
     job_id: str
+    content_credential_signer: ContentCredentialSigner = field(
+        default_factory=NoOpContentCredentialSigner
+    )
+    content_credentials_mode: ContentCredentialsMode = "off"
     on_progress: Callable[[str, str, float, str], None] | None = None
     cancel_check: Callable[[], bool] | None = None
 
@@ -63,11 +73,17 @@ class Executor:
         *,
         model_metadata_resolver: Callable[[str], dict[str, Any] | None] | None = None,
         provenance_prompt_policy: str = "redacted",
+        content_credential_signer: ContentCredentialSigner | None = None,
+        content_credentials_mode_resolver: Callable[[], str] | None = None,
     ) -> None:
         self.project_dir = project_dir
         self.cache = CacheStore(project_dir)
         self.model_metadata_resolver = model_metadata_resolver
         self.provenance_prompt_policy = provenance_prompt_policy
+        self.content_credential_signer = (
+            content_credential_signer or NoOpContentCredentialSigner()
+        )
+        self.content_credentials_mode_resolver = content_credentials_mode_resolver
 
     def execute(
         self,
@@ -88,6 +104,12 @@ class Executor:
             project_dir=self.project_dir,
             cache=self.cache,
             job_id=job_id,
+            content_credential_signer=self.content_credential_signer,
+            content_credentials_mode=normalize_content_credentials_mode(
+                self.content_credentials_mode_resolver()
+                if self.content_credentials_mode_resolver
+                else "off"
+            ),
             on_progress=on_progress,
             cancel_check=cancel_check,
         )
@@ -433,10 +455,15 @@ class Executor:
                             f"SaveAudio wrote audio but provenance sidecar is missing: "
                             f"{provenance_path}"
                         )
+                    sidecar = json.loads(provenance_path.read_text())
                     return {
                         "type": "STRING",
                         "path": item,
                         "provenance_path": str(provenance_path),
+                        "content_credentials": sidecar.get(
+                            "content_credentials",
+                            {"status": "off", "mode": "off", "verified": False},
+                        ),
                     }
                 return {"type": "TEXT", "text": item}
         return None

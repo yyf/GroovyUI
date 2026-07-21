@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 InferenceMode = Literal["real", "stub"]
+ContentCredentialsMode = Literal["off", "sign_if_configured", "required"]
 
 
 def inference_stub_active(*, project_dir: Path | None = None) -> bool:
@@ -59,6 +60,15 @@ class StudioSettingsStore:
         mode = str(raw.get("inference_mode", "real")).strip().lower()
         return "stub" if mode == "stub" else "real"
 
+    def content_credentials_mode(
+        self, data: dict[str, Any] | None = None
+    ) -> ContentCredentialsMode:
+        raw = data if data is not None else self.load()
+        mode = str(raw.get("content_credentials_mode", "off")).strip().lower()
+        if mode in ("sign_if_configured", "required"):
+            return mode
+        return "off"
+
     def public_view(self, data: dict[str, Any] | None = None) -> dict[str, Any]:
         raw = data if data is not None else self.load()
         token = self.hf_token(raw)
@@ -75,6 +85,14 @@ class StudioSettingsStore:
         else:
             effective = mode
             effective_source = "settings"
+        credentials_mode = self.content_credentials_mode(raw)
+        env_credentials = os.environ.get("GROOVY_C2PA_MODE", "").strip().lower()
+        if env_credentials in ("off", "sign_if_configured", "required"):
+            credentials_effective = env_credentials
+            credentials_effective_source = "environment"
+        else:
+            credentials_effective = credentials_mode
+            credentials_effective_source = "settings"
         cache_dir = self.project_dir / ".groovy" / "cache"
         return {
             "hf_token_set": bool(token),
@@ -87,9 +105,13 @@ class StudioSettingsStore:
             "inference_effective": effective,
             "inference_effective_source": effective_source,
             "inference_stub_active": effective == "stub",
+            "content_credentials_mode": credentials_mode,
+            "content_credentials_effective": credentials_effective,
+            "content_credentials_effective_source": credentials_effective_source,
             "project_dir": str(self.project_dir),
             "cache_dir": str(cache_dir),
             "nodes_schema_url": "/api/nodes",
+            "c2pa_status_url": "/api/c2pa/status",
         }
 
     def hf_token(self, data: dict[str, Any] | None = None) -> str | None:

@@ -186,6 +186,7 @@ export type { StudioSettings } from "./types";
 export async function updateStudioSettings(patch: {
   hf_token?: string | null;
   inference_mode?: "real" | "stub";
+  content_credentials_mode?: "off" | "sign_if_configured" | "required";
 }): Promise<import("./types").StudioSettings> {
   const res = await fetch(`${API}/api/settings/studio`, {
     method: "POST",
@@ -193,6 +194,12 @@ export async function updateStudioSettings(patch: {
     body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error("Failed to save studio settings");
+  return res.json();
+}
+
+export async function fetchC2paStatus(): Promise<import("./types").C2paStatus> {
+  const res = await fetch(`${API}/api/c2pa/status`);
+  if (!res.ok) throw new Error("Failed to load Content Credentials status");
   return res.json();
 }
 
