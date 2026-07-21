@@ -62,7 +62,9 @@ def test_reveal_opens_existing_file(
 
 
 def test_share_workflow_writes_project_share_file(
-    api_client: TestClient, tmp_path: Path
+    api_client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     workflow = {
         "schema_version": "1.0.0",
@@ -73,11 +75,19 @@ def test_share_workflow_writes_project_share_file(
         "links": [],
         "groups": [],
     }
+    destination = tmp_path / "share" / "custom-name.groovy.json"
+    picker_args: list[tuple[Path, str]] = []
+
+    def fake_picker(share_dir: Path, suggested_name: str) -> Path:
+        picker_args.append((share_dir, suggested_name))
+        return destination
+
+    monkeypatch.setattr(main, "_choose_workflow_share_destination", fake_picker)
 
     res = api_client.post("/api/project/share", json={"workflow": workflow})
 
     assert res.status_code == 200
-    assert res.json()["relative_path"] == "share/my-shared-patch.groovy.json"
-    destination = tmp_path / "share" / "my-shared-patch.groovy.json"
+    assert picker_args == [(tmp_path / "share", "my-shared-patch.groovy.json")]
+    assert res.json()["relative_path"] == "share/custom-name.groovy.json"
     assert destination.exists()
     assert json.loads(destination.read_text(encoding="utf-8")) == workflow

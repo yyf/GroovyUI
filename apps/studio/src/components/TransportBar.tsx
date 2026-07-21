@@ -469,6 +469,7 @@ export default function TransportBar({
               aria-keyshortcuts="Meta+J Control+J"
             >
               Render all
+              <kbd className="workflow-generate__kbd">⌘J</kbd>
             </button>
           ) : null}
         </div>

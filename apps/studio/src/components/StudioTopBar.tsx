@@ -97,9 +97,11 @@ export default function StudioTopBar({
             type="button"
             className="top-bar__tool"
             onClick={onShareWorkflow}
-            title="Save workflow to workspace/share and open the folder"
+            title="Save workflow JSON (⌘S / Ctrl+S; defaults to workspace/share)"
+            aria-keyshortcuts="Meta+S Control+S"
           >
             Share
+            <kbd className="workflow-generate__kbd">⌘S</kbd>
           </button>
         </div>
       </div>
