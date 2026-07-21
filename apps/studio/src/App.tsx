@@ -640,7 +640,7 @@ export default function App() {
         cancelRender();
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "r") {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "j") {
         event.preventDefault();
         if (!running) void runRender(undefined, true);
         return;

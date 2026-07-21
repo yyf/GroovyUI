@@ -52,8 +52,10 @@ def test_deepfilternet_seed_uses_numpy2_fork() -> None:
     assert manifest is not None
     packages = {dep["package"] for dep in manifest.install.python_deps}
     assert "DeepFilterNet-py312" in packages
+    assert "deepfilterlib" in packages
     assert "torch" in packages
     assert "torchaudio" in packages
+    assert "libdf" in manifest.install.verify_imports
 
 
 def test_whisper_seed_has_faster_whisper_dep() -> None:

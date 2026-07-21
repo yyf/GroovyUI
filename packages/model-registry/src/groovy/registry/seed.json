@@ -23,9 +23,10 @@
         "python_deps": [
           { "package": "torch", "version": ">=2.0.0" },
           { "package": "torchaudio", "version": ">=2.0.0" },
-          { "package": "DeepFilterNet-py312", "version": ">=0.5.7" }
+          { "package": "DeepFilterNet-py312", "version": ">=0.5.7" },
+          { "package": "deepfilterlib", "version": "==0.5.6" }
         ],
-        "verify_imports": ["torch", "torchaudio"],
+        "verify_imports": ["torch", "torchaudio", "df.enhance", "libdf"],
         "dev_stub": false
       },
       "inference_params": [
