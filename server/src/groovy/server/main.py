@@ -527,26 +527,113 @@ def reveal_project_path(body: RevealPathRequest) -> dict[str, str]:
     return {"status": "ok", "path": str(candidate)}
 
 
+def _choose_workflow_share_destination(
+    share_dir: Path, suggested_name: str
+) -> Path | None:
+    system = platform.system()
+    if system == "Darwin":
+        script = """
+on run argv
+  set defaultFolder to POSIX file (item 1 of argv)
+  set defaultName to item 2 of argv
+  set chosenFile to choose file name with prompt "Share GroovyUI workflow" default location defaultFolder default name defaultName
+  return POSIX path of chosenFile
+end run
+"""
+        command = [
+            "osascript",
+            "-e",
+            script,
+            f"{share_dir}{os.sep}",
+            suggested_name,
+        ]
+    elif system == "Windows":
+        script = """
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.SaveFileDialog
+$dialog.InitialDirectory = $args[0]
+$dialog.FileName = $args[1]
+$dialog.Filter = 'GroovyUI workflow (*.groovy.json)|*.groovy.json|JSON files (*.json)|*.json'
+if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  Write-Output $dialog.FileName
+  exit 0
+}
+exit 1
+"""
+        command = [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            script,
+            str(share_dir),
+            suggested_name,
+        ]
+    else:
+        command = [
+            "zenity",
+            "--file-selection",
+            "--save",
+            "--confirm-overwrite",
+            "--title=Share GroovyUI workflow",
+            f"--filename={share_dir / suggested_name}",
+            "--file-filter=GroovyUI workflows | *.groovy.json",
+            "--file-filter=JSON files | *.json",
+        ]
+
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Could not open Save dialog: {exc}"
+        ) from exc
+    selected = result.stdout.strip()
+    if result.returncode != 0:
+        if not selected:
+            return None
+        raise HTTPException(
+            status_code=500,
+            detail=result.stderr.strip() or "Save dialog failed.",
+        )
+    if not selected:
+        return None
+    destination = Path(selected).expanduser()
+    if not destination.suffix:
+        destination = destination.with_name(
+            f"{destination.name}.groovy.json"
+        )
+    return destination
+
+
 @app.post("/api/project/share")
 def share_workflow(body: ShareWorkflowRequest) -> dict[str, str]:
-    """Write a portable workflow JSON file to the project's share folder."""
+    """Show a native Save dialog and write a portable workflow JSON file."""
     workflow = _workflow_from_dict(body.workflow)
     title = workflow.metadata.title.strip().lower()
     slug = "-".join(
-        part for part in "".join(char if char.isalnum() else "-" for char in title).split("-") if part
+        part
+        for part in "".join(
+            char if char.isalnum() else "-" for char in title
+        ).split("-")
+        if part
     )
-    filename = f"{slug or 'workflow'}.groovy.json"
+    suggested_name = f"{slug or 'workflow'}.groovy.json"
     share_dir = PROJECT_DIR / "share"
     share_dir.mkdir(parents=True, exist_ok=True)
-    destination = share_dir / filename
+    destination = _choose_workflow_share_destination(share_dir, suggested_name)
+    if destination is None:
+        return {"status": "cancelled", "path": "", "relative_path": ""}
     destination.write_text(
         json.dumps(body.workflow, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
+    try:
+        display_path = str(destination.resolve().relative_to(PROJECT_DIR.resolve()))
+    except ValueError:
+        display_path = str(destination)
     return {
         "status": "ok",
         "path": str(destination),
-        "relative_path": f"share/{filename}",
+        "relative_path": display_path,
     }
 
 

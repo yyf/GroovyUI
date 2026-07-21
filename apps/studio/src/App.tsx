@@ -25,7 +25,6 @@ import {
   fetchWaveform,
   fetchMidiRoll,
   listTemplates,
-  revealProjectPath,
   saveUserTemplate,
   shareWorkflow,
   deleteUserTemplate,
@@ -768,12 +767,33 @@ export default function App() {
     if (!workflow) return;
     try {
       const shared = await shareWorkflow(workflow);
-      await revealProjectPath("share");
+      if (shared.status === "cancelled") {
+        setStatus("Share cancelled");
+        return;
+      }
       setStatus(`Shared ${shared.relative_path}`);
     } catch (err) {
       setStatus(`Share failed: ${String(err)}`);
     }
   }, [workflow]);
+
+  useEffect(() => {
+    const onShareShortcut = (event: KeyboardEvent) => {
+      if (
+        event.repeat ||
+        (!event.metaKey && !event.ctrlKey) ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLowerCase() !== "s"
+      ) {
+        return;
+      }
+      event.preventDefault();
+      void handleShareWorkflow();
+    };
+    window.addEventListener("keydown", onShareShortcut);
+    return () => window.removeEventListener("keydown", onShareShortcut);
+  }, [handleShareWorkflow]);
 
   const handleDeleteUserTemplate = useCallback(
     async (templateId: string) => {
@@ -945,6 +965,34 @@ export default function App() {
     [resetHistory],
   );
 
+  const handleImportWorkflow = useCallback(
+    async (file: File) => {
+      setStatus(`Importing ${file.name}…`);
+      try {
+        const parsed: unknown = JSON.parse(await file.text());
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("The selected file does not contain a workflow object.");
+        }
+        const next = parsed as Workflow;
+        const validation = await fetchWorkflowValidation(next);
+        if (!validation.valid) {
+          const details = validation.errors.map((issue) => issue.message).join("; ");
+          throw new Error(details || "The workflow is invalid.");
+        }
+        applyWorkflow(next);
+        setActiveTemplateId("");
+        setViewportFitKey((key) => key + 1);
+        clipboardRef.current = null;
+        pasteCountRef.current = 0;
+        setStatus(`Imported ${file.name}`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setStatus(`Workflow import failed: ${message}`);
+      }
+    },
+    [applyWorkflow],
+  );
+
   const applyGeneratedWorkflow = useCallback(
     (next: Workflow) => {
       applyWorkflow(next);
@@ -1068,6 +1116,7 @@ export default function App() {
             groupCollapsed: activeGroup ? (activeGroup.collapsed ?? false) : null,
             paletteOpen,
             helperOpen,
+            onImportWorkflow: (file) => void handleImportWorkflow(file),
             onSaveAsTemplate: () => void handleSaveAsTemplate(),
             onToggleGroupCollapse: handleToggleGroupCollapse,
             onTogglePalette: () => setPaletteOpen((prev) => !prev),

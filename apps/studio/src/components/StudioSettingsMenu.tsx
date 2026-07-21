@@ -6,6 +6,7 @@ export type StudioSettingsMenuProps = {
   paletteOpen: boolean;
   helperOpen: boolean;
   workflowBarOpen: boolean;
+  onImportWorkflow: (file: File) => void;
   onSaveAsTemplate: () => void;
   onToggleGroupCollapse: () => void;
   onTogglePalette: () => void;
@@ -19,6 +20,7 @@ export default function StudioSettingsMenu({
   paletteOpen,
   helperOpen,
   workflowBarOpen,
+  onImportWorkflow,
   onSaveAsTemplate,
   onToggleGroupCollapse,
   onTogglePalette,
@@ -28,6 +30,7 @@ export default function StudioSettingsMenu({
 }: StudioSettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -48,18 +51,43 @@ export default function StudioSettingsMenu({
     };
   }, [open]);
 
-  const item = (label: string, action: () => void, opts?: { disabled?: boolean; warn?: boolean }) => (
+  useEffect(() => {
+    const onImportShortcut = (event: KeyboardEvent) => {
+      if (
+        event.repeat ||
+        (!event.metaKey && !event.ctrlKey) ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLowerCase() !== "i"
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setOpen(false);
+      importInputRef.current?.click();
+    };
+    window.addEventListener("keydown", onImportShortcut);
+    return () => window.removeEventListener("keydown", onImportShortcut);
+  }, []);
+
+  const item = (
+    label: string,
+    action: () => void,
+    opts?: { disabled?: boolean; warn?: boolean; shortcut?: string; ariaKeyShortcuts?: string },
+  ) => (
     <button
       key={label}
       type="button"
       className={`studio-menu__item${opts?.warn ? " studio-menu__item--warn" : ""}`}
       disabled={opts?.disabled}
+      aria-keyshortcuts={opts?.ariaKeyShortcuts}
       onClick={() => {
         setOpen(false);
         action();
       }}
     >
-      {label}
+      <span>{label}</span>
+      {opts?.shortcut ? <kbd className="workflow-generate__kbd">{opts.shortcut}</kbd> : null}
     </button>
   );
 
@@ -84,6 +112,10 @@ export default function StudioSettingsMenu({
           </div>
           <div className="studio-menu__section">
             <span className="studio-menu__heading">Workflow</span>
+            {item("Import workflow JSON…", () => importInputRef.current?.click(), {
+              shortcut: "⌘I",
+              ariaKeyShortcuts: "Meta+I Control+I",
+            })}
             {item("Save to Your templates", onSaveAsTemplate)}
             {groupCollapsed != null
               ? item(groupCollapsed ? "Expand group" : "Collapse group", onToggleGroupCollapse)
@@ -96,6 +128,17 @@ export default function StudioSettingsMenu({
           </div>
         </div>
       ) : null}
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) onImportWorkflow(file);
+        }}
+      />
     </div>
   );
 }
