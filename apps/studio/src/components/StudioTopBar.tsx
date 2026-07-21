@@ -97,7 +97,7 @@ export default function StudioTopBar({
             type="button"
             className="top-bar__tool"
             onClick={onShareWorkflow}
-            title="Download workflow as .groovy.json"
+            title="Save workflow to workspace/share and open the folder"
           >
             Share
           </button>

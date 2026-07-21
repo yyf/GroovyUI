@@ -179,6 +179,10 @@ class RevealPathRequest(BaseModel):
     path: str
 
 
+class ShareWorkflowRequest(BaseModel):
+    workflow: dict[str, Any]
+
+
 class MidiInEventRequest(BaseModel):
     device_id: str
     event: dict[str, Any]
@@ -521,6 +525,29 @@ def reveal_project_path(body: RevealPathRequest) -> dict[str, str]:
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Could not open file browser: {exc}") from exc
     return {"status": "ok", "path": str(candidate)}
+
+
+@app.post("/api/project/share")
+def share_workflow(body: ShareWorkflowRequest) -> dict[str, str]:
+    """Write a portable workflow JSON file to the project's share folder."""
+    workflow = _workflow_from_dict(body.workflow)
+    title = workflow.metadata.title.strip().lower()
+    slug = "-".join(
+        part for part in "".join(char if char.isalnum() else "-" for char in title).split("-") if part
+    )
+    filename = f"{slug or 'workflow'}.groovy.json"
+    share_dir = PROJECT_DIR / "share"
+    share_dir.mkdir(parents=True, exist_ok=True)
+    destination = share_dir / filename
+    destination.write_text(
+        json.dumps(body.workflow, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "status": "ok",
+        "path": str(destination),
+        "relative_path": f"share/{filename}",
+    }
 
 
 @app.get("/api/project/audio-meta")

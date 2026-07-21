@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
+import groovy.server.main as main
 import pytest
 from fastapi.testclient import TestClient
+from groovy.executor import Executor
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
 from groovy.registry.studio_settings import StudioSettingsStore
-import groovy.server.main as main
-from groovy.executor import Executor
 
 register_core()
 register_ai()
@@ -58,3 +59,25 @@ def test_reveal_opens_existing_file(
     res = api_client.post("/api/project/reveal", json={"path": str(target)})
     assert res.status_code == 200
     assert calls and calls[0][:2] == ["open", "-R"]
+
+
+def test_share_workflow_writes_project_share_file(
+    api_client: TestClient, tmp_path: Path
+) -> None:
+    workflow = {
+        "schema_version": "1.0.0",
+        "groovy_version": "0.1.0",
+        "id": "share-test",
+        "metadata": {"title": "My Shared Patch"},
+        "nodes": [],
+        "links": [],
+        "groups": [],
+    }
+
+    res = api_client.post("/api/project/share", json={"workflow": workflow})
+
+    assert res.status_code == 200
+    assert res.json()["relative_path"] == "share/my-shared-patch.groovy.json"
+    destination = tmp_path / "share" / "my-shared-patch.groovy.json"
+    assert destination.exists()
+    assert json.loads(destination.read_text(encoding="utf-8")) == workflow

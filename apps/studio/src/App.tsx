@@ -25,7 +25,9 @@ import {
   fetchWaveform,
   fetchMidiRoll,
   listTemplates,
+  revealProjectPath,
   saveUserTemplate,
+  shareWorkflow,
   deleteUserTemplate,
   previewUrl,
   uploadProjectAudio,
@@ -57,7 +59,6 @@ import {
   connectNodes,
   addNodeToWorkflow,
   applyDroppedAudio,
-  downloadWorkflow,
   groupForSelection,
   edgeIdsOnPathToNode,
   formatJobError,
@@ -763,6 +764,17 @@ export default function App() {
     }
   }, [workflow]);
 
+  const handleShareWorkflow = useCallback(async () => {
+    if (!workflow) return;
+    try {
+      const shared = await shareWorkflow(workflow);
+      await revealProjectPath("share");
+      setStatus(`Shared ${shared.relative_path}`);
+    } catch (err) {
+      setStatus(`Share failed: ${String(err)}`);
+    }
+  }, [workflow]);
+
   const handleDeleteUserTemplate = useCallback(
     async (templateId: string) => {
       try {
@@ -1049,7 +1061,7 @@ export default function App() {
           inferenceStubActive={inferenceStubActive}
           onModelBrowser={() => openModelBrowser()}
           onCompliance={() => setComplianceOpen(true)}
-          onShareWorkflow={() => downloadWorkflow(workflow)}
+          onShareWorkflow={() => void handleShareWorkflow()}
           workflowBarOpen={workflowBarOpen}
           onToggleWorkflowBar={() => setWorkflowBarOpen((prev) => !prev)}
           settings={{

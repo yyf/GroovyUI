@@ -249,6 +249,22 @@ export async function revealProjectPath(path: string): Promise<void> {
   }
 }
 
+/** Save a portable workflow JSON file under workspace/share. */
+export async function shareWorkflow(
+  workflow: Workflow,
+): Promise<{ status: "ok"; path: string; relative_path: string }> {
+  const res = await fetch(`${API}/api/project/share`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(detail || `Share failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function fetchHealth(): Promise<string> {
   const res = await fetch(`${API}/api/health`);
   const data = await res.json();
