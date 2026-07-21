@@ -64,6 +64,92 @@ def test_save_audio_writes_file_and_reports_string_path(project_dir: Path) -> No
     assert provenance_path.exists()
 
 
+@pytest.mark.parametrize(
+    ("bit_depth", "expected_subtype"),
+    [
+        ("16", "PCM_16"),
+        ("24", "PCM_24"),
+        ("32", "PCM_32"),
+        ("float", "FLOAT"),
+    ],
+)
+def test_save_audio_writes_selected_wav_bit_depth(
+    project_dir: Path, bit_depth: str, expected_subtype: str
+) -> None:
+    workflow = Workflow(
+        schema_version="1.0.0",
+        groovy_version="0.1.0",
+        id=f"save-audio-{bit_depth}",
+        metadata=WorkflowMetadata(title=f"save-audio-{bit_depth}"),
+        nodes=[
+            NodeInstance(
+                id="n1",
+                type="LoadAudio",
+                pos={"x": 0, "y": 0},
+                widgets={"path": "assets/samples/tone.wav"},
+            ),
+            NodeInstance(
+                id="n2",
+                type="SaveAudio",
+                pos={"x": 200, "y": 0},
+                widgets={
+                    "path": "exports/bit-depth",
+                    "filename": f"saved-{bit_depth}.wav",
+                    "format": "wav",
+                    "bit_depth": bit_depth,
+                },
+            ),
+        ],
+        links=[Link(id="l1", from_=["n1", 0], to=["n2", 0], type="AUDIO")],
+    )
+
+    result = Executor(project_dir).execute(workflow, target_nodes=["n2"])
+
+    assert result.status == "completed", result.error
+    info = sf.info(result.outputs["n2"]["path"])
+    assert info.format == "WAV"
+    assert info.subtype == expected_subtype
+
+
+def test_save_audio_flac_selection_replaces_wav_extension(project_dir: Path) -> None:
+    workflow = Workflow(
+        schema_version="1.0.0",
+        groovy_version="0.1.0",
+        id="save-audio-flac",
+        metadata=WorkflowMetadata(title="save-audio-flac"),
+        nodes=[
+            NodeInstance(
+                id="n1",
+                type="LoadAudio",
+                pos={"x": 0, "y": 0},
+                widgets={"path": "assets/samples/tone.wav"},
+            ),
+            NodeInstance(
+                id="n2",
+                type="SaveAudio",
+                pos={"x": 200, "y": 0},
+                widgets={
+                    "path": "exports/formats",
+                    "filename": "saved.wav",
+                    "format": "flac",
+                    "bit_depth": "24",
+                },
+            ),
+        ],
+        links=[Link(id="l1", from_=["n1", 0], to=["n2", 0], type="AUDIO")],
+    )
+
+    result = Executor(project_dir).execute(workflow, target_nodes=["n2"])
+
+    assert result.status == "completed", result.error
+    out_path = Path(result.outputs["n2"]["path"])
+    info = sf.info(out_path)
+    assert out_path.suffix == ".flac"
+    assert not list(out_path.parent.glob("saved-*.wav"))
+    assert info.format == "FLAC"
+    assert info.subtype == "PCM_24"
+
+
 def test_save_audio_bypasses_node_cache_and_re_emits_provenance(project_dir: Path) -> None:
     workflow = Workflow(
         schema_version="1.0.0",
@@ -132,6 +218,7 @@ def test_save_audio_legacy_filename_with_slashes(project_dir: Path) -> None:
 def test_save_audio_resolve_output_relative() -> None:
     assert SaveAudio._resolve_output_relative("exports/podcast", "ep-01.wav") == "exports/podcast/ep-01.wav"
     assert SaveAudio._resolve_output_relative("exports", "exports/legacy.wav") == "exports/legacy.wav"
+    assert SaveAudio._with_format_extension("exports/render.wav", "flac") == "exports/render.flac"
     stamped = SaveAudio._timestamped_relative(
         "exports/render.wav",
         datetime(2026, 7, 18, 4, 29, 30, 123000, tzinfo=UTC),

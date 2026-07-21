@@ -120,6 +120,12 @@ class SaveAudio(GroovyNode):
     RETURN_TYPES = ("STRING",)
     # Writes a timestamped file + provenance sidecar on every render; never cache.
     CACHEABLE = False
+    BIT_DEPTH_SUBTYPES = {
+        "16": "PCM_16",
+        "24": "PCM_24",
+        "32": "PCM_32",
+        "float": "FLOAT",
+    }
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -137,7 +143,10 @@ class SaveAudio(GroovyNode):
                     "STRING",
                     {
                         "default": "output.wav",
-                        "description": "Base file name; a UTC timestamp is appended when written",
+                        "description": (
+                            "Base file name; its extension follows Format and a UTC timestamp "
+                            "is appended when written"
+                        ),
                     },
                 ),
                 "format": ("STRING", {"default": "wav"}),
@@ -168,6 +177,25 @@ class SaveAudio(GroovyNode):
         path = Path(relative)
         return str(path.with_name(f"{path.stem}-{stamp}{path.suffix}"))
 
+    @staticmethod
+    def _with_format_extension(relative: str, format: str) -> str:
+        extension = format.strip().lower()
+        if not extension:
+            raise ValueError("Audio format cannot be empty.")
+        return str(Path(relative).with_suffix(f".{extension}"))
+
+    @classmethod
+    def _subtype_for(cls, format: str, bit_depth: str) -> str:
+        fmt = format.strip().upper()
+        depth = bit_depth.strip().lower()
+        subtype = cls.BIT_DEPTH_SUBTYPES.get(depth)
+        if subtype is None:
+            choices = ", ".join(cls.BIT_DEPTH_SUBTYPES)
+            raise ValueError(f"Unsupported bit depth: {bit_depth}. Choose one of: {choices}.")
+        if not sf.check_format(fmt, subtype):
+            raise ValueError(f"{format.upper()} does not support {bit_depth}-bit audio.")
+        return subtype
+
     def run(
         self,
         audio: AudioBuffer | None = None,
@@ -189,15 +217,15 @@ class SaveAudio(GroovyNode):
         name = str(kwargs.get("filename", filename))
         fmt = str(kwargs.get("format", format))
         depth = str(kwargs.get("bit_depth", bit_depth))
-        relative = self._timestamped_relative(
-            self._resolve_output_relative(folder, name)
-        )
+        relative = self._resolve_output_relative(folder, name)
+        relative = self._with_format_extension(relative, fmt)
+        relative = self._timestamped_relative(relative)
         out_path = self._ctx.cache.resolve_project_path(relative)
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         _, pcm = self._ctx.cache.load_audio(audio_in.id)
         interleaved = pcm.T
-        subtype = "FLOAT" if depth == "float" else "PCM_24"
+        subtype = self._subtype_for(fmt, depth)
         sf.write(out_path, interleaved, audio_in.sample_rate, format=fmt.upper(), subtype=subtype)
         # A successful SaveAudio render always produces the paired provenance
         # artifact. Missing provenance or a failed sidecar write must fail the
