@@ -204,10 +204,16 @@ export function savedProvenancePath(output?: JobOutput): string | null {
 export function joinSaveAudioPath(
   path: unknown,
   filename: unknown,
+  format?: unknown,
 ): string {
   const folder = typeof path === "string" ? path.trim().replace(/^\/+|\/+$/g, "") : "";
   const name = typeof filename === "string" ? filename.trim().replace(/^\/+/, "") : "";
-  const file = name || "output.wav";
+  let file = name || "output.wav";
+  if (typeof format === "string" && format.trim()) {
+    const extension = format.trim().toLowerCase();
+    file = file.replace(/\.[^./]+$/, "");
+    file = `${file}.${extension}`;
+  }
   if (file.includes("/") && (!folder || folder === "exports")) {
     return file;
   }

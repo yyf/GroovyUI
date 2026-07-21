@@ -399,6 +399,16 @@ export default function NodeHelper({
                           }
                         }
                         onWidgetChange(node.id, widget.name, value);
+                        if (
+                          node.type === "SaveAudio" &&
+                          widget.name === "format" &&
+                          String(value).toLowerCase() === "flac"
+                        ) {
+                          const depth = String(node.widgets.bit_depth ?? "float").toLowerCase();
+                          if (depth !== "16" && depth !== "24") {
+                            onWidgetChange(node.id, "bit_depth", "24");
+                          }
+                        }
                       }}
                       disabled={Boolean(supersededBy)}
                       nodeType={node.type}
@@ -444,8 +454,16 @@ export default function NodeHelper({
             {node.type === "SaveAudio" ? (
               <>
                 <p className="node-helper__hint">
-                  Filename template: <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code>. A UTC
-                  timestamp is appended when rendered. Use Choose file… to pick the folder and base name.
+                  Filename template:{" "}
+                  <code>
+                    {joinSaveAudioPath(
+                      node.widgets.path,
+                      node.widgets.filename,
+                      node.widgets.format,
+                    )}
+                  </code>
+                  . The extension follows Format and a UTC timestamp is appended when rendered. Use
+                  Choose file… to pick the folder and base name.
                 </p>
                 {output?.type === "STRING" && output.path && output.provenance_path ? (
                   <SaveAudioExportPair output={output} onOpenCompliance={onOpenCompliance} />
