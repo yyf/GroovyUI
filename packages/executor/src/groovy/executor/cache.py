@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from groovy.executor.ambisonics import AmbisonicBuffer
@@ -106,9 +108,68 @@ class CacheStore:
         record = self.read_provenance(cache_id)
         if not record:
             raise FileNotFoundError(f"No provenance for cache entry: {cache_id}")
+        from groovy.executor.audio_meta import probe_audio_file
+        from groovy.executor.provenance import (
+            apply_record_integrity,
+            build_lineage_graph,
+            disclosure_summary,
+        )
+
+        digest = hashlib.sha256()
+        with output_path.open("rb") as audio_file:
+            for chunk in iter(lambda: audio_file.read(1024 * 1024), b""):
+                digest.update(chunk)
+        probe = probe_audio_file(output_path)
+        extension = output_path.suffix.lower()
+        media_types = {
+            ".aif": "audio/aiff",
+            ".aiff": "audio/aiff",
+            ".flac": "audio/flac",
+            ".wav": "audio/wav",
+        }
+        sample_rate = int(probe["sample_rate"])
+        duration_seconds = float(probe["duration_seconds"])
+        exported_record = dict(record)
+        exported_record["artifact"] = {
+            "filename": output_path.name,
+            "media_type": media_types.get(extension, "application/octet-stream"),
+            "format": probe["file_format"],
+            "subtype": probe["file_subtype"],
+            "sample_rate": sample_rate,
+            "channels": int(probe["channels"]),
+            "channel_layout": probe["channel_layout"],
+            "channel_map": probe["channel_map"],
+            "frame_count": int(round(duration_seconds * sample_rate)),
+            "duration_seconds": duration_seconds,
+            "file_size_bytes": output_path.stat().st_size,
+            "file_hash": f"sha256:{digest.hexdigest()}",
+            "source_audio_content_hash": record.get("content_hash"),
+        }
+        lineage = build_lineage_graph(self, cache_id)
+        exported_record["lineage"] = lineage
+        exported_record["disclosure"] = {
+            "summary": disclosure_summary(lineage["nodes"]),
+            "not_legal_advice": True,
+        }
+        license_rows: dict[str, dict[str, Any]] = {}
+        for lineage_node in lineage["nodes"]:
+            for model in lineage_node.get("models") or []:
+                model_id = str(model.get("registry_id") or "")
+                if model_id and model.get("license"):
+                    license_rows[model_id] = {
+                        "registry_id": model_id,
+                        "name": model.get("name"),
+                        "license": model["license"],
+                    }
+        exported_record["compliance"] = {
+            "models": list(license_rows.values()),
+            "review_required": True,
+            "disclaimer": "Verify model and source-asset licenses before distribution.",
+        }
+        exported_record = apply_record_integrity(exported_record)
         sidecar = output_path.with_name(f"{output_path.stem}.provenance.json")
         temporary = sidecar.with_suffix(f"{sidecar.suffix}.tmp")
-        temporary.write_text(json.dumps(record, indent=2))
+        temporary.write_text(json.dumps(exported_record, indent=2))
         temporary.replace(sidecar)
         return sidecar
 

@@ -91,3 +91,15 @@ def test_share_workflow_writes_project_share_file(
     assert res.json()["relative_path"] == "share/custom-name.groovy.json"
     assert destination.exists()
     assert json.loads(destination.read_text(encoding="utf-8")) == workflow
+
+
+def test_model_provenance_metadata_includes_license_and_hash_status(
+    api_client: TestClient,
+) -> None:
+    metadata = main._model_provenance_metadata("deepfilternet-v3")
+
+    assert metadata is not None
+    assert metadata["name"] == "DeepFilterNet v3"
+    assert metadata["task_types"] == ["denoise"]
+    assert metadata["license"]["spdx"] == "MIT"
+    assert metadata["weights_hash_status"] == "unavailable"

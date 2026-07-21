@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
@@ -55,16 +56,29 @@ def verify_provenance_for_audio(
             "groovy_origin": False,
         }
 
-    content_hash = meta.get("content_hash")
-    chain_intact = True
-    if provenance.get("content_hash") and content_hash:
-        chain_intact = provenance.get("content_hash") == content_hash
+    from groovy.executor.provenance import verify_record_integrity
+
+    record_integrity = verify_record_integrity(provenance)
+    chain_intact = record_integrity is not False
+    artifact_hash = provenance.get("artifact", {}).get("file_hash")
+    if artifact_hash and source_path:
+        resolved = cache.resolve_project_path(source_path)
+        digest = hashlib.sha256()
+        with resolved.open("rb") as audio_file:
+            for chunk in iter(lambda: audio_file.read(1024 * 1024), b""):
+                digest.update(chunk)
+        chain_intact = chain_intact and artifact_hash == f"sha256:{digest.hexdigest()}"
+    else:
+        content_hash = meta.get("content_hash")
+        if provenance.get("content_hash") and content_hash:
+            chain_intact = chain_intact and provenance.get("content_hash") == content_hash
 
     contribution = provenance.get("contribution", {})
     return {
         "status": "verified" if chain_intact else "tampered",
         "sidecar_found": sidecar_record is not None,
         "chain_intact": chain_intact,
+        "record_integrity": record_integrity,
         "contribution_class": contribution.get("class", "unknown"),
         "groovy_origin": provenance.get("origin", {}).get("type") == "render",
     }
