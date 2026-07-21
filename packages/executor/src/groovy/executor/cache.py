@@ -104,7 +104,13 @@ class CacheStore:
             return None
         return json.loads(path.read_text())
 
-    def export_provenance_sidecar(self, cache_id: str, output_path: Path) -> Path:
+    def export_provenance_sidecar(
+        self,
+        cache_id: str,
+        output_path: Path,
+        *,
+        content_credentials: dict[str, Any] | None = None,
+    ) -> Path:
         record = self.read_provenance(cache_id)
         if not record:
             raise FileNotFoundError(f"No provenance for cache entry: {cache_id}")
@@ -165,6 +171,11 @@ class CacheStore:
             "models": list(license_rows.values()),
             "review_required": True,
             "disclaimer": "Verify model and source-asset licenses before distribution.",
+        }
+        exported_record["content_credentials"] = content_credentials or {
+            "status": "off",
+            "mode": "off",
+            "verified": False,
         }
         exported_record = apply_record_integrity(exported_record)
         sidecar = output_path.with_name(f"{output_path.stem}.provenance.json")

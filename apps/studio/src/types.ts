@@ -104,9 +104,23 @@ export type StudioSettings = {
   inference_effective: "real" | "stub";
   inference_effective_source: "environment" | "settings";
   inference_stub_active: boolean;
+  content_credentials_mode: "off" | "sign_if_configured" | "required";
+  content_credentials_effective: "off" | "sign_if_configured" | "required";
+  content_credentials_effective_source: "environment" | "settings";
   project_dir: string;
   cache_dir: string;
   nodes_schema_url: string;
+  c2pa_status_url: string;
+};
+
+export type C2paStatus = {
+  mode: "off" | "sign_if_configured" | "required";
+  effective_mode: "off" | "sign_if_configured" | "required";
+  effective_source: "environment" | "settings";
+  provider: string;
+  configured: boolean;
+  sdk_available: boolean;
+  supported_formats: string[];
 };
 
 export type MissingWorkflowModel = {

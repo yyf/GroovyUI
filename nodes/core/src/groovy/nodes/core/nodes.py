@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -15,9 +16,14 @@ from groovy.executor.audio_meta import (
     probe_audio_file,
 )
 from groovy.executor.authenticity import AuthenticityReport, verify_provenance_for_audio
+from groovy.executor.content_credentials import (
+    build_content_credentials_manifest,
+    process_content_credentials,
+)
 from groovy.executor.control import AutomationBuffer
 from groovy.executor.midi import MidiBuffer
 from groovy.executor.project_paths import resolve_project_media_path
+from groovy.executor.provenance import build_lineage_graph
 from groovy.node import GroovyNode, register_node
 from groovy.nodes.core.immersive import register_immersive
 from groovy.nodes.core.live_io import register_live_io
@@ -222,20 +228,70 @@ class SaveAudio(GroovyNode):
         relative = self._timestamped_relative(relative)
         out_path = self._ctx.cache.resolve_project_path(relative)
         out_path.parent.mkdir(parents=True, exist_ok=True)
+        token = uuid.uuid4().hex
+        unsigned_path = out_path.with_name(
+            f".{out_path.stem}-{token}.unsigned{out_path.suffix}"
+        )
+        signed_path = out_path.with_name(
+            f".{out_path.stem}-{token}.signed{out_path.suffix}"
+        )
+        sidecar_path = out_path.with_name(f"{out_path.stem}.provenance.json")
 
         _, pcm = self._ctx.cache.load_audio(audio_in.id)
         interleaved = pcm.T
         subtype = self._subtype_for(fmt, depth)
-        sf.write(out_path, interleaved, audio_in.sample_rate, format=fmt.upper(), subtype=subtype)
+        sf.write(
+            unsigned_path,
+            interleaved,
+            audio_in.sample_rate,
+            format=fmt.upper(),
+            subtype=subtype,
+        )
         # A successful SaveAudio render always produces the paired provenance
         # artifact. Missing provenance or a failed sidecar write must fail the
         # node instead of silently leaving an incomplete handoff.
         try:
-            self._ctx.cache.export_provenance_sidecar(audio_in.id, out_path)
+            provenance = self._ctx.cache.read_provenance(audio_in.id)
+            if not provenance:
+                raise FileNotFoundError(
+                    f"No provenance for cache entry: {audio_in.id}"
+                )
+            portable_provenance = {
+                **provenance,
+                "lineage": build_lineage_graph(self._ctx.cache, audio_in.id),
+            }
+            groovy_version = str(
+                provenance.get("origin", {}).get("groovy_version") or "unknown"
+            )
+            manifest = build_content_credentials_manifest(
+                portable_provenance,
+                title=out_path.name,
+                claim_generator=f"GroovyUI/{groovy_version}",
+            )
+            credentials = process_content_credentials(
+                signer=self._ctx.content_credential_signer,
+                mode=self._ctx.content_credentials_mode,
+                source=unsigned_path,
+                destination=signed_path,
+                manifest=manifest,
+            )
+            signed_path.replace(out_path)
+            self._ctx.cache.export_provenance_sidecar(
+                audio_in.id,
+                out_path,
+                content_credentials=credentials.to_dict(),
+            )
         except Exception as exc:
+            unsigned_path.unlink(missing_ok=True)
+            signed_path.unlink(missing_ok=True)
             out_path.unlink(missing_ok=True)
+            sidecar_path.unlink(missing_ok=True)
+            sidecar_path.with_suffix(f"{sidecar_path.suffix}.tmp").unlink(
+                missing_ok=True
+            )
             raise RuntimeError(
-                f"SaveAudio could not write provenance sidecar for {relative}: {exc}"
+                f"SaveAudio could not write provenance sidecar or publish "
+                f"complete export for {relative}: {exc}"
             ) from exc
         return (str(out_path),)
 

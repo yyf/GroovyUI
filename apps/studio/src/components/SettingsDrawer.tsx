@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   API,
   clearRenderCache,
+  fetchC2paStatus,
   fetchStudioSettings,
   updateStudioSettings,
   type StudioSettings,
 } from "../api";
+import type { C2paStatus } from "../types";
 
 type Props = {
   open: boolean;
@@ -30,6 +32,7 @@ export default function SettingsDrawer({
   onForceRebuildNext,
 }: Props) {
   const [studioSettings, setStudioSettings] = useState<StudioSettings | null>(null);
+  const [c2paStatus, setC2paStatus] = useState<C2paStatus | null>(null);
   const [hfTokenDraft, setHfTokenDraft] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,13 +40,18 @@ export default function SettingsDrawer({
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const studio = await fetchStudioSettings();
+      const [studio, credentials] = await Promise.all([
+        fetchStudioSettings(),
+        fetchC2paStatus(),
+      ]);
       setStudioSettings(studio);
+      setC2paStatus(credentials);
       onSettingsChange?.(studio);
       setHfTokenDraft("");
       setStatus("");
     } catch {
       setStudioSettings(null);
+      setC2paStatus(null);
       setStatus("Could not load settings");
     } finally {
       setLoading(false);
@@ -67,6 +75,7 @@ export default function SettingsDrawer({
   const saveStudio = async (patch: {
     hf_token?: string | null;
     inference_mode?: "real" | "stub";
+    content_credentials_mode?: "off" | "sign_if_configured" | "required";
   }) => {
     try {
       const next = await updateStudioSettings(patch);
@@ -91,6 +100,8 @@ export default function SettingsDrawer({
   if (!open) return null;
 
   const envLocksMode = studioSettings?.inference_effective_source === "environment";
+  const envLocksCredentials =
+    studioSettings?.content_credentials_effective_source === "environment";
   const stubActive = studioSettings?.inference_stub_active ?? false;
 
   return (
@@ -196,6 +207,64 @@ export default function SettingsDrawer({
                     </button>
                   ) : null}
                 </div>
+              </section>
+
+              <section className="settings-section">
+                <h3>Content Credentials</h3>
+                <p className="compliance-hint">
+                  Optional C2PA signing at the SaveAudio boundary. Provenance JSON remains the default;
+                  exports are never silently claimed as signed.
+                </p>
+                <div
+                  className="settings-mode-toggle"
+                  role="group"
+                  aria-label="Content Credentials mode"
+                >
+                  <button
+                    type="button"
+                    className={`settings-mode-toggle__btn${
+                      studioSettings.content_credentials_mode === "off"
+                        ? " settings-mode-toggle__btn--active"
+                        : ""
+                    }`}
+                    disabled={envLocksCredentials}
+                    onClick={() => void saveStudio({ content_credentials_mode: "off" })}
+                  >
+                    Off
+                  </button>
+                  <button
+                    type="button"
+                    className={`settings-mode-toggle__btn${
+                      studioSettings.content_credentials_mode === "sign_if_configured"
+                        ? " settings-mode-toggle__btn--active"
+                        : ""
+                    }`}
+                    disabled={envLocksCredentials}
+                    onClick={() =>
+                      void saveStudio({ content_credentials_mode: "sign_if_configured" })
+                    }
+                  >
+                    Sign if configured
+                  </button>
+                </div>
+                {envLocksCredentials ? (
+                  <p className="compliance-hint">
+                    Locked by <code>GROOVY_C2PA_MODE</code> → effective{" "}
+                    <strong>{studioSettings.content_credentials_effective}</strong>.
+                  </p>
+                ) : c2paStatus?.configured ? (
+                  <p className="compliance-hint">
+                    Signer configured: <strong>{c2paStatus.provider}</strong>. Every signed export is
+                    verified before it is published.
+                  </p>
+                ) : (
+                  <p className="compliance-hint">
+                    No signer configured.{" "}
+                    {studioSettings.content_credentials_effective === "sign_if_configured"
+                      ? "Exports remain unsigned and are labeled unconfigured."
+                      : "Exports remain unsigned with a Provenance 1.1 sidecar."}
+                  </p>
+                )}
               </section>
 
               <section className="settings-section">

@@ -1,19 +1,49 @@
 from __future__ import annotations
 
+import json
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
 import soundfile as sf
 from groovy.executor import Executor
 from groovy.executor.audio import AudioBuffer
+from groovy.executor.content_credentials import SignResult, VerificationResult
 from groovy.executor.engine import JobContext
-from groovy.nodes.core.nodes import SaveAudio
 from groovy.nodes.core import register_all
+from groovy.nodes.core.nodes import SaveAudio
 from groovy.schema.models import Link, NodeInstance, Workflow, WorkflowMetadata
 
 register_all()
+
+
+class CopyingTestSigner:
+    def __init__(self) -> None:
+        self.manifest: dict[str, Any] | None = None
+
+    def available(self) -> bool:
+        return True
+
+    def public_status(self) -> dict[str, Any]:
+        return {"provider": "test", "configured": True}
+
+    def sign(
+        self, source: Path, destination: Path, manifest: dict[str, Any]
+    ) -> SignResult:
+        self.manifest = manifest
+        shutil.copy2(source, destination)
+        return SignResult(manifest_id="urn:c2pa:save-audio-test", issuer="test")
+
+    def verify(self, asset: Path) -> VerificationResult:
+        return VerificationResult(
+            valid=True,
+            trusted=True,
+            manifest_id="urn:c2pa:save-audio-test",
+            issuer="test",
+        )
 
 
 @pytest.fixture
@@ -62,6 +92,65 @@ def test_save_audio_writes_file_and_reports_string_path(project_dir: Path) -> No
     )
     assert out_path.exists()
     assert provenance_path.exists()
+    assert out_meta["content_credentials"]["status"] == "off"
+    sidecar = json.loads(provenance_path.read_text())
+    assert sidecar["content_credentials"] == {
+        "status": "off",
+        "mode": "off",
+        "verified": False,
+        "trusted": None,
+        "manifest_id": None,
+        "issuer": None,
+        "timestamp": None,
+    }
+    assert not list(out_path.parent.glob(".*.unsigned.*"))
+    assert not list(out_path.parent.glob(".*.signed.*"))
+
+
+def test_save_audio_signs_verifies_then_reports_credentials(
+    project_dir: Path,
+) -> None:
+    workflow = Workflow(
+        schema_version="1.0.0",
+        groovy_version="0.1.0",
+        id="save-audio-c2pa",
+        metadata=WorkflowMetadata(title="save-audio-c2pa"),
+        nodes=[
+            NodeInstance(
+                id="n1",
+                type="LoadAudio",
+                pos={"x": 0, "y": 0},
+                widgets={"path": "assets/samples/tone.wav"},
+            ),
+            NodeInstance(
+                id="n2",
+                type="SaveAudio",
+                pos={"x": 200, "y": 0},
+                widgets={"path": "exports/c2pa", "filename": "signed.wav"},
+            ),
+        ],
+        links=[Link(id="l1", from_=["n1", 0], to=["n2", 0], type="AUDIO")],
+    )
+    signer = CopyingTestSigner()
+    executor = Executor(
+        project_dir,
+        content_credential_signer=signer,
+        content_credentials_mode_resolver=lambda: "sign_if_configured",
+    )
+
+    result = executor.execute(workflow, target_nodes=["n2"])
+
+    assert result.status == "completed", result.error
+    output = result.outputs["n2"]
+    assert output["content_credentials"]["status"] == "signed"
+    assert output["content_credentials"]["verified"] is True
+    assert output["content_credentials"]["trusted"] is True
+    assert signer.manifest is not None
+    assert signer.manifest["assertions"][1]["label"] == "org.groovyui.provenance.v1"
+    sidecar = json.loads(Path(output["provenance_path"]).read_text())
+    assert sidecar["content_credentials"]["manifest_id"] == (
+        "urn:c2pa:save-audio-test"
+    )
 
 
 @pytest.mark.parametrize(

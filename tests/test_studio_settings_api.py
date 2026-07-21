@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import groovy.server.main as main
 import pytest
 from fastapi.testclient import TestClient
+from groovy.executor import Executor
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
 from groovy.registry.studio_settings import StudioSettingsStore
-import groovy.server.main as main
-from groovy.executor import Executor
 
 register_core()
 register_ai()
@@ -46,6 +46,52 @@ def test_studio_settings_inference_roundtrip(api_client: TestClient) -> None:
 
     bad = api_client.post("/api/settings/studio", json={"inference_mode": "live"})
     assert bad.status_code == 400
+
+
+def test_content_credentials_mode_and_status_are_optional_by_default(
+    api_client: TestClient,
+) -> None:
+    settings = api_client.get("/api/settings/studio")
+    assert settings.status_code == 200
+    assert settings.json()["content_credentials_mode"] == "off"
+    assert settings.json()["content_credentials_effective"] == "off"
+
+    status = api_client.get("/api/c2pa/status")
+    assert status.status_code == 200
+    assert status.json()["configured"] is False
+    assert status.json()["provider"] == "none"
+    assert status.json()["effective_mode"] == "off"
+
+    updated = api_client.post(
+        "/api/settings/studio",
+        json={"content_credentials_mode": "sign_if_configured"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["content_credentials_effective"] == "sign_if_configured"
+    status = api_client.get("/api/c2pa/status")
+    assert status.json()["effective_mode"] == "sign_if_configured"
+
+    bad = api_client.post(
+        "/api/settings/studio",
+        json={"content_credentials_mode": "pretend_signed"},
+    )
+    assert bad.status_code == 400
+
+
+def test_c2pa_environment_mode_overrides_project_setting(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    api_client.post(
+        "/api/settings/studio",
+        json={"content_credentials_mode": "sign_if_configured"},
+    )
+    monkeypatch.setenv("GROOVY_C2PA_MODE", "required")
+
+    status = api_client.get("/api/c2pa/status")
+
+    assert status.json()["mode"] == "sign_if_configured"
+    assert status.json()["effective_mode"] == "required"
+    assert status.json()["effective_source"] == "environment"
 
 
 def test_clear_render_cache(api_client: TestClient, tmp_path: Path) -> None:
