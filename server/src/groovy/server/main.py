@@ -10,6 +10,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -88,8 +89,47 @@ _jobs: dict[str, dict[str, Any]] = {}
 _job_cancel_flags: dict[str, threading.Event] = {}
 _install_threads: dict[str, threading.Thread] = {}
 _ws_subscribers: dict[str, set[WebSocket]] = {}
-_executor = Executor(PROJECT_DIR)
 _registry = ModelRegistry(PROJECT_DIR)
+
+
+def _model_provenance_metadata(model_id: str) -> dict[str, Any] | None:
+    manifest = _registry.catalog.get(model_id)
+    if manifest is None:
+        return None
+    install_state = _registry.store.get(model_id)
+    weights = []
+    for weight in manifest.install.weights:
+        source = str(weight.get("path") or weight.get("url") or weight.get("bundle") or "")
+        source_path = urlparse(source).path if "://" in source else source
+        weights.append(
+            {
+                "filename": Path(source_path).name or None,
+                "sha256": weight.get("sha256"),
+                "revision": weight.get("revision"),
+            }
+        )
+    hashed_weights = sum(1 for weight in weights if weight.get("sha256"))
+    if weights and hashed_weights == len(weights):
+        weights_hash_status = "verified"
+    elif hashed_weights:
+        weights_hash_status = "partial"
+    else:
+        weights_hash_status = "unavailable"
+    return {
+        "name": manifest.name,
+        "version": install_state.version,
+        "author": manifest.author,
+        "task_types": manifest.task_types,
+        "license": manifest.license.model_dump(),
+        "weights": weights,
+        "weights_hash_status": weights_hash_status,
+    }
+
+
+_executor = Executor(
+    PROJECT_DIR,
+    model_metadata_resolver=_model_provenance_metadata,
+)
 _pack_installer = PackInstaller(PROJECT_DIR)
 _studio_settings = StudioSettingsStore(PROJECT_DIR)
 

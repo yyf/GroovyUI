@@ -13,13 +13,13 @@ from typing import Any
 from groovy.executor.ambisonics import AmbisonicBuffer
 from groovy.executor.audio import AudioBuffer, StemsBuffer
 from groovy.executor.authenticity import AuthenticityReport
-from groovy.executor.control import AutomationBuffer
 from groovy.executor.cache import CacheStore
 from groovy.executor.cancel import JobCancelled
+from groovy.executor.control import AutomationBuffer
 from groovy.executor.midi import MidiBuffer
+from groovy.executor.node_cache import compute_node_signature
 from groovy.executor.oba import ObjectScene
 from groovy.executor.osc_live import OscBuffer
-from groovy.executor.node_cache import compute_node_signature
 from groovy.executor.provenance import build_record, parent_refs, read_provenance
 from groovy.executor.signal_integrity import attach_signal_metadata
 from groovy.node import NODE_REGISTRY, get_node_class
@@ -57,9 +57,17 @@ class ExecutionResult:
 
 
 class Executor:
-    def __init__(self, project_dir: Path) -> None:
+    def __init__(
+        self,
+        project_dir: Path,
+        *,
+        model_metadata_resolver: Callable[[str], dict[str, Any] | None] | None = None,
+        provenance_prompt_policy: str = "redacted",
+    ) -> None:
         self.project_dir = project_dir
         self.cache = CacheStore(project_dir)
+        self.model_metadata_resolver = model_metadata_resolver
+        self.provenance_prompt_policy = provenance_prompt_policy
 
     def execute(
         self,
@@ -246,6 +254,17 @@ class Executor:
     ) -> None:
         refs = parent_refs(kwargs)
         parent_records = [read_provenance(ctx.cache, ref["cache_id"]) or {} for ref in refs]
+        model_id = node.widgets.get("model")
+        model_metadata = (
+            self.model_metadata_resolver(str(model_id))
+            if model_id and self.model_metadata_resolver
+            else None
+        )
+        workflow_json = json.dumps(
+            workflow.model_dump(mode="json", by_alias=True),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
         record = build_record(
             cache_id=buffer.id,
             content_hash=buffer.content_hash,
@@ -255,10 +274,14 @@ class Executor:
             node_cls=node_cls,
             job_id=ctx.job_id,
             workflow_id=workflow.id,
+            workflow_title=workflow.metadata.title,
+            workflow_hash=f"sha256:{hashlib.sha256(workflow_json.encode('utf-8')).hexdigest()}",
             groovy_version=GROOVY_VERSION,
             executor_version=EXECUTOR_VERSION,
             parent_records=parent_records,
             parent_refs_list=refs,
+            model_metadata=model_metadata,
+            prompt_policy=self.provenance_prompt_policy,
         )
         ctx.cache.write_provenance(buffer.id, record)
 
