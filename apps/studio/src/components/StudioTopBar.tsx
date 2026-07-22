@@ -12,6 +12,7 @@ type Props = {
   onSelectTemplate: (templateId: string) => void;
   onDeleteUserTemplate?: (templateId: string) => void | Promise<void>;
   onApplyWorkflow: (workflow: Workflow) => void;
+  onGenerateTaskStart?: () => void;
   generateOpenNonce?: number;
   complianceWarnings: number;
   inferenceStubActive?: boolean;
@@ -32,6 +33,7 @@ export default function StudioTopBar({
   onSelectTemplate,
   onDeleteUserTemplate,
   onApplyWorkflow,
+  onGenerateTaskStart,
   generateOpenNonce = 0,
   complianceWarnings,
   inferenceStubActive = false,
@@ -64,7 +66,11 @@ export default function StudioTopBar({
             onSelect={onSelectTemplate}
             onDeleteUserTemplate={onDeleteUserTemplate}
           />
-          <WorkflowGenerateButton onApply={onApplyWorkflow} openNonce={generateOpenNonce} />
+          <WorkflowGenerateButton
+            onApply={onApplyWorkflow}
+            onTaskStart={onGenerateTaskStart}
+            openNonce={generateOpenNonce}
+          />
         </div>
         <div className="top-bar__tools">
           {inferenceStubActive ? (

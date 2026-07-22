@@ -123,6 +123,42 @@ export type C2paStatus = {
   supported_formats: string[];
 };
 
+export type ActivationDiagnosticEvent =
+  | "task_started"
+  | "workflow_applied"
+  | "compliance_confirmed"
+  | "install_started"
+  | "install_completed"
+  | "render_started"
+  | "render_completed"
+  | "playback_requested"
+  | "playback_started"
+  | "playback_failed"
+  | "cancelled"
+  | "failed";
+
+export type ActivationDiagnosticMilestone = {
+  event: ActivationDiagnosticEvent;
+  elapsed_ms: number;
+  context: Record<string, string | number | boolean>;
+};
+
+export type ActivationDiagnosticsSummary = {
+  path: string;
+  stored_locally: true;
+  session_count: number;
+  event_count: number;
+  latest_session: {
+    session_id: string;
+    started_at: string;
+    outcome: "audible" | "failed" | "cancelled" | "playback_blocked" | "in_progress";
+    elapsed_ms: number;
+    time_to_first_audible_ms: number | null;
+    context: Record<string, string | number | boolean>;
+    milestones: ActivationDiagnosticMilestone[];
+  } | null;
+};
+
 export type MissingWorkflowModel = {
   model_id: string;
   name: string;

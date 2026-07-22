@@ -203,6 +203,33 @@ export async function fetchC2paStatus(): Promise<import("./types").C2paStatus> {
   return res.json();
 }
 
+export async function recordActivationDiagnostic(payload: {
+  session_id: string;
+  event: import("./types").ActivationDiagnosticEvent;
+  elapsed_ms: number;
+  context?: Record<string, string | number | boolean>;
+}): Promise<void> {
+  const res = await fetch(`${API}/api/diagnostics/activation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error("Failed to record activation diagnostic");
+}
+
+export async function fetchActivationDiagnostics(): Promise<
+  import("./types").ActivationDiagnosticsSummary
+> {
+  const res = await fetch(`${API}/api/diagnostics/activation`);
+  if (!res.ok) throw new Error("Failed to load activation diagnostics");
+  return res.json();
+}
+
+export async function clearActivationDiagnostics(): Promise<void> {
+  const res = await fetch(`${API}/api/diagnostics/activation`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to clear activation diagnostics");
+}
+
 export async function clearRenderCache(): Promise<{ status: string; removed: number; cache_dir: string }> {
   const res = await fetch(`${API}/api/cache/clear`, { method: "POST" });
   if (!res.ok) throw new Error("Failed to clear render cache");

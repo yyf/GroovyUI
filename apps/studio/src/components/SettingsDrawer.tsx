@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   API,
+  clearActivationDiagnostics,
   clearRenderCache,
+  fetchActivationDiagnostics,
   fetchC2paStatus,
   fetchStudioSettings,
   updateStudioSettings,
   type StudioSettings,
 } from "../api";
-import type { C2paStatus } from "../types";
+import type { ActivationDiagnosticsSummary, C2paStatus } from "../types";
 
 type Props = {
   open: boolean;
@@ -25,6 +27,28 @@ async function copyText(value: string): Promise<boolean> {
   }
 }
 
+function formatElapsed(elapsedMs: number): string {
+  const seconds = Math.round(elapsedMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  return minutes > 0 ? `${minutes}m ${seconds % 60}s` : `${seconds}s`;
+}
+
+function stageDuration(
+  summary: ActivationDiagnosticsSummary["latest_session"],
+  startEvent: string,
+  endEvent: string,
+): number | null {
+  if (!summary) return null;
+  const start = summary.milestones.find(
+    (milestone) => milestone.event === startEvent,
+  );
+  const end = [...summary.milestones]
+    .reverse()
+    .find((milestone) => milestone.event === endEvent);
+  if (!start || !end || end.elapsed_ms < start.elapsed_ms) return null;
+  return end.elapsed_ms - start.elapsed_ms;
+}
+
 export default function SettingsDrawer({
   open,
   onClose,
@@ -33,6 +57,8 @@ export default function SettingsDrawer({
 }: Props) {
   const [studioSettings, setStudioSettings] = useState<StudioSettings | null>(null);
   const [c2paStatus, setC2paStatus] = useState<C2paStatus | null>(null);
+  const [activationDiagnostics, setActivationDiagnostics] =
+    useState<ActivationDiagnosticsSummary | null>(null);
   const [hfTokenDraft, setHfTokenDraft] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,18 +66,21 @@ export default function SettingsDrawer({
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [studio, credentials] = await Promise.all([
+      const [studio, credentials, diagnostics] = await Promise.all([
         fetchStudioSettings(),
         fetchC2paStatus(),
+        fetchActivationDiagnostics(),
       ]);
       setStudioSettings(studio);
       setC2paStatus(credentials);
+      setActivationDiagnostics(diagnostics);
       onSettingsChange?.(studio);
       setHfTokenDraft("");
       setStatus("");
     } catch {
       setStudioSettings(null);
       setC2paStatus(null);
+      setActivationDiagnostics(null);
       setStatus("Could not load settings");
     } finally {
       setLoading(false);
@@ -97,12 +126,47 @@ export default function SettingsDrawer({
     }
   };
 
+  const handleClearActivationDiagnostics = async () => {
+    try {
+      await clearActivationDiagnostics();
+      setActivationDiagnostics((current) =>
+        current
+          ? {
+              ...current,
+              session_count: 0,
+              event_count: 0,
+              latest_session: null,
+            }
+          : current,
+      );
+      setStatus("Cleared activation diagnostics");
+    } catch {
+      setStatus("Could not clear activation diagnostics");
+    }
+  };
+
   if (!open) return null;
 
   const envLocksMode = studioSettings?.inference_effective_source === "environment";
   const envLocksCredentials =
     studioSettings?.content_credentials_effective_source === "environment";
   const stubActive = studioSettings?.inference_stub_active ?? false;
+  const latestDiagnostics = activationDiagnostics?.latest_session ?? null;
+  const installDuration = stageDuration(
+    latestDiagnostics,
+    "install_started",
+    "install_completed",
+  );
+  const renderDuration = stageDuration(
+    latestDiagnostics,
+    "render_started",
+    "render_completed",
+  );
+  const playbackDelay = stageDuration(
+    latestDiagnostics,
+    "playback_requested",
+    "playback_started",
+  );
 
   return (
     <div className="compliance-backdrop" onClick={onClose}>
@@ -265,6 +329,95 @@ export default function SettingsDrawer({
                       : "Exports remain unsigned with a Provenance 1.1 sidecar."}
                   </p>
                 )}
+              </section>
+
+              <section className="settings-section">
+                <h3>First-audition diagnostics</h3>
+                <p className="compliance-hint">
+                  Local-only timing from task start to actual audible playback. Prompts, audio,
+                  filenames, paths, and tokens are never recorded or uploaded.
+                </p>
+                {activationDiagnostics?.latest_session ? (
+                  <div className="settings-diagnostic-summary">
+                    <span>
+                      Last run:{" "}
+                      <strong>{activationDiagnostics.latest_session.outcome}</strong>
+                    </span>
+                    <span>
+                      {activationDiagnostics.latest_session.time_to_first_audible_ms != null
+                        ? `First audible preview in ${formatElapsed(
+                            activationDiagnostics.latest_session
+                              .time_to_first_audible_ms,
+                          )}`
+                        : `Elapsed ${formatElapsed(
+                            activationDiagnostics.latest_session.elapsed_ms,
+                          )}`}
+                    </span>
+                    <span>
+                      {activationDiagnostics.session_count} local session
+                      {activationDiagnostics.session_count === 1 ? "" : "s"}
+                    </span>
+                    {installDuration != null ? (
+                      <span>Model installation: {formatElapsed(installDuration)}</span>
+                    ) : null}
+                    {renderDuration != null ? (
+                      <span>Preview render: {formatElapsed(renderDuration)}</span>
+                    ) : null}
+                    {playbackDelay != null ? (
+                      <span>Playback readiness: {formatElapsed(playbackDelay)}</span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="compliance-hint">
+                    No first-audition session has been recorded yet.
+                  </p>
+                )}
+                {activationDiagnostics ? (
+                  <label className="settings-field">
+                    Local trace
+                    <div className="settings-path-row">
+                      <code className="settings-path">
+                        {activationDiagnostics.path}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void copyText(activationDiagnostics.path).then((ok) =>
+                            setStatus(
+                              ok ? "Copied diagnostics path" : "Copy failed",
+                            ),
+                          )
+                        }
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </label>
+                ) : null}
+                <div className="model-card__actions">
+                  <button
+                    type="button"
+                    disabled={!activationDiagnostics?.latest_session}
+                    onClick={() => {
+                      const latest = activationDiagnostics?.latest_session;
+                      if (!latest) return;
+                      void copyText(JSON.stringify(latest, null, 2)).then((ok) =>
+                        setStatus(
+                          ok ? "Copied activation report" : "Copy failed",
+                        ),
+                      );
+                    }}
+                  >
+                    Copy latest report
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!activationDiagnostics?.session_count}
+                    onClick={() => void handleClearActivationDiagnostics()}
+                  >
+                    Clear history
+                  </button>
+                </div>
               </section>
 
               <section className="settings-section">
