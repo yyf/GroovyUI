@@ -25,6 +25,17 @@ export function applyModelSwaps(
   };
 }
 
+/** Select one listenable Preview sink so first audition does not render unrelated exports. */
+export function resolveFastPathPreviewTarget(workflow: Workflow): string | null {
+  const previews = workflow.nodes.filter((node) => node.type === "Preview");
+  const audioPreview = previews.find((preview) =>
+    workflow.links.some(
+      (link) => link.to[0] === preview.id && link.type === "AUDIO",
+    ),
+  );
+  return audioPreview?.id ?? null;
+}
+
 type FastPathDependencies = {
   workflow: Workflow;
   findMissing: (workflow: Workflow) => Promise<MissingFastPathModel[]>;
@@ -32,8 +43,10 @@ type FastPathDependencies = {
     modelId: string,
     onProgress: (state: ModelInstallState) => void,
   ) => Promise<ModelInstallState>;
-  renderAll: () => Promise<boolean>;
+  renderPreview: () => Promise<boolean>;
   shouldStop: () => boolean;
+  onInstallStart?: (model: MissingFastPathModel, index: number, total: number) => void;
+  onInstallComplete?: (model: MissingFastPathModel, index: number, total: number) => void;
   onInstallProgress?: (
     model: MissingFastPathModel,
     index: number,
@@ -53,8 +66,10 @@ export async function runFastPathSequence({
   workflow,
   findMissing,
   installModel,
-  renderAll,
+  renderPreview,
   shouldStop,
+  onInstallStart,
+  onInstallComplete,
   onInstallProgress,
 }: FastPathDependencies): Promise<FastPathRunResult> {
   const missing = await findMissing(workflow);
@@ -63,9 +78,11 @@ export async function runFastPathSequence({
     if (model.reason === "unknown") {
       throw new Error(`Unknown model cannot be installed: ${model.modelId}`);
     }
+    onInstallStart?.(model, index, missing.length);
     await installModel(model.modelId, (state) => {
       onInstallProgress?.(model, index, missing.length, state);
     });
+    onInstallComplete?.(model, index, missing.length);
     if (shouldStop()) return "cancelled";
   }
 
@@ -79,7 +96,7 @@ export async function runFastPathSequence({
   }
   if (shouldStop()) return "cancelled";
 
-  const completed = await renderAll();
+  const completed = await renderPreview();
   if (!completed) throw new Error("Render did not complete.");
   return "completed";
 }

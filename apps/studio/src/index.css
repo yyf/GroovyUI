@@ -2624,6 +2624,29 @@ body {
   text-align: right;
 }
 
+.transport__playback-error {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 16px);
+  padding: 5px 7px;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  background: rgba(24, 8, 10, 0.94);
+  color: #fecaca;
+  font-size: 11px;
+}
+
+.transport__playback-error button {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-color: rgba(248, 113, 113, 0.65);
+  color: #fff;
+}
+
 .transport__status--error {
   color: #f87171;
 }
@@ -4556,6 +4579,22 @@ body {
 .settings-section h3 {
   margin: 0 0 8px;
   font-size: 14px;
+}
+
+.settings-diagnostic-summary {
+  display: grid;
+  gap: 4px;
+  margin: 10px 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border-dim);
+  background: rgba(15, 23, 42, 0.5);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.settings-diagnostic-summary strong {
+  color: var(--text);
 }
 
 .settings-disclosure {

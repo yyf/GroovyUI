@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { applyModelSwaps, runFastPathSequence } from "./fastPath";
+import {
+  applyModelSwaps,
+  resolveFastPathPreviewTarget,
+  runFastPathSequence,
+} from "./fastPath";
 import type { ModelInstallState, Workflow } from "./types";
 
 const workflow: Workflow = {
@@ -31,6 +35,31 @@ describe("runFastPathSequence", () => {
     expect(optimized.nodes[1]).toEqual(workflow.nodes[1]);
   });
 
+  it("targets one audio Preview instead of unrelated terminal exports", () => {
+    const withExport: Workflow = {
+      ...workflow,
+      nodes: [
+        ...workflow.nodes,
+        { id: "save", type: "SaveAudio", widgets: { filename: "output.wav" } },
+      ],
+      links: [
+        ...workflow.links,
+        { id: "save-link", from: ["n1", 0], to: ["save", 0], type: "AUDIO" },
+      ],
+    };
+    expect(resolveFastPathPreviewTarget(withExport)).toBe("n2");
+  });
+
+  it("does not claim an audible fast path for a text-only Preview", () => {
+    const textOnly: Workflow = {
+      ...workflow,
+      links: [
+        { id: "text-link", from: ["n1", 0], to: ["n2", 0], type: "TEXT" },
+      ],
+    };
+    expect(resolveFastPathPreviewTarget(textOnly)).toBeNull();
+  });
+
   it("installs the reviewed chain before rendering", async () => {
     const calls: string[] = [];
     let scan = 0;
@@ -48,15 +77,25 @@ describe("runFastPathSequence", () => {
         onProgress(ready(modelId));
         return ready(modelId);
       },
-      renderAll: async () => {
-        calls.push("render-all");
+      onInstallStart: (model) => calls.push(`install-start-${model.modelId}`),
+      onInstallComplete: (model) =>
+        calls.push(`install-complete-${model.modelId}`),
+      renderPreview: async () => {
+        calls.push("render-preview");
         return true;
       },
       shouldStop: () => false,
     });
 
     expect(result).toBe("completed");
-    expect(calls).toEqual(["scan-1", "install-model-a", "scan-2", "render-all"]);
+    expect(calls).toEqual([
+      "scan-1",
+      "install-start-model-a",
+      "install-model-a",
+      "install-complete-model-a",
+      "scan-2",
+      "render-preview",
+    ]);
   });
 
   it("stops after the active model without starting another install or render", async () => {
@@ -65,7 +104,7 @@ describe("runFastPathSequence", () => {
       stopRequested = true;
       return ready(modelId);
     });
-    const renderAll = vi.fn(async () => true);
+    const renderPreview = vi.fn(async () => true);
 
     const result = await runFastPathSequence({
       workflow,
@@ -74,12 +113,12 @@ describe("runFastPathSequence", () => {
         { modelId: "model-b", name: "Model B", status: "missing", reason: "not_installed" },
       ],
       installModel,
-      renderAll,
+      renderPreview,
       shouldStop: () => stopRequested,
     });
 
     expect(result).toBe("cancelled");
     expect(installModel).toHaveBeenCalledTimes(1);
-    expect(renderAll).not.toHaveBeenCalled();
+    expect(renderPreview).not.toHaveBeenCalled();
   });
 });

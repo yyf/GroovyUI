@@ -13,11 +13,16 @@ type Suggestion = {
 
 type Props = {
   onApply: (workflow: Workflow) => void;
+  onTaskStart?: () => void;
   /** Bump to open the panel (e.g. Cmd/Ctrl+G). */
   openNonce?: number;
 };
 
-export default function WorkflowGenerateButton({ onApply, openNonce = 0 }: Props) {
+export default function WorkflowGenerateButton({
+  onApply,
+  onTaskStart,
+  openNonce = 0,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
@@ -57,6 +62,7 @@ export default function WorkflowGenerateButton({ onApply, openNonce = 0 }: Props
   const handleGenerate = async () => {
     const text = prompt.trim();
     if (!text) return;
+    onTaskStart?.();
     setLoading(true);
     setError(null);
     setResults([]);

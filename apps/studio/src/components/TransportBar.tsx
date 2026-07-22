@@ -61,6 +61,8 @@ type Props = {
   onRenderAll?: () => void;
   onPlay: () => void;
   auditionNonce?: number;
+  onPlaybackStarted?: () => void;
+  onPlaybackFailed?: (reason: string) => void;
 };
 
 type AudioVisualMode = "waveform" | "spectrogram";
@@ -78,6 +80,8 @@ export default function TransportBar({
   onRenderAll,
   onPlay,
   auditionNonce = 0,
+  onPlaybackStarted,
+  onPlaybackFailed,
 }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const blobUrlRef = useRef<string | null>(null);
@@ -93,6 +97,7 @@ export default function TransportBar({
   const [spectrogram, setSpectrogram] = useState<SpectrogramData | null>(null);
   const [spectrogramLoading, setSpectrogramLoading] = useState(false);
   const [spectrogramError, setSpectrogramError] = useState<string | null>(null);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const statusFailed = Boolean(
     statusMessage?.toLowerCase().includes("fail") || statusMessage?.toLowerCase().startsWith("error"),
   );
@@ -218,10 +223,18 @@ export default function TransportBar({
       await ensureBlobLoaded();
       setPlayheadRatio(playheadRatioRef.current, { commitAudio: true });
       await audio.play();
-    } catch {
-      // Browser may block autoplay without a direct gesture; ignore.
+    } catch (error) {
+      const blocked =
+        error instanceof DOMException && error.name === "NotAllowedError";
+      const reason = blocked ? "autoplay_blocked" : "preview_playback_failed";
+      setPlaybackError(
+        blocked
+          ? "Playback was blocked by the browser. Click Play now to audition."
+          : "Preview playback failed. Click Play now to retry.",
+      );
+      onPlaybackFailed?.(reason);
     }
-  }, [ensureBlobLoaded, previewUrl, setPlayheadRatio]);
+  }, [ensureBlobLoaded, onPlaybackFailed, previewUrl, setPlayheadRatio]);
 
   const playAudioRef = useRef(playAudio);
   playAudioRef.current = playAudio;
@@ -235,6 +248,7 @@ export default function TransportBar({
     setIsPlaying(false);
     setSpectrogram(null);
     setSpectrogramError(null);
+    setPlaybackError(null);
     stopRaf();
     loadedCacheIdRef.current = null;
     loadPromiseRef.current = null;
@@ -326,8 +340,12 @@ export default function TransportBar({
     if (!audio) return;
 
     const onPlay = () => {
+      setPlaybackError(null);
       setIsPlaying(true);
       startRaf();
+    };
+    const onPlaying = () => {
+      onPlaybackStarted?.();
     };
     const onPause = () => {
       setIsPlaying(false);
@@ -349,15 +367,17 @@ export default function TransportBar({
     };
 
     audio.addEventListener("play", onPlay);
+    audio.addEventListener("playing", onPlaying);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
     return () => {
       stopRaf();
       audio.removeEventListener("play", onPlay);
+      audio.removeEventListener("playing", onPlaying);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
     };
-  }, [previewUrl, startRaf, stopRaf, timelineDuration]);
+  }, [onPlaybackStarted, previewUrl, startRaf, stopRaf, timelineDuration]);
 
   const handleSeek = useCallback(
     (ratio: number) => {
@@ -551,6 +571,14 @@ export default function TransportBar({
               </div>
             ) : null}
             {statusLine ? <div className="transport__status-overlay">{statusLine}</div> : null}
+            {playbackError ? (
+              <div className="transport__playback-error" role="alert">
+                <span>{playbackError}</span>
+                <button type="button" onClick={() => void playAudio()}>
+                  Play now
+                </button>
+              </div>
+            ) : null}
           </div>
           <audio ref={audioRef} className="transport__audio" preload="auto" />
         </div>

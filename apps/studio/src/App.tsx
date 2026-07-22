@@ -13,6 +13,12 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
+  finishActivationSession,
+  hasActiveActivationSession,
+  recordActivationMilestone,
+  startActivationSession,
+} from "./activationDiagnostics";
+import {
   executeWorkflow,
   fetchCompliance,
   fetchAllNodeSchemas,
@@ -50,7 +56,12 @@ import { AuditionContext } from "./context/AuditionContext";
 import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
 import { useLiveIo } from "./hooks/useLiveIo";
 import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
-import { applyModelSwaps, runFastPathSequence, type FastPathRunResult } from "./fastPath";
+import {
+  applyModelSwaps,
+  resolveFastPathPreviewTarget,
+  runFastPathSequence,
+  type FastPathRunResult,
+} from "./fastPath";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import {
@@ -89,6 +100,13 @@ import {
 
 const nodeTypes: NodeTypes = { groovy: GroovyFlowNode, groovyGroup: ModuleGroupNode };
 const DEFAULT_TEMPLATE = "podcast-denoise";
+
+function formatActivationDuration(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.round(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
 
 export default function App() {
   const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory();
@@ -150,6 +168,25 @@ export default function App() {
     },
     [],
   );
+
+  const beginGenerateTask = useCallback(() => {
+    startActivationSession({ source: "generate" });
+  }, []);
+
+  const handlePlaybackStarted = useCallback(() => {
+    const elapsedMs = finishActivationSession("playback_started", {
+      preview_kind: "audio",
+    });
+    if (elapsedMs != null) {
+      setStatus(`First audition ready in ${formatActivationDuration(elapsedMs)}`);
+    }
+  }, []);
+
+  const handlePlaybackFailed = useCallback((reason: string) => {
+    if (!hasActiveActivationSession()) return;
+    recordActivationMilestone("playback_failed", { reason });
+    setStatus("Render complete — click Play now to audition");
+  }, []);
 
   const openModelBrowser = useCallback((launch?: ModelBrowserLaunch | null) => {
     setModelBrowserLaunch(launch ?? null);
@@ -434,8 +471,10 @@ export default function App() {
           setFailedNodeId(null);
           const outputs = job.outputs ?? {};
           setNodeStatus((prev) => ({ ...prev, ...cachedStatusFromOutputs(workflow, outputs) }));
+          let auditionNodeId: string | null = null;
           if (autoAudition) {
-            const auditionNodeId = preferredAuditionNodeId(workflow, outputs);
+            recordActivationMilestone("render_completed");
+            auditionNodeId = preferredAuditionNodeId(workflow, outputs);
             if (auditionNodeId) {
               setNodes((current) =>
                 current.map((node) => ({
@@ -444,7 +483,14 @@ export default function App() {
                 })),
               );
               setActiveEdgeIds(edgeIdsOnPathToNode(workflow, auditionNodeId));
+              recordActivationMilestone("playback_requested", {
+                preview_node_id: auditionNodeId,
+              });
               setAuditionNonce((nonce) => nonce + 1);
+            } else {
+              finishActivationSession("failed", {
+                reason: "preview_not_listenable",
+              });
             }
           }
           const savedOutput = targets
@@ -460,7 +506,9 @@ export default function App() {
               ? `Saved audio + provenance: ${saved}`
               : saved
                 ? `Saved to ${saved}`
-                : "Complete",
+                : autoAudition && !auditionNodeId
+                  ? "Render complete — Preview produced no listenable output"
+                  : "Complete",
           );
         } else if (job.status === "cancelled") {
           const outputs = job.outputs ?? {};
@@ -995,6 +1043,10 @@ export default function App() {
 
   const applyGeneratedWorkflow = useCallback(
     (next: Workflow) => {
+      if (!hasActiveActivationSession()) {
+        startActivationSession({ source: "suggestion_apply" });
+      }
+      recordActivationMilestone("workflow_applied");
       applyWorkflow(next);
       setComplianceFastPath(true);
       setComplianceOpen(true);
@@ -1006,6 +1058,18 @@ export default function App() {
   const installRenderAndAudition = useCallback(async (): Promise<FastPathRunResult> => {
     const current = workflowRef.current;
     if (!current) throw new Error("No workflow is loaded.");
+    const previewTarget = resolveFastPathPreviewTarget(current);
+    if (!previewTarget) {
+      finishActivationSession("failed", { reason: "preview_missing" });
+      throw new Error("Fast audition needs a Preview node.");
+    }
+    if (!hasActiveActivationSession()) {
+      startActivationSession({ source: "fast_path_commit" });
+      recordActivationMilestone("workflow_applied");
+    }
+    recordActivationMilestone("compliance_confirmed", {
+      preview_node_id: previewTarget,
+    });
     fastPathStopRef.current = false;
     try {
       const result = await runFastPathSequence({
@@ -1013,25 +1077,42 @@ export default function App() {
         findMissing: findMissingWorkflowModels,
         installModel: installModelWithProgress,
         shouldStop: () => fastPathStopRef.current,
+        onInstallStart: (model, _index, total) => {
+          recordActivationMilestone("install_started", {
+            model_id: model.modelId,
+            model_count: total,
+          });
+        },
+        onInstallComplete: (model, _index, total) => {
+          recordActivationMilestone("install_completed", {
+            model_id: model.modelId,
+            model_count: total,
+          });
+        },
         onInstallProgress: (model, index, total, state) => {
           const percent = Math.round((state.progress ?? 0) * 100);
           setStatus(
             `Installing ${model.name || model.modelId} (${index + 1}/${total}) — ${percent}%`,
           );
         },
-        renderAll: async () => {
+        renderPreview: async () => {
           setComplianceOpen(false);
-          setStatus("Models ready — rendering all…");
-          return runRender(undefined, true, true);
+          setStatus("Models ready — rendering Preview branch…");
+          recordActivationMilestone("render_started", {
+            preview_node_id: previewTarget,
+          });
+          return runRender(previewTarget, false, true);
         },
       });
       if (result === "cancelled") {
+        finishActivationSession("cancelled", { reason: "install_stop" });
         setStatus("Install chain stopped safely — render was not started");
         return result;
       }
       setComplianceFastPath(false);
       return result;
     } catch (err) {
+      finishActivationSession("failed", { reason: "fast_path_error" });
       setStatus(`Fast path stopped: ${formatJobError(String(err))}`);
       throw err;
     }
@@ -1104,6 +1185,7 @@ export default function App() {
           onSelectTemplate={(id) => void loadTemplate(id)}
           onDeleteUserTemplate={(id) => void handleDeleteUserTemplate(id)}
           onApplyWorkflow={applyGeneratedWorkflow}
+          onGenerateTaskStart={beginGenerateTask}
           generateOpenNonce={generateOpenNonce}
           complianceWarnings={complianceWarnings}
           inferenceStubActive={inferenceStubActive}
@@ -1254,6 +1336,8 @@ export default function App() {
           onRenderAll={() => void runRender(undefined, true)}
           onPlay={playSelectedNode}
           auditionNonce={auditionNonce}
+          onPlaybackStarted={handlePlaybackStarted}
+          onPlaybackFailed={handlePlaybackFailed}
         />
         <ModelBrowser
           open={modelBrowserOpen}

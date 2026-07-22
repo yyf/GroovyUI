@@ -50,6 +50,7 @@ from groovy.registry.workflow_models import missing_models_for_workflow
 from groovy.schema.comfy_import import import_comfy_workflow
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
+from groovy.server.activation_diagnostics import ActivationDiagnosticsStore
 from groovy.server.bootstrap import ensure_project_samples
 from groovy.server.compare import analyze_ab_pair
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
@@ -67,6 +68,7 @@ HOST = os.environ.get("GROOVY_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GROOVY_PORT", "8188"))
 
 _live_io = LiveIoState(PROJECT_DIR)
+_activation_diagnostics = ActivationDiagnosticsStore(PROJECT_DIR)
 _midi_hub = MidiInHub()
 _osc_transport: asyncio.DatagramTransport | None = None
 
@@ -222,6 +224,13 @@ class StudioSettingsRequest(BaseModel):
     hf_token: str | None = None
     inference_mode: str | None = None
     content_credentials_mode: str | None = None
+
+
+class ActivationDiagnosticRequest(BaseModel):
+    session_id: str
+    event: str
+    elapsed_ms: int = Field(ge=0)
+    context: dict[str, Any] = Field(default_factory=dict)
 
 
 class RevealPathRequest(BaseModel):
@@ -392,6 +401,31 @@ def c2pa_status() -> dict[str, Any]:
         "effective_source": studio["content_credentials_effective_source"],
         **signer,
     }
+
+
+@app.get("/api/diagnostics/activation")
+def activation_diagnostics() -> dict[str, Any]:
+    return _activation_diagnostics.summary()
+
+
+@app.post("/api/diagnostics/activation")
+def record_activation_diagnostic(body: ActivationDiagnosticRequest) -> dict[str, Any]:
+    try:
+        record = _activation_diagnostics.append(
+            session_id=body.session_id,
+            event=body.event,
+            elapsed_ms=body.elapsed_ms,
+            context=body.context,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"status": "ok", "record": record}
+
+
+@app.delete("/api/diagnostics/activation")
+def clear_activation_diagnostics() -> dict[str, str]:
+    _activation_diagnostics.clear()
+    return {"status": "ok"}
 
 
 @app.get("/api/midi/devices")
