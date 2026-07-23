@@ -116,6 +116,9 @@ def test_preflight_estimates_missing_only_download_and_peak_vram(tmp_path: Path)
     assert first["peak_vram_gb"] == 1.0
     assert first["render_time"]["low_seconds"] > 0
     assert first["render_time"]["high_seconds"] > first["render_time"]["low_seconds"]
+    assert "disk_free_mb" in first["machine"]
+    assert isinstance(first["checks"], list)
+    assert first["checks"]
 
     registry.store.mark_ready("deepfilternet-v3")
     second = scan_workflow_licenses(workflow, registry)["preflight"]

@@ -98,12 +98,20 @@ describe("runFastPathSequence", () => {
     ]);
   });
 
-  it("stops after the active model without starting another install or render", async () => {
+  it("cancels the active download when stop is requested mid-install", async () => {
+    const { InstallCancelledError } = await import("./api");
     let stopRequested = false;
-    const installModel = vi.fn(async (modelId: string) => {
-      stopRequested = true;
-      return ready(modelId);
-    });
+    const installModel = vi.fn(
+      async (
+        _modelId: string,
+        _onProgress: (state: ModelInstallState) => void,
+        options?: { shouldStop?: () => boolean },
+      ) => {
+        stopRequested = true;
+        expect(options?.shouldStop?.()).toBe(true);
+        throw new InstallCancelledError("model-a");
+      },
+    );
     const renderPreview = vi.fn(async () => true);
 
     const result = await runFastPathSequence({

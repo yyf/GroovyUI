@@ -6,9 +6,11 @@ import {
   fetchActivationDiagnostics,
   fetchC2paStatus,
   fetchStudioSettings,
+  fetchSystemCapabilities,
   updateStudioSettings,
   type StudioSettings,
 } from "../api";
+import { buildCleanMachineReport } from "../cleanMachineReport";
 import type { ActivationDiagnosticsSummary, C2paStatus } from "../types";
 
 type Props = {
@@ -17,6 +19,8 @@ type Props = {
   onSettingsChange?: (settings: StudioSettings) => void;
   onForceRebuildNext?: () => void;
 };
+
+type SystemCapabilities = Awaited<ReturnType<typeof fetchSystemCapabilities>>;
 
 async function copyText(value: string): Promise<boolean> {
   try {
@@ -59,6 +63,7 @@ export default function SettingsDrawer({
   const [c2paStatus, setC2paStatus] = useState<C2paStatus | null>(null);
   const [activationDiagnostics, setActivationDiagnostics] =
     useState<ActivationDiagnosticsSummary | null>(null);
+  const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
   const [hfTokenDraft, setHfTokenDraft] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
@@ -66,14 +71,16 @@ export default function SettingsDrawer({
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [studio, credentials, diagnostics] = await Promise.all([
+      const [studio, credentials, diagnostics, caps] = await Promise.all([
         fetchStudioSettings(),
         fetchC2paStatus(),
         fetchActivationDiagnostics(),
+        fetchSystemCapabilities().catch(() => null),
       ]);
       setStudioSettings(studio);
       setC2paStatus(credentials);
       setActivationDiagnostics(diagnostics);
+      setCapabilities(caps);
       onSettingsChange?.(studio);
       setHfTokenDraft("");
       setStatus("");
@@ -81,6 +88,7 @@ export default function SettingsDrawer({
       setStudioSettings(null);
       setC2paStatus(null);
       setActivationDiagnostics(null);
+      setCapabilities(null);
       setStatus("Could not load settings");
     } finally {
       setLoading(false);
@@ -334,8 +342,9 @@ export default function SettingsDrawer({
               <section className="settings-section">
                 <h3>First-audition diagnostics</h3>
                 <p className="compliance-hint">
-                  Local-only timing from task start to actual audible playback. Prompts, audio,
-                  filenames, paths, and tokens are never recorded or uploaded.
+                  Local-only timing from task start to audible playback, plus a live machine
+                  snapshot for clean-machine / user-run comparison. Prompts, audio, filenames,
+                  paths, and tokens are never recorded or uploaded.
                 </p>
                 {activationDiagnostics?.latest_session ? (
                   <div className="settings-diagnostic-summary">
@@ -372,6 +381,35 @@ export default function SettingsDrawer({
                     No first-audition session has been recorded yet.
                   </p>
                 )}
+                {capabilities ? (
+                  <div className="settings-diagnostic-summary" aria-label="Machine snapshot">
+                    <span>
+                      Inference:{" "}
+                      <strong>{capabilities.inference_effective}</strong>
+                      {capabilities.inference_stub_active ? " (stub active)" : ""}
+                    </span>
+                    <span>
+                      Disk free: {Math.round(capabilities.machine.disk_free_mb)} MB
+                    </span>
+                    <span>
+                      Models on disk:{" "}
+                      {Math.round(capabilities.machine.models_used_mb ?? 0)} MB
+                    </span>
+                    <span>
+                      VRAM free:{" "}
+                      {capabilities.machine.vram_available_gb != null
+                        ? `${capabilities.machine.vram_available_gb} GB`
+                        : "unmeasured"}
+                      {capabilities.machine.torch_cuda_available ? " · CUDA" : " · CPU"}
+                    </span>
+                    <span>
+                      RAM free:{" "}
+                      {capabilities.machine.ram_available_gb != null
+                        ? `${capabilities.machine.ram_available_gb} GB`
+                        : "unmeasured"}
+                    </span>
+                  </div>
+                ) : null}
                 {activationDiagnostics ? (
                   <label className="settings-field">
                     Local trace
@@ -409,6 +447,23 @@ export default function SettingsDrawer({
                     }}
                   >
                     Copy latest report
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!activationDiagnostics?.latest_session && !capabilities}
+                    onClick={() => {
+                      const report = buildCleanMachineReport({
+                        diagnostics: activationDiagnostics,
+                        capabilities,
+                      });
+                      void copyText(JSON.stringify(report, null, 2)).then((ok) =>
+                        setStatus(
+                          ok ? "Copied clean-machine report" : "Copy failed",
+                        ),
+                      );
+                    }}
+                  >
+                    Copy clean-machine report
                   </button>
                   <button
                     type="button"
@@ -458,6 +513,16 @@ export default function SettingsDrawer({
                     </button>
                   </div>
                 </label>
+                {capabilities ? (
+                  <p className="compliance-hint">
+                    Model weights use{" "}
+                    <strong>{Math.round(capabilities.machine.models_used_mb ?? 0)} MB</strong>
+                    {" · "}
+                    <strong>{Math.round(capabilities.machine.disk_free_mb)} MB</strong> free on
+                    the project volume. Remove unused models from Model Browser (Cmd+K) to reclaim
+                    space.
+                  </p>
+                ) : null}
                 <div className="model-card__actions">
                   <button
                     type="button"

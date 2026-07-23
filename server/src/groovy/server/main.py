@@ -95,6 +95,7 @@ app.add_middleware(
 _jobs: dict[str, dict[str, Any]] = {}
 _job_cancel_flags: dict[str, threading.Event] = {}
 _install_threads: dict[str, threading.Thread] = {}
+_install_cancel_flags: dict[str, threading.Event] = {}
 _ws_subscribers: dict[str, set[WebSocket]] = {}
 _registry = ModelRegistry(PROJECT_DIR)
 
@@ -915,6 +916,55 @@ def install_model_status(model_id: str) -> dict[str, Any]:
     return _registry.store.get(model_id).model_dump()
 
 
+@app.post("/api/models/{model_id}/install/cancel")
+def cancel_model_install(model_id: str) -> dict[str, Any]:
+    if not _registry.catalog.get(model_id):
+        raise HTTPException(status_code=404, detail="Model not found")
+    flag = _install_cancel_flags.get(model_id)
+    if flag is not None:
+        flag.set()
+    state = _registry.store.get(model_id)
+    if state.status in {"downloading", "verifying"}:
+        state = _registry.store.mark_progress(model_id, "cancelling", state.progress)
+    return {"status": "ok", "install": state.model_dump()}
+
+
+@app.delete("/api/models/{model_id}/install")
+def uninstall_model(model_id: str) -> dict[str, Any]:
+    if not _registry.catalog.get(model_id):
+        raise HTTPException(status_code=404, detail="Model not found")
+    active = _install_threads.get(model_id)
+    if active is not None and active.is_alive():
+        raise HTTPException(
+            status_code=409,
+            detail="Cancel the in-progress install before removing this model.",
+        )
+    state = _registry.store.get(model_id)
+    if state.status in {"downloading", "verifying", "cancelling"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Cancel the in-progress install before removing this model.",
+        )
+    result = _registry.installer.uninstall(model_id)
+    return {"status": "ok", **result}
+
+
+@app.get("/api/system/capabilities")
+def system_capabilities() -> dict[str, Any]:
+    from groovy.registry.machine import probe_machine
+    from groovy.registry.studio_settings import StudioSettingsStore
+
+    studio = StudioSettingsStore(PROJECT_DIR).public_view()
+    machine = probe_machine(PROJECT_DIR)
+    return {
+        "stored_locally": True,
+        "inference_mode": studio["inference_mode"],
+        "inference_effective": studio["inference_effective"],
+        "inference_stub_active": studio["inference_stub_active"],
+        "machine": machine,
+    }
+
+
 @app.post("/api/models/recommend")
 def recommend_models_endpoint(body: ModelRecommendRequest) -> dict[str, Any]:
     return recommend_models(
@@ -1006,11 +1056,18 @@ def _start_model_install(model_id: str):
     if active is not None and active.is_alive():
         return _registry.store.get(model_id)
 
+    cancel_flag = threading.Event()
+    _install_cancel_flags[model_id] = cancel_flag
+
     def run() -> None:
         try:
-            _registry.installer.install(model_id)
+            _registry.installer.install(
+                model_id,
+                cancel_check=cancel_flag.is_set,
+            )
         finally:
             _install_threads.pop(model_id, None)
+            _install_cancel_flags.pop(model_id, None)
 
     _registry.store.mark_progress(model_id, "downloading", 0.05)
     thread = threading.Thread(target=run, daemon=True, name=f"install-{model_id}")

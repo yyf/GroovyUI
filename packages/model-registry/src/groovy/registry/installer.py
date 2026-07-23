@@ -4,10 +4,17 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from groovy.registry.catalog import ModelCatalog
-from groovy.registry.download import DownloadError, copy_bundle_file, download_file
+from groovy.registry.download import (
+    DownloadCancelled,
+    DownloadError,
+    copy_bundle_file,
+    download_file,
+)
 from groovy.registry.models import InstallState, ModelManifest
 from groovy.registry.store import InstallStore
 from groovy.registry.studio_settings import StudioSettingsStore, inference_stub_active
@@ -20,7 +27,12 @@ class ModelInstaller:
         self.project_dir = project_dir
         self._settings = StudioSettingsStore(project_dir)
 
-    def install(self, model_id: str) -> InstallState:
+    def install(
+        self,
+        model_id: str,
+        *,
+        cancel_check: Callable[[], bool] | None = None,
+    ) -> InstallState:
         manifest = self.catalog.get(model_id)
         if not manifest:
             return self.store.mark_failed(model_id, f"Unknown model: {model_id}")
@@ -29,19 +41,34 @@ class ModelInstaller:
         if existing.status == "ready" and _imports_verified(manifest, project_dir=self.project_dir):
             return existing
 
+        def cancelled() -> bool:
+            return bool(cancel_check and cancel_check())
+
         try:
+            if cancelled():
+                return self.store.mark_cancelled(model_id)
             self.store.mark_progress(model_id, "downloading", 0.05)
             model_dir = self.project_dir / ".groovy" / "models" / model_id
             model_dir.mkdir(parents=True, exist_ok=True)
             if manifest.install.dev_stub:
                 time.sleep(0.05)
+                if cancelled():
+                    return self.store.mark_cancelled(model_id)
                 self.store.mark_progress(model_id, "verifying", 0.7)
                 return self.store.mark_ready(model_id)
 
-            _install_python_deps(manifest, model_id, self.store, project_dir=self.project_dir)
+            _install_python_deps(
+                manifest,
+                model_id,
+                self.store,
+                project_dir=self.project_dir,
+                cancel_check=cancel_check,
+            )
 
             weights = manifest.install.weights
             for index, weight in enumerate(weights):
+                if cancelled():
+                    return self.store.mark_cancelled(model_id)
                 progress = 0.45 + (0.4 * (index + 1) / max(len(weights), 1))
                 self.store.mark_progress(model_id, "downloading", progress)
                 bundle = weight.get("bundle")
@@ -60,18 +87,43 @@ class ModelInstaller:
                     dest,
                     expected_sha256=weight.get("sha256"),
                     hf_token=self._settings.hf_token(),
+                    cancel_check=cancel_check,
                 )
 
+            if cancelled():
+                return self.store.mark_cancelled(model_id)
             self.store.mark_progress(model_id, "verifying", 0.92)
             _verify_imports(manifest, project_dir=self.project_dir)
             _verify_runtime(manifest, project_dir=self.project_dir)
             if manifest.install.weights or manifest.install.python_deps:
                 return self.store.mark_ready(model_id)
             raise NotImplementedError("Weight download not configured")
+        except DownloadCancelled:
+            return self.store.mark_cancelled(model_id)
         except DownloadError as exc:
             return self.store.mark_failed(model_id, str(exc))
         except Exception as exc:
             return self.store.mark_failed(model_id, str(exc))
+
+    def uninstall(self, model_id: str) -> dict[str, Any]:
+        """Delete local weight files and reset install status.
+
+        Does not uninstall shared Python packages from the environment.
+        """
+        model_dir = self.store.model_dir(model_id)
+        freed_bytes = self.store.directory_size_bytes(model_dir) if model_dir.exists() else 0
+        if model_dir.exists():
+            shutil.rmtree(model_dir)
+        state = self.store.clear(model_id)
+        return {
+            "model_id": model_id,
+            "install": state.model_dump(),
+            "freed_mb": round(freed_bytes / (1024 * 1024), 1),
+            "models_used_mb": round(self.store.directory_size_bytes() / (1024 * 1024), 1),
+            "models_dir": str(self.store.root),
+            "python_packages_removed": False,
+            "note": "Removed local model weights only; shared Python packages were left installed.",
+        }
 
     def recovery_suggestions(self, model_id: str) -> dict:
         manifest = self.catalog.get(model_id)
@@ -91,6 +143,7 @@ def _install_python_deps(
     store: InstallStore,
     *,
     project_dir: Path,
+    cancel_check: Callable[[], bool] | None = None,
 ) -> None:
     if inference_stub_active(project_dir=project_dir):
         return
@@ -99,6 +152,8 @@ def _install_python_deps(
         return
     total = len(deps)
     for index, dep in enumerate(deps):
+        if cancel_check and cancel_check():
+            raise DownloadCancelled("Install cancelled before dependency install")
         package = str(dep.get("package", "")).strip()
         if not package:
             continue
@@ -107,7 +162,7 @@ def _install_python_deps(
         progress = 0.12 + (0.28 * (index + 1) / total)
         store.mark_progress(model_id, "downloading", progress)
         no_deps = bool(dep.get("no_deps"))
-        _run_pip_install(requirement, no_deps=no_deps)
+        _run_pip_install(requirement, no_deps=no_deps, cancel_check=cancel_check)
 
 
 def _verify_runtime(manifest: ModelManifest, *, project_dir: Path | None = None) -> None:
@@ -177,7 +232,12 @@ def _verify_imports(manifest: ModelManifest, *, project_dir: Path | None = None)
         )
 
 
-def _run_pip_install(requirement: str, *, no_deps: bool = False) -> None:
+def _run_pip_install(
+    requirement: str,
+    *,
+    no_deps: bool = False,
+    cancel_check: Callable[[], bool] | None = None,
+) -> None:
     if shutil.which("uv"):
         # uv-managed venvs do not ship pip; uv pip targets the active interpreter.
         command = ["uv", "pip", "install", "--python", sys.executable]
@@ -186,15 +246,31 @@ def _run_pip_install(requirement: str, *, no_deps: bool = False) -> None:
     if no_deps:
         command.append("--no-deps")
     command.append(requirement)
-    result = subprocess.run(
+    proc = subprocess.Popen(
         command,
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        check=False,
     )
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "package install failed").strip()
-        raise RuntimeError(f"Failed to install {requirement}: {detail[:500]}")
+    try:
+        while proc.poll() is None:
+            if cancel_check and cancel_check():
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait(timeout=5)
+                raise DownloadCancelled(f"Install cancelled while installing {requirement}")
+            time.sleep(0.4)
+        stdout, stderr = proc.communicate()
+        if proc.returncode != 0:
+            detail = (stderr or stdout or "package install failed").strip()
+            raise RuntimeError(f"Failed to install {requirement}: {detail[:500]}")
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)
 
 
 def _filename_from_url(url: str) -> str:

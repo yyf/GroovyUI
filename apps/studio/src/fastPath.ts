@@ -1,3 +1,4 @@
+import { InstallCancelledError } from "./api";
 import type { ModelInstallState, Workflow } from "./types";
 
 export type MissingFastPathModel = {
@@ -42,6 +43,7 @@ type FastPathDependencies = {
   installModel: (
     modelId: string,
     onProgress: (state: ModelInstallState) => void,
+    options?: { shouldStop?: () => boolean },
   ) => Promise<ModelInstallState>;
   renderPreview: () => Promise<boolean>;
   shouldStop: () => boolean;
@@ -58,9 +60,8 @@ type FastPathDependencies = {
 /**
  * Explicitly committed compliance-first sequence.
  *
- * Cancellation is cooperative: it never interrupts an active package-manager
- * or weight write. It stops before the next model and guarantees render will
- * not start after a stop request.
+ * Stop requests cancel the active model install via the install API, then
+ * prevent later models and render from starting.
  */
 export async function runFastPathSequence({
   workflow,
@@ -79,9 +80,20 @@ export async function runFastPathSequence({
       throw new Error(`Unknown model cannot be installed: ${model.modelId}`);
     }
     onInstallStart?.(model, index, missing.length);
-    await installModel(model.modelId, (state) => {
-      onInstallProgress?.(model, index, missing.length, state);
-    });
+    try {
+      await installModel(
+        model.modelId,
+        (state) => {
+          onInstallProgress?.(model, index, missing.length, state);
+        },
+        { shouldStop },
+      );
+    } catch (error) {
+      if (error instanceof InstallCancelledError || shouldStop()) {
+        return "cancelled";
+      }
+      throw error;
+    }
     onInstallComplete?.(model, index, missing.length);
     if (shouldStop()) return "cancelled";
   }

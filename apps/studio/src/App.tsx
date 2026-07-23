@@ -1120,7 +1120,7 @@ export default function App() {
 
   const stopFastPathInstall = useCallback(() => {
     fastPathStopRef.current = true;
-    setStatus("Stopping safely after the current model finishes…");
+    setStatus("Interrupting active model download…");
   }, []);
 
   const handleBrowseModelsFromCompliance = useCallback(

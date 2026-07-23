@@ -80,4 +80,34 @@ describe("compliance-first fast path", () => {
       ),
     ).toContain("unknown model");
   });
+
+  it("blocks when machine preflight reports insufficient disk", () => {
+    expect(
+      fastPathBlockReason(
+        scan({
+          preflight: {
+            download: { known_mb: 2000, unknown_models: [], already_installed: [] },
+            peak_vram_gb: 1,
+            render_time: {
+              basis_audio_seconds: 60,
+              low_seconds: 5,
+              high_seconds: 30,
+              confidence: "rough",
+              note: "note",
+            },
+            models: [],
+            nodes: [],
+            checks: [
+              {
+                code: "DISK_SHORT",
+                severity: "error",
+                message: "Only 100 MB free; need about 3000 MB for ~2000 MB of model downloads.",
+              },
+            ],
+          },
+        }),
+        "evaluation",
+      ),
+    ).toContain("Only 100 MB free");
+  });
 });

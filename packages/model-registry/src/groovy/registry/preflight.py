@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from groovy.registry.machine import (
+    build_machine_checks,
+    missing_verify_imports_for_models,
+    probe_machine,
+)
 from groovy.schema.models import Workflow
 
 # Rough wall-clock seconds to process one minute of source audio. These are
@@ -26,8 +31,8 @@ _CORE_NODE_RANGE = (0, 3)
 def estimate_workflow_preflight(workflow: Workflow, registry: Any) -> dict[str, Any]:
     """Estimate missing-only transfer, sequential peak VRAM, and render time.
 
-    This is a registry-only dry run: no network, installation, inference, or
-    audio probing. Unknown transfer sizes remain explicit instead of guessed.
+    Registry metadata stays the baseline. Machine probes add disk / VRAM /
+    runtime checks without claiming precise timings.
     """
 
     model_ids: list[str] = []
@@ -41,6 +46,7 @@ def estimate_workflow_preflight(workflow: Workflow, registry: Any) -> dict[str, 
     already_installed: list[str] = []
     model_rows: list[dict[str, Any]] = []
     peak_vram_gb = 0.0
+    missing_manifests: list[Any] = []
 
     for model_id in model_ids:
         manifest = registry.catalog.get(model_id)
@@ -55,8 +61,10 @@ def estimate_workflow_preflight(workflow: Workflow, registry: Any) -> dict[str, 
             already_installed.append(model_id)
         elif size_mb is None:
             unknown_download_models.append(model_id)
+            missing_manifests.append(manifest)
         else:
             known_download_mb += float(size_mb)
+            missing_manifests.append(manifest)
         model_rows.append(
             {
                 "model_id": model_id,
@@ -81,6 +89,30 @@ def estimate_workflow_preflight(workflow: Workflow, registry: Any) -> dict[str, 
             }
         )
 
+    project_dir = getattr(registry, "project_dir", None)
+    machine = (
+        probe_machine(project_dir)
+        if project_dir is not None
+        else {
+            "disk_free_mb": 0.0,
+            "disk_path": "",
+            "models_dir": "",
+            "models_used_mb": 0.0,
+            "ram_available_gb": None,
+            "vram_available_gb": None,
+            "vram_source": "unknown",
+            "torch_cuda_available": False,
+            "python_executable": "",
+            "uv_available": False,
+        }
+    )
+    checks = build_machine_checks(
+        known_download_mb=known_download_mb,
+        peak_vram_gb=peak_vram_gb,
+        machine=machine,
+        missing_verify_imports=missing_verify_imports_for_models(missing_manifests),
+    )
+
     return {
         "download": {
             "known_mb": round(known_download_mb, 1),
@@ -98,4 +130,6 @@ def estimate_workflow_preflight(workflow: Workflow, registry: Any) -> dict[str, 
         },
         "models": model_rows,
         "nodes": estimated_nodes,
+        "machine": machine,
+        "checks": checks,
     }

@@ -574,9 +574,68 @@ export async function fetchModelInstallStatus(modelId: string): Promise<ModelIns
   return res.json();
 }
 
+export async function cancelModelInstall(modelId: string): Promise<ModelInstallState> {
+  const res = await fetch(`${API}/api/models/${modelId}/install/cancel`, { method: "POST" });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || `Install cancel failed: ${modelId}`);
+  }
+  const body = (await res.json()) as { install?: ModelInstallState } & ModelInstallState;
+  return body.install ?? body;
+}
+
+export async function removeModelInstall(modelId: string): Promise<{
+  status: string;
+  model_id: string;
+  install: ModelInstallState;
+  freed_mb: number;
+  models_used_mb: number;
+  models_dir: string;
+  python_packages_removed: boolean;
+  note: string;
+}> {
+  const res = await fetch(`${API}/api/models/${modelId}/install`, { method: "DELETE" });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || `Remove failed: ${modelId}`);
+  }
+  return res.json();
+}
+
+export async function fetchSystemCapabilities(): Promise<{
+  stored_locally: true;
+  inference_mode: "real" | "stub";
+  inference_effective: "real" | "stub";
+  inference_stub_active: boolean;
+  machine: {
+    disk_free_mb: number;
+    disk_path: string;
+    models_dir: string;
+    models_used_mb: number;
+    ram_available_gb: number | null;
+    vram_available_gb: number | null;
+    vram_source: string;
+    torch_cuda_available: boolean;
+    python_executable: string;
+    uv_available: boolean;
+  };
+}> {
+  const res = await fetch(`${API}/api/system/capabilities`);
+  if (!res.ok) throw new Error("Failed to load system capabilities");
+  return res.json();
+}
+
+export class InstallCancelledError extends Error {
+  constructor(modelId: string) {
+    super(`Install cancelled: ${modelId}`);
+    this.name = "InstallCancelledError";
+  }
+}
+
 export async function installModelWithProgress(
   modelId: string,
   onProgress?: (state: ModelInstallState) => void,
+  options?: { shouldStop?: () => boolean },
 ): Promise<ModelInstallState> {
   const res = await fetch(`${API}/api/models/${modelId}/install`, { method: "POST" });
   if (!res.ok) {
@@ -588,14 +647,30 @@ export async function installModelWithProgress(
   if (state.status === "ready") {
     return state;
   }
+  if (state.status === "cancelled") {
+    throw new InstallCancelledError(modelId);
+  }
 
   const deadline = Date.now() + 30 * 60 * 1000;
+  let cancelRequested = false;
   while (Date.now() < deadline) {
+    if (!cancelRequested && options?.shouldStop?.()) {
+      cancelRequested = true;
+      try {
+        state = await cancelModelInstall(modelId);
+        onProgress?.(state);
+      } catch {
+        // Keep polling; the install thread may still flip to cancelled.
+      }
+    }
     await sleep(400);
     state = await fetchModelInstallStatus(modelId);
     onProgress?.(state);
     if (state.status === "ready") {
       return state;
+    }
+    if (state.status === "cancelled") {
+      throw new InstallCancelledError(modelId);
     }
     if (state.status === "failed") {
       throw new Error(state.error ?? `Install failed: ${modelId}`);

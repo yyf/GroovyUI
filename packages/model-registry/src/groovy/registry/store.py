@@ -57,9 +57,38 @@ class InstallStore:
         state.progress = 0.0
         return self.update(state)
 
+    def mark_cancelled(self, model_id: str, message: str = "Install cancelled") -> InstallState:
+        state = self.get(model_id)
+        state.status = "cancelled"
+        state.error = message
+        state.progress = 0.0
+        return self.update(state)
+
     def mark_progress(self, model_id: str, status: str, progress: float) -> InstallState:
         state = self.get(model_id)
         state.status = status
         state.progress = progress
         state.error = None
         return self.update(state)
+
+    def clear(self, model_id: str) -> InstallState:
+        """Reset install tracking to not_installed (does not delete weight files)."""
+        self._state.pop(model_id, None)
+        self._save()
+        return InstallState(model_id=model_id)
+
+    def model_dir(self, model_id: str) -> Path:
+        return self.root / model_id
+
+    def directory_size_bytes(self, path: Path | None = None) -> int:
+        target = path or self.root
+        if not target.exists():
+            return 0
+        total = 0
+        for entry in target.rglob("*"):
+            if entry.is_file():
+                try:
+                    total += entry.stat().st_size
+                except OSError:
+                    continue
+        return total
