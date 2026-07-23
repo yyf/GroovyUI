@@ -4,7 +4,7 @@ Patch-bay for AI audio — patch models in a graph, render sample-accurate previ
 
 ## Quick start
 
-Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), and Node 20+.
+Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), and Node 20+. Needs **two terminals** (API + Studio).
 
 ```bash
 uv sync --all-packages --group dev
@@ -17,7 +17,9 @@ uv run --package groovy-server groovy-server
 cd apps/studio && npm run dev
 ```
 
-Open http://127.0.0.1:5173 — pick a template, install models (**Cmd+K**), **Render chain**, audition from cache.
+Open http://127.0.0.1:5173. Keep Settings → Inference on **Real** (Stub is for UI/CI only). Pick a featured template → **Cmd+K** → install required models → **Render** → audition the cached preview.
+
+First model install can take minutes and gigabytes of disk; later renders reuse the local cache. Play is audition of the last render — not live inference.
 
 ## Verify
 
