@@ -31,16 +31,22 @@ export default function OnboardingOverlay({ open, onClose, onStartHello }: Props
     <div className="onboarding-backdrop">
       <div className="onboarding">
         <h2>Welcome to GroovyUI</h2>
-        <p>Patch AI audio like a modular synth. Render sample-accurate previews, then save files from the graph.</p>
+        <p>
+          Patch AI audio like a modular synth. Render sample-accurate previews, then save files
+          from the graph. Keep Inference on <strong>Real</strong> for demos (Stub is UI/CI only).
+        </p>
         <ol className="onboarding__steps">
           <li>
-            <strong>Search &amp; install</strong> — Cmd+K → Model Browser → install hero models.
+            <strong>Search &amp; install</strong> — Cmd+K → Model Browser → install required
+            models. The first download is the long step (minutes / GB); later runs use cache.
           </li>
           <li>
-            <strong>Patch &amp; render</strong> — open a featured template, wire the chain, press Render.
+            <strong>Patch &amp; render</strong> — open a featured template, wire the chain, press
+            Render.
           </li>
           <li>
-            <strong>Audition</strong> — Play previews cached from your last render (not live inference).
+            <strong>Audition</strong> — Play the cached preview from your last render (not live
+            inference).
           </li>
           <li>
             <strong>Compliance</strong> — review license, provenance, and authenticity.
@@ -50,7 +56,8 @@ export default function OnboardingOverlay({ open, onClose, onStartHello }: Props
             <code>workspace/share</code>.
           </li>
           <li>
-            <strong>Save/export audio</strong> — render the SaveAudio node; files land under <code>exports/</code>.
+            <strong>Save/export audio</strong> — render the SaveAudio node; files land under{" "}
+            <code>exports/</code>.
           </li>
         </ol>
         <div className="onboarding__actions">

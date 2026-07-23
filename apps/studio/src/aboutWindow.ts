@@ -18,19 +18,20 @@ function popupShell(title: string, body: string, height = 360): void {
   <title>${escapeHtml(title)}</title>
   <style>
     * { box-sizing: border-box; }
+    html, body { margin: 0; }
     body {
-      margin: 0;
-      padding: 24px;
+      padding: 18px 20px 16px;
       font-family: "SF Pro Text", "Inter", system-ui, sans-serif;
       background: linear-gradient(165deg, #1a1a1a 0%, #050505 55%, #111 100%);
       color: #e8e8e8;
-      min-height: 100vh;
+      overflow: hidden;
     }
-    h1 { margin: 0 0 4px; font-size: 18px; font-weight: 500; letter-spacing: 0.04em; }
-    .sub { color: #9a9a9a; font-size: 12px; margin-bottom: 20px; line-height: 1.5; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    td { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: top; }
-    td:first-child { color: #8a8a8a; width: 42%; }
+    h1 { margin: 0 0 2px; font-size: 17px; font-weight: 500; letter-spacing: 0.04em; }
+    .sub { color: #9a9a9a; font-size: 12px; margin: 0 0 10px; line-height: 1.45; }
+    .sub:last-of-type { margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    td { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.08); vertical-align: top; }
+    td:first-child { color: #8a8a8a; width: 36%; padding-right: 10px; }
     .ok { color: #d4d4d4; }
     .bad { color: #a0a0a0; }
   </style>
@@ -40,18 +41,42 @@ ${body}
 </body>
 </html>`;
 
-  const popup = window.open("", `groovy-${title.toLowerCase().replace(/\s+/g, "-")}`, `width=440,height=${height},menubar=no,toolbar=no,location=no`);
+  const width = 440;
+  const popup = window.open(
+    "",
+    `groovy-${title.toLowerCase().replace(/\s+/g, "-")}`,
+    `width=${width},height=${height},menubar=no,toolbar=no,location=no`,
+  );
   if (!popup) return;
   popup.document.open();
   popup.document.write(html);
   popup.document.close();
+
+  // Fit chrome + content so the About copy is fully visible without scrolling.
+  const fit = () => {
+    try {
+      const doc = popup.document;
+      const contentHeight = Math.ceil(
+        Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight),
+      );
+      const chrome = popup.outerHeight - popup.innerHeight;
+      const nextHeight = Math.min(
+        Math.max(contentHeight + chrome + 8, 280),
+        Math.floor(window.screen.availHeight * 0.9),
+      );
+      popup.resizeTo(width, nextHeight);
+    } catch {
+      /* popup may be blocked from resize in some browsers */
+    }
+  };
+  popup.requestAnimationFrame(() => fit());
+  setTimeout(fit, 50);
 }
 
 export function openAboutWindow(): void {
   const body = `
   <h1>GroovyUI Studio</h1>
-  <p class="sub">Patch-bay for AI audio.</p>
-  <p class="sub">Version ${STUDIO_VERSION}</p>
+  <p class="sub">Patch-bay for AI audio. Version ${STUDIO_VERSION}</p>
   <p class="sub">A node-graph studio purpose-built for AI audio — patch models and operators, render with sample accuracy, and stay in the graph while you explore, compare, and share.</p>
   <p class="sub">General-purpose graph tools spread audio across scattered custom nodes. GroovyUI fills that gap with an audio-native registry, typed signal flow, provenance, and modular-synth ergonomics in one workflow.</p>
   <table>
@@ -59,7 +84,7 @@ export function openAboutWindow(): void {
     <tr><td>Signals</td><td>Audio, MIDI, stems, and control</td></tr>
     <tr><td>License</td><td>Apache 2.0 (core packages)</td></tr>
   </table>`;
-  popupShell("GroovyUI — About", body, 400);
+  popupShell("GroovyUI — About", body, 520);
 }
 
 export async function openApiStatusWindow(): Promise<void> {
