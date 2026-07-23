@@ -3900,6 +3900,12 @@ body {
   line-height: 1.5;
 }
 
+.model-browser__notice {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .model-browser__error code {
   font-size: 11px;
   color: var(--text-primary);
@@ -4386,6 +4392,30 @@ body {
 .compliance-estimates__grid strong {
   font-size: 14px;
   overflow-wrap: anywhere;
+}
+
+.compliance-machine-checks {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compliance-machine-checks__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.compliance-machine-checks__item--error {
+  color: var(--text-primary);
+}
+
+.compliance-machine-checks__item--warning .pill {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-silver));
 }
 
 .compliance-chain {

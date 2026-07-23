@@ -31,7 +31,7 @@ def test_model_install_dev_stub(tmp_path: Path) -> None:
 def test_install_python_deps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, bool]] = []
 
-    def fake_pip(requirement: str, *, no_deps: bool = False) -> None:
+    def fake_pip(requirement: str, *, no_deps: bool = False, cancel_check=None) -> None:
         calls.append((requirement, no_deps))
 
     monkeypatch.delenv("GROOVY_INFERENCE_STUB", raising=False)
@@ -54,17 +54,30 @@ def test_run_pip_install_prefers_uv(monkeypatch: pytest.MonkeyPatch) -> None:
 
     captured: list[list[str]] = []
 
-    def fake_run(command, **kwargs):
-        captured.append(command)
-        class Result:
-            returncode = 0
-            stdout = ""
-            stderr = ""
+    class FakeProc:
+        returncode = 0
 
-        return Result()
+        def poll(self):
+            return 0
+
+        def communicate(self):
+            return ("", "")
+
+        def terminate(self):
+            return None
+
+        def kill(self):
+            return None
+
+        def wait(self, timeout=None):
+            return 0
+
+    def fake_popen(command, **kwargs):
+        captured.append(command)
+        return FakeProc()
 
     monkeypatch.setattr(installer_mod.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
-    monkeypatch.setattr(installer_mod.subprocess, "run", fake_run)
+    monkeypatch.setattr(installer_mod.subprocess, "Popen", fake_popen)
     installer_mod._run_pip_install("torch>=2.0.0")
     assert captured[0][:4] == ["uv", "pip", "install", "--python"]
     assert captured[0][-1] == "torch>=2.0.0"
@@ -73,7 +86,7 @@ def test_run_pip_install_prefers_uv(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_install_python_deps_no_deps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, bool]] = []
 
-    def fake_pip(requirement: str, *, no_deps: bool = False) -> None:
+    def fake_pip(requirement: str, *, no_deps: bool = False, cancel_check=None) -> None:
         calls.append((requirement, no_deps))
 
     monkeypatch.delenv("GROOVY_INFERENCE_STUB", raising=False)

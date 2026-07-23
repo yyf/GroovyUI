@@ -316,6 +316,23 @@ export type LicenseScanSummary = ComplianceSummary & {
       node_type: string;
       seconds_per_audio_minute: { low: number; high: number };
     }>;
+    machine?: {
+      disk_free_mb: number;
+      disk_path: string;
+      models_dir?: string;
+      models_used_mb?: number;
+      ram_available_gb: number | null;
+      vram_available_gb: number | null;
+      vram_source: string;
+      torch_cuda_available: boolean;
+      python_executable: string;
+      uv_available: boolean;
+    };
+    checks?: Array<{
+      code: string;
+      severity: "ok" | "warning" | "error";
+      message: string;
+    }>;
   };
   scan_ok: boolean;
   agent: string;

@@ -28,6 +28,12 @@ export function fastPathBlockReason(
   if (intent === "commercial" && !license.scan_ok) {
     return "Choose a commercial-safe alternative for each flagged model, or switch to evaluation use.";
   }
+  const diskShort = license.preflight?.checks?.find(
+    (check) => check.code === "DISK_SHORT" && check.severity === "error",
+  );
+  if (diskShort) {
+    return diskShort.message;
+  }
   return null;
 }
 
@@ -359,6 +365,25 @@ export default function ComplianceDrawer({
                       </div>
                     </div>
                     <p className="compliance-hint">{preflight.render_time.note}</p>
+                    {preflight.checks && preflight.checks.length > 0 ? (
+                      <ul className="compliance-machine-checks" aria-label="Machine checks">
+                        {preflight.checks.map((check) => (
+                          <li
+                            key={check.code}
+                            className={`compliance-machine-checks__item compliance-machine-checks__item--${check.severity}`}
+                          >
+                            <span className="pill">
+                              {check.severity === "ok"
+                                ? "OK"
+                                : check.severity === "warning"
+                                  ? "Warn"
+                                  : "Block"}
+                            </span>
+                            <span>{check.message}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </section>
                 ) : null}
                 <div className="compliance-chain">
@@ -550,7 +575,9 @@ export default function ComplianceDrawer({
                       onCancelInstall?.();
                     }}
                   >
-                    {fastPathStopping ? "Stopping after current model…" : "Stop after current model"}
+                    {fastPathStopping
+                      ? "Interrupting active download…"
+                      : "Stop install (interrupt download)"}
                   </button>
                 ) : (
                   <button

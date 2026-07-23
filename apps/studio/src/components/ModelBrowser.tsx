@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  cancelModelInstall,
   createModelDraft,
   discoverModels,
   fetchInstallRecovery,
   fetchModelCard,
+  InstallCancelledError,
   installModelWithProgress,
   recommendModels,
+  removeModelInstall,
   searchModels,
   suggestWorkflows,
 } from "../api";
@@ -141,12 +144,15 @@ export default function ModelBrowser({
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [installProgress, setInstallProgress] = useState<Record<string, ModelInstallState>>({});
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<InstallRecovery | null>(null);
   const [failedModelId, setFailedModelId] = useState<string | null>(null);
   const [detailModelId, setDetailModelId] = useState<string | null>(null);
   const [showInstallLogs, setShowInstallLogs] = useState(false);
   const [requiredModels, setRequiredModels] = useState<ModelCard[]>([]);
   const [installingAllRequired, setInstallingAllRequired] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const installStopRef = useRef(false);
 
   const requiredModelIds = launch?.requiredModelIds ?? [];
 
@@ -314,12 +320,23 @@ export default function ModelBrowser({
     setFailedModelId(null);
     setShowInstallLogs(false);
     setError(null);
+    setNotice(null);
+    installStopRef.current = false;
     try {
-      await installModelWithProgress(modelId, (state) => {
-        setInstallProgress((prev) => ({ ...prev, [modelId]: state }));
-      });
+      await installModelWithProgress(
+        modelId,
+        (state) => {
+          setInstallProgress((prev) => ({ ...prev, [modelId]: state }));
+        },
+        { shouldStop: () => installStopRef.current },
+      );
       await refresh();
     } catch (err) {
+      if (err instanceof InstallCancelledError) {
+        setError(null);
+        await refresh();
+        return;
+      }
       setFailedModelId(modelId);
       try {
         const recoveryData = await fetchInstallRecovery(modelId);
@@ -332,6 +349,57 @@ export default function ModelBrowser({
     }
   };
 
+  const handleCancelInstall = (modelId: string) => {
+    installStopRef.current = true;
+    void cancelModelInstall(modelId).catch(() => {
+      // Polling loop still observes shouldStop / cancelled status.
+    });
+  };
+
+  const handleRemoveInstall = async (modelId: string, modelName: string) => {
+    const confirmed = window.confirm(
+      `Remove local files for “${modelName}”? This frees disk space. Shared Python packages stay installed; reinstall from Model Browser when needed.`,
+    );
+    if (!confirmed) return;
+    setRemovingId(modelId);
+    setError(null);
+    setNotice(null);
+    setRecovery(null);
+    setFailedModelId(null);
+    try {
+      const result = await removeModelInstall(modelId);
+      setInstallProgress((prev) => {
+        const next = { ...prev };
+        delete next[modelId];
+        return next;
+      });
+      await refresh();
+      setRequiredModels((prev) =>
+        prev.map((entry) =>
+          entry.id === modelId
+            ? {
+                ...entry,
+                install_status: "not_installed",
+                install_progress: 0,
+                install_error: null,
+                install_complete: false,
+                inference_ready: false,
+              }
+            : entry,
+        ),
+      );
+      setNotice(
+        result.freed_mb > 0
+          ? `Removed ${modelName} (~${result.freed_mb} MB freed).`
+          : `Removed ${modelName} install record.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Remove failed");
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
   const handleInstallAllRequired = async () => {
     const pending = requiredModels.filter((model) => !modelIsReady(model));
     if (!pending.length) return;
@@ -339,12 +407,23 @@ export default function ModelBrowser({
     setError(null);
     setRecovery(null);
     setFailedModelId(null);
+    installStopRef.current = false;
     try {
       for (const model of pending) {
+        if (installStopRef.current) break;
         setInstallingId(model.id);
-        await installModelWithProgress(model.id, (state) => {
-          setInstallProgress((prev) => ({ ...prev, [model.id]: state }));
-        });
+        try {
+          await installModelWithProgress(
+            model.id,
+            (state) => {
+              setInstallProgress((prev) => ({ ...prev, [model.id]: state }));
+            },
+            { shouldStop: () => installStopRef.current },
+          );
+        } catch (err) {
+          if (err instanceof InstallCancelledError) break;
+          throw err;
+        }
         const refreshed = await fetchModelCard(model.id);
         setRequiredModels((prev) => prev.map((entry) => (entry.id === model.id ? refreshed : entry)));
       }
@@ -418,6 +497,20 @@ export default function ModelBrowser({
 
     const needsSetup = modelNeedsReinstall(model);
     const readyForUse = status === "ready" && !needsSetup;
+    const isRemoving = removingId === model.id;
+    const canRemove =
+      !isInstalling &&
+      !isRemoving &&
+      (readyForUse || needsSetup || status === "failed" || status === "cancelled");
+    const removeButton = canRemove ? (
+      <button type="button" onClick={() => void handleRemoveInstall(model.id, model.name)}>
+        Remove
+      </button>
+    ) : isRemoving ? (
+      <button type="button" disabled>
+        Removing…
+      </button>
+    ) : null;
 
     if (readyForUse) {
       return (
@@ -437,21 +530,44 @@ export default function ModelBrowser({
               Select
             </button>
           ) : null}
+          {removeButton}
         </>
       );
     }
 
     if (needsSetup) {
-      return (
-        <button type="button" disabled={isInstalling} onClick={() => void handleInstall(model.id)}>
-          {isInstalling ? installStatusLabel(status) : "Reinstall / fix setup"}
+      return isInstalling ? (
+        <button type="button" onClick={() => handleCancelInstall(model.id)}>
+          Cancel install
         </button>
+      ) : (
+        <>
+          <button type="button" onClick={() => void handleInstall(model.id)}>
+            Reinstall / fix setup
+          </button>
+          {removeButton}
+        </>
       );
     }
 
-    return (
-      <button type="button" disabled={isInstalling} onClick={() => void handleInstall(model.id)}>
-        {isInstalling ? installStatusLabel(status, model.install_progress) : "Install"}
+    if (status === "failed" || status === "cancelled") {
+      return (
+        <>
+          <button type="button" disabled={isInstalling} onClick={() => void handleInstall(model.id)}>
+            Retry install
+          </button>
+          {removeButton}
+        </>
+      );
+    }
+
+    return isInstalling ? (
+      <button type="button" onClick={() => handleCancelInstall(model.id)}>
+        {status === "cancelling" ? "Cancelling…" : "Cancel install"}
+      </button>
+    ) : (
+      <button type="button" onClick={() => void handleInstall(model.id)}>
+        Install
       </button>
     );
   };
@@ -648,6 +764,7 @@ export default function ModelBrowser({
             <div className="model-browser__list">
               {loading ? <p className="model-browser__hint">Searching…</p> : null}
               {error ? <p className="model-browser__error">{error}</p> : null}
+              {notice ? <p className="model-browser__notice">{notice}</p> : null}
               {mode === "workflow" ? (
                 <>
                   {!loading && !error && workflowSuggestions.length === 0 ? (
@@ -743,7 +860,11 @@ export default function ModelBrowser({
                     const liveProgress = installProgress[model.id];
                     const status = modelCardStatus(model, liveProgress);
                     const progress = liveProgress?.progress ?? model.install_progress;
-                    const isInstalling = installingId === model.id || status === "downloading" || status === "verifying";
+                    const isInstalling =
+                      installingId === model.id ||
+                      status === "downloading" ||
+                      status === "verifying" ||
+                      status === "cancelling";
                     const nodeType = model.compatible_nodes?.[0];
                     const badge = licenseBadge(model.license);
                     const tags = model.tags ?? [];
