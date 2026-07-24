@@ -6,7 +6,7 @@ type CapabilitiesSnapshot = {
   inference_stub_active: boolean;
   machine: {
     disk_free_mb: number;
-    models_used_mb?: number;
+    models_used_mb?: number | null;
     ram_available_gb: number | null;
     vram_available_gb: number | null;
     vram_source: string;
