@@ -1297,6 +1297,9 @@ function savePickerTypes(format: unknown): FilePickerAcceptType[] {
   if (fmt === "flac") {
     return [{ description: "FLAC audio", accept: { "audio/flac": [".flac"] } }];
   }
+  if (fmt === "mp4" || fmt === "m4a" || fmt === "aac") {
+    return [{ description: "MPEG-4 audio", accept: { "audio/mp4": [".mp4", ".m4a"] } }];
+  }
   return [{ description: "WAV audio", accept: { "audio/wav": [".wav"] } }];
 }
 
@@ -1338,7 +1341,7 @@ function LoadAudioPathInput({
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.opus"
+        accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.opus,.mp4,.m4a,.aac"
         className="node-helper__file-input-hidden"
         onChange={(e) => void handleFile(e.target.files?.[0])}
       />
@@ -1405,7 +1408,7 @@ function SaveAudioFilenameInput({
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.opus"
+        accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.opus,.mp4,.m4a,.aac"
         className="node-helper__file-input-hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];

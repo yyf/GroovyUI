@@ -138,8 +138,11 @@ export default function TransportBar({
       if (!(audio.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(audio.duration) && audio.duration > 0)) {
         return;
       }
-      // Avoid seeking exactly to duration (some browsers snap to end/ended).
-      audio.currentTime = Math.min(clamped * audio.duration, Math.max(0, audio.duration - 0.001));
+      // Ratio is against the waveform/MIDI timeline; map that to media seconds.
+      // Using audio.duration alone breaks when preview WAV duration disagrees (e.g. stereo flattened to mono).
+      const mediaDur = audio.duration;
+      const seekSec = Math.min(clamped * dur, Math.max(0, mediaDur - 0.001));
+      audio.currentTime = seekSec;
     },
     [timelineDuration],
   );

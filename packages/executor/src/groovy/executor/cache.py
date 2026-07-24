@@ -347,11 +347,13 @@ class CacheStore:
         import soundfile as sf
 
         _, pcm = self.load_audio(cache_id)
-        interleaved = pcm.T.reshape(-1)
+        # Planar (channels, frames) → soundfile expects (frames, channels).
+        # Do not flatten stereo to mono: that doubles duration and breaks seek UI.
+        frames = pcm if pcm.ndim == 1 else pcm.T
         buf = io.BytesIO()
         sf.write(
             buf,
-            interleaved,
+            frames,
             self.read_meta(cache_id)["sample_rate"],
             format="WAV",
             subtype="PCM_16",

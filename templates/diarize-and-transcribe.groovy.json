@@ -11,7 +11,7 @@
     "modified_at": "2026-07-15T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 40 }, "widgets": { "path": "assets/samples/male-1.wav" } },
+    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 40 }, "widgets": { "path": "assets/samples/diarization.wav" } },
     {
       "id": "n2",
       "type": "DiarizeTranscribe",
