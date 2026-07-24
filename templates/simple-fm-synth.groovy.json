@@ -5,8 +5,16 @@
   "metadata": {
     "title": "Simple FM Synth",
     "author": "groovy",
-    "description": "Patch classic FM from blocks: I = Δf/f_m (FloatMath), mod Osc(f_m, I), carrier Osc(f_c, A_c, phase_mod=mod) → y = A_c·sin(2π f_c t + I·sin(2π f_m t)).",
-    "tags": ["featured", "modular", "fm", "synth", "oscillator", "control", "fast"],
+    "description": "Patch classic FM from blocks: I = \u0394f/f_m (FloatMath), mod Osc(f_m, I), carrier Osc(f_c, A_c, phase_mod=mod) \u2192 y = A_c\u00b7sin(2\u03c0 f_c t + I\u00b7sin(2\u03c0 f_m t)).",
+    "tags": [
+      "featured",
+      "modular",
+      "fm",
+      "synth",
+      "oscillator",
+      "control",
+      "fast"
+    ],
     "created_at": "2026-07-20T18:30:00Z",
     "modified_at": "2026-07-20T18:50:00Z"
   },
@@ -14,7 +22,10 @@
     {
       "id": "n1",
       "type": "ControlCurve",
-      "pos": { "x": 0, "y": 0 },
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
       "widgets": {
         "start_value": 0.0,
         "end_value": 0.0,
@@ -26,7 +37,10 @@
     {
       "id": "n2",
       "type": "ControlCurve",
-      "pos": { "x": 0, "y": 180 },
+      "pos": {
+        "x": 0,
+        "y": 136
+      },
       "widgets": {
         "start_value": 440.0,
         "end_value": 440.0,
@@ -38,7 +52,10 @@
     {
       "id": "n3",
       "type": "ControlCurve",
-      "pos": { "x": 0, "y": 360 },
+      "pos": {
+        "x": 0,
+        "y": 272
+      },
       "widgets": {
         "start_value": 220.0,
         "end_value": 220.0,
@@ -50,7 +67,10 @@
     {
       "id": "n4",
       "type": "ControlCurve",
-      "pos": { "x": 0, "y": 540 },
+      "pos": {
+        "x": 0,
+        "y": 408
+      },
       "widgets": {
         "start_value": 770.0,
         "end_value": 770.0,
@@ -62,13 +82,21 @@
     {
       "id": "n5",
       "type": "FloatMath",
-      "pos": { "x": 280, "y": 440 },
-      "widgets": { "operation": "divide" }
+      "pos": {
+        "x": 236,
+        "y": 0
+      },
+      "widgets": {
+        "operation": "divide"
+      }
     },
     {
       "id": "n6",
       "type": "SignalGenerator",
-      "pos": { "x": 520, "y": 360 },
+      "pos": {
+        "x": 472,
+        "y": 0
+      },
       "widgets": {
         "waveform": "sine",
         "frequency_hz": 220.0,
@@ -80,7 +108,10 @@
     {
       "id": "n7",
       "type": "SignalGenerator",
-      "pos": { "x": 760, "y": 120 },
+      "pos": {
+        "x": 708,
+        "y": 0
+      },
       "widgets": {
         "waveform": "sine",
         "frequency_hz": 440.0,
@@ -92,14 +123,31 @@
     {
       "id": "n8",
       "type": "Normalize",
-      "pos": { "x": 1000, "y": 120 },
-      "widgets": { "mode": "peak", "target_peak_db": -1.0 }
+      "pos": {
+        "x": 944,
+        "y": 0
+      },
+      "widgets": {
+        "mode": "peak",
+        "target_peak_db": -1.0
+      }
     },
-    { "id": "n9", "type": "Preview", "pos": { "x": 1240, "y": 40 }, "widgets": {} },
+    {
+      "id": "n9",
+      "type": "Preview",
+      "pos": {
+        "x": 1180,
+        "y": 0
+      },
+      "widgets": {}
+    },
     {
       "id": "n10",
       "type": "SaveAudio",
-      "pos": { "x": 1240, "y": 200 },
+      "pos": {
+        "x": 1180,
+        "y": 124
+      },
       "widgets": {
         "path": "exports",
         "filename": "simple-fm-synth.wav",
@@ -108,17 +156,133 @@
     }
   ],
   "links": [
-    { "id": "l1", "from": ["n4", 0], "to": ["n5", 0], "type": "AUTOMATION" },
-    { "id": "l2", "from": ["n3", 0], "to": ["n5", 1], "type": "AUTOMATION" },
-    { "id": "l3", "from": ["n3", 0], "to": ["n6", 0], "type": "AUTOMATION" },
-    { "id": "l4", "from": ["n5", 0], "to": ["n6", 1], "type": "AUTOMATION" },
-    { "id": "l5", "from": ["n2", 0], "to": ["n7", 0], "type": "AUTOMATION" },
-    { "id": "l6", "from": ["n1", 0], "to": ["n7", 1], "type": "AUTOMATION" },
-    { "id": "l7", "from": ["n6", 0], "to": ["n7", 2], "type": "AUDIO" },
-    { "id": "l8", "from": ["n7", 0], "to": ["n8", 0], "type": "AUDIO" },
-    { "id": "l9", "from": ["n8", 0], "to": ["n9", 0], "type": "AUDIO" },
-    { "id": "l10", "from": ["n8", 0], "to": ["n10", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n4",
+        0
+      ],
+      "to": [
+        "n5",
+        0
+      ],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n5",
+        1
+      ],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n6",
+        0
+      ],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l4",
+      "from": [
+        "n5",
+        0
+      ],
+      "to": [
+        "n6",
+        1
+      ],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l5",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n7",
+        0
+      ],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l6",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n7",
+        1
+      ],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l7",
+      "from": [
+        "n6",
+        0
+      ],
+      "to": [
+        "n7",
+        2
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l8",
+      "from": [
+        "n7",
+        0
+      ],
+      "to": [
+        "n8",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l9",
+      "from": [
+        "n8",
+        0
+      ],
+      "to": [
+        "n9",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l10",
+      "from": [
+        "n8",
+        0
+      ],
+      "to": [
+        "n10",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 0.7, "pan": { "x": 10, "y": 0 } }
+  "view": {
+    "zoom": 0.7,
+    "pan": {
+      "x": 10,
+      "y": 0
+    }
+  }
 }

@@ -6,24 +6,138 @@
     "title": "Authenticity Check",
     "author": "groovy",
     "description": "Verify provenance sidecar and run deepfake detection on inbound audio.",
-    "tags": ["authenticity", "deepfake", "provenance"],
+    "tags": [
+      "authenticity",
+      "deepfake",
+      "provenance"
+    ],
     "created_at": "2026-07-06T12:00:00Z",
     "modified_at": "2026-07-06T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
-    { "id": "n2", "type": "VerifyProvenance", "pos": { "x": 260, "y": -80 }, "widgets": { "check_sidecar": true } },
-    { "id": "n3", "type": "DeepfakeDetect", "pos": { "x": 260, "y": 80 }, "widgets": { "model": "rawnet2-asvspoof", "threshold": 0.5 } },
-    { "id": "n4", "type": "AuthenticitySummary", "pos": { "x": 520, "y": 0 }, "widgets": { "spoof_threshold": 0.5 } },
-    { "id": "n5", "type": "Preview", "pos": { "x": 780, "y": 0 }, "widgets": {} }
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "path": "assets/samples/male-1.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "VerifyProvenance",
+      "pos": {
+        "x": 236,
+        "y": 0
+      },
+      "widgets": {
+        "check_sidecar": true
+      }
+    },
+    {
+      "id": "n3",
+      "type": "DeepfakeDetect",
+      "pos": {
+        "x": 236,
+        "y": 248
+      },
+      "widgets": {
+        "model": "rawnet2-asvspoof",
+        "threshold": 0.5
+      }
+    },
+    {
+      "id": "n4",
+      "type": "AuthenticitySummary",
+      "pos": {
+        "x": 472,
+        "y": 0
+      },
+      "widgets": {
+        "spoof_threshold": 0.5
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Preview",
+      "pos": {
+        "x": 236,
+        "y": 124
+      },
+      "widgets": {}
+    }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
-    { "id": "l2", "from": ["n1", 0], "to": ["n3", 0], "type": "AUDIO" },
-    { "id": "l3", "from": ["n2", 0], "to": ["n4", 0], "type": "AUTHENTICITY" },
-    { "id": "l4", "from": ["n3", 0], "to": ["n4", 1], "type": "AUTHENTICITY" },
-    { "id": "l5", "from": ["n1", 0], "to": ["n5", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "AUTHENTICITY"
+    },
+    {
+      "id": "l4",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n4",
+        1
+      ],
+      "type": "AUTHENTICITY"
+    },
+    {
+      "id": "l5",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n5",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
 }

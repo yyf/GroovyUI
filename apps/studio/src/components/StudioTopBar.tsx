@@ -71,16 +71,6 @@ export default function StudioTopBar({
             onTaskStart={onGenerateTaskStart}
             openNonce={generateOpenNonce}
           />
-        </div>
-        <div className="top-bar__tools">
-          {inferenceStubActive ? (
-            <span
-              className="top-bar__stub-pill"
-              title="Stub inference is active — AI nodes use stand-ins, not real weights. Change in Settings → Inference."
-            >
-              Stub inference
-            </span>
-          ) : null}
           <button
             type="button"
             className="top-bar__tool"
@@ -91,6 +81,16 @@ export default function StudioTopBar({
             Models
             <kbd className="workflow-generate__kbd">⌘K</kbd>
           </button>
+        </div>
+        <div className="top-bar__tools">
+          {inferenceStubActive ? (
+            <span
+              className="top-bar__stub-pill"
+              title="Stub inference is active — AI nodes use stand-ins, not real weights. Change in Settings → Inference."
+            >
+              Stub inference
+            </span>
+          ) : null}
           <button
             type="button"
             className={`top-bar__tool${complianceWarnings > 0 ? " top-bar__tool--warn" : ""}`}

@@ -5,21 +5,103 @@
   "metadata": {
     "title": "Sing from MIDI",
     "description": "Synthesize singing from MIDI melody and lyrics with DiffSinger (dev stub).",
-    "tags": ["midi", "singing", "diffsinger"],
+    "tags": [
+      "midi",
+      "singing",
+      "diffsinger"
+    ],
     "created_at": "2026-07-06T12:30:00Z",
     "modified_at": "2026-07-06T12:30:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadMIDI", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/automation_cc7.mid", "midi_kind": "performance" } },
-    { "id": "n2", "type": "Prompt", "pos": { "x": 0, "y": 120 }, "widgets": { "text": "la la la groovy melody" } },
-    { "id": "n3", "type": "SingFromMIDI", "pos": { "x": 280, "y": 0 }, "widgets": { "model": "diffsinger-opencpop" } },
-    { "id": "n4", "type": "Preview", "pos": { "x": 540, "y": 0 }, "widgets": {} }
+    {
+      "id": "n1",
+      "type": "LoadMIDI",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "path": "assets/samples/automation_cc7.mid",
+        "midi_kind": "performance"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 124
+      },
+      "widgets": {
+        "text": "la la la groovy melody"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "SingFromMIDI",
+      "pos": {
+        "x": 246,
+        "y": 0
+      },
+      "widgets": {
+        "model": "diffsinger-opencpop"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Preview",
+      "pos": {
+        "x": 492,
+        "y": 0
+      },
+      "widgets": {}
+    }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n3", 0], "type": "MIDI" },
-    { "id": "l2", "from": ["n2", 0], "to": ["n3", 1], "type": "TEXT" },
-    { "id": "l3", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "MIDI"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        1
+      ],
+      "type": "TEXT"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
 }

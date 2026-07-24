@@ -5,16 +5,70 @@
   "metadata": {
     "title": "Voice Convert Demo",
     "description": "Load audio and apply voice conversion.",
-    "tags": ["ai", "conversion", "rvc"]
+    "tags": [
+      "ai",
+      "conversion",
+      "rvc"
+    ]
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
-    { "id": "n2", "type": "VoiceConvert", "pos": { "x": 280, "y": 0 }, "widgets": { "model": "rvc-v2-base" } },
-    { "id": "n3", "type": "Preview", "pos": { "x": 560, "y": 0 }, "widgets": {} }
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "path": "assets/samples/male-1.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "VoiceConvert",
+      "pos": {
+        "x": 236,
+        "y": 0
+      },
+      "widgets": {
+        "model": "rvc-v2-base"
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Preview",
+      "pos": {
+        "x": 472,
+        "y": 0
+      },
+      "widgets": {}
+    }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
-    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": []
 }
