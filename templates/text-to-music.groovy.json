@@ -6,19 +6,85 @@
     "title": "Text to Music",
     "author": "groovy",
     "description": "Generate a music bed from a text prompt (MusicGen Small). Edit prompt and seed in the Inspector, then Preview and save to exports. Swap model to musicgen-medium for higher quality. Optional: wire a Prompt node into the TEXT socket.",
-    "tags": ["featured", "generation", "musicgen", "text", "music"],
+    "tags": [
+      "featured",
+      "generation",
+      "musicgen",
+      "text",
+      "music"
+    ],
     "created_at": "2026-07-06T12:30:00Z",
     "modified_at": "2026-07-17T21:00:00Z"
   },
   "nodes": [
-    { "id": "n2", "type": "GenerateAudio", "pos": { "x": 80, "y": 40 }, "widgets": { "model": "musicgen-small", "prompt": "warm lo-fi beat with soft piano", "seed": -1 } },
-    { "id": "n3", "type": "Preview", "pos": { "x": 360, "y": 0 }, "widgets": {} },
-    { "id": "n4", "type": "SaveAudio", "pos": { "x": 360, "y": 160 }, "widgets": { "path": "exports", "filename": "text-to-music.wav", "format": "wav" } }
+    {
+      "id": "n2",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "model": "musicgen-small",
+        "prompt": "warm lo-fi beat with soft piano",
+        "seed": -1
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Preview",
+      "pos": {
+        "x": 246,
+        "y": 0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n4",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 246,
+        "y": 124
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-music.wav",
+        "format": "wav"
+      }
+    }
   ],
   "links": [
-    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
-    { "id": "l3", "from": ["n2", 0], "to": ["n4", 0], "type": "AUDIO" }
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
 }

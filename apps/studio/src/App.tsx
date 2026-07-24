@@ -62,6 +62,11 @@ import {
   runFastPathSequence,
   type FastPathRunResult,
 } from "./fastPath";
+import {
+  resolveInferenceParams,
+  widgetsAfterModelSwap,
+  widgetsForDroppedModel,
+} from "./modelNodeWidgets";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import {
@@ -72,6 +77,7 @@ import {
   groupForSelection,
   edgeIdsOnPathToNode,
   formatJobError,
+  layoutWorkflowNodes,
   flowNodesSyncKey,
   listDistinctChainHops,
   mergeFlowNodes,
@@ -99,7 +105,19 @@ import {
 } from "./workflow";
 
 const nodeTypes: NodeTypes = { groovy: GroovyFlowNode, groovyGroup: ModuleGroupNode };
-const DEFAULT_TEMPLATE = "podcast-denoise";
+
+function emptyWorkflow(): Workflow {
+  return {
+    schema_version: "1.0.0",
+    groovy_version: "0.1.0",
+    id: crypto.randomUUID(),
+    metadata: { title: "Untitled", description: "Pick a template or add nodes to start." },
+    nodes: [],
+    links: [],
+    groups: [],
+    view: { zoom: 1, pan: { x: 0, y: 0 } },
+  };
+}
 
 function formatActivationDuration(elapsedMs: number): string {
   const totalSeconds = Math.max(0, Math.round(elapsedMs / 1000));
@@ -109,9 +127,9 @@ function formatActivationDuration(elapsedMs: number): string {
 }
 
 export default function App() {
-  const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory();
+  const { workflow, setWorkflow, resetHistory, undo, redo } = useWorkflowHistory(emptyWorkflow());
   const [templates, setTemplates] = useState<TemplateListItem[]>([]);
-  const [activeTemplateId, setActiveTemplateId] = useState(DEFAULT_TEMPLATE);
+  const [activeTemplateId, setActiveTemplateId] = useState("");
   const [viewportFitKey, setViewportFitKey] = useState(0);
   const [nodeSchemas, setNodeSchemas] = useState<Record<string, NodeSchema>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -125,7 +143,7 @@ export default function App() {
   const [nodeIssues, setNodeIssues] = useState<Record<string, string>>({});
   const [failedNodeId, setFailedNodeId] = useState<string | null>(null);
   const [lastJob, setLastJob] = useState<JobState | null>(null);
-  const [status, setStatus] = useState("Loading template…");
+  const [status, setStatus] = useState("Ready");
   const [running, setRunning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [progress, setProgress] = useState<number | undefined>();
@@ -240,7 +258,7 @@ export default function App() {
       setComplianceFastPath(false);
       clipboardRef.current = null;
       pasteCountRef.current = 0;
-      const data = await fetchTemplate(templateId);
+      const data = layoutWorkflowNodes(await fetchTemplate(templateId));
       resetHistory(data);
       setActiveTemplateId(templateId);
       setViewportFitKey((key) => key + 1);
@@ -280,11 +298,7 @@ export default function App() {
     fetchStudioSettings()
       .then((settings) => setInferenceStubActive(settings.inference_stub_active))
       .catch(() => setInferenceStubActive(false));
-    loadTemplate(DEFAULT_TEMPLATE).catch((err) => {
-      setLoadError(String(err));
-      setStatus("Template load failed");
-    });
-  }, [loadTemplate]);
+  }, []);
 
   useEffect(() => {
     setNodes((current) => {
@@ -713,40 +727,76 @@ export default function App() {
     (modelId: string) => {
       if (modelPickTarget) {
         const { nodeId, widget } = modelPickTarget;
-        updateWidget(nodeId, widget, modelId);
-        void fetchModelCard(modelId)
-          .then((card) => {
-            for (const param of card.inference_params ?? []) {
-              updateWidget(nodeId, param.name, param.default ?? "");
-            }
-          })
-          .catch(() => undefined);
+        const node = workflowRef.current?.nodes.find((entry) => entry.id === nodeId);
+        void Promise.all([
+          fetchModelCard(modelId).catch(() => null),
+          node?.widgets.model
+            ? fetchModelCard(String(node.widgets.model)).catch(() => null)
+            : Promise.resolve(null),
+        ]).then(([nextCard, prevCard]) => {
+          const nextParams = resolveInferenceParams(modelId, nextCard?.inference_params);
+          const previousParams = resolveInferenceParams(
+            String(node?.widgets.model ?? ""),
+            prevCard?.inference_params,
+          );
+          const schema = node ? nodeSchemas[node.type] : undefined;
+          const schemaWidgetNames = (schema?.widgets ?? []).map((entry) => entry.name);
+          setWorkflow((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              nodes: prev.nodes.map((entry) => {
+                if (entry.id !== nodeId) return entry;
+                if (widget !== "model") {
+                  return { ...entry, widgets: { ...entry.widgets, [widget]: modelId } };
+                }
+                return {
+                  ...entry,
+                  widgets: widgetsAfterModelSwap({
+                    existing: entry.widgets,
+                    modelId,
+                    schemaWidgetNames,
+                    previousParams,
+                    nextParams,
+                  }),
+                };
+              }),
+            };
+          });
+          setNodeStatus((prev) => ({ ...prev, [nodeId]: "stale" }));
+        });
         setModelPickTarget(null);
       }
       setModelBrowserOpen(false);
     },
-    [modelPickTarget, updateWidget],
+    [modelPickTarget, nodeSchemas, setWorkflow],
   );
 
   const handleDropModel = useCallback(
     (modelId: string, nodeType: string) => {
       if (!workflow) return;
-      const widgets: Record<string, unknown> = { model: modelId };
-      const { workflow: next, nodeId } = addNodeToWorkflow(workflow, nodeType, widgets);
-      pendingSelectionRef.current = new Set([nodeId]);
-      setWorkflow(next);
-      setLastJob(null);
-      void fetchModelCard(modelId)
-        .then((card) => {
-          for (const param of card.inference_params ?? []) {
-            updateWidget(nodeId, param.name, param.default ?? "");
-          }
-        })
-        .catch(() => undefined);
+      void Promise.all([
+        defaultWidgetsForNode(nodeType),
+        fetchModelCard(modelId).catch(() => null),
+      ]).then(([schemaDefaults, card]) => {
+        const params = resolveInferenceParams(modelId, card?.inference_params);
+        const widgets = widgetsForDroppedModel({
+          schemaDefaults,
+          modelId,
+          params,
+        });
+        setWorkflow((prev) => {
+          if (!prev) return prev;
+          const { workflow: next, nodeId } = addNodeToWorkflow(prev, nodeType, widgets);
+          pendingSelectionRef.current = new Set([nodeId]);
+          return next;
+        });
+        setLastJob(null);
+        setStatus(`Dropped ${nodeType} with ${modelId}`);
+      });
       setModelBrowserOpen(false);
-      setStatus(`Dropped ${nodeType} with ${modelId}`);
     },
-    [workflow, updateWidget, setWorkflow],
+    [workflow, setWorkflow],
   );
 
   const handleAudioDrop = useCallback(
@@ -850,14 +900,18 @@ export default function App() {
         const nextTemplates = await listTemplates();
         setTemplates(nextTemplates);
         if (activeTemplateId === templateId) {
-          await loadTemplate(DEFAULT_TEMPLATE);
+          resetHistory(emptyWorkflow());
+          setActiveTemplateId("");
+          setLastJob(null);
+          setNodeStatus({});
+          setComplianceFastPath(false);
         }
         setStatus(`Removed from Your templates: ${templateId}`);
       } catch (err) {
         setStatus(`Template remove failed: ${String(err)}`);
       }
     },
-    [activeTemplateId, loadTemplate],
+    [activeTemplateId, resetHistory],
   );
 
   const currentNodeLabel = useMemo(() => {
@@ -1047,7 +1101,7 @@ export default function App() {
         startActivationSession({ source: "suggestion_apply" });
       }
       recordActivationMilestone("workflow_applied");
-      applyWorkflow(next);
+      applyWorkflow(layoutWorkflowNodes(next));
       setComplianceFastPath(true);
       setComplianceOpen(true);
       setStatus("Review licenses before installing or rendering");
@@ -1352,7 +1406,7 @@ export default function App() {
           launch={modelBrowserLaunch}
           filterNodeType={
             modelPickTarget
-              ? workflow.nodes.find((node) => node.id === modelPickTarget.nodeId)?.type ?? null
+              ? workflow?.nodes.find((node) => node.id === modelPickTarget.nodeId)?.type ?? null
               : null
           }
         />

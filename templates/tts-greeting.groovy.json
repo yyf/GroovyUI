@@ -6,21 +6,106 @@
     "title": "TTS Greeting",
     "author": "groovy",
     "description": "Text-to-speech with Kokoro-82M (Hub-popular local TTS). Normalize, preview, save.",
-    "tags": ["featured", "ai", "tts"],
+    "tags": [
+      "featured",
+      "ai",
+      "tts"
+    ],
     "created_at": "2026-07-06T12:00:00Z",
     "modified_at": "2026-07-15T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "TTS", "pos": { "x": 0, "y": 0 }, "widgets": { "text": "Hello from GroovyUI.", "model": "kokoro-82m" } },
-    { "id": "n2", "type": "Normalize", "pos": { "x": 280, "y": 0 }, "widgets": { "mode": "lufs", "target_lufs": -16.0 } },
-    { "id": "n3", "type": "Preview", "pos": { "x": 560, "y": 0 }, "widgets": {} },
-    { "id": "n4", "type": "SaveAudio", "pos": { "x": 560, "y": 140 }, "widgets": { "path": "exports", "filename": "tts-greeting.wav", "format": "wav" } }
+    {
+      "id": "n1",
+      "type": "TTS",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Hello from GroovyUI.",
+        "model": "kokoro-82m"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "Normalize",
+      "pos": {
+        "x": 246,
+        "y": 0
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Preview",
+      "pos": {
+        "x": 482,
+        "y": 0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n4",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 482,
+        "y": 124
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "tts-greeting.wav",
+        "format": "wav"
+      }
+    }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
-    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
-    { "id": "l3", "from": ["n2", 0], "to": ["n4", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
 }

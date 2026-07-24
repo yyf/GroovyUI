@@ -1,9 +1,11 @@
 import type { NodeSchema, Workflow, WorkflowLink, WorkflowNode } from "./types";
 import { DEFAULT_LOAD_AUDIO_PATH } from "./sampleDefaults";
-import { allocatePatchNodeIdMap, findOpenNodePosition, isWireableInput } from "./workflow";
-
-const AUGMENT_NODE_W = 140;
-const AUGMENT_NODE_H = 48;
+import {
+  allocatePatchNodeIdMap,
+  estimateNodeSize,
+  findOpenNodePosition,
+  isWireableInput,
+} from "./workflow";
 
 export type MinimalPatch = {
   workflow: Workflow;
@@ -590,7 +592,7 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
 };
 
 const PATCH_X_STEP = 260;
-const PATCH_Y_STEP = 120;
+const PATCH_Y_STEP = 140;
 
 /** Terminal nodes — Tab wires upstream only, not another chain leg downstream. */
 const SKIP_DOWNSTREAM_TYPES = new Set(["Preview", "SaveAudio", "ModuleOutlet", "WhisperSTT"]);
@@ -888,14 +890,12 @@ function mergeAugmentFragment(
   let placedWorkflow = workflow;
   const newNodes: WorkflowNode[] = [];
   for (const node of fragmentNodes) {
+    const size = estimateNodeSize(node);
     const center = {
-      x: (node.pos?.x ?? 0) + AUGMENT_NODE_W / 2,
-      y: (node.pos?.y ?? 0) + AUGMENT_NODE_H / 2,
+      x: (node.pos?.x ?? 0) + size.width / 2,
+      y: (node.pos?.y ?? 0) + size.height / 2,
     };
-    const pos = findOpenNodePosition(placedWorkflow, center, {
-      width: AUGMENT_NODE_W,
-      height: AUGMENT_NODE_H,
-    });
+    const pos = findOpenNodePosition(placedWorkflow, center, size);
     const placed = {
       ...node,
       id: idMap.get(node.id)!,

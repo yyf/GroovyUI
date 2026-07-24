@@ -528,7 +528,8 @@ body {
 }
 
 .top-bar .template-select__trigger,
-.top-bar .workflow-generate__trigger {
+.top-bar .workflow-generate__trigger,
+.top-bar__drawer .top-bar__tool {
   height: 30px;
   padding-top: 0;
   padding-bottom: 0;
@@ -2786,6 +2787,42 @@ body {
   word-break: break-word;
 }
 
+.groovy-node--note {
+  min-width: 160px;
+  max-width: 240px;
+  background: #141210;
+  border-color: #5c5346;
+  box-shadow: inset 0 0 0 1px rgba(232, 200, 120, 0.08);
+}
+
+.groovy-node--note .groovy-node__title {
+  color: #e8c878;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.groovy-node__note-text {
+  margin: 6px 0 0;
+  padding: 0;
+  max-width: 220px;
+  max-height: 7.5em;
+  overflow: hidden;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.92;
+}
+
+.groovy-node__note-text--empty {
+  color: var(--text-muted);
+  font-style: italic;
+  opacity: 0.8;
+}
+
 .groovy-node--issue {
   border-color: var(--accent);
   background: var(--bg-elevated);
@@ -3417,12 +3454,35 @@ body {
   background: var(--accent);
 }
 
-.param-pot__value {
+.param-pot__value,
+.param-fader__value {
+  width: 4.5em;
+  margin: 0;
+  padding: 1px 2px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.04em;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  user-select: text;
+  cursor: text;
+}
+
+.param-pot__value:hover,
+.param-fader__value:hover {
+  border-color: var(--border-dim);
+}
+
+.param-pot__value:focus,
+.param-fader__value:focus {
+  outline: none;
+  border-color: var(--border-bright);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
 }
 
 .param-pot--disabled {
@@ -3470,14 +3530,6 @@ body {
   background: #e8e8e8;
   border: 1px solid #fff;
   pointer-events: none;
-}
-
-.param-fader__value {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
 }
 
 .param-fader--disabled {

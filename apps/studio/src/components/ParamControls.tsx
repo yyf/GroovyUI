@@ -1,4 +1,11 @@
-import { useCallback, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { formatControlValue, snapToStep } from "../widgetControls";
 
 type BaseProps = {
@@ -68,6 +75,70 @@ function useDragValue({
   return { onPointerDown, onPointerMove, onPointerUp };
 }
 
+/** Shared readout under pot/fader — drag the control or type into the same label. */
+function ParamValueField({
+  value,
+  min,
+  max,
+  step,
+  isInt = false,
+  onChange,
+  disabled,
+  className,
+}: NumericProps & { className: string }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(() => formatControlValue(value, step, isInt));
+
+  useEffect(() => {
+    if (!editing) setDraft(formatControlValue(value, step, isInt));
+  }, [value, step, isInt, editing]);
+
+  const commit = useCallback(() => {
+    setEditing(false);
+    const raw = draft.trim().replace(/,/g, "");
+    if (!raw) {
+      setDraft(formatControlValue(value, step, isInt));
+      return;
+    }
+    const parsed = isInt ? Number.parseInt(raw, 10) : Number.parseFloat(raw);
+    if (!Number.isFinite(parsed)) {
+      setDraft(formatControlValue(value, step, isInt));
+      return;
+    }
+    onChange(snapToStep(parsed, min, max, step));
+  }, [draft, value, step, isInt, min, max, onChange]);
+
+  return (
+    <input
+      type="text"
+      inputMode={isInt ? "numeric" : "decimal"}
+      className={className}
+      value={editing ? draft : formatControlValue(value, step, isInt)}
+      disabled={disabled}
+      aria-label="Value"
+      spellCheck={false}
+      onFocus={() => {
+        setEditing(true);
+        setDraft(formatControlValue(value, step, isInt));
+      }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          (e.currentTarget as HTMLInputElement).blur();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          setEditing(false);
+          setDraft(formatControlValue(value, step, isInt));
+          (e.currentTarget as HTMLInputElement).blur();
+        }
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+    />
+  );
+}
+
 /** Vertical toggle switch — industrial square. */
 export function ParamSwitch({
   checked,
@@ -94,7 +165,7 @@ export function ParamSwitch({
   );
 }
 
-/** Rotary potentiometer — drag vertically to adjust. */
+/** Rotary potentiometer — drag vertically to adjust, or type the value below. */
 export function ParamPot({ value, min, max, step, isInt = false, onChange, disabled }: NumericProps) {
   const span = Math.max(1e-9, max - min);
   const t = Math.min(1, Math.max(0, (value - min) / span));
@@ -129,7 +200,16 @@ export function ParamPot({ value, min, max, step, isInt = false, onChange, disab
           <span className="param-pot__pointer" />
         </span>
       </button>
-      <span className="param-pot__value">{formatControlValue(value, step, isInt)}</span>
+      <ParamValueField
+        className="param-pot__value"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        isInt={isInt}
+        onChange={onChange}
+        disabled={disabled}
+      />
     </div>
   );
 }
@@ -202,7 +282,16 @@ export function ParamFader({ value, min, max, step, isInt = false, onChange, dis
         <span className="param-fader__fill" style={{ height: `${t * 100}%` }} />
         <span className="param-fader__cap" style={{ bottom: `calc(${t * 100}% - 5px)` }} />
       </div>
-      <span className="param-fader__value">{formatControlValue(value, step, isInt)}</span>
+      <ParamValueField
+        className="param-fader__value"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        isInt={isInt}
+        onChange={onChange}
+        disabled={disabled}
+      />
     </div>
   );
 }

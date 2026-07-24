@@ -5,7 +5,12 @@
   "metadata": {
     "title": "AI MIDI to Hardware",
     "description": "Synthesize audio from live MIDI while mirroring the MIDI stream to hardware output.",
-    "tags": ["midi", "ai", "hardware", "live"],
+    "tags": [
+      "midi",
+      "ai",
+      "hardware",
+      "live"
+    ],
     "created_at": "2026-07-06T14:00:00Z",
     "modified_at": "2026-07-06T14:00:00Z"
   },
@@ -13,28 +18,93 @@
     {
       "id": "n1",
       "type": "MIDIInDevice",
-      "pos": { "x": 0, "y": 0 },
-      "widgets": { "device_id": "virtual:in-demo", "mode": "performance" }
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "device_id": "virtual:in-demo",
+        "mode": "performance"
+      }
     },
     {
       "id": "n2",
       "type": "MIDIToAudio",
-      "pos": { "x": 280, "y": -80 },
-      "widgets": { "model": "musicgen-melody-small", "prompt": "responsive synth lead" }
+      "pos": {
+        "x": 236,
+        "y": 0
+      },
+      "widgets": {
+        "model": "musicgen-melody-small",
+        "prompt": "responsive synth lead"
+      }
     },
     {
       "id": "n3",
       "type": "MIDIOutDevice",
-      "pos": { "x": 280, "y": 100 },
-      "widgets": { "device_id": "virtual:out-demo", "mode": "stream" }
+      "pos": {
+        "x": 236,
+        "y": 124
+      },
+      "widgets": {
+        "device_id": "virtual:out-demo",
+        "mode": "stream"
+      }
     },
-    { "id": "n4", "type": "Preview", "pos": { "x": 560, "y": -80 }, "widgets": {} }
+    {
+      "id": "n4",
+      "type": "Preview",
+      "pos": {
+        "x": 472,
+        "y": 0
+      },
+      "widgets": {}
+    }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "MIDI" },
-    { "id": "l2", "from": ["n1", 0], "to": ["n3", 0], "type": "MIDI" },
-    { "id": "l3", "from": ["n2", 0], "to": ["n4", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "MIDI"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "MIDI"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
 }

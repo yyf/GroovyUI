@@ -109,10 +109,10 @@ export default function TemplateSelector({
         aria-haspopup="listbox"
         title={selected?.description || undefined}
       >
-        {selected?.title ?? "Workflow template"}
+        {selected?.title ?? "Workflow Templates"}
       </button>
       {open ? (
-        <ul className="template-select__menu" role="listbox" aria-label="Workflow template">
+        <ul className="template-select__menu" role="listbox" aria-label="Workflow Templates">
           <li className="template-select__group" role="presentation">
             <span className="template-select__group-label">Default templates</span>
             <ul className="template-select__group-list">

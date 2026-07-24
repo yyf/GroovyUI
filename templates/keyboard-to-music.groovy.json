@@ -5,7 +5,12 @@
   "metadata": {
     "title": "Keyboard to Music",
     "description": "Capture MIDI from a device (or virtual demo) and synthesize melody with MusicGen.",
-    "tags": ["midi", "live", "musicgen", "keyboard"],
+    "tags": [
+      "midi",
+      "live",
+      "musicgen",
+      "keyboard"
+    ],
     "created_at": "2026-07-06T14:00:00Z",
     "modified_at": "2026-07-06T14:00:00Z"
   },
@@ -13,7 +18,10 @@
     {
       "id": "n1",
       "type": "MIDIInDevice",
-      "pos": { "x": 0, "y": 0 },
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
       "widgets": {
         "device_id": "virtual:in-demo",
         "mode": "performance",
@@ -23,15 +31,57 @@
     {
       "id": "n2",
       "type": "MIDIToAudio",
-      "pos": { "x": 280, "y": 0 },
-      "widgets": { "model": "musicgen-melody-small", "prompt": "playful keyboard melody" }
+      "pos": {
+        "x": 236,
+        "y": 0
+      },
+      "widgets": {
+        "model": "musicgen-melody-small",
+        "prompt": "playful keyboard melody"
+      }
     },
-    { "id": "n3", "type": "Preview", "pos": { "x": 560, "y": 0 }, "widgets": {} }
+    {
+      "id": "n3",
+      "type": "Preview",
+      "pos": {
+        "x": 472,
+        "y": 0
+      },
+      "widgets": {}
+    }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "MIDI" },
-    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "MIDI"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
 }

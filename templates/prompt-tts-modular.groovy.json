@@ -5,8 +5,15 @@
   "metadata": {
     "title": "Prompt TTS Modular",
     "author": "groovy",
-    "description": "Modular demo: Prompt → TTS, then a ControlCurve drives AutomationApply to fade the take before Normalize, Preview, and Save.",
-    "tags": ["featured", "modular", "tts", "prompt", "control", "automation"],
+    "description": "Modular demo: Prompt \u2192 TTS, then a ControlCurve drives AutomationApply to fade the take before Normalize, Preview, and Save.",
+    "tags": [
+      "featured",
+      "modular",
+      "tts",
+      "prompt",
+      "control",
+      "automation"
+    ],
     "created_at": "2026-07-17T21:30:00Z",
     "modified_at": "2026-07-17T21:45:00Z"
   },
@@ -14,7 +21,10 @@
     {
       "id": "n1",
       "type": "Prompt",
-      "pos": { "x": 0, "y": 40 },
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
       "widgets": {
         "text": "Welcome to GroovyUI. Patch a prompt into TTS, then shape the take with control.",
         "language": "en"
@@ -23,13 +33,23 @@
     {
       "id": "n2",
       "type": "TTS",
-      "pos": { "x": 240, "y": 40 },
-      "widgets": { "model": "kokoro-82m", "text": "", "seed": -1 }
+      "pos": {
+        "x": 246,
+        "y": 0
+      },
+      "widgets": {
+        "model": "kokoro-82m",
+        "text": "",
+        "seed": -1
+      }
     },
     {
       "id": "n4",
       "type": "ControlCurve",
-      "pos": { "x": 480, "y": 200 },
+      "pos": {
+        "x": 0,
+        "y": 136
+      },
       "widgets": {
         "start_value": 0.0,
         "end_value": 1.0,
@@ -41,31 +61,129 @@
     {
       "id": "n5",
       "type": "AutomationApply",
-      "pos": { "x": 480, "y": 40 },
-      "widgets": { "gain": 1.0 }
+      "pos": {
+        "x": 492,
+        "y": 0
+      },
+      "widgets": {
+        "gain": 1.0
+      }
     },
     {
       "id": "n7",
       "type": "Normalize",
-      "pos": { "x": 720, "y": 40 },
-      "widgets": { "mode": "lufs", "target_lufs": -16.0 }
+      "pos": {
+        "x": 728,
+        "y": 0
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
     },
-    { "id": "n8", "type": "Preview", "pos": { "x": 960, "y": 0 }, "widgets": {} },
+    {
+      "id": "n8",
+      "type": "Preview",
+      "pos": {
+        "x": 964,
+        "y": 0
+      },
+      "widgets": {}
+    },
     {
       "id": "n9",
       "type": "SaveAudio",
-      "pos": { "x": 960, "y": 160 },
-      "widgets": { "path": "exports", "filename": "prompt-tts-modular.wav", "format": "wav" }
+      "pos": {
+        "x": 964,
+        "y": 124
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "prompt-tts-modular.wav",
+        "format": "wav"
+      }
     }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "TEXT" },
-    { "id": "l2", "from": ["n2", 0], "to": ["n5", 0], "type": "AUDIO" },
-    { "id": "l4", "from": ["n4", 0], "to": ["n5", 1], "type": "AUTOMATION" },
-    { "id": "l5", "from": ["n5", 0], "to": ["n7", 0], "type": "AUDIO" },
-    { "id": "l7", "from": ["n7", 0], "to": ["n8", 0], "type": "AUDIO" },
-    { "id": "l8", "from": ["n7", 0], "to": ["n9", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "TEXT"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n5",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": [
+        "n4",
+        0
+      ],
+      "to": [
+        "n5",
+        1
+      ],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l5",
+      "from": [
+        "n5",
+        0
+      ],
+      "to": [
+        "n7",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l7",
+      "from": [
+        "n7",
+        0
+      ],
+      "to": [
+        "n8",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l8",
+      "from": [
+        "n7",
+        0
+      ],
+      "to": [
+        "n9",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 0.85, "pan": { "x": 0, "y": 0 } }
+  "view": {
+    "zoom": 0.85,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
 }

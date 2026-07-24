@@ -478,6 +478,12 @@ export function workflowToFlowNodes(
             slot,
           }))
         : placeholderOutputSockets(linkCounts.outputs);
+      const noteText =
+        n.type === "Note"
+          ? typeof n.widgets.text === "string"
+            ? n.widgets.text
+            : String(n.widgets.text ?? "")
+          : undefined;
       return {
         id: n.id,
         type: "groovy",
@@ -489,6 +495,7 @@ export function workflowToFlowNodes(
           canAudition: nodeHasListenableOutput(workflow, n.id, outputs),
           issue: nodeIssues?.[n.id],
           previewText: previewTextSnippet(jobOut) ?? undefined,
+          noteText,
           inputs,
           outputs: outputSockets,
         },
@@ -1139,8 +1146,8 @@ export function collectModelRefs(workflow: Workflow): string[] {
   return [...ids];
 }
 
-const DEFAULT_NODE_SIZE = { width: 140, height: 48 };
-const NODE_PLACEMENT_GAP = 24;
+const DEFAULT_NODE_SIZE = { width: 200, height: 88 };
+const NODE_PLACEMENT_GAP = 36;
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -1148,22 +1155,67 @@ function rectsOverlap(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-function nodeRect(node: WorkflowNode, size = DEFAULT_NODE_SIZE): Rect {
+/** Conservative canvas footprint for collision / auto-layout (visual node chrome). */
+export function estimateNodeSize(node: WorkflowNode): { width: number; height: number } {
+  let width = DEFAULT_NODE_SIZE.width;
+  let height = DEFAULT_NODE_SIZE.height;
+  switch (node.type) {
+    case "Note":
+      width = 220;
+      height = 130;
+      break;
+    case "SeparateStems":
+      width = 220;
+      height = 120;
+      break;
+    case "Prompt":
+    case "GenerateAudio":
+    case "TTS":
+    case "SingFromMIDI":
+      width = 210;
+      height = 100;
+      break;
+    case "DiarizeTranscribe":
+    case "WhisperSTT":
+      height = 96;
+      break;
+    case "ControlCurve":
+    case "SignalGenerator":
+      height = 100;
+      break;
+    default:
+      break;
+  }
+  return { width, height };
+}
+
+function nodeRect(node: WorkflowNode, size?: { width: number; height: number }): Rect {
+  const footprint = size ?? estimateNodeSize(node);
   return {
     x: node.pos?.x ?? 0,
     y: node.pos?.y ?? 0,
-    w: size.width,
-    h: size.height,
+    w: footprint.width,
+    h: footprint.height,
   };
+}
+
+export function workflowHasOverlappingNodes(workflow: Workflow): boolean {
+  const rects = workflow.nodes.map((node) => nodeRect(node));
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      if (rectsOverlap(rects[i], rects[j])) return true;
+    }
+  }
+  return false;
 }
 
 /** Find top-left position near viewport center without overlapping existing nodes. */
 export function findOpenNodePosition(
   workflow: Workflow,
   center: { x: number; y: number },
-  size = DEFAULT_NODE_SIZE,
+  size: { width: number; height: number } = DEFAULT_NODE_SIZE,
 ): { x: number; y: number } {
-  const obstacles = workflow.nodes.map((node) => nodeRect(node, size));
+  const obstacles = workflow.nodes.map((node) => nodeRect(node));
   const stepX = size.width + NODE_PLACEMENT_GAP;
   const stepY = size.height + NODE_PLACEMENT_GAP;
   const offsets: Array<{ dx: number; dy: number }> = [{ dx: 0, dy: 0 }];
@@ -1189,7 +1241,70 @@ export function findOpenNodePosition(
 
   return {
     x: center.x - size.width / 2,
-    y: center.y - size.height / 2 + workflow.nodes.length * 16,
+    y: center.y - size.height / 2 + workflow.nodes.length * (size.height + NODE_PLACEMENT_GAP),
+  };
+}
+
+/**
+ * Left-to-right DAG layout so no node rectangles overlap.
+ * Stable within a layer (previous y, then id).
+ */
+export function layoutWorkflowNodes(workflow: Workflow): Workflow {
+  if (workflow.nodes.length === 0) return workflow;
+
+  const layer = new Map<string, number>();
+  for (const node of workflow.nodes) layer.set(node.id, 0);
+
+  let changed = true;
+  let guard = 0;
+  while (changed && guard < workflow.nodes.length + 2) {
+    changed = false;
+    guard += 1;
+    for (const link of workflow.links) {
+      const fromId = link.from[0];
+      const toId = link.to[0];
+      if (!layer.has(fromId) || !layer.has(toId)) continue;
+      const next = (layer.get(fromId) ?? 0) + 1;
+      if (next > (layer.get(toId) ?? 0)) {
+        layer.set(toId, next);
+        changed = true;
+      }
+    }
+  }
+
+  const byLayer = new Map<number, WorkflowNode[]>();
+  for (const node of workflow.nodes) {
+    const depth = layer.get(node.id) ?? 0;
+    const bucket = byLayer.get(depth) ?? [];
+    bucket.push(node);
+    byLayer.set(depth, bucket);
+  }
+  for (const bucket of byLayer.values()) {
+    bucket.sort((a, b) => (a.pos?.y ?? 0) - (b.pos?.y ?? 0) || a.id.localeCompare(b.id));
+  }
+
+  const positions = new Map<string, { x: number; y: number }>();
+  let cursorX = 0;
+  const maxLayer = Math.max(0, ...byLayer.keys());
+  for (let depth = 0; depth <= maxLayer; depth++) {
+    const column = byLayer.get(depth) ?? [];
+    let cursorY = 0;
+    let columnWidth = DEFAULT_NODE_SIZE.width;
+    for (const node of column) {
+      const size = estimateNodeSize(node);
+      columnWidth = Math.max(columnWidth, size.width);
+      positions.set(node.id, { x: cursorX, y: cursorY });
+      cursorY += size.height + NODE_PLACEMENT_GAP;
+    }
+    cursorX += columnWidth + NODE_PLACEMENT_GAP;
+  }
+
+  return {
+    ...workflow,
+    nodes: workflow.nodes.map((node) => ({
+      ...node,
+      pos: positions.get(node.id) ?? node.pos ?? { x: 0, y: 0 },
+    })),
   };
 }
 

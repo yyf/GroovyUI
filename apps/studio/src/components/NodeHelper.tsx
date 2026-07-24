@@ -17,7 +17,13 @@ import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowNode } from ".
 import type { CompareHop } from "../workflow";
 import { joinSaveAudioPath, jobOutputAtSlot, wiredInputSupersedesWidget, wiredInputsForNode, wiredPromptPreview } from "../workflow";
 import { hasMinimalPatch } from "../nodeMinimalPatches";
-import { inferenceParamsForModel } from "../modelInferenceParams";
+import {
+  asWidgetSpec,
+  mergeSpecWithModelParam,
+  modelParamByName,
+  paramDefault,
+  resolveInferenceParams,
+} from "../modelNodeWidgets";
 import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
 import ControlCurvePreview, { syncPointsFromStartEnd } from "./ControlCurvePreview";
@@ -185,14 +191,17 @@ export default function NodeHelper({
     [schema, node, workflow],
   );
 
+  const modelParams = useMemo(
+    () => resolveInferenceParams(selectedModelId ?? "", modelCard?.inference_params),
+    [modelCard?.inference_params, selectedModelId],
+  );
+  const modelParamMap = useMemo(() => modelParamByName(modelParams), [modelParams]);
+
   const modelParamRows = useMemo(() => {
     if (!selectedModelId || !schema) return [];
-    const params = modelCard?.inference_params?.length
-      ? modelCard.inference_params
-      : inferenceParamsForModel(selectedModelId);
     const widgetNames = new Set(schema.widgets.map((widget) => widget.name));
-    return params.filter((param) => !widgetNames.has(param.name));
-  }, [modelCard, schema, selectedModelId]);
+    return modelParams.filter((param) => !widgetNames.has(param.name));
+  }, [modelParams, schema, selectedModelId]);
 
   if (showCompare) {
     return (
@@ -353,21 +362,22 @@ export default function NodeHelper({
                   : schema.widgets;
               const { pinned, rest } = partitionExplorationWidgets(widgetsForForm, node.type);
               const renderWidget = (widget: (typeof schema.widgets)[number]) => {
-                const supersededBy = wiredInputSupersedesWidget(node.type, widget.name, inputRows);
+                const mergedWidget = mergeSpecWithModelParam(widget, modelParamMap.get(widget.name));
+                const supersededBy = wiredInputSupersedesWidget(node.type, mergedWidget.name, inputRows);
                 const wiredPreview = supersededBy ? wiredPromptPreview(supersededBy.sourceNode) : null;
                 return (
                   <label
-                    key={widget.name}
+                    key={mergedWidget.name}
                     className={[
                       "node-helper__field",
                       supersededBy ? "node-helper__field--superseded" : "",
-                      isPromptLikeWidget(widget.name) ? "node-helper__field--prompt" : "",
+                      isPromptLikeWidget(mergedWidget.name) ? "node-helper__field--prompt" : "",
                     ]
                       .filter(Boolean)
                       .join(" ")}
                   >
-                    <span>{widgetLabel(widget.name, node.type)}</span>
-                    {widget.description ? <small className="node-helper__hint">{widget.description}</small> : null}
+                    <span>{widgetLabel(mergedWidget.name, node.type)}</span>
+                    {mergedWidget.description ? <small className="node-helper__hint">{mergedWidget.description}</small> : null}
                     {supersededBy ? (
                       <small className="node-helper__hint node-helper__hint--wired">
                         Wired from {supersededBy.sourceNode?.type ?? "upstream"}
@@ -386,11 +396,11 @@ export default function NodeHelper({
                       </p>
                     ) : null}
                     <WidgetInput
-                      spec={widget}
-                      value={node.widgets[widget.name] ?? widget.default ?? ""}
+                      spec={mergedWidget}
+                      value={node.widgets[mergedWidget.name] ?? mergedWidget.default ?? ""}
                       onChange={(value) => {
                         if (node.type === "ControlCurve") {
-                          const synced = syncPointsFromStartEnd(node.widgets, widget.name, value);
+                          const synced = syncPointsFromStartEnd(node.widgets, mergedWidget.name, value);
                           if (synced) {
                             for (const [name, next] of Object.entries(synced)) {
                               onWidgetChange(node.id, name, next);
@@ -398,10 +408,10 @@ export default function NodeHelper({
                             return;
                           }
                         }
-                        onWidgetChange(node.id, widget.name, value);
+                        onWidgetChange(node.id, mergedWidget.name, value);
                         if (
                           node.type === "SaveAudio" &&
-                          widget.name === "format" &&
+                          mergedWidget.name === "format" &&
                           String(value).toLowerCase() === "flac"
                         ) {
                           const depth = String(node.widgets.bit_depth ?? "float").toLowerCase();
@@ -415,8 +425,8 @@ export default function NodeHelper({
                       nodeWidgets={node.widgets}
                       onMultiWidgetChange={(name, value) => onWidgetChange(node.id, name, value)}
                       onBrowse={
-                        widget.type === "MODEL_REF"
-                          ? () => onBrowseModel?.(node.id, widget.name)
+                        mergedWidget.type === "MODEL_REF"
+                          ? () => onBrowseModel?.(node.id, mergedWidget.name)
                           : undefined
                       }
                     />
@@ -438,17 +448,20 @@ export default function NodeHelper({
             {modelParamRows.length > 0 ? (
               <section className="node-helper__model-params">
                 <h4 className="node-helper__compare-subtitle">Model parameters</h4>
-                {modelParamRows.map((param) => (
+                {modelParamRows.map((param) => {
+                  const spec = asWidgetSpec(param);
+                  return (
                   <label key={param.name} className="node-helper__field">
                     <span>{widgetLabel(param.name, node.type)}</span>
                     {param.description ? <small className="node-helper__hint">{param.description}</small> : null}
                     <WidgetInput
-                      spec={param}
-                      value={node.widgets[param.name] ?? param.default ?? ""}
+                      spec={spec}
+                      value={node.widgets[param.name] ?? paramDefault(param)}
                       onChange={(value) => onWidgetChange(node.id, param.name, value)}
                     />
                   </label>
-                ))}
+                  );
+                })}
               </section>
             ) : null}
             {node.type === "SaveAudio" ? (
@@ -1489,6 +1502,19 @@ function WidgetInput({
         value={str}
         disabled={disabled}
         placeholder={promptPlaceholder(spec.name, nodeType)}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+
+  if (nodeType === "Note" && spec.name === "text" && (spec.type === "STRING" || spec.type === "TEXT")) {
+    const str = typeof value === "string" ? value : String(value ?? "");
+    return (
+      <textarea
+        rows={5}
+        value={str}
+        disabled={disabled}
+        placeholder="Add a comment for this patch…"
         onChange={(e) => onChange(e.target.value)}
       />
     );

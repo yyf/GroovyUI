@@ -6,23 +6,130 @@
     "title": "Podcast Denoise",
     "author": "groovy",
     "description": "Load dialogue, AI denoise, normalize to -16 LUFS, preview, save to exports.",
-    "tags": ["starter", "ai", "denoise", "podcast"],
+    "tags": [
+      "starter",
+      "ai",
+      "denoise",
+      "podcast"
+    ],
     "created_at": "2026-07-05T12:00:00Z",
     "modified_at": "2026-07-05T12:00:00Z"
   },
   "nodes": [
-    { "id": "n1", "type": "LoadAudio", "pos": { "x": 0, "y": 0 }, "widgets": { "path": "assets/samples/male-1.wav" } },
-    { "id": "n2", "type": "Denoise", "pos": { "x": 260, "y": 0 }, "widgets": { "model": "deepfilternet-v3", "strength": 1.0 } },
-    { "id": "n3", "type": "Normalize", "pos": { "x": 520, "y": 0 }, "widgets": { "mode": "lufs", "target_lufs": -16.0 } },
-    { "id": "n4", "type": "Preview", "pos": { "x": 780, "y": 0 }, "widgets": {} },
-    { "id": "n5", "type": "SaveAudio", "pos": { "x": 780, "y": 120 }, "widgets": { "path": "exports", "filename": "podcast-denoised.wav", "format": "wav" } }
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "path": "assets/samples/male-1.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "Denoise",
+      "pos": {
+        "x": 236,
+        "y": 0
+      },
+      "widgets": {
+        "model": "deepfilternet-v3",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Normalize",
+      "pos": {
+        "x": 472,
+        "y": 0
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Preview",
+      "pos": {
+        "x": 708,
+        "y": 0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n5",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 708,
+        "y": 124
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "podcast-denoised.wav",
+        "format": "wav"
+      }
+    }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
-    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
-    { "id": "l3", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO" },
-    { "id": "l4", "from": ["n3", 0], "to": ["n5", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n5",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
-  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
 }

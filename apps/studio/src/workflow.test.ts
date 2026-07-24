@@ -8,6 +8,9 @@ import {
   extractSelection,
   findOpenNodePosition,
   formatJobError,
+  layoutWorkflowNodes,
+  workflowHasOverlappingNodes,
+  estimateNodeSize,
   mergeFlowEdges,
   mergeFlowNodes,
   previewCacheId,
@@ -298,6 +301,38 @@ describe("workflowToFlowNodes", () => {
       { name: "b", type: "AUDIO", optional: undefined, slot: 1 },
     ]);
   });
+
+  it("surfaces Note comment text on the canvas node", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        {
+          id: "note",
+          type: "Note",
+          pos: { x: 40, y: 40 },
+          widgets: { text: "Keep vocals dry" },
+        },
+      ],
+      links: [],
+    };
+    const schemas: Record<string, import("./types").NodeSchema> = {
+      Note: {
+        type: "Note",
+        category: "GroovyUI/Core",
+        inputs: [],
+        outputs: [],
+        widgets: [{ name: "text", type: "STRING", default: "" }],
+      },
+    };
+    const nodes = workflowToFlowNodes(workflow, {}, undefined, schemas);
+    const note = nodes.find((node) => node.id === "note");
+    expect(note?.data).toMatchObject({
+      label: "Note",
+      noteText: "Keep vocals dry",
+      inputs: [],
+      outputs: [],
+    });
+  });
 });
 
 describe("inferNodeSocketCounts", () => {
@@ -376,21 +411,65 @@ describe("connectNodes", () => {
 
 describe("findOpenNodePosition", () => {
   it("places at center when canvas is empty at that point", () => {
-    const pos = findOpenNodePosition(sampleWorkflow(), { x: 100, y: 100 });
-    expect(pos).toEqual({ x: 30, y: 76 });
+    const empty: Workflow = { ...sampleWorkflow(), nodes: [], links: [] };
+    const pos = findOpenNodePosition(empty, { x: 100, y: 100 });
+    expect(pos).toEqual({ x: 0, y: 56 });
   });
 
   it("offsets when center overlaps an existing node", () => {
     const pos = findOpenNodePosition(sampleWorkflow(), { x: 10, y: 10 });
     expect(pos.x !== 10 || pos.y !== 10).toBe(true);
-    const workflow = { ...sampleWorkflow(), nodes: [...sampleWorkflow().nodes, { id: "n4", type: "Mix", pos, widgets: {} }] };
-    const overlaps = workflow.nodes.some(
-      (node, index, all) =>
-        index < all.length - 1 &&
-        Math.abs((node.pos?.x ?? 0) - pos.x) < 140 &&
-        Math.abs((node.pos?.y ?? 0) - pos.y) < 48,
+    const placed = {
+      ...sampleWorkflow(),
+      nodes: [...sampleWorkflow().nodes, { id: "n4", type: "Mix", pos, widgets: {} }],
+    };
+    expect(workflowHasOverlappingNodes(placed)).toBe(false);
+  });
+});
+
+describe("layoutWorkflowNodes", () => {
+  it("separates overlapping chain nodes into a left-to-right layout", () => {
+    const crowded: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "n2", type: "Normalize", pos: { x: 40, y: 10 }, widgets: {} },
+        { id: "n3", type: "Preview", pos: { x: 60, y: 20 }, widgets: {} },
+      ],
+    };
+    expect(workflowHasOverlappingNodes(crowded)).toBe(true);
+    const laid = layoutWorkflowNodes(crowded);
+    expect(workflowHasOverlappingNodes(laid)).toBe(false);
+    expect(laid.nodes.find((n) => n.id === "n1")!.pos!.x).toBeLessThan(
+      laid.nodes.find((n) => n.id === "n2")!.pos!.x,
     );
-    expect(overlaps).toBe(false);
+    expect(laid.nodes.find((n) => n.id === "n2")!.pos!.x).toBeLessThan(
+      laid.nodes.find((n) => n.id === "n3")!.pos!.x,
+    );
+  });
+
+  it("stacks fan-out previews without overlap", () => {
+    const stems: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "n2", type: "SeparateStems", pos: { x: 100, y: 0 }, widgets: {} },
+        { id: "p0", type: "Preview", pos: { x: 200, y: 0 }, widgets: {} },
+        { id: "p1", type: "Preview", pos: { x: 200, y: 10 }, widgets: {} },
+        { id: "p2", type: "Preview", pos: { x: 200, y: 20 }, widgets: {} },
+        { id: "p3", type: "Preview", pos: { x: 200, y: 30 }, widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+        { id: "l2", from: ["n2", 0], to: ["p0", 0], type: "AUDIO" },
+        { id: "l3", from: ["n2", 1], to: ["p1", 0], type: "AUDIO" },
+        { id: "l4", from: ["n2", 2], to: ["p2", 0], type: "AUDIO" },
+        { id: "l5", from: ["n2", 3], to: ["p3", 0], type: "AUDIO" },
+      ],
+    };
+    const laid = layoutWorkflowNodes(stems);
+    expect(workflowHasOverlappingNodes(laid)).toBe(false);
+    expect(estimateNodeSize({ id: "n2", type: "SeparateStems", widgets: {} }).height).toBeGreaterThan(88);
   });
 });
 

@@ -20,6 +20,8 @@ export type GroovyNodeData = {
   issue?: string;
   /** Truncated TEXT output shown on-node (Preview / Whisper / Prompt). */
   previewText?: string;
+  /** Freeform Note comment shown on-node. */
+  noteText?: string;
   inputs?: NodeSocketSpec[];
   outputs?: NodeSocketSpec[];
 };
@@ -54,11 +56,15 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
     nodeData.inputs !== undefined ? nodeData.inputs : [{ name: "in", type: "AUDIO", slot: 0 }];
   const outputs =
     nodeData.outputs !== undefined ? nodeData.outputs : [{ name: "out", type: "AUDIO", slot: 0 }];
-  const minHeight = Math.max(52, Math.max(inputs.length, outputs.length) * 24 + 20);
+  const minHeight = Math.max(
+    nodeData.noteText != null ? 72 : 52,
+    Math.max(inputs.length, outputs.length) * 24 + 20,
+  );
+  const isNote = nodeData.label === "Note";
 
   return (
     <div
-      className={`groovy-node groovy-node--${nodeData.status}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}`}
+      className={`groovy-node groovy-node--${nodeData.status}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}${isNote ? " groovy-node--note" : ""}`}
       style={{ minHeight }}
     >
       <span className="groovy-node__ticks" aria-hidden />
@@ -78,7 +84,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
       ))}
       <div className="groovy-node__body">
         <div className="groovy-node__title">
-          <span>{nodeData.label}</span>
+          <span>{isNote ? "Note" : nodeData.label}</span>
           <span className="groovy-node__actions">
             {nodeData.canAudition ? (
               <button
@@ -105,6 +111,14 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
               </li>
             ))}
           </ul>
+        ) : null}
+        {nodeData.noteText != null ? (
+          <p
+            className={`groovy-node__note-text${nodeData.noteText.trim() ? "" : " groovy-node__note-text--empty"}`}
+            title={nodeData.noteText.trim() ? nodeData.noteText : undefined}
+          >
+            {nodeData.noteText.trim() ? nodeData.noteText : "Add a comment…"}
+          </p>
         ) : null}
         {nodeData.previewText ? (
           <p className="groovy-node__preview-text" title={nodeData.previewText}>

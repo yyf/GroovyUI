@@ -42,6 +42,7 @@ def register_all() -> None:
         Mix,
         Normalize,
         Preview,
+        Note,
         VerifyProvenance,
         AuthenticitySummary,
         Prompt,
@@ -574,6 +575,39 @@ class Preview(GroovyNode):
         if audio_in is not None:
             return (audio_in,)
         return (str(text_in),)
+
+
+@register_node
+class Note(GroovyNode):
+    """Canvas annotation — comments only; no sockets and no render output."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = False
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ()
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "text": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "description": "Freeform comment shown on the canvas.",
+                    },
+                ),
+            },
+        }
+
+    def run(self, text: str = "", **kwargs) -> tuple:
+        _ = str(kwargs.get("text", text))
+        return ()
 
 
 @register_node

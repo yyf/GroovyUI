@@ -104,6 +104,12 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "text": "Text (e.g. Whisper transcript) shown on the node and in Node Helper.",
         },
     },
+    "Note": {
+        "description": "Sticky comment on the canvas — documentation only, not part of the render graph.",
+        "widgets": {
+            "text": "Your comment. Shown on the node; edit here or in the inspector.",
+        },
+    },
     "Normalize": {
         "description": "Adjust loudness to a target LUFS and peak ceiling.",
         "widgets": {
