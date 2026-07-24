@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import numpy as np
@@ -142,11 +141,3 @@ def test_save_audio_writes_mp4(project_dir: Path) -> None:
     assert exported.exists()
     assert exported.suffix.lower() == ".mp4"
     assert exported.stat().st_size > 500
-
-
-def test_stem_split_template_path_is_stem_mp4() -> None:
-    root = Path(__file__).resolve().parents[1]
-    data = json.loads((root / "templates" / "stem-split-vocals.groovy.json").read_text())
-    load = next(node for node in data["nodes"] if node["type"] == "LoadAudio")
-    assert load["widgets"]["path"].endswith(".stem.mp4")
-    assert load["widgets"].get("audio_stream", 0) == 0

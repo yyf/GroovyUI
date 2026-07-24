@@ -275,6 +275,18 @@ def load_template_workflow(spec: TemplateIntegritySpec) -> Workflow:
     for node in workflow.nodes:
         if spec.sample_path and node.type == "LoadAudio":
             node.widgets["path"] = spec.sample_path
+            # Integrity fixtures are WAV; drop stream index used by .stem.mp4 loads.
+            node.widgets.pop("audio_stream", None)
         if spec.midi_path and node.type == "LoadMIDI":
             node.widgets["path"] = spec.midi_path
+        # CI runners may lack ffmpeg; keep SaveAudio on formats soundfile can write.
+        if node.type == "SaveAudio" and str(node.widgets.get("format", "")).lower() in {
+            "mp4",
+            "m4a",
+            "aac",
+        }:
+            node.widgets["format"] = "wav"
+            filename = str(node.widgets.get("filename") or "out.wav")
+            stem = Path(filename).stem or "out"
+            node.widgets["filename"] = f"{stem}.wav"
     return workflow

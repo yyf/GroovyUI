@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,16 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_stem_split_template_defaults_are_ci_safe_wav() -> None:
+    """v1 stem-split must not require ffmpeg (SaveAudio mp4) on CI runners."""
+    data = json.loads((ROOT / "templates" / "stem-split-vocals.groovy.json").read_text())
+    load = next(node for node in data["nodes"] if node["type"] == "LoadAudio")
+    save = next(node for node in data["nodes"] if node["type"] == "SaveAudio")
+    assert str(load["widgets"]["path"]).endswith(".wav")
+    assert save["widgets"]["format"] == "wav"
+    assert str(save["widgets"]["filename"]).endswith(".wav")
 
 
 @pytest.fixture(params=ALL_TEMPLATE_INTEGRITY_SPECS, ids=lambda s: s.template_id)
