@@ -21,6 +21,7 @@ from groovy.executor.content_credentials import (
     process_content_credentials,
 )
 from groovy.executor.control import AutomationBuffer
+from groovy.executor.media_io import read_audio_pcm, write_audio_ffmpeg, write_uses_ffmpeg
 from groovy.executor.midi import MidiBuffer
 from groovy.executor.project_paths import resolve_project_media_path
 from groovy.executor.provenance import build_lineage_graph
@@ -76,6 +77,18 @@ class LoadAudio(GroovyNode):
             "optional": {
                 "start_frame": ("INT", {"default": 0}),
                 "end_frame": ("INT", {"default": -1}),
+                "audio_stream": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 31,
+                        "description": (
+                            "Audio stream index for multi-stream files "
+                            "(OpenSTEM .stem.mp4 mix = 0)"
+                        ),
+                    },
+                ),
             },
         }
 
@@ -85,16 +98,17 @@ class LoadAudio(GroovyNode):
         path = str(kwargs.get("path", ""))
         start_frame = int(kwargs.get("start_frame", 0))
         end_frame = int(kwargs.get("end_frame", -1))
+        audio_stream = int(kwargs.get("audio_stream", 0))
         resolved, canonical_path = resolve_project_media_path(self._ctx.cache, path)
 
         try:
-            pcm, sample_rate = sf.read(resolved, dtype="float64", always_2d=True)
+            pcm, sample_rate = read_audio_pcm(resolved, stream_index=audio_stream)
         except Exception as exc:
             raise RuntimeError(
                 f"UNSUPPORTED_FORMAT: {canonical_path} — {exc}. "
-                "Try WAV/FLAC/AIFF; MP3/OGG may need conversion."
+                "Supported: WAV/FLAC/AIFF via libsndfile; "
+                "MP4/M4A/AAC/MP3/OGG via ffmpeg."
             ) from exc
-        pcm = pcm.T  # planar channels x frames
 
         start = max(0, start_frame)
         end = pcm.shape[1] if end_frame < 0 else min(pcm.shape[1], end_frame)
@@ -108,7 +122,10 @@ class LoadAudio(GroovyNode):
             channel_layout=channel_layout_for_channels(pcm.shape[0]),
         )
         apply_file_probe(buffer, probe)
-        meta_extra: dict = {"source_path": canonical_path}
+        meta_extra: dict = {
+            "source_path": canonical_path,
+            "audio_stream": audio_stream,
+        }
         sidecar = resolved.with_name(f"{resolved.stem}.provenance.json")
         if sidecar.exists():
             meta_extra["imported_provenance"] = json.loads(sidecar.read_text())
@@ -239,14 +256,23 @@ class SaveAudio(GroovyNode):
 
         _, pcm = self._ctx.cache.load_audio(audio_in.id)
         interleaved = pcm.T
-        subtype = self._subtype_for(fmt, depth)
-        sf.write(
-            unsigned_path,
-            interleaved,
-            audio_in.sample_rate,
-            format=fmt.upper(),
-            subtype=subtype,
-        )
+        fmt_lower = fmt.strip().lower()
+        if write_uses_ffmpeg(fmt_lower):
+            write_audio_ffmpeg(
+                unsigned_path,
+                pcm,
+                audio_in.sample_rate,
+                format_name=fmt_lower,
+            )
+        else:
+            subtype = self._subtype_for(fmt, depth)
+            sf.write(
+                unsigned_path,
+                interleaved,
+                audio_in.sample_rate,
+                format=fmt.upper(),
+                subtype=subtype,
+            )
         # A successful SaveAudio render always produces the paired provenance
         # artifact. Missing provenance or a failed sidecar write must fail the
         # node instead of silently leaving an incomplete handoff.
@@ -866,28 +892,34 @@ class Transcode(GroovyNode):
         dest = self._ctx.cache.resolve_project_path(path)
         dest.parent.mkdir(parents=True, exist_ok=True)
         exported_with = "soundfile"
-        if fmt in {"mp3", "aac", "opus"}:
-            import shutil
-            import subprocess
+        if fmt in {"mp3", "aac", "opus", "mp4", "m4a"}:
+            from groovy.executor.media_io import write_audio_ffmpeg, write_uses_ffmpeg
 
-            if shutil.which("ffmpeg"):
-                wav_tmp = dest.with_suffix(".tmp.wav")
-                sf.write(wav_tmp, pcm.T, audio.sample_rate, format="WAV", subtype="PCM_16")
-                codec = {"mp3": "libmp3lame", "aac": "aac", "opus": "libopus"}[fmt]
-                subprocess.run(
-                    [
-                        "ffmpeg",
-                        "-y",
-                        "-i",
-                        str(wav_tmp),
-                        "-acodec",
-                        codec,
-                        str(dest),
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-                wav_tmp.unlink(missing_ok=True)
+            if write_uses_ffmpeg(fmt) or fmt == "opus":
+                if fmt == "opus":
+                    import shutil
+                    import subprocess
+
+                    if not shutil.which("ffmpeg"):
+                        raise RuntimeError("ffmpeg required for opus export (not found on PATH)")
+                    wav_tmp = dest.with_suffix(".tmp.wav")
+                    sf.write(wav_tmp, pcm.T, audio.sample_rate, format="WAV", subtype="PCM_16")
+                    subprocess.run(
+                        [
+                            "ffmpeg",
+                            "-y",
+                            "-i",
+                            str(wav_tmp),
+                            "-acodec",
+                            "libopus",
+                            str(dest),
+                        ],
+                        check=True,
+                        capture_output=True,
+                    )
+                    wav_tmp.unlink(missing_ok=True)
+                else:
+                    write_audio_ffmpeg(dest, pcm, audio.sample_rate, format_name=fmt)
                 exported_with = "ffmpeg"
             else:
                 raise RuntimeError(f"ffmpeg required for {fmt} export (not found on PATH)")

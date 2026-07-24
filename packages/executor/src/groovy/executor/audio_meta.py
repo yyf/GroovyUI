@@ -110,7 +110,35 @@ def _encoding_scheme(
 
 def probe_audio_file(path: Path) -> dict[str, Any]:
     """Read container/codec and infer multichannel layout metadata from a file on disk."""
-    info = sf.info(path)
+    from groovy.executor.media_io import probe_with_ffmpeg, requires_ffmpeg_read
+
+    try:
+        info = sf.info(path)
+    except Exception:
+        if not requires_ffmpeg_read(path):
+            raise
+        ffmpeg_meta = probe_with_ffmpeg(path)
+        channels = int(ffmpeg_meta["channels"])
+        channel_layout = channel_layout_for_channels(channels)
+        return {
+            "channels": channels,
+            "sample_rate": int(ffmpeg_meta["sample_rate"]),
+            "duration_seconds": float(ffmpeg_meta["duration_seconds"]),
+            "channel_layout": channel_layout,
+            "channel_map": channel_map_for_layout(channel_layout, channels),
+            "layout_order": None,
+            "encoding_scheme": None,
+            "file_format": ffmpeg_meta["file_format"],
+            "file_subtype": ffmpeg_meta["file_subtype"],
+            "spatial_meta": {
+                "source_path": str(path),
+                "file_format": ffmpeg_meta["file_format"],
+                "file_subtype": ffmpeg_meta["file_subtype"],
+                "audio_stream_count": ffmpeg_meta.get("audio_stream_count", 1),
+                "decode_backend": "ffmpeg",
+            },
+        }
+
     comments: str | None = None
     extra_info: Any = None
     try:

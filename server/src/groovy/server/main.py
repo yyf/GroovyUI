@@ -765,7 +765,7 @@ def project_audio_meta(path: str) -> dict[str, Any]:
             status_code=400,
             detail=(
                 f"UNSUPPORTED_FORMAT: {canonical_path} — {exc}. "
-                "Try WAV/FLAC/AIFF; some MP3/OGG files may need conversion."
+                "Supported: WAV/FLAC/AIFF; MP4/M4A/AAC/MP3/OGG via ffmpeg."
             ),
         ) from exc
     meta["canonical_path"] = canonical_path

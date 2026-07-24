@@ -753,7 +753,7 @@ export default function App() {
     async (files: FileList | null) => {
       if (!files?.length || !workflow) return;
       const file = files[0];
-      if (!file.type.startsWith("audio/") && !file.name.match(/\.(wav|flac|mp3|ogg)$/i)) {
+      if (!file.type.startsWith("audio/") && !file.name.match(/\.(wav|flac|mp3|ogg|mp4|m4a)$/i)) {
         setStatus("Drop an audio file (WAV, FLAC, MP3, OGG)");
         return;
       }

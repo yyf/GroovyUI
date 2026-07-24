@@ -28,7 +28,7 @@ const TEXT_NAMES = new Set([
 const FADER_NAMES = /^(gain|gain_[ab]|volume|level|wet|dry|amount|mix|select|strength|opacity|balance)$/i;
 
 const STRING_OPTIONS: Record<string, string[]> = {
-  format: ["wav", "flac"],
+  format: ["wav", "flac", "mp4"],
   bit_depth: ["16", "24", "32", "float"],
   quality: ["fast", "good", "best"],
   mode: ["lufs", "peak"],
