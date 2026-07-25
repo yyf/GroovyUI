@@ -22,9 +22,9 @@ def test_catalog_search_denoise() -> None:
 
 def test_model_install_dev_stub(tmp_path: Path) -> None:
     registry = ModelRegistry(tmp_path)
-    state = registry.installer.install("f5-tts-base")
+    state = registry.installer.install("cosyvoice-300m")
     assert state.status == "ready"
-    marker = tmp_path / ".groovy" / "models" / "f5-tts-base" / "installed.json"
+    marker = tmp_path / ".groovy" / "models" / "cosyvoice-300m" / "installed.json"
     assert marker.exists()
 
 
@@ -36,6 +36,7 @@ def test_install_python_deps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.delenv("GROOVY_INFERENCE_STUB", raising=False)
     monkeypatch.setattr("groovy.registry.installer._run_pip_install", fake_pip)
+    monkeypatch.setattr("groovy.registry.installer._purge_conflicting_pypi_groovy", lambda: None)
     manifest = ModelManifest(
         id="test-deps",
         name="Test deps",
@@ -91,6 +92,7 @@ def test_install_python_deps_no_deps(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
     monkeypatch.delenv("GROOVY_INFERENCE_STUB", raising=False)
     monkeypatch.setattr("groovy.registry.installer._run_pip_install", fake_pip)
+    monkeypatch.setattr("groovy.registry.installer._purge_conflicting_pypi_groovy", lambda: None)
     manifest = ModelManifest(
         id="basic-pitch",
         name="Basic Pitch",

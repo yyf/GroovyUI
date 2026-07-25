@@ -36,15 +36,19 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         },
     },
     "TTS": {
-        "description": "Synthesize speech from a text prompt using a TTS model.",
+        "description": "Synthesize speech from a text prompt using a TTS model. Wire reference_audio for zero-shot voice cloning (F5-TTS / GPT-SoVITS).",
+        "inputs": {
+            "transcript": "Optional TEXT wire; overrides the local text widget when connected.",
+            "reference_audio": "Optional speaker reference clip for clone models (F5-TTS, GPT-SoVITS).",
+        },
         "widgets": {
-            "model": "Text-to-speech model (default Kokoro-82M).",
+            "model": "Text-to-speech model (Kokoro for plain TTS; F5-TTS / GPT-SoVITS for cloning).",
             "text": "Script or prompt to speak.",
             "seed": "Random seed (−1 = random).",
         },
     },
     "VoiceConvert": {
-        "description": "Convert speaker timbre while preserving timing and intelligibility.",
+        "description": "Convert speaker timbre while preserving timing and intelligibility (RVC / OpenVoice).",
         "widgets": {"model": "Voice conversion / RVC model."},
     },
     "AudioToMIDI": {

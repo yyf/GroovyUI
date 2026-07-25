@@ -81,6 +81,15 @@ def kokoro_available() -> bool:
         return False
 
 
+def f5_tts_available() -> bool:
+    try:
+        import f5_tts  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "deepfilternet-v3": deepfilternet_available,
     "basic-pitch": basic_pitch_available,
@@ -91,6 +100,7 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "whisper-large-v3-turbo": whisper_available,
     "whisper-small-en": whisper_available,
     "kokoro-82m": kokoro_available,
+    "f5-tts-base": f5_tts_available,
 }
 
 

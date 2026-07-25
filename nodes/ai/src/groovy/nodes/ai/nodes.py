@@ -156,6 +156,15 @@ class TTS(GroovyNode):
                 "transcript": ("TEXT",),
                 "text": ("STRING", {"default": "Hello from GroovyUI."}),
                 "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+                # Zero-shot / few-shot clone models (F5-TTS, GPT-SoVITS) use this clip.
+                "reference_audio": ("AUDIO",),
+                "reference_text": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                    },
+                ),
             },
         }
 

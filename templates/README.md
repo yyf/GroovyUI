@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-27 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+28 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -13,6 +13,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Cleanup and Transcribe | [cleanup-and-transcribe.groovy.json](cleanup-and-transcribe.groovy.json) | 1 / **featured** | deepfilternet + whisper |
 | Diarize and Transcribe | [diarize-and-transcribe.groovy.json](diarize-and-transcribe.groovy.json) | 1 / **featured** | whisper + pyannote (energy fallback) |
 | TTS Greeting | [tts-greeting.groovy.json](tts-greeting.groovy.json) | 1 / **featured** | `kokoro-82m` |
+| Voice Cloning | [voice-cloning.groovy.json](voice-cloning.groovy.json) | 1 / **featured** | `f5-tts-base` (+ reference LoadAudio) |
 | Prompt TTS Modular | [prompt-tts-modular.groovy.json](prompt-tts-modular.groovy.json) | 2 / **featured** | `kokoro-82m` |
 | Simple FM Synth | [simple-fm-synth.groovy.json](simple-fm-synth.groovy.json) | 2 / **featured** | — (Osc + FloatMath + ControlCurves) |
 | Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 / **featured** | `demucs-v4` |

@@ -7,6 +7,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "transcribe-dialogue",
   "diarize-and-transcribe",
   "tts-greeting",
+  "voice-cloning",
   "prompt-tts-modular",
   "simple-fm-synth",
   "text-to-music",

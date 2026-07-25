@@ -313,7 +313,7 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
   },
   TTS: {
     title: "TTS",
-    description: "Synthesize speech from text.",
+    description: "Synthesize speech from text (optional reference for cloning).",
     focusNodeId: "n1",
     nodes: [
       { id: "n1", type: "TTS", x: 0, widgets: { text: "Hello from GroovyUI.", model: "kokoro-82m" } },
