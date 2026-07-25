@@ -163,6 +163,35 @@ def _install_python_deps(
         store.mark_progress(model_id, "downloading", progress)
         no_deps = bool(dep.get("no_deps"))
         _run_pip_install(requirement, no_deps=no_deps, cancel_check=cancel_check)
+    # f5-tts (and occasionally other Hub packages) declare a dependency on an
+    # unrelated PyPI package also named ``groovy``, which shadows this workspace.
+    _purge_conflicting_pypi_groovy()
+
+
+def _purge_conflicting_pypi_groovy() -> None:
+    """Remove PyPI ``groovy`` if it shadows the GroovyUI workspace package."""
+    try:
+        import groovy
+    except ImportError:
+        return
+    path = (getattr(groovy, "__file__", None) or "").replace("\\", "/")
+    if "/site-packages/groovy/" not in path and not path.endswith("/site-packages/groovy/__init__.py"):
+        return
+    try:
+        import groovy.nodes  # noqa: F401
+
+        return
+    except ImportError:
+        pass
+    _run_pip_uninstall("groovy")
+
+
+def _run_pip_uninstall(package: str) -> None:
+    if shutil.which("uv"):
+        command = ["uv", "pip", "uninstall", "--python", sys.executable, package]
+    else:
+        command = [sys.executable, "-m", "pip", "uninstall", "-y", package]
+    subprocess.run(command, check=False, capture_output=True, text=True)
 
 
 def _verify_runtime(manifest: ModelManifest, *, project_dir: Path | None = None) -> None:

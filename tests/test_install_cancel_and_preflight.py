@@ -166,7 +166,7 @@ def test_cancelled_install_resets_progress(tmp_path: Path) -> None:
 
 def test_uninstall_removes_weights_and_resets_state(tmp_path: Path) -> None:
     registry = ModelRegistry(tmp_path)
-    model_id = "f5-tts-base"
+    model_id = "cosyvoice-300m"
     state = registry.installer.install(model_id)
     assert state.status == "ready"
     model_dir = registry.store.model_dir(model_id)

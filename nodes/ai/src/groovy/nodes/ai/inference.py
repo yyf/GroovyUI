@@ -201,12 +201,22 @@ def run_tts(cache: CacheStore, kwargs: dict) -> list[dict]:
     text = str(kwargs.get("transcript") or kwargs.get("text") or "Hello from GroovyUI.")
     model_id = str(kwargs.get("model", "kokoro-82m"))
     sample_rate = 48000
+    reference_pcm = None
+    reference_sample_rate = sample_rate
+    # Worker serializes optional reference_audio as audio_id (same path as melody conditioning).
+    if kwargs.get("audio_id"):
+        ref_buf, reference_pcm = cache.load_audio(str(kwargs["audio_id"]))
+        reference_sample_rate = int(ref_buf.sample_rate) or sample_rate
+        sample_rate = reference_sample_rate
     pcm = synthesize_speech(
         text,
         sample_rate=sample_rate,
         model_id=model_id,
         seed=optional_seed(kwargs),
         stub_seed=seed_param(kwargs, fallback=text),
+        reference_pcm=reference_pcm,
+        reference_sample_rate=reference_sample_rate,
+        reference_text=str(kwargs.get("reference_text") or ""),
     )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="TTS")
     cache.write_audio(out_buffer, pcm)
@@ -494,10 +504,12 @@ def synthesize_speech(
     model_id: str,
     seed: int | None = None,
     stub_seed: int | None = None,
+    reference_pcm: np.ndarray | None = None,
+    reference_sample_rate: int | None = None,
+    reference_text: str = "",
 ) -> np.ndarray:
-    from groovy.nodes.ai.inference_env import inference_stub_enabled
+    from groovy.nodes.ai.inference_env import f5_tts_available, inference_stub_enabled
 
-    _ = seed  # reserved for backends that support deterministic sampling
     effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
 
     if model_id == "kokoro-82m":
@@ -506,28 +518,79 @@ def synthesize_speech(
 
             return synthesize_pcm(text, sample_rate=sample_rate)
         return _synthesize_speech_stub(
-            text, sample_rate=sample_rate, model_id=model_id, seed=effective_stub
+            text,
+            sample_rate=sample_rate,
+            model_id=model_id,
+            seed=effective_stub,
+            reference_pcm=reference_pcm,
+        )
+
+    if model_id == "f5-tts-base":
+        if inference_stub_enabled():
+            return _synthesize_speech_stub(
+                text,
+                sample_rate=sample_rate,
+                model_id=model_id,
+                seed=effective_stub,
+                reference_pcm=reference_pcm,
+            )
+        if reference_pcm is None:
+            raise RuntimeError(
+                "F5-TTS voice cloning requires reference_audio. "
+                "Wire LoadAudio → TTS reference_audio (Voice Cloning template)."
+            )
+        if not f5_tts_available():
+            raise RuntimeError(
+                "f5-tts is not installed. Install f5-tts-base from Model Browser (Cmd+K)."
+            )
+        from groovy.nodes.ai.backends.f5_tts_runner import synthesize_pcm as f5_synthesize
+
+        return f5_synthesize(
+            text,
+            sample_rate=sample_rate,
+            reference_pcm=reference_pcm,
+            reference_sample_rate=int(reference_sample_rate or sample_rate),
+            reference_text=reference_text,
+            seed=seed,
         )
 
     if inference_stub_enabled():
         return _synthesize_speech_stub(
-            text, sample_rate=sample_rate, model_id=model_id, seed=effective_stub
+            text,
+            sample_rate=sample_rate,
+            model_id=model_id,
+            seed=effective_stub,
+            reference_pcm=reference_pcm,
         )
 
     raise RuntimeError(
         f"Unsupported TTS model for real inference: {model_id}. "
-        "Install kokoro-82m from Model Browser, or set GROOVY_INFERENCE_STUB=1 for tone stubs."
+        "Install a supported model from Model Browser (kokoro-82m or f5-tts-base)."
     )
 
 
 def _synthesize_speech_stub(
-    text: str, *, sample_rate: int, model_id: str, seed: int = 0
+    text: str,
+    *,
+    sample_rate: int,
+    model_id: str,
+    seed: int = 0,
+    reference_pcm: np.ndarray | None = None,
 ) -> np.ndarray:
     duration = min(3.0, max(0.5, len(text) * 0.05))
     t = np.linspace(0, duration, int(sample_rate * duration), endpoint=False)
     # Slight pitch difference per model so stub A/B is audible; seed nudges frequency.
     base = 196.0 if "kokoro" in model_id else 220.0
+    if "f5" in model_id or "sovits" in model_id or "cosyvoice" in model_id:
+        base = 180.0
     freq = base + (seed % 17) * 3.0
+    if reference_pcm is not None:
+        # Nudge timbre from reference energy so clone graphs sound distinct in stub mode.
+        ref = reference_pcm.astype(np.float64)
+        if ref.ndim > 1:
+            ref = ref.mean(axis=0)
+        rms = float(np.sqrt(np.mean(ref * ref))) if ref.size else 0.0
+        freq += min(40.0, rms * 80.0)
     tone = 0.2 * np.sin(2 * np.pi * freq * t)
     return tone.reshape(1, -1)
 

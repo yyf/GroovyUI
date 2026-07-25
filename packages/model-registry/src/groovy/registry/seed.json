@@ -283,7 +283,11 @@
       "vram_gb_estimate": 6,
       "download_size_mb_estimate": 1300,
       "compatible_nodes": ["TTS"],
-      "install": { "dev_stub": true },
+      "install": {
+        "dev_stub": false,
+        "python_deps": [{ "package": "f5-tts", "version": ">=1.0.0" }],
+        "verify_imports": ["f5_tts"]
+      },
       "similar_models": ["cosyvoice-300m", "gpt-sovits-v2", "kokoro-82m"]
     },
     {
