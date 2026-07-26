@@ -10,6 +10,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "voice-cloning",
   "prompt-tts-modular",
   "simple-fm-synth",
+  "ace-step-1.5",
   "stable-audio",
   "text-to-music",
   "transcribe-and-regenerate",
