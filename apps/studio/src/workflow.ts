@@ -555,12 +555,19 @@ export type WiredInputRow = {
   linkType?: string;
 };
 
-/** When a TEXT socket is wired, these local widgets are ignored at render. */
+/** When a socket is wired, these local widgets are ignored at render. */
 const WIRED_TEXT_SUPERSEDES_WIDGET: Record<string, Record<string, string>> = {
   GenerateAudio: { text: "prompt" },
   MIDIToAudio: { text: "prompt" },
   SingFromMIDI: { lyrics: "text" },
   TTS: { transcript: "text" },
+  Granulate: {
+    grain_ms_curve: "grain_ms",
+    hop_ms_curve: "hop_ms",
+    pitch_cents_curve: "pitch_cents",
+    density_curve: "density",
+    width_curve: "width",
+  },
 };
 
 /** Returns the wired input row that disables a local widget, if any. */

@@ -57,6 +57,7 @@ def register_all() -> None:
         AutomationApply,
         FloatMath,
         FloatRoute,
+        Granulate,
     )
     register_immersive()
     register_modular_io()
@@ -1247,4 +1248,227 @@ class FloatRoute(GroovyNode):
         )
         self._ctx.cache.write_automation(curve)
         return (curve,)
+
+
+def _grain_window(kind: str, length: int, alpha: float) -> np.ndarray:
+    """Build a grain envelope. exp/tukey read tighter (more pointillist) than hann."""
+    n = max(8, int(length))
+    kind = (kind or "hann").strip().lower()
+    alpha = float(np.clip(alpha, 0.05, 1.0))
+    if kind == "tukey":
+        # alpha = tapered fraction; higher → closer to Hann, lower → flatter center.
+        tap = int(np.floor(alpha * (n - 1) / 2.0))
+        if tap <= 0:
+            return np.ones(n, dtype=np.float64)
+        window = np.ones(n, dtype=np.float64)
+        taper = 0.5 * (1.0 + np.cos(np.pi * np.arange(tap) / tap - np.pi))
+        window[:tap] = taper
+        window[-tap:] = taper[::-1]
+        return window
+    if kind in {"exp", "exponential"}:
+        # Symmetric exponential — energy concentrated in the middle (pointillist).
+        x = np.linspace(-1.0, 1.0, n, dtype=np.float64)
+        return np.exp(-3.5 * np.abs(x)).astype(np.float64)
+    return np.hanning(n).astype(np.float64)
+
+
+def _read_pitched_grain(
+    planar: np.ndarray,
+    src: int,
+    grain: int,
+    rate: float,
+) -> np.ndarray:
+    """Read `grain` samples starting near `src`, pitched by playback `rate` (2^(cents/1200))."""
+    channels, n_samples = planar.shape
+    rate = float(np.clip(rate, 0.25, 4.0))
+    positions = src + np.arange(grain, dtype=np.float64) * rate
+    positions = np.clip(positions, 0.0, max(0.0, n_samples - 1.000001))
+    i0 = np.floor(positions).astype(np.int64)
+    i1 = np.minimum(i0 + 1, n_samples - 1)
+    frac = positions - i0
+    out = np.empty((channels, grain), dtype=np.float64)
+    for ch in range(channels):
+        out[ch] = planar[ch, i0] * (1.0 - frac) + planar[ch, i1] * frac
+    return out
+
+
+@register_node
+class Granulate(GroovyNode):
+    """Offline granulator. Curves drive size, hop, pitch spread, density, and stereo width."""
+
+    CATEGORY = "GroovyUI/Core"
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"audio": ("AUDIO",)},
+            "optional": {
+                "grain_ms_curve": ("AUTOMATION",),
+                "hop_ms_curve": ("AUTOMATION",),
+                "pitch_cents_curve": ("AUTOMATION",),
+                "density_curve": ("AUTOMATION",),
+                "width_curve": ("AUTOMATION",),
+                "grain_ms": ("FLOAT", {"default": 50.0, "min": 5.0, "max": 200.0}),
+                "hop_ms": ("FLOAT", {"default": 20.0, "min": 1.0, "max": 100.0}),
+                "pitch_cents": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1200.0}),
+                "density": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 200.0}),
+                "spray": ("INT", {"default": 1, "min": 1, "max": 16}),
+                "width": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0}),
+                "window": ("STRING", {"default": "hann"}),
+                "window_alpha": ("FLOAT", {"default": 0.5, "min": 0.05, "max": 1.0}),
+                "scatter_ms": ("FLOAT", {"default": 120.0, "min": 0.0, "max": 1000.0}),
+                "wet_start": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0}),
+                "wet_end": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647}),
+            },
+        }
+
+    def run(self, audio: AudioBuffer, **kwargs) -> tuple[AudioBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        grain_ms = float(kwargs.get("grain_ms", 50.0))
+        hop_ms = float(kwargs.get("hop_ms", 20.0))
+        pitch_cents = float(kwargs.get("pitch_cents", 0.0))
+        density = float(kwargs.get("density", 0.0))
+        spray = max(1, int(kwargs.get("spray", 1)))
+        width = float(np.clip(float(kwargs.get("width", 0.0)), 0.0, 1.0))
+        window_kind = str(kwargs.get("window", "hann"))
+        window_alpha = float(kwargs.get("window_alpha", 0.5))
+        scatter_ms = float(kwargs.get("scatter_ms", 120.0))
+        wet_start = float(np.clip(float(kwargs.get("wet_start", 0.0)), 0.0, 1.0))
+        wet_end = float(np.clip(float(kwargs.get("wet_end", 1.0)), 0.0, 1.0))
+        seed = int(kwargs.get("seed", 0))
+        grain_curve: AutomationBuffer | None = kwargs.get("grain_ms_curve")
+        hop_curve: AutomationBuffer | None = kwargs.get("hop_ms_curve")
+        pitch_curve: AutomationBuffer | None = kwargs.get("pitch_cents_curve")
+        density_curve: AutomationBuffer | None = kwargs.get("density_curve")
+        width_curve: AutomationBuffer | None = kwargs.get("width_curve")
+
+        _, pcm = self._ctx.cache.load_audio(audio.id)
+        planar = np.asarray(pcm, dtype=np.float64)
+        if planar.ndim == 1:
+            planar = planar.reshape(1, -1)
+        sr = int(audio.sample_rate)
+        in_channels, n_samples = planar.shape
+        if n_samples == 0:
+            buffer = AudioBuffer.from_planar(
+                planar,
+                sr,
+                source_node_type="Granulate",
+                channel_layout=audio.channel_layout,
+            )
+            inherit_format_meta(buffer, audio)
+            self._ctx.cache.write_audio(buffer, planar)
+            return (buffer,)
+
+        def series(curve: AutomationBuffer | None, constant: float, lo: float, hi: float) -> np.ndarray:
+            if curve is not None:
+                return np.clip(curve.resample_to(n_samples), lo, hi)
+            return np.full(n_samples, constant, dtype=np.float64)
+
+        grain_ms_series = series(grain_curve, grain_ms, 5.0, 200.0)
+        hop_ms_series = series(hop_curve, hop_ms, 1.0, 100.0)
+        pitch_series = series(pitch_curve, pitch_cents, 0.0, 1200.0)
+        density_series = series(density_curve, density, 0.0, 200.0)
+        width_series = series(width_curve, width, 0.0, 1.0)
+
+        max_width = float(np.max(width_series)) if n_samples else 0.0
+        out_channels = 2 if max_width > 1e-6 or in_channels >= 2 else 1
+        if in_channels == 1 and out_channels == 2:
+            source = np.vstack([planar, planar])
+        elif in_channels > out_channels:
+            source = planar[:out_channels]
+        else:
+            source = planar
+
+        dry = source
+        scatter = max(0, int(round(sr * scatter_ms / 1000.0)))
+        rng = np.random.default_rng(seed)
+        wet = np.zeros((out_channels, n_samples), dtype=np.float64)
+        weight = np.zeros(n_samples, dtype=np.float64)
+
+        onsets: list[int] = []
+        out_pos = 0
+        while out_pos < n_samples:
+            onsets.append(out_pos)
+            hop = max(1, int(round(sr * float(hop_ms_series[out_pos]) / 1000.0)))
+            out_pos += hop
+
+        dens_pos = 0
+        while dens_pos < n_samples:
+            d = float(density_series[dens_pos])
+            if d > 0.05:
+                onsets.append(dens_pos)
+                dens_pos += max(1, int(round(sr / d)))
+            else:
+                dens_pos += max(1, int(round(sr * float(hop_ms_series[dens_pos]) / 1000.0)))
+
+        for onset in sorted(set(onsets)):
+            t = onset / max(n_samples - 1, 1)
+            amount = wet_start + (wet_end - wet_start) * t
+            grain = max(8, int(round(sr * float(grain_ms_series[onset]) / 1000.0)))
+            window = _grain_window(window_kind, grain, window_alpha)
+            spread = float(pitch_series[onset])
+            width_amt = float(width_series[onset])
+            scatter_amt = int(round(scatter * amount))
+            for spray_i in range(spray):
+                # Primary grain stays on the hop onset (golden-stable); spray copies get time jitter.
+                if spray_i > 0 and scatter_amt > 0:
+                    time_jitter = int(rng.integers(-scatter_amt, scatter_amt + 1))
+                else:
+                    time_jitter = 0
+                place = int(np.clip(onset + time_jitter, 0, max(0, n_samples - 1)))
+                src_jitter = int(rng.integers(-scatter_amt, scatter_amt + 1)) if scatter_amt > 0 else 0
+                src = int(np.clip(onset + src_jitter, 0, max(0, n_samples - 1)))
+                cents = float(rng.uniform(-spread, spread)) if spread > 0 else 0.0
+                rate = float(2.0 ** (cents / 1200.0))
+                if abs(rate - 1.0) < 1e-12:
+                    take = min(grain, n_samples - place, n_samples - src)
+                else:
+                    take = min(grain, n_samples - place)
+                if take <= 0:
+                    continue
+                if abs(rate - 1.0) < 1e-12:
+                    chunk = np.asarray(source[:, src : src + take], dtype=np.float64)
+                else:
+                    chunk = _read_pitched_grain(source, src, take, rate)
+                w = window[:take]
+                if out_channels == 2:
+                    pan = float(rng.uniform(-width_amt, width_amt)) if width_amt > 0 else 0.0
+                    angle = (pan + 1.0) * (np.pi / 4.0)
+                    gains = (np.cos(angle), np.sin(angle))
+                    mono = np.mean(chunk, axis=0) if chunk.shape[0] > 1 else chunk[0]
+                    for ch, g in enumerate(gains):
+                        wet[ch, place : place + take] += mono * w * g
+                else:
+                    wet[:, place : place + take] += chunk[:out_channels] * w
+                weight[place : place + take] += w
+
+        safe_weight = np.maximum(weight, 1e-6)
+        wet /= safe_weight
+        env = np.linspace(wet_start, wet_end, n_samples, dtype=np.float64)
+        if dry.shape[0] != out_channels:
+            if dry.shape[0] == 1 and out_channels == 2:
+                dry = np.vstack([dry, dry])
+            else:
+                dry = dry[:out_channels]
+        out = dry * (1.0 - env) + wet * env
+        peak = float(np.max(np.abs(out))) if out.size else 0.0
+        if peak > 1.0:
+            out = out / peak
+
+        layout = "stereo" if out_channels == 2 else audio.channel_layout
+        buffer = AudioBuffer.from_planar(
+            out,
+            sr,
+            source_node_type="Granulate",
+            channel_layout=layout,
+        )
+        inherit_format_meta(buffer, audio)
+        if out_channels == 2:
+            buffer.channel_layout = "stereo"
+        self._ctx.cache.write_audio(buffer, out)
+        return (buffer,)
 

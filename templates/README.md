@@ -1,21 +1,20 @@
 # GroovyUI Template Workflows
 
-30 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+29 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
 | Template | File | Phase | Models |
 |----------|------|-------|--------|
-| Hello Groovy | [hello-groovy.groovy.json](hello-groovy.groovy.json) | 0 | — |
+| Hello Groovy | [hello-groovy.groovy.json](hello-groovy.groovy.json) | 0 / **featured** | `kokoro-82m` (+ Granulate) |
 | Podcast Denoise | [podcast-denoise.groovy.json](podcast-denoise.groovy.json) | 1 | `deepfilternet-v3` |
 | Stem Split Vocals | [stem-split-vocals.groovy.json](stem-split-vocals.groovy.json) | 1 / **featured** | `demucs-v4` |
 | Transcribe Dialogue | [transcribe-dialogue.groovy.json](transcribe-dialogue.groovy.json) | 1 / **featured** | `whisper-large-v3-turbo` |
 | Cleanup and Transcribe | [cleanup-and-transcribe.groovy.json](cleanup-and-transcribe.groovy.json) | 1 / **featured** | deepfilternet + whisper |
 | Diarize and Transcribe | [diarize-and-transcribe.groovy.json](diarize-and-transcribe.groovy.json) | 1 / **featured** | whisper + pyannote (energy fallback) |
-| TTS Greeting | [tts-greeting.groovy.json](tts-greeting.groovy.json) | 1 / **featured** | `kokoro-82m` |
 | Voice Cloning | [voice-cloning.groovy.json](voice-cloning.groovy.json) | 1 / **featured** | `f5-tts-base` (+ reference LoadAudio) |
 | Prompt TTS Modular | [prompt-tts-modular.groovy.json](prompt-tts-modular.groovy.json) | 2 / **featured** | `kokoro-82m` |
-| Simple FM Synth | [simple-fm-synth.groovy.json](simple-fm-synth.groovy.json) | 2 / **featured** | — (Osc + FloatMath + ControlCurves) |
+| Simple FM Synth | [simple-fm-synth.groovy.json](simple-fm-synth.groovy.json) | 2 | — (Osc + FloatMath + ControlCurves; hidden from default picker) |
 | Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 / **featured** | `demucs-v4` |
 | ACE-Step 1.5 | [ace-step-1.5.groovy.json](ace-step-1.5.groovy.json) | 2 / **featured** | `ace-step-1.5` |
 | Stable Audio | [stable-audio.groovy.json](stable-audio.groovy.json) | 2 / **featured** | `stable-audio-open-1.0` |

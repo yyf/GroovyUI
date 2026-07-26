@@ -48,7 +48,12 @@ class TemplateIntegritySpec:
 
 
 TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
-    "hello-groovy": {},
+    "hello-groovy": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("kokoro-82m",),
+        "required_outputs": (("n4", "AUDIO"),),
+    },
     "podcast-denoise": {"sample_path": "assets/samples/male-1.wav"},
     "ab-compare-demo": {"sample_path": "assets/samples/male-1.wav", "spot_check": "ab_compare"},
     "stem-split-vocals": {
@@ -84,7 +89,6 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("ace-step-1.5",),
         "required_outputs": (("n3", "AUDIO"),),
     },
-    "tts-greeting": {"fixture": "none", "sample_path": None},
     "voice-cloning": {
         "sample_path": "assets/samples/male-1.wav",
         "models": ("f5-tts-base",),

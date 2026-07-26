@@ -7,7 +7,6 @@
     "author": "groovy",
     "description": "Patch classic FM from blocks: I = \u0394f/f_m (FloatMath), mod Osc(f_m, I), carrier Osc(f_c, A_c, phase_mod=mod) \u2192 y = A_c\u00b7sin(2\u03c0 f_c t + I\u00b7sin(2\u03c0 f_m t)).",
     "tags": [
-      "featured",
       "modular",
       "fm",
       "synth",
