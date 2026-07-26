@@ -47,6 +47,16 @@ def musicgen_small_available() -> bool:
     return musicgen_available()
 
 
+def stable_audio_available() -> bool:
+    try:
+        import torchsde  # noqa: F401
+        from diffusers import StableAudioPipeline  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def demucs_available() -> bool:
     try:
         import demucs.apply  # noqa: F401
@@ -97,6 +107,7 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "demucs-v4-ht": demucs_available,
     "musicgen-melody-small": musicgen_melody_available,
     "musicgen-small": musicgen_small_available,
+    "stable-audio-open-1.0": stable_audio_available,
     "whisper-large-v3-turbo": whisper_available,
     "whisper-small-en": whisper_available,
     "kokoro-82m": kokoro_available,

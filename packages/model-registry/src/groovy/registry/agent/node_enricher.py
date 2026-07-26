@@ -71,9 +71,13 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "reference_audio": "Optional timbre/style reference clip.",
         },
         "widgets": {
-            "model": "Text-to-audio model (e.g. MusicGen Small).",
+            "model": "Text-to-audio model (MusicGen Small or Stable Audio Open).",
             "prompt": "Describe the sound you want to generate.",
             "seed": "Random seed (−1 = random). Same seed + prompt → repeatable output.",
+            "seconds_total": "Stable Audio: output length in seconds (up to ~47).",
+            "num_inference_steps": "Stable Audio: diffusion steps (higher = better, slower).",
+            "guidance_scale": "Prompt adherence strength.",
+            "negative_prompt": "Stable Audio: concepts to avoid.",
         },
     },
     "SingFromMIDI": {
