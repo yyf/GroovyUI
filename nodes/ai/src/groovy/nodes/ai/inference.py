@@ -683,8 +683,15 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
         midi=midi,
         reference_pcm=ref_pcm,
         max_new_tokens=int_param(kwargs, "max_new_tokens", 512),
-        guidance_scale=float_param(kwargs, "guidance_scale", 3.0),
+        guidance_scale=float_param(
+            kwargs,
+            "guidance_scale",
+            7.0 if model_id == "stable-audio-open-1.0" else 3.0,
+        ),
         temperature=float_param(kwargs, "temperature", 1.0),
+        seconds_total=float_param(kwargs, "seconds_total", 10.0),
+        num_inference_steps=int_param(kwargs, "num_inference_steps", 100),
+        negative_prompt=str(kwargs.get("negative_prompt") or "Low quality."),
         seed=optional_seed(kwargs),
         stub_seed=seed_param(kwargs, fallback=prompt),
     )
@@ -894,10 +901,17 @@ def generate_audio_waveform(
     max_new_tokens: int = 512,
     guidance_scale: float = 3.0,
     temperature: float = 1.0,
+    seconds_total: float = 10.0,
+    num_inference_steps: int = 100,
+    negative_prompt: str = "Low quality.",
     seed: int | None = None,
     stub_seed: int | None = None,
 ) -> np.ndarray:
-    from groovy.nodes.ai.inference_env import inference_stub_enabled, musicgen_small_available
+    from groovy.nodes.ai.inference_env import (
+        inference_stub_enabled,
+        musicgen_small_available,
+        stable_audio_available,
+    )
 
     _ = reference_pcm
     effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
@@ -920,6 +934,29 @@ def generate_audio_waveform(
         raise RuntimeError(
             "MusicGen Small inference is not installed. Run: ./scripts/setup-inference.sh "
             "(requires torch, transformers) then install musicgen-small from Model Browser."
+        )
+
+    if model_id == "stable-audio-open-1.0":
+        if inference_stub_enabled():
+            return _generate_audio_stub(
+                prompt, sample_rate=sample_rate, midi=midi, model_id=model_id, seed=effective_stub
+            )
+        if not stable_audio_available():
+            raise RuntimeError(
+                "Stable Audio Open inference is not installed. "
+                "Install stable-audio-open-1.0 from Model Browser (Cmd+K) "
+                "(requires diffusers + torch; accept the HF model license and set a token)."
+            )
+        from groovy.nodes.ai.backends.stable_audio_runner import generate_from_text as sa_generate
+
+        return sa_generate(
+            prompt,
+            sample_rate=sample_rate,
+            seconds_total=seconds_total,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            negative_prompt=negative_prompt,
+            seed=seed,
         )
 
     if inference_stub_enabled():

@@ -20,6 +20,7 @@ def test_hero_models_no_longer_dev_stub() -> None:
         "musicgen-melody-small",
         "kokoro-82m",
         "f5-tts-base",
+        "stable-audio-open-1.0",
     ):
         manifest = catalog.get(model_id)
         assert manifest is not None

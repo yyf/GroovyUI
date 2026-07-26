@@ -72,6 +72,12 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "midi_path": "assets/samples/automation_cc7.mid",
     },
     "text-to-music": {"fixture": "none", "sample_path": None},
+    "stable-audio": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("stable-audio-open-1.0",),
+        "required_outputs": (("n3", "AUDIO"),),
+    },
     "tts-greeting": {"fixture": "none", "sample_path": None},
     "voice-cloning": {
         "sample_path": "assets/samples/male-1.wav",

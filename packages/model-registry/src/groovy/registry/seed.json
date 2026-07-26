@@ -640,6 +640,71 @@
       "similar_models": ["musicgen-melody-small", "stable-audio-open-1.0"]
     },
     {
+      "id": "stable-audio-open-1.0",
+      "status": "published",
+      "trust": "verified",
+      "name": "Stable Audio Open 1.0",
+      "description": "Text-to-audio / music generation (stabilityai/stable-audio-open-1.0). Accept the HF license and set a token in Settings for first download.",
+      "task_types": ["music-generation", "generation", "sfx"],
+      "tags": ["stable-audio", "generation", "text-to-music", "sfx", "stability"],
+      "author": "Stability AI",
+      "license": {
+        "spdx": "LicenseRef-StabilityAI-Community",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 8,
+      "download_size_mb_estimate": 4500,
+      "compatible_nodes": ["GenerateAudio"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "torchaudio", "version": ">=2.0.0" },
+          { "package": "diffusers", "version": ">=0.30.0" },
+          { "package": "transformers", "version": ">=4.40.0" },
+          { "package": "accelerate", "version": ">=0.28.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" },
+          { "package": "torchsde", "version": ">=0.2.6" }
+        ],
+        "verify_imports": ["diffusers", "torch", "torchsde"]
+      },
+      "inference_params": [
+        {
+          "name": "seconds_total",
+          "type": "FLOAT",
+          "default": 10.0,
+          "min": 1.0,
+          "max": 47.0,
+          "description": "Output duration in seconds (model max ~47s)."
+        },
+        {
+          "name": "num_inference_steps",
+          "type": "INT",
+          "default": 100,
+          "min": 8,
+          "max": 200,
+          "description": "Diffusion steps (higher = better, slower)."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 7.0,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "Text prompt guidance strength."
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "default": "Low quality.",
+          "description": "Concepts to avoid in the generation."
+        }
+      ],
+      "similar_models": ["musicgen-small", "musicgen-melody-small"]
+    },
+    {
       "id": "diffsinger-opencpop",
       "status": "published",
       "trust": "verified",
