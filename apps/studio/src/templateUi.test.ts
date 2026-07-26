@@ -18,7 +18,6 @@ describe("templatesVisibleInUi", () => {
     bundled("transcribe-dialogue"),
     bundled("diarize-and-transcribe"),
     bundled("cleanup-and-transcribe"),
-    bundled("tts-greeting"),
     bundled("voice-cloning"),
     bundled("prompt-tts-modular"),
     bundled("simple-fm-synth"),
@@ -37,16 +36,21 @@ describe("templatesVisibleInUi", () => {
       "stem-split-vocals",
       "transcribe-dialogue",
       "diarize-and-transcribe",
-      "tts-greeting",
       "voice-cloning",
       "prompt-tts-modular",
-      "simple-fm-synth",
       "ace-step-1.5",
       "stable-audio",
       "text-to-music",
       "transcribe-and-regenerate",
       "hello-groovy",
     ]);
+  });
+
+  it("hides simple-fm-synth unless it is the active selection", () => {
+    expect(templatesVisibleInUi(allBundled).map((t) => t.id)).not.toContain("simple-fm-synth");
+    expect(templatesVisibleInUi(allBundled, "simple-fm-synth").map((t) => t.id)).toContain(
+      "simple-fm-synth",
+    );
   });
 
   it("always shows user templates", () => {

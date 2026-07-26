@@ -40,7 +40,6 @@ FEATURED = [
     "stem-split-vocals",
     "transcribe-dialogue",
     "diarize-and-transcribe",
-    "tts-greeting",
     "text-to-music",
     "transcribe-and-regenerate",
     "hello-groovy",
@@ -51,10 +50,9 @@ MODELS_BY_TEMPLATE: dict[str, tuple[str, ...]] = {
     "stem-split-vocals": ("demucs-v4",),
     "transcribe-dialogue": ("whisper-large-v3-turbo",),
     "diarize-and-transcribe": ("whisper-large-v3-turbo",),
-    "tts-greeting": ("kokoro-82m",),
     "text-to-music": ("musicgen-small",),
     "transcribe-and-regenerate": ("basic-pitch", "musicgen-melody-small"),
-    "hello-groovy": (),
+    "hello-groovy": ("kokoro-82m",),
 }
 
 RUNTIME_READY = {
@@ -123,7 +121,7 @@ def test_featured_template_real_inference(project_dir: Path, template_id: str) -
         project_dir / "assets" / "samples" / "dialogue_48k.wav"
     ).is_file():
         sample = "assets/samples/dialogue_48k.wav"
-    if template_id in {"tts-greeting", "text-to-music", "hello-groovy"}:
+    if template_id in {"text-to-music", "hello-groovy"}:
         sample = None
 
     workflow = _load(template_id, sample=sample)
@@ -138,6 +136,10 @@ def test_featured_template_real_inference(project_dir: Path, template_id: str) -
 
     if template_id == "hello-groovy":
         assert audio_outs, "hello-groovy should produce AUDIO"
+        _, pcm = executor.cache.load_audio(audio_outs[0]["cache_id"])
+        duration = pcm.shape[-1] / 48_000
+        assert duration >= 0.4
+        assert float(np.max(np.abs(pcm))) > 0.05
         return
 
     if template_id in {"transcribe-dialogue", "diarize-and-transcribe"}:
@@ -146,14 +148,6 @@ def test_featured_template_real_inference(project_dir: Path, template_id: str) -
         assert text and "[dev transcript" not in text.lower()
         if template_id == "diarize-and-transcribe":
             assert "SPEAKER_" in text or "speaker" in text.lower() or "[" in text
-
-    if template_id == "tts-greeting":
-        assert audio_outs
-        _, pcm = executor.cache.load_audio(audio_outs[0]["cache_id"])
-        # Kokoro speech is not a short pure 196 Hz stub (~0.5–3s sine).
-        duration = pcm.shape[-1] / 48_000
-        assert duration >= 0.4
-        assert float(np.max(np.abs(pcm))) > 0.05
 
     if template_id == "text-to-music":
         assert audio_outs

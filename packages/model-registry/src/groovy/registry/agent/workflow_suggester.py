@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any
 
 TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
-    (re.compile(r"\b(hello|normalize|first)\b", re.I), "hello-groovy", "Simple normalize chain"),
+    (re.compile(r"\b(hello|granulat|first.?run|onboard)\b", re.I), "hello-groovy", "Hello Groovy TTS + granulate"),
+    (re.compile(r"\b(normalize|load.?audio.?chain)\b", re.I), "hello-groovy", "Hello Groovy starter chain"),
     (
         re.compile(r"\b(cleanup.?and.?transcrib|denoise.+(transcrib|whisper)|clean.+(transcrib|whisper))\b", re.I),
         "cleanup-and-transcribe",
@@ -31,7 +32,7 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
         "FM patched from oscillators + control curves",
     ),
     (re.compile(r"\b(modular|automation.?apply|control.?curve)\b", re.I), "simple-fm-synth", "Modular FM synth patch"),
-    (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro)\b", re.I), "tts-greeting", "Text-to-speech"),
+    (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro|greeting)\b", re.I), "hello-groovy", "Hello Groovy TTS + granulate"),
     (re.compile(r"\b(voice.?clon|f5.?tts|zero.?shot.?voice)\b", re.I), "voice-cloning", "Voice cloning"),
     (re.compile(r"\b(voice.?convert|rvc)\b", re.I), "voice-convert-demo", "Voice conversion"),
     (re.compile(r"\b(authentic|deepfake|provenance.?verify)\b", re.I), "authenticity-check", "Authenticity analysis"),

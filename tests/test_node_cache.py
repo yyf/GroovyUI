@@ -12,8 +12,40 @@ from groovy.schema.models import Workflow
 
 register_core()
 
-ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "templates" / "hello-groovy.groovy.json"
+CACHE_WORKFLOW = {
+    "schema_version": "1.0.0",
+    "groovy_version": "0.1.0",
+    "id": "cache-load-normalize-0001",
+    "metadata": {
+        "title": "Cache Load Normalize",
+        "author": "groovy",
+        "description": "Core cache-hit micrograph",
+        "tags": ["test"],
+        "created_at": "2026-07-26T00:00:00Z",
+        "modified_at": "2026-07-26T00:00:00Z",
+    },
+    "nodes": [
+        {
+            "id": "n1",
+            "type": "LoadAudio",
+            "pos": {"x": 0, "y": 0},
+            "widgets": {"path": "assets/samples/dialogue_48k.wav"},
+        },
+        {
+            "id": "n2",
+            "type": "Normalize",
+            "pos": {"x": 240, "y": 0},
+            "widgets": {"mode": "peak", "target_peak_db": -1.0},
+        },
+        {"id": "n3", "type": "Preview", "pos": {"x": 480, "y": 0}, "widgets": {}},
+    ],
+    "links": [
+        {"id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO"},
+        {"id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO"},
+    ],
+    "groups": [],
+    "view": {"zoom": 1.0, "pan": {"x": 0, "y": 0}},
+}
 
 
 def test_compute_node_signature_stable() -> None:
@@ -31,11 +63,7 @@ def test_executor_skips_unchanged_nodes(tmp_path: Path) -> None:
     tone = 0.25 * np.sin(2 * np.pi * 440 * np.linspace(0, 0.5, int(sr * 0.5), endpoint=False))
     sf.write(assets / "dialogue_48k.wav", tone, sr)
 
-    workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
-    for node in workflow.nodes:
-        if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/dialogue_48k.wav"
-
+    workflow = Workflow.model_validate(CACHE_WORKFLOW)
     executor = Executor(tmp_path)
     first = executor.execute(workflow, target_nodes=["n3"])
     assert first.status == "completed", first.error

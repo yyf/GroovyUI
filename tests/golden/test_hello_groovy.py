@@ -3,51 +3,53 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import numpy as np
 import pytest
-import soundfile as sf
 from groovy.executor import Executor
-from groovy.nodes.core import register_all
+from groovy.nodes.ai import register_all as register_ai
+from groovy.nodes.core import register_all as register_core
+from groovy.node import NODE_REGISTRY
 from groovy.schema.models import Workflow
+from groovy.schema.validate import validate_workflow
 
-register_all()
+register_core()
+register_ai()
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "templates" / "hello-groovy.groovy.json"
 
 
-@pytest.fixture
-def project_dir(tmp_path: Path) -> Path:
-    assets = tmp_path / "assets" / "samples"
-    assets.mkdir(parents=True)
-    sr = 48000
-    duration = 1.0
-    t = np.linspace(0, duration, int(sr * duration), endpoint=False)
-    tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "dialogue_48k.wav", tone, sr)
-    return tmp_path
-
-
-def test_hello_groovy_golden(project_dir: Path) -> None:
-    workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
-    # Point LoadAudio at fixture path relative to project
-    for node in workflow.nodes:
-        if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/dialogue_48k.wav"
-
-    executor = Executor(project_dir)
-    result = executor.execute(workflow, target_nodes=["n3"])
-    assert result.status == "completed", result.error
-    assert "n3" in result.outputs
-    cache_id = result.outputs["n3"]["cache_id"]
-    meta = executor.cache.read_meta(cache_id)
-    assert meta["sample_rate"] == 48000
-    assert meta["frame_count"] == 48000
-    prov_path = project_dir / ".groovy" / "cache" / f"{cache_id}.provenance.json"
-    assert prov_path.exists()
-
-
-def test_workflow_template_validates() -> None:
+def test_hello_groovy_template_shape() -> None:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     assert workflow.metadata.title == "Hello Groovy"
-    assert len(workflow.nodes) == 3
+    types = [n.type for n in workflow.nodes]
+    assert types == [
+        "TTS",
+        "Normalize",
+        "ControlCurve",
+        "ControlCurve",
+        "ControlCurve",
+        "ControlCurve",
+        "ControlCurve",
+        "Granulate",
+        "Preview",
+        "SaveAudio",
+    ]
+    assert "Granulate" in NODE_REGISTRY
+    granulate = next(n for n in workflow.nodes if n.type == "Granulate")
+    assert granulate.widgets.get("window") == "exp"
+    assert int(granulate.widgets.get("spray", 0)) >= 2
+    curve_links = [l for l in workflow.links if l.to[0] == granulate.id and l.type == "AUTOMATION"]
+    assert len(curve_links) == 5
+    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    assert result.valid, [e.message for e in result.errors]
+
+
+def test_hello_groovy_stub_render(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
+    from groovy.registry import ModelRegistry
+
+    workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
+    ModelRegistry(tmp_path).installer.install("kokoro-82m")
+    out = Executor(tmp_path).execute(workflow, target_nodes=["n4", "n5"])
+    assert out.status == "completed", out.error
+    assert out.outputs["n4"]["type"] == "AUDIO"

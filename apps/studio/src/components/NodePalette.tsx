@@ -34,7 +34,7 @@ const MODULAR_NODES = new Set([
   "ModuleOutlet",
 ]);
 
-/** Immersive + Live I/O are deprioritized — hide from the nodes menu entirely. */
+/** Immersive + Live I/O + subgraph boundaries are deprioritized — hide from the nodes menu. */
 const HIDDEN_FROM_PALETTE = new Set([
   "ChannelConvert",
   "Transcode",
@@ -51,6 +51,8 @@ const HIDDEN_FROM_PALETTE = new Set([
   "MIDIInDevice",
   "MIDIOutDevice",
   "OSCInLive",
+  "ModuleInlet",
+  "ModuleOutlet",
 ]);
 
 const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix", "Note"]);
@@ -68,8 +70,8 @@ const AI_ANALYZE = new Set(["WhisperSTT", "DiarizeTranscribe", "AudioToMIDI"]);
 
 const TIERS: Array<{ id: PaletteTier; label: string; description: string }> = [
   { id: "core", label: "Core", description: "Essential I/O, processing, and AI exploration." },
-  { id: "modular", label: "Modular", description: "Control wires, MIDI, automation, and subgraph boundaries." },
-  { id: "all", label: "All", description: "Core and modular nodes (immersive / live I/O hidden)." },
+  { id: "modular", label: "Modular", description: "Control wires, MIDI, and automation." },
+  { id: "all", label: "All", description: "Core and modular nodes (immersive / live I/O / subgraph hidden)." },
 ];
 
 const GROUP_ORDER: GroupId[] = [

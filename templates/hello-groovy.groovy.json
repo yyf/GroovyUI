@@ -5,80 +5,147 @@
   "metadata": {
     "title": "Hello Groovy",
     "author": "groovy",
-    "description": "Load sample audio, normalize to -16 LUFS, preview. No AI models required.",
+    "description": "Onboarding hello: Kokoro TTS → Normalize → Granulate cloud. ControlCurves shrink grain size/hop, raise pitch spray + density, and bloom stereo width so speech starts clear and dissolves into a pointillist grain field. Install kokoro-82m for real inference.",
     "tags": [
       "starter",
-      "core"
+      "featured",
+      "core",
+      "tts",
+      "granular",
+      "control"
     ],
     "created_at": "2026-07-05T12:00:00Z",
-    "modified_at": "2026-07-05T12:00:00Z"
+    "modified_at": "2026-07-26T23:45:00Z"
   },
   "nodes": [
     {
       "id": "n1",
-      "type": "LoadAudio",
-      "pos": {
-        "x": 0,
-        "y": 0
-      },
+      "type": "TTS",
+      "pos": { "x": 0, "y": 40 },
       "widgets": {
-        "path": "assets/samples/male-1.wav"
+        "text": "Hello from GroovyUI.",
+        "model": "kokoro-82m"
       }
     },
     {
       "id": "n2",
       "type": "Normalize",
-      "pos": {
-        "x": 236,
-        "y": 0
-      },
+      "pos": { "x": 260, "y": 40 },
       "widgets": {
         "mode": "lufs",
         "target_lufs": -16.0
       }
     },
     {
+      "id": "n6",
+      "type": "ControlCurve",
+      "pos": { "x": 0, "y": 220 },
+      "widgets": {
+        "start_value": 95.0,
+        "end_value": 8.0,
+        "frame_count": 96000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":95},{\"t\":0.4,\"v\":70},{\"t\":0.7,\"v\":28},{\"t\":1,\"v\":8}]"
+      }
+    },
+    {
+      "id": "n7",
+      "type": "ControlCurve",
+      "pos": { "x": 0, "y": 360 },
+      "widgets": {
+        "start_value": 42.0,
+        "end_value": 10.0,
+        "frame_count": 96000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":42},{\"t\":0.4,\"v\":32},{\"t\":0.7,\"v\":16},{\"t\":1,\"v\":10}]"
+      }
+    },
+    {
+      "id": "n8",
+      "type": "ControlCurve",
+      "pos": { "x": 260, "y": 220 },
+      "widgets": {
+        "start_value": 0.0,
+        "end_value": 420.0,
+        "frame_count": 96000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":0},{\"t\":0.45,\"v\":40},{\"t\":0.75,\"v\":220},{\"t\":1,\"v\":420}]"
+      }
+    },
+    {
+      "id": "n9",
+      "type": "ControlCurve",
+      "pos": { "x": 260, "y": 360 },
+      "widgets": {
+        "start_value": 0.0,
+        "end_value": 110.0,
+        "frame_count": 96000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":0},{\"t\":0.4,\"v\":8},{\"t\":0.7,\"v\":45},{\"t\":1,\"v\":110}]"
+      }
+    },
+    {
+      "id": "n10",
+      "type": "ControlCurve",
+      "pos": { "x": 260, "y": 500 },
+      "widgets": {
+        "start_value": 0.0,
+        "end_value": 0.95,
+        "frame_count": 96000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":0},{\"t\":0.5,\"v\":0.15},{\"t\":0.8,\"v\":0.65},{\"t\":1,\"v\":0.95}]"
+      }
+    },
+    {
       "id": "n3",
+      "type": "Granulate",
+      "pos": { "x": 560, "y": 80 },
+      "widgets": {
+        "grain_ms": 50.0,
+        "hop_ms": 20.0,
+        "pitch_cents": 0.0,
+        "density": 0.0,
+        "spray": 4,
+        "width": 0.0,
+        "window": "exp",
+        "window_alpha": 0.35,
+        "scatter_ms": 320.0,
+        "wet_start": 0.0,
+        "wet_end": 1.0,
+        "seed": 7
+      }
+    },
+    {
+      "id": "n4",
       "type": "Preview",
-      "pos": {
-        "x": 472,
-        "y": 0
-      },
+      "pos": { "x": 840, "y": 40 },
       "widgets": {}
+    },
+    {
+      "id": "n5",
+      "type": "SaveAudio",
+      "pos": { "x": 840, "y": 164 },
+      "widgets": {
+        "path": "exports",
+        "filename": "hello-groovy.wav",
+        "format": "wav"
+      }
     }
   ],
   "links": [
-    {
-      "id": "l1",
-      "from": [
-        "n1",
-        0
-      ],
-      "to": [
-        "n2",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l2",
-      "from": [
-        "n2",
-        0
-      ],
-      "to": [
-        "n3",
-        0
-      ],
-      "type": "AUDIO"
-    }
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
+    { "id": "l5", "from": ["n6", 0], "to": ["n3", 1], "type": "AUTOMATION" },
+    { "id": "l6", "from": ["n7", 0], "to": ["n3", 2], "type": "AUTOMATION" },
+    { "id": "l7", "from": ["n8", 0], "to": ["n3", 3], "type": "AUTOMATION" },
+    { "id": "l8", "from": ["n9", 0], "to": ["n3", 4], "type": "AUTOMATION" },
+    { "id": "l9", "from": ["n10", 0], "to": ["n3", 5], "type": "AUTOMATION" },
+    { "id": "l3", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO" },
+    { "id": "l4", "from": ["n3", 0], "to": ["n5", 0], "type": "AUDIO" }
   ],
   "groups": [],
   "view": {
-    "zoom": 1.0,
-    "pan": {
-      "x": 0,
-      "y": 0
-    }
+    "zoom": 0.85,
+    "pan": { "x": 40, "y": 0 }
   }
 }
