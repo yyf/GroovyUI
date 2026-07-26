@@ -686,12 +686,27 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
         guidance_scale=float_param(
             kwargs,
             "guidance_scale",
-            7.0 if model_id == "stable-audio-open-1.0" else 3.0,
+            (
+                7.0
+                if model_id == "stable-audio-open-1.0"
+                else 1.0
+                if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo")
+                else 3.0
+            ),
         ),
         temperature=float_param(kwargs, "temperature", 1.0),
-        seconds_total=float_param(kwargs, "seconds_total", 10.0),
-        num_inference_steps=int_param(kwargs, "num_inference_steps", 100),
+        seconds_total=float_param(
+            kwargs,
+            "seconds_total",
+            15.0 if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo") else 10.0,
+        ),
+        num_inference_steps=int_param(
+            kwargs,
+            "num_inference_steps",
+            8 if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo") else 100,
+        ),
         negative_prompt=str(kwargs.get("negative_prompt") or "Low quality."),
+        lyrics=str(kwargs.get("lyrics") or ""),
         seed=optional_seed(kwargs),
         stub_seed=seed_param(kwargs, fallback=prompt),
     )
@@ -904,10 +919,12 @@ def generate_audio_waveform(
     seconds_total: float = 10.0,
     num_inference_steps: int = 100,
     negative_prompt: str = "Low quality.",
+    lyrics: str = "",
     seed: int | None = None,
     stub_seed: int | None = None,
 ) -> np.ndarray:
     from groovy.nodes.ai.inference_env import (
+        ace_step_available,
         inference_stub_enabled,
         musicgen_small_available,
         stable_audio_available,
@@ -956,6 +973,30 @@ def generate_audio_waveform(
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
             negative_prompt=negative_prompt,
+            seed=seed,
+        )
+
+    if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo"):
+        if inference_stub_enabled():
+            return _generate_audio_stub(
+                prompt, sample_rate=sample_rate, midi=midi, model_id=model_id, seed=effective_stub
+            )
+        if not ace_step_available():
+            raise RuntimeError(
+                "ACE-Step 1.5 inference is not installed. "
+                f"Install {model_id} from Model Browser (Cmd+K) "
+                "(requires diffusers with AceStepPipeline + torch)."
+            )
+        from groovy.nodes.ai.backends.ace_step_runner import generate_from_text as ace_generate
+
+        return ace_generate(
+            prompt,
+            sample_rate=sample_rate,
+            model_id=model_id,
+            seconds_total=seconds_total,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            lyrics=lyrics,
             seed=seed,
         )
 

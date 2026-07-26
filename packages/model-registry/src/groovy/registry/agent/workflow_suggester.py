@@ -38,6 +38,11 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\b(audio.?to.?midi|midi.?transcrib)\b", re.I), "transcribe-to-midi", "Audio to MIDI"),
     (re.compile(r"\b(regenerat|midi.?to.?audio|musicgen)\b", re.I), "transcribe-and-regenerate", "Transcribe and regenerate"),
     (
+        re.compile(r"\b(ace.?step|lyrics.?to.?music|text.?to.?song)\b", re.I),
+        "ace-step-1.5",
+        "ACE-Step 1.5 text-to-music",
+    ),
+    (
         re.compile(r"\b(stable.?audio|stability.?ai|sfx.?generat|text.?to.?audio)\b", re.I),
         "stable-audio",
         "Stable Audio Open generation",

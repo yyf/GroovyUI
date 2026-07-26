@@ -57,6 +57,16 @@ def stable_audio_available() -> bool:
         return False
 
 
+def ace_step_available() -> bool:
+    try:
+        import torch  # noqa: F401
+        from diffusers import AceStepPipeline  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def demucs_available() -> bool:
     try:
         import demucs.apply  # noqa: F401
@@ -108,6 +118,8 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "musicgen-melody-small": musicgen_melody_available,
     "musicgen-small": musicgen_small_available,
     "stable-audio-open-1.0": stable_audio_available,
+    "ace-step-1.5": ace_step_available,
+    "ace-step-1.5-2b-turbo": ace_step_available,
     "whisper-large-v3-turbo": whisper_available,
     "whisper-small-en": whisper_available,
     "kokoro-82m": kokoro_available,

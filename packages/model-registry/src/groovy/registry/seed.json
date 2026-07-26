@@ -582,7 +582,7 @@
           "description": "Sampling temperature (0 = deterministic)."
         }
       ],
-      "similar_models": ["ace-step"]
+      "similar_models": ["ace-step-1.5"]
     },
     {
       "id": "musicgen-small",
@@ -637,7 +637,7 @@
           "description": "Sampling temperature (0 = deterministic)."
         }
       ],
-      "similar_models": ["musicgen-melody-small", "stable-audio-open-1.0"]
+      "similar_models": ["musicgen-melody-small", "stable-audio-open-1.0", "ace-step-1.5", "ace-step-1.5-2b-turbo"]
     },
     {
       "id": "stable-audio-open-1.0",
@@ -702,7 +702,133 @@
           "description": "Concepts to avoid in the generation."
         }
       ],
-      "similar_models": ["musicgen-small", "musicgen-melody-small"]
+      "similar_models": ["musicgen-small", "musicgen-melody-small", "ace-step-1.5", "ace-step-1.5-2b-turbo"]
+    },
+    {
+      "id": "ace-step-1.5",
+      "status": "published",
+      "trust": "verified",
+      "name": "ACE-Step 1.5",
+      "description": "Open text-to-music with optional lyrics (ACE-Step/acestep-v15-xl-turbo-diffusers). Larger XL turbo (~11GB). For lighter demos prefer ace-step-1.5-2b-turbo (~6.3GB). MIT weights; ~8 steps. Prefer NVIDIA CUDA.",
+      "task_types": ["music-generation", "generation"],
+      "tags": ["ace-step", "generation", "text-to-music", "lyrics", "dit"],
+      "author": "ACE-Step",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 12,
+      "download_size_mb_estimate": 10000,
+      "compatible_nodes": ["GenerateAudio"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "diffusers", "version": ">=0.39.0" },
+          { "package": "transformers", "version": ">=4.45.0" },
+          { "package": "accelerate", "version": ">=0.28.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" }
+        ],
+        "verify_imports": ["diffusers", "torch"]
+      },
+      "inference_params": [
+        {
+          "name": "seconds_total",
+          "type": "FLOAT",
+          "default": 15.0,
+          "min": 10.0,
+          "max": 120.0,
+          "description": "Output duration in seconds (hero demos: 15–30; model supports longer)."
+        },
+        {
+          "name": "num_inference_steps",
+          "type": "INT",
+          "default": 8,
+          "min": 4,
+          "max": 50,
+          "description": "Turbo checkpoint is distilled for ~8 steps."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "Ignored on turbo (guidance-distilled); used on base/SFT variants."
+        },
+        {
+          "name": "lyrics",
+          "type": "STRING",
+          "default": "",
+          "description": "Optional structured lyrics (e.g. [verse] / [chorus]). Empty = instrumental-leaning."
+        }
+      ],
+      "similar_models": ["musicgen-small", "stable-audio-open-1.0", "ace-step-1.5-2b-turbo"]
+    },
+    {
+      "id": "ace-step-1.5-2b-turbo",
+      "status": "published",
+      "trust": "verified",
+      "name": "ACE-Step 1.5 2B Turbo",
+      "description": "Smallest ACE-Step 1.5 Diffusers pack for demos (~6.3GB; Runware/acestep-v15-turbo-diffusers — 2B turbo DiT, ~8 steps, optional lyrics). Prefer this over XL on limited disk/VRAM. MIT-class ACE-Step weights.",
+      "task_types": ["music-generation", "generation"],
+      "tags": ["ace-step", "generation", "text-to-music", "lyrics", "dit", "turbo", "2b"],
+      "author": "ACE-Step",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 0.9
+      },
+      "vram_gb_estimate": 8,
+      "download_size_mb_estimate": 6300,
+      "compatible_nodes": ["GenerateAudio"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "diffusers", "version": ">=0.39.0" },
+          { "package": "transformers", "version": ">=4.45.0" },
+          { "package": "accelerate", "version": ">=0.28.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" }
+        ],
+        "verify_imports": ["diffusers", "torch"]
+      },
+      "inference_params": [
+        {
+          "name": "seconds_total",
+          "type": "FLOAT",
+          "default": 15.0,
+          "min": 10.0,
+          "max": 120.0,
+          "description": "Output duration in seconds (demos: 15–30)."
+        },
+        {
+          "name": "num_inference_steps",
+          "type": "INT",
+          "default": 8,
+          "min": 4,
+          "max": 50,
+          "description": "Turbo checkpoint is distilled for ~8 steps."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "Ignored on turbo (guidance-distilled)."
+        },
+        {
+          "name": "lyrics",
+          "type": "STRING",
+          "default": "",
+          "description": "Optional structured lyrics (e.g. [verse] / [chorus]). Empty = instrumental-leaning."
+        }
+      ],
+      "similar_models": ["ace-step-1.5", "musicgen-small", "stable-audio-open-1.0"]
     },
     {
       "id": "diffsinger-opencpop",

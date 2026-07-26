@@ -285,7 +285,12 @@ class GenerateAudio(GroovyNode):
     DETERMINISTIC = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_generated"
-    COMPATIBLE_MODELS = ["musicgen-small", "stable-audio-open-1.0"]
+    COMPATIBLE_MODELS = [
+        "musicgen-small",
+        "stable-audio-open-1.0",
+        "ace-step-1.5",
+        "ace-step-1.5-2b-turbo",
+    ]
     RETURN_TYPES = ("AUDIO",)
 
     @classmethod
@@ -301,6 +306,7 @@ class GenerateAudio(GroovyNode):
                 "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
                 "midi": ("MIDI",),
                 "reference_audio": ("AUDIO",),
+                "lyrics": ("STRING", {"default": ""}),
             },
         }
 
