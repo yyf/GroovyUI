@@ -22,18 +22,24 @@ describe("templatesVisibleInUi", () => {
     bundled("prompt-modular-synth"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
+    bundled("extract-lyrics-to-music-with-ace-step"),
     bundled("stable-audio"),
     bundled("text-to-music"),
     bundled("karaoke-stems"),
     bundled("transcribe-and-regenerate"),
     bundled("authenticity-check"),
+    bundled("isolate-vocals-to-transcribe"),
+    bundled("isolate-vocals-to-voice-convert"),
   ];
 
   it("shows featured bundled templates sorted by title", () => {
     const visible = templatesVisibleInUi(allBundled);
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
+      "extract-lyrics-to-music-with-ace-step",
       "hello-groovy",
+      "isolate-vocals-to-transcribe",
+      "isolate-vocals-to-voice-convert",
       "podcast-denoise",
       "prompt-modular-synth",
       "stable-audio",

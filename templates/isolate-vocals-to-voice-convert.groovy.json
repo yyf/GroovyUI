@@ -1,0 +1,188 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "1b9f2c0a-3a4b-4c6d-8e9f-0123456789ab",
+  "metadata": {
+    "title": "Isolate to convert",
+    "author": "groovy",
+    "description": "Two-step vocal workflow as a patch-bay chain: Demucs stem split (vocals) -> DeepFilterNet denoise -> RVC voice convert. Preview and save the converted take.",
+    "tags": [
+      "ai",
+      "vocals",
+      "separation",
+      "denoise",
+      "voice-convert",
+      "rvc"
+    ],
+    "created_at": "2026-07-26T00:00:00Z",
+    "modified_at": "2026-07-26T00:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": {
+        "x": 0,
+        "y": 80
+      },
+      "widgets": {
+        "path": "assets/samples/Knockout_41k_mono.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "SeparateStems",
+      "pos": {
+        "x": 260,
+        "y": 80
+      },
+      "widgets": {
+        "model": "demucs-v4",
+        "shifts": 1,
+        "overlap": 0.25,
+        "segment": 0,
+        "split": true
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Denoise",
+      "pos": {
+        "x": 520,
+        "y": 80
+      },
+      "widgets": {
+        "model": "deepfilternet-v3",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "n4",
+      "type": "VoiceConvert",
+      "pos": {
+        "x": 780,
+        "y": 80
+      },
+      "widgets": {
+        "model": "rvc-v2-base"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Normalize",
+      "pos": {
+        "x": 1010,
+        "y": 80
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n6",
+      "type": "Preview",
+      "pos": {
+        "x": 1240,
+        "y": 80
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n7",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 1240,
+        "y": 200
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "voice-converted-vocals.wav",
+        "format": "wav",
+        "bit_depth": "16"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": [
+        "n4",
+        0
+      ],
+      "to": [
+        "n5",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l5",
+      "from": [
+        "n5",
+        0
+      ],
+      "to": [
+        "n6",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l6",
+      "from": [
+        "n5",
+        0
+      ],
+      "to": [
+        "n7",
+        0
+      ],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
+}
