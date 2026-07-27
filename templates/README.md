@@ -6,7 +6,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 
 | Template | File | Phase | Models |
 |----------|------|-------|--------|
-| Hello Groovy | [hello-groovy.groovy.json](hello-groovy.groovy.json) | 0 / **featured** | `kokoro-82m` (Prompt → TTS + fade) |
+| Hello GroovyUI | [hello-groovy.groovy.json](hello-groovy.groovy.json) | 0 / **featured** | `kokoro-82m` (Prompt → TTS + fade) |
 | Podcast Denoise | [podcast-denoise.groovy.json](podcast-denoise.groovy.json) | 1 | `deepfilternet-v3` |
 | Stem Separation | [stem-separation.groovy.json](stem-separation.groovy.json) | 1 / **featured** | `demucs-v4` |
 | Transcribe Dialogue | [transcribe-dialogue.groovy.json](transcribe-dialogue.groovy.json) | 1 / **featured** | `whisper-large-v3-turbo` |

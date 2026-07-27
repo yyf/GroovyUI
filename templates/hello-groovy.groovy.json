@@ -3,7 +3,7 @@
   "groovy_version": "0.1.0",
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "metadata": {
-    "title": "Hello Groovy",
+    "title": "Hello GroovyUI",
     "author": "groovy",
     "description": "Onboarding hello: Prompt → Kokoro TTS, then a ControlCurve drives AutomationApply to fade the take before Normalize, Preview, and Save. Install kokoro-82m for real inference.",
     "tags": [

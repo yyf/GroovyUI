@@ -54,12 +54,12 @@ describe("templatesVisibleInUi", () => {
 
   it("sorts by display title, not id", () => {
     const withTitles = templatesVisibleInUi([
-      { id: "hello-groovy", title: "Hello Groovy", description: "", source: "bundled" },
+      { id: "hello-groovy", title: "Hello GroovyUI", description: "", source: "bundled" },
       { id: "ace-step-1.5", title: "Text to Music- ACE Step 1.5", description: "", source: "bundled" },
       { id: "podcast-denoise", title: "Podcast Denoise", description: "", source: "bundled" },
     ]);
     expect(withTitles.map((t) => t.title)).toEqual([
-      "Hello Groovy",
+      "Hello GroovyUI",
       "Podcast Denoise",
       "Text to Music- ACE Step 1.5",
     ]);
