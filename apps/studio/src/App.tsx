@@ -22,6 +22,7 @@ import {
   executeWorkflow,
   fetchCompliance,
   fetchAllNodeSchemas,
+  fetchAudioFileMeta,
   fetchStudioSettings,
   fetchWorkflowValidation,
   fetchTemplate,
@@ -132,6 +133,8 @@ export default function App() {
   const [activeTemplateId, setActiveTemplateId] = useState("");
   const [viewportFitKey, setViewportFitKey] = useState(0);
   const [nodeSchemas, setNodeSchemas] = useState<Record<string, NodeSchema>>({});
+  /** LoadAudio node id → probed channel count (drives per-channel canvas outlets). */
+  const [loadAudioChannels, setLoadAudioChannels] = useState<Record<string, number>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const clipboardRef = useRef<WorkflowClipboard | null>(null);
   const flowCenterRef = useRef(() => ({ x: 320, y: 200 }));
@@ -232,8 +235,18 @@ export default function App() {
   useLiveIo({ enabled: true, onOscWidget });
 
   const flowNodes = useMemo(
-    () => (workflow ? workflowToFlowNodes(workflow, nodeStatus, lastJob?.outputs, nodeSchemas, nodeIssues) : []),
-    [workflow, nodeStatus, lastJob?.outputs, nodeSchemas, nodeIssues],
+    () =>
+      workflow
+        ? workflowToFlowNodes(
+            workflow,
+            nodeStatus,
+            lastJob?.outputs,
+            nodeSchemas,
+            nodeIssues,
+            loadAudioChannels,
+          )
+        : [],
+    [workflow, nodeStatus, lastJob?.outputs, nodeSchemas, nodeIssues, loadAudioChannels],
   );
   const flowEdges = useMemo(
     () => (workflow ? workflowToFlowEdges(workflow, activeEdgeIds) : []),
@@ -287,6 +300,58 @@ export default function App() {
       .then((result) => setNodeIssues(nodeIssuesFromValidation(workflow, result)))
       .catch(() => setNodeIssues({}));
   }, [workflow]);
+
+  const loadAudioPathKey = useMemo(() => {
+    if (!workflow) return "";
+    return workflow.nodes
+      .filter((node) => node.type === "LoadAudio")
+      .map((node) => {
+        const path = typeof node.widgets.path === "string" ? node.widgets.path.trim() : "";
+        return `${node.id}=${path}`;
+      })
+      .sort()
+      .join("|");
+  }, [workflow]);
+
+  useEffect(() => {
+    if (!workflow) {
+      setLoadAudioChannels({});
+      return;
+    }
+    const loadNodes = workflow.nodes.filter((node) => node.type === "LoadAudio");
+    if (loadNodes.length === 0) {
+      setLoadAudioChannels({});
+      return;
+    }
+
+    let cancelled = false;
+    const targets = loadNodes.map((node) => ({
+      id: node.id,
+      path: typeof node.widgets.path === "string" ? node.widgets.path.trim() : "",
+    }));
+
+    Promise.all(
+      targets.map(async ({ id, path }) => {
+        if (!path) return [id, 1] as const;
+        const { meta } = await fetchAudioFileMeta(path);
+        const channels = Number(meta?.channels);
+        return [id, Number.isFinite(channels) && channels > 0 ? channels : 1] as const;
+      }),
+    )
+      .then((entries) => {
+        if (cancelled) return;
+        const next: Record<string, number> = {};
+        for (const [id, channels] of entries) next[id] = channels;
+        setLoadAudioChannels(next);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadAudioChannels({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workflow, loadAudioPathKey]);
 
   useEffect(() => {
     fetchAllNodeSchemas()

@@ -451,12 +451,25 @@ export function nodeIssuesFromValidation(
   return issues;
 }
 
+/** Per-channel outlet labels for LoadAudio (matches runtime MULTI slot order). */
+export function loadAudioChannelOutletSockets(channelCount: number): NodeSocketSpec[] {
+  const count = Math.max(1, Math.floor(channelCount));
+  const stereoNames = ["L", "R"];
+  return Array.from({ length: count }, (_, slot) => ({
+    name: count === 2 ? stereoNames[slot]! : count === 1 ? "audio" : `ch${slot}`,
+    type: "AUDIO",
+    slot,
+  }));
+}
+
 export function workflowToFlowNodes(
   workflow: Workflow,
   nodeStatus: Record<string, NodeRenderStatus>,
   outputs?: Record<string, JobOutput>,
   schemas?: Record<string, NodeSchema>,
   nodeIssues?: Record<string, string>,
+  /** Probed channel counts for LoadAudio nodes (path → channels), keyed by node id. */
+  loadAudioChannels?: Record<string, number>,
 ): Node<GroovyNodeData | GroovyGroupNodeData>[] {
   const hidden = collapsedMemberIds(workflow);
   const nodes: Node<GroovyNodeData | GroovyGroupNodeData>[] = workflow.nodes
@@ -470,14 +483,38 @@ export function workflowToFlowNodes(
           ? placeholderInputSockets(linkCounts.inputs)
           : [];
       const jobOut = outputs?.[n.id];
-      const outputSockets: NodeSocketSpec[] = schema
-        ? schema.outputs.map((socket, slot) => ({
-            name: socket.name,
-            // When Preview (or passthrough) emits TEXT, color the handle from the job.
-            type: slot === 0 && jobOut?.type === "TEXT" ? "TEXT" : socket.type,
-            slot,
-          }))
-        : placeholderOutputSockets(linkCounts.outputs);
+      const outputSockets: NodeSocketSpec[] = (() => {
+        // LoadAudio exposes one AUDIO outlet per file channel. Prefer a filesystem
+        // probe (so handles appear before first render), then MULTI job output,
+        // then keep enough sockets for any already-wired outbound slots.
+        if (n.type === "LoadAudio") {
+          const probed = loadAudioChannels?.[n.id];
+          if (typeof probed === "number" && probed > 0) {
+            const sockets = loadAudioChannelOutletSockets(probed);
+            if (linkCounts.outputs > sockets.length) {
+              return loadAudioChannelOutletSockets(linkCounts.outputs);
+            }
+            return sockets;
+          }
+          if (jobOut?.type === "MULTI" && jobOut.outputs?.length) {
+            return jobOut.outputs.map((slotOut, slot) => ({
+              name: slotOut.name ?? `ch${slot}`,
+              type: slotOut.type ?? "AUDIO",
+              slot,
+            }));
+          }
+          if (linkCounts.outputs > 1) {
+            return loadAudioChannelOutletSockets(linkCounts.outputs);
+          }
+        }
+        if (!schema) return placeholderOutputSockets(linkCounts.outputs);
+        return schema.outputs.map((socket, slot) => ({
+          name: socket.name,
+          // When Preview (or passthrough) emits TEXT, color the handle from the job.
+          type: slot === 0 && jobOut?.type === "TEXT" ? "TEXT" : socket.type,
+          slot,
+        }));
+      })();
       const noteText =
         n.type === "Note"
           ? typeof n.widgets.text === "string"

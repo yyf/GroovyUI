@@ -106,7 +106,7 @@ def test_get_template(client: TestClient) -> None:
     res = client.get("/api/templates/hello-groovy")
     assert res.status_code == 200
     data = res.json()
-    assert data["metadata"]["title"] == "Hello Groovy"
+    assert data["metadata"]["title"] == "Hello GroovyUI"
 
 
 def test_all_templates_validate() -> None:

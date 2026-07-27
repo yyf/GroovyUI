@@ -5,7 +5,7 @@
   "metadata": {
     "title": "Text to Music- MusicGen",
     "author": "groovy",
-    "description": "Generate a music bed from a text prompt (MusicGen Small). Edit prompt and seed in the Inspector, then Preview and save to exports. Swap model to musicgen-medium for higher quality. Optional: wire a Prompt node into the TEXT socket.",
+    "description": "Generate a music bed from a text prompt (MusicGen Small). Edit the Prompt node (or seed in the Inspector), then Preview and save to exports. Swap model to musicgen-medium for higher quality.",
     "tags": [
       "featured",
       "generation",
@@ -14,14 +14,26 @@
       "music"
     ],
     "created_at": "2026-07-06T12:30:00Z",
-    "modified_at": "2026-07-17T21:00:00Z"
+    "modified_at": "2026-07-27T07:30:00Z"
   },
   "nodes": [
+    {
+      "id": "n1",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "warm lo-fi beat with soft piano",
+        "language": "en"
+      }
+    },
     {
       "id": "n2",
       "type": "GenerateAudio",
       "pos": {
-        "x": 0,
+        "x": 246,
         "y": 0
       },
       "widgets": {
@@ -34,7 +46,7 @@
       "id": "n3",
       "type": "Preview",
       "pos": {
-        "x": 246,
+        "x": 492,
         "y": 0
       },
       "widgets": {}
@@ -43,7 +55,7 @@
       "id": "n4",
       "type": "SaveAudio",
       "pos": {
-        "x": 246,
+        "x": 492,
         "y": 124
       },
       "widgets": {
@@ -55,27 +67,21 @@
   ],
   "links": [
     {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n2", 0],
+      "type": "TEXT"
+    },
+    {
       "id": "l2",
-      "from": [
-        "n2",
-        0
-      ],
-      "to": [
-        "n3",
-        0
-      ],
+      "from": ["n2", 0],
+      "to": ["n3", 0],
       "type": "AUDIO"
     },
     {
       "id": "l3",
-      "from": [
-        "n2",
-        0
-      ],
-      "to": [
-        "n4",
-        0
-      ],
+      "from": ["n2", 0],
+      "to": ["n4", 0],
       "type": "AUDIO"
     }
   ],

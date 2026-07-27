@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Any
 
 TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
-    (re.compile(r"\b(hello|first.?run|onboard)\b", re.I), "hello-groovy", "Hello Groovy Prompt → TTS"),
+    (re.compile(r"\b(hello|first.?run|onboard)\b", re.I), "hello-groovy", "Hello GroovyUI Prompt → TTS"),
     (re.compile(r"\b(granulat)\b", re.I), "prompt-modular-synth", "Prompt Modular Synth grain cloud"),
-    (re.compile(r"\b(normalize|load.?audio.?chain)\b", re.I), "hello-groovy", "Hello Groovy starter chain"),
+    (re.compile(r"\b(normalize|load.?audio.?chain)\b", re.I), "hello-groovy", "Hello GroovyUI starter chain"),
     (
         re.compile(r"\b(cleanup.?and.?transcrib|denoise.+(transcrib|whisper)|clean.+(transcrib|whisper))\b", re.I),
         "cleanup-and-transcribe",
@@ -22,7 +22,7 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (
         re.compile(r"\b(prompt.+(tts|speech)|modular.+(tts|prompt|control)|control.?curve.+tts|fade.+tts)\b", re.I),
         "hello-groovy",
-        "Hello Groovy Prompt → TTS with control fade",
+        "Hello GroovyUI Prompt → TTS with control fade",
     ),
     (
         re.compile(
@@ -33,7 +33,7 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
         "FM patched from oscillators + control curves",
     ),
     (re.compile(r"\b(modular|automation.?apply|control.?curve)\b", re.I), "simple-fm-synth", "Modular FM synth patch"),
-    (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro|greeting)\b", re.I), "hello-groovy", "Hello Groovy Prompt → TTS"),
+    (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro|greeting)\b", re.I), "hello-groovy", "Hello GroovyUI Prompt → TTS"),
     (re.compile(r"\b(voice.?clon|f5.?tts|zero.?shot.?voice)\b", re.I), "voice-cloning", "Voice cloning"),
     (re.compile(r"\b(voice.?convert|rvc)\b", re.I), "voice-convert-demo", "Voice conversion"),
     (re.compile(r"\b(authentic|deepfake|provenance.?verify)\b", re.I), "authenticity-check", "Authenticity analysis"),

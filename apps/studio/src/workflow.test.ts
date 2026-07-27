@@ -302,6 +302,36 @@ describe("workflowToFlowNodes", () => {
     ]);
   });
 
+  it("expands LoadAudio outlets from probed channel count before render", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        {
+          id: "load",
+          type: "LoadAudio",
+          pos: { x: 0, y: 0 },
+          widgets: { path: "assets/samples/stereo.wav" },
+        },
+      ],
+      links: [],
+    };
+    const schemas: Record<string, import("./types").NodeSchema> = {
+      LoadAudio: {
+        type: "LoadAudio",
+        category: "GroovyUI/Core",
+        inputs: [],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [{ name: "path", type: "STRING", default: "" }],
+      },
+    };
+    const nodes = workflowToFlowNodes(workflow, {}, undefined, schemas, undefined, { load: 2 });
+    const load = nodes.find((node) => node.id === "load");
+    expect(load?.data.outputs).toEqual([
+      { name: "L", type: "AUDIO", slot: 0 },
+      { name: "R", type: "AUDIO", slot: 1 },
+    ]);
+  });
+
   it("surfaces Note comment text on the canvas node", () => {
     const workflow: Workflow = {
       ...sampleWorkflow(),

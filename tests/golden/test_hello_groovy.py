@@ -20,7 +20,7 @@ TEMPLATE = ROOT / "templates" / "hello-groovy.groovy.json"
 
 def test_hello_groovy_template_shape() -> None:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
-    assert workflow.metadata.title == "Hello Groovy"
+    assert workflow.metadata.title == "Hello GroovyUI"
     types = [n.type for n in workflow.nodes]
     assert types == [
         "Prompt",

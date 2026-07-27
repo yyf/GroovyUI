@@ -19,6 +19,18 @@
   },
   "nodes": [
     {
+      "id": "n0",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Welcome to GroovyUI. Patch a prompt into TTS, then shape the take with control.",
+        "language": "en"
+      }
+    },
+    {
       "id": "n1",
       "type": "TTS",
       "pos": {
@@ -163,6 +175,18 @@
     }
   ],
   "links": [
+    {
+      "id": "l0",
+      "from": [
+        "n0",
+        0
+      ],
+      "to": [
+        "n1",
+        0
+      ],
+      "type": "TEXT"
+    },
     {
       "id": "l1",
       "from": [
