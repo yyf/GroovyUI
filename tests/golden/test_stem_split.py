@@ -16,7 +16,7 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE = ROOT / "templates" / "stem-split-vocals.groovy.json"
+TEMPLATE = ROOT / "templates" / "stem-separation.groovy.json"
 
 
 @pytest.fixture(autouse=True)

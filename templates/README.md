@@ -6,19 +6,19 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 
 | Template | File | Phase | Models |
 |----------|------|-------|--------|
-| Hello Groovy | [hello-groovy.groovy.json](hello-groovy.groovy.json) | 0 / **featured** | `kokoro-82m` (+ Granulate) |
+| Hello Groovy | [hello-groovy.groovy.json](hello-groovy.groovy.json) | 0 / **featured** | `kokoro-82m` (Prompt → TTS + fade) |
 | Podcast Denoise | [podcast-denoise.groovy.json](podcast-denoise.groovy.json) | 1 | `deepfilternet-v3` |
-| Stem Split Vocals | [stem-split-vocals.groovy.json](stem-split-vocals.groovy.json) | 1 / **featured** | `demucs-v4` |
+| Stem Separation | [stem-separation.groovy.json](stem-separation.groovy.json) | 1 / **featured** | `demucs-v4` |
 | Transcribe Dialogue | [transcribe-dialogue.groovy.json](transcribe-dialogue.groovy.json) | 1 / **featured** | `whisper-large-v3-turbo` |
 | Cleanup and Transcribe | [cleanup-and-transcribe.groovy.json](cleanup-and-transcribe.groovy.json) | 1 / **featured** | deepfilternet + whisper |
-| Diarize and Transcribe | [diarize-and-transcribe.groovy.json](diarize-and-transcribe.groovy.json) | 1 / **featured** | whisper + pyannote (energy fallback) |
+| Transcribe and Diarize | [transcribe-and-diarize.groovy.json](transcribe-and-diarize.groovy.json) | 1 / **featured** | whisper + pyannote (energy fallback) |
 | Voice Cloning | [voice-cloning.groovy.json](voice-cloning.groovy.json) | 1 / **featured** | `f5-tts-base` (+ reference LoadAudio) |
-| Prompt TTS Modular | [prompt-tts-modular.groovy.json](prompt-tts-modular.groovy.json) | 2 / **featured** | `kokoro-82m` |
+| Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | 2 / **featured** | `kokoro-82m` (+ Granulate cloud) |
 | Simple FM Synth | [simple-fm-synth.groovy.json](simple-fm-synth.groovy.json) | 2 | — (Osc + FloatMath + ControlCurves; hidden from default picker) |
 | Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 / **featured** | `demucs-v4` |
-| ACE-Step 1.5 | [ace-step-1.5.groovy.json](ace-step-1.5.groovy.json) | 2 / **featured** | `ace-step-1.5` |
-| Stable Audio | [stable-audio.groovy.json](stable-audio.groovy.json) | 2 / **featured** | `stable-audio-open-1.0` |
-| Text to Music | [text-to-music.groovy.json](text-to-music.groovy.json) | 2 / **featured** | `musicgen-small` |
+| Text to Music- ACE Step 1.5 | [ace-step-1.5.groovy.json](ace-step-1.5.groovy.json) | 2 / **featured** | `ace-step-1.5` |
+| Text to Music- Stable Audio | [stable-audio.groovy.json](stable-audio.groovy.json) | 2 / **featured** | `stable-audio-open-1.0` |
+| Text to Music- MusicGen | [text-to-music.groovy.json](text-to-music.groovy.json) | 2 / **featured** | `musicgen-small` |
 | Voice Convert Demo | [voice-convert-demo.groovy.json](voice-convert-demo.groovy.json) | 1 | `rvc-v2-base` |
 | Transcribe to MIDI | [transcribe-to-midi.groovy.json](transcribe-to-midi.groovy.json) | 1.1 | `basic-pitch` |
 | Transcribe and Regenerate | [transcribe-and-regenerate.groovy.json](transcribe-and-regenerate.groovy.json) | 1.1 / **featured** | `basic-pitch`, `musicgen-melody-small` |

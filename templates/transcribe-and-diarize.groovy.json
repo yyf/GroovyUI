@@ -3,9 +3,9 @@
   "groovy_version": "0.1.0",
   "id": "b2c3d4e5-f6a7-8901-abcd-diarizetrans01",
   "metadata": {
-    "title": "Diarize and Transcribe",
+    "title": "Transcribe and Diarize",
     "author": "groovy",
-    "description": "Speaker-aware transcript for meetings and podcasts (Whisper + diarization). Preview labeled turns; save source audio.",
+    "description": "Transcribe then diarize: speaker-aware transcript for meetings and podcasts (Whisper + diarization). Preview labeled turns; save source audio.",
     "tags": [
       "featured",
       "ai",

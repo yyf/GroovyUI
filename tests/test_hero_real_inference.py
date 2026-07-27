@@ -32,7 +32,7 @@ register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
 PODCAST = ROOT / "templates" / "podcast-denoise.groovy.json"
-STEMS = ROOT / "templates" / "stem-split-vocals.groovy.json"
+STEMS = ROOT / "templates" / "stem-separation.groovy.json"
 DIALOGUE = ROOT / "templates" / "transcribe-dialogue.groovy.json"
 DIALOGUE_FIXTURE = ROOT / "assets" / "samples" / "dialogue_48k.wav"
 

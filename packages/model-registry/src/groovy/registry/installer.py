@@ -168,22 +168,32 @@ def _install_python_deps(
     _purge_conflicting_pypi_groovy()
 
 
-def _purge_conflicting_pypi_groovy() -> None:
-    """Remove PyPI ``groovy`` if it shadows the GroovyUI workspace package."""
+def purge_conflicting_pypi_groovy() -> bool:
+    """Remove PyPI ``groovy`` if it shadows the GroovyUI workspace namespace.
+
+    Gradio (and occasionally Hub packages) depend on an unrelated PyPI package also
+    named ``groovy``, which occupies ``site-packages/groovy`` and breaks
+    ``import groovy.nodes`` for the AI worker. Returns True when a purge ran.
+    """
     try:
         import groovy
     except ImportError:
-        return
+        return False
     path = (getattr(groovy, "__file__", None) or "").replace("\\", "/")
     if "/site-packages/groovy/" not in path and not path.endswith("/site-packages/groovy/__init__.py"):
-        return
+        return False
     try:
         import groovy.nodes  # noqa: F401
 
-        return
+        return False
     except ImportError:
         pass
     _run_pip_uninstall("groovy")
+    return True
+
+
+def _purge_conflicting_pypi_groovy() -> None:
+    purge_conflicting_pypi_groovy()
 
 
 def _run_pip_uninstall(package: str) -> None:
