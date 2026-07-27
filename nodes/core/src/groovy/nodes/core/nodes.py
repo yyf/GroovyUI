@@ -1255,21 +1255,32 @@ def _grain_window(kind: str, length: int, alpha: float) -> np.ndarray:
     n = max(8, int(length))
     kind = (kind or "hann").strip().lower()
     alpha = float(np.clip(alpha, 0.05, 1.0))
+    if kind in {"rect", "rectangular", "boxcar"}:
+        return np.ones(n, dtype=np.float64)
     if kind == "tukey":
         # alpha = tapered fraction; higher → closer to Hann, lower → flatter center.
         tap = int(np.floor(alpha * (n - 1) / 2.0))
         if tap <= 0:
             return np.ones(n, dtype=np.float64)
         window = np.ones(n, dtype=np.float64)
-        taper = 0.5 * (1.0 + np.cos(np.pi * np.arange(tap) / tap - np.pi))
+        # Cosine taper quantized so Mac/Linux libm ulps cannot drift the golden.
+        phase = np.arange(tap, dtype=np.float64) / tap
+        taper = 0.5 * (1.0 + np.cos(np.pi * phase - np.pi))
+        taper = np.round(taper * (1 << 24)) / (1 << 24)
         window[:tap] = taper
         window[-tap:] = taper[::-1]
         return window
     if kind in {"exp", "exponential"}:
         # Symmetric exponential — energy concentrated in the middle (pointillist).
         x = np.linspace(-1.0, 1.0, n, dtype=np.float64)
-        return np.exp(-3.5 * np.abs(x)).astype(np.float64)
-    return np.hanning(n).astype(np.float64)
+        window = np.exp(-3.5 * np.abs(x))
+        return np.round(window * (1 << 24)) / (1 << 24)
+    # Hann via raised-cosine; quantize to freeze cross-platform libm differences.
+    if n == 1:
+        return np.ones(1, dtype=np.float64)
+    phase = np.arange(n, dtype=np.float64) / (n - 1)
+    window = 0.5 - 0.5 * np.cos(2.0 * np.pi * phase)
+    return np.round(window * (1 << 24)) / (1 << 24)
 
 
 def _read_pitched_grain(

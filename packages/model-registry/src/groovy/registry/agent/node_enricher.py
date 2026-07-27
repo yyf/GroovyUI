@@ -143,7 +143,7 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "density": "Fallback extra grains/sec when no density curve is wired (0 = hop only).",
             "spray": "Grains placed per onset (1 = single; higher = denser overlaps).",
             "width": "Fallback stereo width 0–1 when no width curve is wired.",
-            "window": "Grain envelope: hann, tukey, or exp (pointillist).",
+            "window": "Grain envelope: hann, tukey, exp (pointillist), or rect.",
             "window_alpha": "Tukey taper fraction (ignored for hann/exp).",
             "scatter_ms": "Max source/time jitter at full wet.",
             "wet_start": "Wet mix at the beginning (0 = dry/passthrough).",
