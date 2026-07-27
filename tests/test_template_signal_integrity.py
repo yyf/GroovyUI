@@ -123,8 +123,10 @@ def test_hello_groovy_manifest_cache_rerun_stable(tmp_path: Path) -> None:
 
     first_manifest = load_manifest(first.manifest_path)
     second_manifest = load_manifest(second.manifest_path)
-    n3_first = next(n for n in first_manifest["nodes"] if n["node_id"] == "n3")
-    n3_second = next(n for n in second_manifest["nodes"] if n["node_id"] == "n3")
-    assert n3_second["cache_hit"] is True
-    assert n3_first["output"].get("content_hash") == n3_second["output"].get("content_hash")
-    assert n3_first["output"].get("content_hash")
+    # Hello Groovy is Prompt → TTS → AutomationApply → Normalize (n7) → Preview/Save.
+    # Assert cache stability on Normalize (still present after Granulate onboarding swap).
+    n7_first = next(n for n in first_manifest["nodes"] if n["node_id"] == "n7")
+    n7_second = next(n for n in second_manifest["nodes"] if n["node_id"] == "n7")
+    assert n7_second["cache_hit"] is True
+    assert n7_first["output"].get("content_hash") == n7_second["output"].get("content_hash")
+    assert n7_first["output"].get("content_hash")
