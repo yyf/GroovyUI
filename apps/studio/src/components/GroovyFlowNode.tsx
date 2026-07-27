@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useAudition } from "../context/AuditionContext";
+import type { CanvasNodeKind } from "../nodeKinds";
 import { socketTypeColor } from "../socketTypes";
 import type { NodeRenderStatus } from "../types";
 
@@ -14,6 +15,8 @@ export type NodeSocketSpec = {
 
 export type GroovyNodeData = {
   label: string;
+  /** AI vs DSP/core — drives canvas chrome. */
+  kind?: CanvasNodeKind;
   status: NodeRenderStatus;
   nodeId: string;
   canAudition?: boolean;
@@ -61,11 +64,14 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
     Math.max(inputs.length, outputs.length) * 24 + 20,
   );
   const isNote = nodeData.label === "Note";
+  const kind = nodeData.kind ?? "core";
+  const kindClass = isNote ? "" : ` groovy-node--${kind}`;
 
   return (
     <div
-      className={`groovy-node groovy-node--${nodeData.status}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}${isNote ? " groovy-node--note" : ""}`}
+      className={`groovy-node groovy-node--${nodeData.status}${kindClass}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}${isNote ? " groovy-node--note" : ""}`}
       style={{ minHeight }}
+      data-kind={isNote ? "note" : kind}
     >
       <span className="groovy-node__ticks" aria-hidden />
       {inputs.map((socket, index) => (
@@ -84,7 +90,14 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
       ))}
       <div className="groovy-node__body">
         <div className="groovy-node__title">
-          <span>{isNote ? "Note" : nodeData.label}</span>
+          <span className="groovy-node__label-row">
+            {!isNote && kind === "ai" ? (
+              <span className="groovy-node__kind-tag" title="AI inference node">
+                AI
+              </span>
+            ) : null}
+            <span>{isNote ? "Note" : nodeData.label}</span>
+          </span>
           <span className="groovy-node__actions">
             {nodeData.canAudition ? (
               <button

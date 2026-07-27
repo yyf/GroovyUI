@@ -2684,6 +2684,37 @@ body {
   position: relative;
 }
 
+/* Core / DSP modules: silver left rule (mission-control plate). */
+.groovy-node--core {
+  box-shadow: inset 2px 0 0 var(--border-silver);
+}
+
+/* AI inference modules: signal-red left rule + tag (no purple/glow). */
+.groovy-node--ai {
+  box-shadow: inset 2px 0 0 var(--accent);
+  background: linear-gradient(90deg, var(--accent-dim) 0, transparent 28%), var(--bg-elevated);
+}
+
+.groovy-node__label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.groovy-node__kind-tag {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 2px 4px;
+  border: 1px solid var(--accent);
+  color: var(--accent-text);
+  background: var(--bg-recessed);
+}
+
 .groovy-node::before,
 .groovy-node::after {
   content: "";
@@ -2853,6 +2884,15 @@ body {
   border-color: var(--selection-border);
   background: var(--selection-fill);
   box-shadow: none;
+}
+
+.groovy-node--selected.groovy-node--core {
+  box-shadow: inset 2px 0 0 var(--border-silver);
+}
+
+.groovy-node--selected.groovy-node--ai {
+  box-shadow: inset 2px 0 0 var(--accent);
+  background: linear-gradient(90deg, var(--accent-dim) 0, transparent 28%), var(--selection-fill);
 }
 
 .groovy-node--selected::before,
