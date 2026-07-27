@@ -330,6 +330,37 @@ describe("workflowToFlowNodes", () => {
       { name: "L", type: "AUDIO", slot: 0 },
       { name: "R", type: "AUDIO", slot: 1 },
     ]);
+    expect((load?.data as { kind?: string }).kind).toBe("core");
+  });
+
+  it("marks AI vs core kind on canvas nodes", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "n2", type: "GenerateAudio", pos: { x: 200, y: 0 }, widgets: {} },
+      ],
+      links: [],
+    };
+    const schemas: Record<string, import("./types").NodeSchema> = {
+      LoadAudio: {
+        type: "LoadAudio",
+        category: "GroovyUI/Core",
+        inputs: [],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [],
+      },
+      GenerateAudio: {
+        type: "GenerateAudio",
+        category: "GroovyUI/AI",
+        inputs: [],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [],
+      },
+    };
+    const nodes = workflowToFlowNodes(workflow, {}, undefined, schemas);
+    expect((nodes.find((n) => n.id === "n1")?.data as { kind?: string }).kind).toBe("core");
+    expect((nodes.find((n) => n.id === "n2")?.data as { kind?: string }).kind).toBe("ai");
   });
 
   it("surfaces Note comment text on the canvas node", () => {

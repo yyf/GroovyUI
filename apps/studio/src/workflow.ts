@@ -2,6 +2,7 @@ import type { Edge, Node } from "@xyflow/react";
 import type { JobOutput, NodeRenderStatus, NodeSchema, Workflow, WorkflowGroup, WorkflowLink, WorkflowModule, WorkflowNode, WorkflowValidationResult } from "./types";
 import type { GroovyGroupNodeData } from "./components/ModuleGroupNode";
 import type { GroovyNodeData, NodeSocketSpec } from "./components/GroovyFlowNode";
+import { canvasNodeKind } from "./nodeKinds";
 import { edgeTypeClass, socketTypeColor } from "./socketTypes";
 
 export function previewOutputSlot(workflow: Workflow, nodeId: string): number {
@@ -527,6 +528,7 @@ export function workflowToFlowNodes(
         position: n.pos ?? { x: 0, y: 0 },
         data: {
           label: n.type,
+          kind: canvasNodeKind(n.type, schema?.category),
           status: nodeStatus[n.id] ?? "idle",
           nodeId: n.id,
           canAudition: nodeHasListenableOutput(workflow, n.id, outputs),
