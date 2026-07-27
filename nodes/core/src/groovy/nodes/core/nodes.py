@@ -117,13 +117,9 @@ class LoadAudio(GroovyNode):
         pcm = pcm[:, start:end]
 
         probe = probe_audio_file(resolved)
-        buffer = AudioBuffer.from_planar(
-            pcm,
-            sample_rate,
-            source_node_type="LoadAudio",
-            channel_layout=channel_layout_for_channels(pcm.shape[0]),
-        )
-        apply_file_probe(buffer, probe)
+        channel_count = pcm.shape[0]
+        channel_layout = channel_layout_for_channels(channel_count)
+
         meta_extra: dict = {
             "source_path": canonical_path,
             "audio_stream": audio_stream,
@@ -131,13 +127,50 @@ class LoadAudio(GroovyNode):
         sidecar = resolved.with_name(f"{resolved.stem}.provenance.json")
         if sidecar.exists():
             meta_extra["imported_provenance"] = json.loads(sidecar.read_text())
-        self._ctx.cache.write_audio(buffer, pcm)
-        if meta_extra:
-            meta_path = self._ctx.cache.cache_dir / f"{buffer.id}.meta.json"
-            meta = json.loads(meta_path.read_text())
-            meta.update(meta_extra)
-            meta_path.write_text(json.dumps(meta, indent=2))
-        return (buffer,)
+
+        # Multi-channel routing: for a loaded N-channel file, return N distinct AUDIO outputs
+        # (one per channel). Each outlet preserves the original channel layout, but masks
+        # all other channels to zeros so downstream nodes can independently process channels.
+        if channel_count <= 1:
+            buffer = AudioBuffer.from_planar(
+                pcm,
+                sample_rate,
+                source_node_type="LoadAudio",
+                channel_layout=channel_layout,
+            )
+            apply_file_probe(buffer, probe)
+            self._ctx.cache.write_audio(buffer, pcm)
+            if meta_extra:
+                meta_path = self._ctx.cache.cache_dir / f"{buffer.id}.meta.json"
+                meta = json.loads(meta_path.read_text())
+                meta.update(meta_extra)
+                meta_path.write_text(json.dumps(meta, indent=2))
+            return (buffer,)
+
+        buffers: list[AudioBuffer] = []
+        for channel_index in range(channel_count):
+            masked = np.zeros_like(pcm)
+            masked[channel_index, :] = pcm[channel_index, :]
+
+            buffer = AudioBuffer.from_planar(
+                masked,
+                sample_rate,
+                source_node_type="LoadAudio",
+                channel_layout=channel_layout,
+            )
+            apply_file_probe(buffer, probe)
+
+            channel_meta = {**meta_extra, "channel_index": channel_index}
+            self._ctx.cache.write_audio(buffer, masked)
+            if channel_meta:
+                meta_path = self._ctx.cache.cache_dir / f"{buffer.id}.meta.json"
+                meta = json.loads(meta_path.read_text())
+                meta.update(channel_meta)
+                meta_path.write_text(json.dumps(meta, indent=2))
+
+            buffers.append(buffer)
+
+        return tuple(buffers)
 
 
 @register_node

@@ -112,6 +112,16 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             ))}
           </ul>
         ) : null}
+        {outputs.length > 1 ? (
+          <ul className="groovy-node__socket-list groovy-node__socket-list--outputs" aria-hidden>
+            {outputs.map((socket) => (
+              <li key={`out-label-${socket.name}`}>
+                <span className="groovy-node__socket-dot" style={{ background: socketTypeColor(socket.type) }} />
+                {socket.name}
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {nodeData.noteText != null ? (
           <p
             className={`groovy-node__note-text${nodeData.noteText.trim() ? "" : " groovy-node__note-text--empty"}`}

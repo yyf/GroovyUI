@@ -40,7 +40,14 @@ def test_ace_step_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -
     path = ROOT / "templates" / "ace-step-1.5.groovy.json"
     data = json.loads(path.read_text())
     assert "featured" in data["metadata"]["tags"]
-    assert data["nodes"][0]["widgets"]["model"] == "ace-step-1.5"
+    gen = next(node for node in data["nodes"] if node["type"] == "GenerateAudio")
+    prompt = next(node for node in data["nodes"] if node["type"] == "Prompt")
+    assert gen["widgets"]["model"] == "ace-step-1.5"
+    assert prompt["widgets"]["text"]
+    assert any(
+        link["from"] == ["n0", 0] and link["to"] == ["n1", 0] and link["type"] == "TEXT"
+        for link in data["links"]
+    )
 
     workflow = Workflow.model_validate(data)
     result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))

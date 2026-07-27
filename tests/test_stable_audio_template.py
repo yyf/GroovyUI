@@ -28,7 +28,14 @@ def test_stable_audio_template_schema_and_stub_render(tmp_path: Path, monkeypatc
     path = ROOT / "templates" / "stable-audio.groovy.json"
     data = json.loads(path.read_text())
     assert "featured" in data["metadata"]["tags"]
-    assert data["nodes"][0]["widgets"]["model"] == "stable-audio-open-1.0"
+    gen = next(node for node in data["nodes"] if node["type"] == "GenerateAudio")
+    prompt = next(node for node in data["nodes"] if node["type"] == "Prompt")
+    assert gen["widgets"]["model"] == "stable-audio-open-1.0"
+    assert prompt["widgets"]["text"]
+    assert any(
+        link["from"] == ["n0", 0] and link["to"] == ["n1", 0] and link["type"] == "TEXT"
+        for link in data["links"]
+    )
 
     workflow = Workflow.model_validate(data)
     result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
