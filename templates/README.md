@@ -36,4 +36,4 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | AI MIDI to Hardware | [ai-midi-to-hardware.groovy.json](ai-midi-to-hardware.groovy.json) | 2.5 | musicgen |
 | A/B Compare Demo | [ab-compare-demo.groovy.json](ab-compare-demo.groovy.json) | 2 hardening | `deepfilternet-v3` |
 
-Sample assets: `workspace/assets/samples/` (default LoadAudio: `male-1.wav`; also `dialogue_48k.wav`, `surround_51.wav`, etc.).
+Sample assets: `workspace/assets/samples/` (stem split: `Knockout_41k_mono.wav`; also `male-1.wav`, `dialogue_48k.wav`, etc.).

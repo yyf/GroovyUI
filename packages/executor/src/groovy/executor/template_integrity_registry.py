@@ -57,7 +57,7 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
     "podcast-denoise": {"sample_path": "assets/samples/male-1.wav"},
     "ab-compare-demo": {"sample_path": "assets/samples/male-1.wav", "spot_check": "ab_compare"},
     "stem-split-vocals": {
-        "sample_path": "assets/samples/male-1.wav",
+        "sample_path": "assets/samples/Knockout_41k_mono.wav",
         "expect_stems_node": "n2",
         "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
     },

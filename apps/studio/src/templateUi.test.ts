@@ -29,20 +29,33 @@ describe("templatesVisibleInUi", () => {
     bundled("authenticity-check"),
   ];
 
-  it("shows featured bundled templates in portfolio order", () => {
+  it("shows featured bundled templates sorted by title", () => {
     const visible = templatesVisibleInUi(allBundled);
     expect(visible.map((t) => t.id)).toEqual([
-      "podcast-denoise",
-      "stem-split-vocals",
-      "transcribe-dialogue",
-      "diarize-and-transcribe",
-      "voice-cloning",
-      "prompt-tts-modular",
       "ace-step-1.5",
+      "diarize-and-transcribe",
+      "hello-groovy",
+      "podcast-denoise",
+      "prompt-tts-modular",
       "stable-audio",
+      "stem-split-vocals",
       "text-to-music",
       "transcribe-and-regenerate",
-      "hello-groovy",
+      "transcribe-dialogue",
+      "voice-cloning",
+    ]);
+  });
+
+  it("sorts by display title, not id", () => {
+    const withTitles = templatesVisibleInUi([
+      { id: "hello-groovy", title: "Hello Groovy", description: "", source: "bundled" },
+      { id: "ace-step-1.5", title: "ACE-Step 1.5", description: "", source: "bundled" },
+      { id: "podcast-denoise", title: "Podcast Denoise", description: "", source: "bundled" },
+    ]);
+    expect(withTitles.map((t) => t.title)).toEqual([
+      "ACE-Step 1.5",
+      "Hello Groovy",
+      "Podcast Denoise",
     ]);
   });
 

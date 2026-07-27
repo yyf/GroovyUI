@@ -1,18 +1,18 @@
 import type { TemplateListItem } from "./api";
 
-/** Bundled templates shown in the workflow template picker (hero demos first). */
+/** Bundled templates shown in the workflow template picker (alphabetical by title in UI). */
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
-  "podcast-denoise",
-  "stem-split-vocals",
-  "transcribe-dialogue",
-  "diarize-and-transcribe",
-  "voice-cloning",
-  "prompt-tts-modular",
   "ace-step-1.5",
+  "diarize-and-transcribe",
+  "hello-groovy",
+  "podcast-denoise",
+  "prompt-tts-modular",
   "stable-audio",
+  "stem-split-vocals",
   "text-to-music",
   "transcribe-and-regenerate",
-  "hello-groovy",
+  "transcribe-dialogue",
+  "voice-cloning",
 ] as const;
 
 const featuredBundledIds = new Set<string>(FEATURED_BUNDLED_TEMPLATE_IDS);
@@ -22,9 +22,6 @@ export function templatesVisibleInUi(
   templates: TemplateListItem[],
   selectedId?: string,
 ): TemplateListItem[] {
-  const featuredOrder = new Map<string, number>(
-    FEATURED_BUNDLED_TEMPLATE_IDS.map((id, index) => [id, index]),
-  );
   return templates
     .filter(
       (template) =>
@@ -35,9 +32,6 @@ export function templatesVisibleInUi(
     .sort((a, b) => {
       if (a.source === "user" && b.source !== "user") return 1;
       if (b.source === "user" && a.source !== "user") return -1;
-      const aRank = featuredOrder.get(a.id) ?? 999;
-      const bRank = featuredOrder.get(b.id) ?? 999;
-      if (aRank !== bRank) return aRank - bRank;
-      return a.title.localeCompare(b.title);
+      return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
     });
 }

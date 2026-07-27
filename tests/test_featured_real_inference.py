@@ -86,6 +86,7 @@ def project_dir(tmp_path: Path) -> Path:
     tone = 0.22 * np.sin(2 * np.pi * 440 * t)
     noise = 0.02 * np.random.default_rng(0).standard_normal(t.size)
     sf.write(assets / "male-1.wav", tone + noise, sr)
+    sf.write(assets / "Knockout_41k_mono.wav", tone + noise, sr)
     if DIALOGUE_FIXTURE.is_file():
         shutil.copy(DIALOGUE_FIXTURE, assets / "dialogue_48k.wav")
     return tmp_path
@@ -117,6 +118,8 @@ def test_featured_template_real_inference(project_dir: Path, template_id: str) -
     _ensure_models(project_dir, models)
 
     sample = "assets/samples/male-1.wav"
+    if template_id == "stem-split-vocals":
+        sample = "assets/samples/Knockout_41k_mono.wav"
     if template_id in {"transcribe-dialogue", "diarize-and-transcribe"} and (
         project_dir / "assets" / "samples" / "dialogue_48k.wav"
     ).is_file():

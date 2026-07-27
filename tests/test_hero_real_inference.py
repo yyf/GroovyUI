@@ -72,6 +72,7 @@ def project_dir(tmp_path: Path) -> Path:
     tone = 0.22 * np.sin(2 * np.pi * 440 * t)
     noise = 0.02 * np.random.default_rng(0).standard_normal(t.size)
     sf.write(assets / "male-1.wav", tone + noise, sr)
+    sf.write(assets / "Knockout_41k_mono.wav", tone + noise, sr)
     if DIALOGUE_FIXTURE.is_file():
         shutil.copy(DIALOGUE_FIXTURE, assets / "dialogue_48k.wav")
     return tmp_path
@@ -160,7 +161,7 @@ def test_stem_split_vocals_real_inference_tolerance(project_dir: Path) -> None:
     if not demucs_available():
         pytest.skip("demucs/torch imports unavailable after install")
 
-    workflow = _load_template(STEMS)
+    workflow = _load_template(STEMS, sample="assets/samples/Knockout_41k_mono.wav")
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=["n3", "n4"], force_rebuild=True)
     assert result.status == "completed", result.error

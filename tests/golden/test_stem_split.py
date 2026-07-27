@@ -31,7 +31,7 @@ def project_dir(tmp_path: Path) -> Path:
     sr = 48000
     t = np.linspace(0, 1.0, int(sr), endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "male-1.wav", tone, sr)
+    sf.write(assets / "Knockout_41k_mono.wav", tone, sr)
     registry = ModelRegistry(tmp_path)
     registry.installer.install("demucs-v4")
     return tmp_path
@@ -41,7 +41,7 @@ def _load_workflow() -> Workflow:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/male-1.wav"
+            node.widgets["path"] = "assets/samples/Knockout_41k_mono.wav"
     return workflow
 
 
