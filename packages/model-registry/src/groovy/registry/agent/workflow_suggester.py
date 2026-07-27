@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any
 
 TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
-    (re.compile(r"\b(hello|granulat|first.?run|onboard)\b", re.I), "hello-groovy", "Hello Groovy TTS + granulate"),
+    (re.compile(r"\b(hello|first.?run|onboard)\b", re.I), "hello-groovy", "Hello Groovy Prompt → TTS"),
+    (re.compile(r"\b(granulat)\b", re.I), "prompt-modular-synth", "Prompt Modular Synth grain cloud"),
     (re.compile(r"\b(normalize|load.?audio.?chain)\b", re.I), "hello-groovy", "Hello Groovy starter chain"),
     (
         re.compile(r"\b(cleanup.?and.?transcrib|denoise.+(transcrib|whisper)|clean.+(transcrib|whisper))\b", re.I),
@@ -15,13 +16,13 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     ),
     (re.compile(r"\b(podcast|denoise|clean)\b", re.I), "podcast-denoise", "Podcast denoise pipeline"),
     (re.compile(r"\b(karaoke|instrumental|accompaniment)\b", re.I), "karaoke-stems", "Vocals vs instrumental"),
-    (re.compile(r"\b(stem|vocals?|separate)\b", re.I), "stem-split-vocals", "Stem separation"),
-    (re.compile(r"\b(diariz|speaker|meeting|who.?spoke)\b", re.I), "diarize-and-transcribe", "Speaker-labeled transcript"),
+    (re.compile(r"\b(stem|vocals?|separate)\b", re.I), "stem-separation", "Stem separation"),
+    (re.compile(r"\b(diariz|speaker|meeting|who.?spoke)\b", re.I), "transcribe-and-diarize", "Speaker-labeled transcript"),
     (re.compile(r"\b(transcrib|stt|subtitle|speech.to.text)\b", re.I), "transcribe-dialogue", "Speech transcription"),
     (
         re.compile(r"\b(prompt.+(tts|speech)|modular.+(tts|prompt|control)|control.?curve.+tts|fade.+tts)\b", re.I),
-        "prompt-tts-modular",
-        "Prompt into TTS with control fade",
+        "hello-groovy",
+        "Hello Groovy Prompt → TTS with control fade",
     ),
     (
         re.compile(
@@ -32,7 +33,7 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
         "FM patched from oscillators + control curves",
     ),
     (re.compile(r"\b(modular|automation.?apply|control.?curve)\b", re.I), "simple-fm-synth", "Modular FM synth patch"),
-    (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro|greeting)\b", re.I), "hello-groovy", "Hello Groovy TTS + granulate"),
+    (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro|greeting)\b", re.I), "hello-groovy", "Hello Groovy Prompt → TTS"),
     (re.compile(r"\b(voice.?clon|f5.?tts|zero.?shot.?voice)\b", re.I), "voice-cloning", "Voice cloning"),
     (re.compile(r"\b(voice.?convert|rvc)\b", re.I), "voice-convert-demo", "Voice conversion"),
     (re.compile(r"\b(authentic|deepfake|provenance.?verify)\b", re.I), "authenticity-check", "Authenticity analysis"),
@@ -41,14 +42,14 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (
         re.compile(r"\b(ace.?step|lyrics.?to.?music|text.?to.?song)\b", re.I),
         "ace-step-1.5",
-        "ACE-Step 1.5 text-to-music",
+        "Text to Music- ACE Step 1.5",
     ),
     (
         re.compile(r"\b(stable.?audio|stability.?ai|sfx.?generat|text.?to.?audio)\b", re.I),
         "stable-audio",
-        "Stable Audio Open generation",
+        "Text to Music- Stable Audio",
     ),
-    (re.compile(r"\b(text.?to.?music|generate.?music|music.?from.?text)\b", re.I), "text-to-music", "Text to music generation"),
+    (re.compile(r"\b(text.?to.?music|generate.?music|music.?from.?text)\b", re.I), "text-to-music", "Text to Music- MusicGen"),
     (re.compile(r"\b(sing|vocal|diffsinger|lyrics)\b", re.I), "sing-from-midi", "Singing synthesis from MIDI"),
     (re.compile(r"\b(remix|stemforge)\b", re.I), "stem-to-remix", "Stem to remix chain"),
     (re.compile(r"\b(automation|midi.?cc)\b", re.I), "midi-automation-demo", "MIDI automation demo"),

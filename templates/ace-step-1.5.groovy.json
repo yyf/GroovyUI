@@ -3,7 +3,7 @@
   "groovy_version": "0.1.0",
   "id": "d3e4f5a6-b7c8-9012-cdef-333344445555",
   "metadata": {
-    "title": "ACE-Step 1.5",
+    "title": "Text to Music- ACE Step 1.5",
     "author": "groovy",
     "description": "Hero text-to-music with ACE-Step 1.5 (turbo DiT) — prompt a track, optional lyrics, preview the cached render, and save. MIT weights; prefer NVIDIA CUDA. Install ace-step-1.5 from Model Browser before first real Render.",
     "tags": [

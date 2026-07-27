@@ -39,6 +39,10 @@ def test_clean_worker_error_import_error_not_runtime_dot() -> None:
     assert msg != "runtime."
 
 
-def test_clean_worker_error_runtime_error_line() -> None:
-    stderr = "Traceback...\nRuntimeError: Model not installed: basic-pitch"
-    assert _clean_worker_error(stderr) == "Model not installed: basic-pitch"
+def test_clean_worker_error_module_not_found_groovy_nodes() -> None:
+    stderr = (
+        "Traceback (most recent call last):\n"
+        "  File \".../runpy.py\", line 198, in _run_module_as_main\n"
+        "ModuleNotFoundError: No module named 'groovy.nodes'\n"
+    )
+    assert "groovy.nodes" in _clean_worker_error(stderr)

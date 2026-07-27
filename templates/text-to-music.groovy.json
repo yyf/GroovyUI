@@ -3,7 +3,7 @@
   "groovy_version": "0.1.0",
   "id": "b1c2d3e4-f5a6-7890-abcd-111122223333",
   "metadata": {
-    "title": "Text to Music",
+    "title": "Text to Music- MusicGen",
     "author": "groovy",
     "description": "Generate a music bed from a text prompt (MusicGen Small). Edit prompt and seed in the Inspector, then Preview and save to exports. Swap model to musicgen-medium for higher quality. Optional: wire a Prompt node into the TEXT socket.",
     "tags": [

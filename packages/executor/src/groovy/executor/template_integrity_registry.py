@@ -52,11 +52,11 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "fixture": "none",
         "sample_path": None,
         "models": ("kokoro-82m",),
-        "required_outputs": (("n4", "AUDIO"),),
+        "required_outputs": (("n8", "AUDIO"),),
     },
     "podcast-denoise": {"sample_path": "assets/samples/male-1.wav"},
     "ab-compare-demo": {"sample_path": "assets/samples/male-1.wav", "spot_check": "ab_compare"},
-    "stem-split-vocals": {
+    "stem-separation": {
         "sample_path": "assets/samples/Knockout_41k_mono.wav",
         "expect_stems_node": "n2",
         "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
@@ -94,7 +94,12 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("f5-tts-base",),
         "required_outputs": (("n4", "AUDIO"),),
     },
-    "prompt-tts-modular": {"fixture": "none", "sample_path": None},
+    "prompt-modular-synth": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("kokoro-82m",),
+        "required_outputs": (("n4", "AUDIO"),),
+    },
     "simple-fm-synth": {"fixture": "none", "sample_path": None},
     "keyboard-to-music": {"fixture": "none", "sample_path": None},
     "ai-midi-to-hardware": {
@@ -111,7 +116,7 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "terminal_output_type": "TEXT",
         "required_outputs": (("n4", "TEXT"), ("n5", "TEXT"), ("n6", "AUDIO")),
     },
-    "diarize-and-transcribe": {
+    "transcribe-and-diarize": {
         "terminal_output_type": "TEXT",
         "required_outputs": (("n2", "TEXT"), ("n3", "TEXT"), ("n4", "AUDIO")),
     },
@@ -252,7 +257,7 @@ def all_template_specs() -> tuple[TemplateIntegritySpec, ...]:
 
 # v1 subset retained for docs / quick CI slice
 SIGNAL_INTEGRITY_V1_TEMPLATES: tuple[TemplateIntegritySpec, ...] = tuple(
-    spec for spec in all_template_specs() if spec.template_id in {"hello-groovy", "podcast-denoise", "stem-split-vocals"}
+    spec for spec in all_template_specs() if spec.template_id in {"hello-groovy", "podcast-denoise", "stem-separation"}
 )
 
 ALL_TEMPLATE_INTEGRITY_SPECS: tuple[TemplateIntegritySpec, ...] = all_template_specs()

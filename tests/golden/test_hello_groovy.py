@@ -23,23 +23,16 @@ def test_hello_groovy_template_shape() -> None:
     assert workflow.metadata.title == "Hello Groovy"
     types = [n.type for n in workflow.nodes]
     assert types == [
+        "Prompt",
         "TTS",
+        "ControlCurve",
+        "AutomationApply",
         "Normalize",
-        "ControlCurve",
-        "ControlCurve",
-        "ControlCurve",
-        "ControlCurve",
-        "ControlCurve",
-        "Granulate",
         "Preview",
         "SaveAudio",
     ]
-    assert "Granulate" in NODE_REGISTRY
-    granulate = next(n for n in workflow.nodes if n.type == "Granulate")
-    assert granulate.widgets.get("window") == "exp"
-    assert int(granulate.widgets.get("spray", 0)) >= 2
-    curve_links = [l for l in workflow.links if l.to[0] == granulate.id and l.type == "AUTOMATION"]
-    assert len(curve_links) == 5
+    assert "Prompt" in NODE_REGISTRY
+    assert "AutomationApply" in NODE_REGISTRY
     result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
     assert result.valid, [e.message for e in result.errors]
 
@@ -50,6 +43,6 @@ def test_hello_groovy_stub_render(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     ModelRegistry(tmp_path).installer.install("kokoro-82m")
-    out = Executor(tmp_path).execute(workflow, target_nodes=["n4", "n5"])
+    out = Executor(tmp_path).execute(workflow, target_nodes=["n8", "n9"])
     assert out.status == "completed", out.error
-    assert out.outputs["n4"]["type"] == "AUDIO"
+    assert out.outputs["n8"]["type"] == "AUDIO"

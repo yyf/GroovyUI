@@ -26,6 +26,11 @@ groovy-nodes-ai = { workspace = true }
 groovy-model-registry = { workspace = true }
 groovy-server = { workspace = true }
 
+# PyPI ``groovy`` (pulled by Gradio) shadows this workspace's ``groovy.*``
+# namespace and breaks the AI worker. Never install that package.
+[tool.uv]
+override-dependencies = ["groovy ; sys_platform == 'never'"]
+
 [dependency-groups]
 dev = [
     "groovy-schema",

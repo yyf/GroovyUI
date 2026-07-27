@@ -37,9 +37,9 @@ DIALOGUE_FIXTURE = ROOT / "assets" / "samples" / "dialogue_48k.wav"
 
 FEATURED = [
     "podcast-denoise",
-    "stem-split-vocals",
+    "stem-separation",
     "transcribe-dialogue",
-    "diarize-and-transcribe",
+    "transcribe-and-diarize",
     "text-to-music",
     "transcribe-and-regenerate",
     "hello-groovy",
@@ -47,9 +47,9 @@ FEATURED = [
 
 MODELS_BY_TEMPLATE: dict[str, tuple[str, ...]] = {
     "podcast-denoise": ("deepfilternet-v3",),
-    "stem-split-vocals": ("demucs-v4",),
+    "stem-separation": ("demucs-v4",),
     "transcribe-dialogue": ("whisper-large-v3-turbo",),
-    "diarize-and-transcribe": ("whisper-large-v3-turbo",),
+    "transcribe-and-diarize": ("whisper-large-v3-turbo",),
     "text-to-music": ("musicgen-small",),
     "transcribe-and-regenerate": ("basic-pitch", "musicgen-melody-small"),
     "hello-groovy": ("kokoro-82m",),
@@ -118,9 +118,9 @@ def test_featured_template_real_inference(project_dir: Path, template_id: str) -
     _ensure_models(project_dir, models)
 
     sample = "assets/samples/male-1.wav"
-    if template_id == "stem-split-vocals":
+    if template_id == "stem-separation":
         sample = "assets/samples/Knockout_41k_mono.wav"
-    if template_id in {"transcribe-dialogue", "diarize-and-transcribe"} and (
+    if template_id in {"transcribe-dialogue", "transcribe-and-diarize"} and (
         project_dir / "assets" / "samples" / "dialogue_48k.wav"
     ).is_file():
         sample = "assets/samples/dialogue_48k.wav"
@@ -145,11 +145,11 @@ def test_featured_template_real_inference(project_dir: Path, template_id: str) -
         assert float(np.max(np.abs(pcm))) > 0.05
         return
 
-    if template_id in {"transcribe-dialogue", "diarize-and-transcribe"}:
+    if template_id in {"transcribe-dialogue", "transcribe-and-diarize"}:
         assert text_outs, f"{template_id}: expected TEXT"
         text = (text_outs[0].get("text") or "").strip()
         assert text and "[dev transcript" not in text.lower()
-        if template_id == "diarize-and-transcribe":
+        if template_id == "transcribe-and-diarize":
             assert "SPEAKER_" in text or "speaker" in text.lower() or "[" in text
 
     if template_id == "text-to-music":
@@ -160,5 +160,5 @@ def test_featured_template_real_inference(project_dir: Path, template_id: str) -
         assert duration >= 2.5, f"text-to-music duration {duration:.2f}s looks like stub"
         assert float(np.max(np.abs(pcm))) > 0.01
 
-    if template_id in {"podcast-denoise", "stem-split-vocals", "transcribe-and-regenerate"}:
+    if template_id in {"podcast-denoise", "stem-separation", "transcribe-and-regenerate"}:
         assert audio_outs or any(o.get("type") == "MULTI" for o in result.outputs.values())

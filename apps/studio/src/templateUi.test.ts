@@ -14,12 +14,12 @@ describe("templatesVisibleInUi", () => {
   const allBundled = [
     bundled("hello-groovy"),
     bundled("podcast-denoise"),
-    bundled("stem-split-vocals"),
+    bundled("stem-separation"),
     bundled("transcribe-dialogue"),
-    bundled("diarize-and-transcribe"),
+    bundled("transcribe-and-diarize"),
     bundled("cleanup-and-transcribe"),
     bundled("voice-cloning"),
-    bundled("prompt-tts-modular"),
+    bundled("prompt-modular-synth"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
     bundled("stable-audio"),
@@ -33,13 +33,13 @@ describe("templatesVisibleInUi", () => {
     const visible = templatesVisibleInUi(allBundled);
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
-      "diarize-and-transcribe",
       "hello-groovy",
       "podcast-denoise",
-      "prompt-tts-modular",
+      "prompt-modular-synth",
       "stable-audio",
-      "stem-split-vocals",
+      "stem-separation",
       "text-to-music",
+      "transcribe-and-diarize",
       "transcribe-and-regenerate",
       "transcribe-dialogue",
       "voice-cloning",
@@ -49,13 +49,13 @@ describe("templatesVisibleInUi", () => {
   it("sorts by display title, not id", () => {
     const withTitles = templatesVisibleInUi([
       { id: "hello-groovy", title: "Hello Groovy", description: "", source: "bundled" },
-      { id: "ace-step-1.5", title: "ACE-Step 1.5", description: "", source: "bundled" },
+      { id: "ace-step-1.5", title: "Text to Music- ACE Step 1.5", description: "", source: "bundled" },
       { id: "podcast-denoise", title: "Podcast Denoise", description: "", source: "bundled" },
     ]);
     expect(withTitles.map((t) => t.title)).toEqual([
-      "ACE-Step 1.5",
       "Hello Groovy",
       "Podcast Denoise",
+      "Text to Music- ACE Step 1.5",
     ]);
   });
 

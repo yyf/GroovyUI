@@ -3,7 +3,7 @@
   "groovy_version": "0.1.0",
   "id": "c2d3e4f5-a6b7-8901-bcde-222233334444",
   "metadata": {
-    "title": "Stable Audio",
+    "title": "Text to Music- Stable Audio",
     "author": "groovy",
     "description": "Hero text-to-audio with Stable Audio Open 1.0 — prompt a bed or SFX, preview the cached render, and save. Accept the HF model license and set a token in Settings before first install. Community license (non-commercial).",
     "tags": [

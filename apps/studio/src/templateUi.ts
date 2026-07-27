@@ -3,12 +3,12 @@ import type { TemplateListItem } from "./api";
 /** Bundled templates shown in the workflow template picker (alphabetical by title in UI). */
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5",
-  "diarize-and-transcribe",
+  "transcribe-and-diarize",
   "hello-groovy",
   "podcast-denoise",
-  "prompt-tts-modular",
+  "prompt-modular-synth",
   "stable-audio",
-  "stem-split-vocals",
+  "stem-separation",
   "text-to-music",
   "transcribe-and-regenerate",
   "transcribe-dialogue",

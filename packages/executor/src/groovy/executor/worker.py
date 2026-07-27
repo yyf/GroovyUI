@@ -21,6 +21,15 @@ def run_ai_worker(
     timeout: int = 1200,
     cancel_check: Callable[[], bool] | None = None,
 ) -> list[dict[str, Any]]:
+    # Gradio (and some Hub installs) may pull PyPI ``groovy``, which shadows
+    # this workspace's ``groovy.nodes`` namespace used by the AI worker.
+    try:
+        from groovy.registry.installer import purge_conflicting_pypi_groovy
+
+        purge_conflicting_pypi_groovy()
+    except Exception:
+        pass
+
     worker_cmd = shutil.which("groovy-ai-worker")
     if worker_cmd:
         cmd = [worker_cmd]

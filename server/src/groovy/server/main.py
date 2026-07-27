@@ -76,6 +76,12 @@ _osc_transport: asyncio.DatagramTransport | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _osc_transport
+    try:
+        from groovy.registry.installer import purge_conflicting_pypi_groovy
+
+        purge_conflicting_pypi_groovy()
+    except Exception:
+        pass
     ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
     _osc_transport = await start_osc_listener(PROJECT_DIR, _live_io, _midi_hub)
     yield
