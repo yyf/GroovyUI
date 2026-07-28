@@ -70,13 +70,13 @@ import {
 } from "./modelNodeWidgets";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
+import { nextActiveEdgeIds, resolveEdgePlaybackTarget } from "./edgePlayback";
 import {
   cachedStatusFromOutputs,
   connectNodes,
   addNodeToWorkflow,
   applyDroppedAudio,
   groupForSelection,
-  edgeIdsOnPathToNode,
   formatJobError,
   layoutWorkflowNodes,
   flowNodesSyncKey,
@@ -181,6 +181,8 @@ export default function App() {
     maxPitch: number;
   } | null>(null);
   const [activeEdgeIds, setActiveEdgeIds] = useState<Set<string>>(new Set());
+  /** Set synchronously before auditionNonce so play events highlight the right path. */
+  const auditionTargetRef = useRef<string | null>(null);
   const [auditionNonce, setAuditionNonce] = useState(0);
 
   const handleStudioSettingsChange = useCallback(
@@ -204,6 +206,14 @@ export default function App() {
   }, []);
 
   const handlePlaybackFailed = useCallback((reason: string) => {
+    auditionTargetRef.current = null;
+    setActiveEdgeIds(
+      nextActiveEdgeIds({
+        event: "playback_failed",
+        workflow: workflowRef.current,
+        targetNodeId: null,
+      }),
+    );
     if (!hasActiveActivationSession()) return;
     recordActivationMilestone("playback_failed", { reason });
     setStatus("Render complete — click Play now to audition");
@@ -561,7 +571,8 @@ export default function App() {
                   selected: node.id === auditionNodeId,
                 })),
               );
-              setActiveEdgeIds(edgeIdsOnPathToNode(workflow, auditionNodeId));
+              // Edges animate only after the audio element fires `play` (not eagerly).
+              auditionTargetRef.current = auditionNodeId;
               recordActivationMilestone("playback_requested", {
                 preview_node_id: auditionNodeId,
               });
@@ -641,7 +652,8 @@ export default function App() {
       if (!workflow) return;
       setNodes((current) => current.map((node) => ({ ...node, selected: node.id === nodeId })));
       if (!resolveNodeListenId(workflow, nodeId, lastJob?.outputs)) return;
-      setActiveEdgeIds(edgeIdsOnPathToNode(workflow, nodeId));
+      // Do not set activeEdgeIds here — wait for real `play` (autoplay can fail).
+      auditionTargetRef.current = nodeId;
       setAuditionNonce((nonce) => nonce + 1);
     },
     [lastJob?.outputs, workflow, setNodes],
@@ -653,7 +665,7 @@ export default function App() {
       setStatus("Render this node first");
       return;
     }
-    setActiveEdgeIds(edgeIdsOnPathToNode(workflow, selectedNodeId));
+    auditionTargetRef.current = selectedNodeId;
     setAuditionNonce((nonce) => nonce + 1);
   }, [running, workflow, selectedNodeId, lastJob?.outputs]);
 
@@ -673,7 +685,14 @@ export default function App() {
         }
         pendingSelectionRef.current = new Set([focusNodeId]);
         setLastJob(null);
-        setActiveEdgeIds(new Set());
+        auditionTargetRef.current = null;
+        setActiveEdgeIds(
+          nextActiveEdgeIds({
+            event: "preview_cleared",
+            workflow: null,
+            targetNodeId: null,
+          }),
+        );
         setStatus(`Wired example I/O for ${patch.workflow.metadata.title}`);
         return next;
       });
@@ -1052,6 +1071,11 @@ export default function App() {
 
   useEffect(() => {
     document.querySelector<HTMLAudioElement>(".transport__audio")?.pause();
+    // Keep auditionTarget when it matches the new selection (audition just chose this node).
+    // Drop it when the user selects someone else so play highlights the right path.
+    if (auditionTargetRef.current && auditionTargetRef.current !== selectedNodeId) {
+      auditionTargetRef.current = null;
+    }
   }, [selectedNodeId]);
 
   useEffect(() => {
@@ -1095,16 +1119,37 @@ export default function App() {
   }, [selectedNodePreview, previewKind]);
 
   useEffect(() => {
+    if (!selectedNodePreview) {
+      auditionTargetRef.current = null;
+      setActiveEdgeIds(
+        nextActiveEdgeIds({
+          event: "preview_cleared",
+          workflow: null,
+          targetNodeId: null,
+        }),
+      );
+    }
+  }, [selectedNodePreview]);
+
+  useEffect(() => {
     const onAudioEvent = (event: Event) => {
-      if (!workflow || !selectedNodeId) return;
-      if (event.type === "play") {
-        setActiveEdgeIds(edgeIdsOnPathToNode(workflow, selectedNodeId));
-      } else {
-        setActiveEdgeIds(new Set());
+      const mediaEvent = event.type as "play" | "pause" | "ended";
+      // Do not clear auditionTarget on pause — ensureBlobLoaded() pauses while
+      // swapping the blob URL, and we still need the target for the following play.
+      if (mediaEvent === "ended") {
+        auditionTargetRef.current = null;
       }
-      if (event.type === "ended") {
-        setActiveEdgeIds(new Set());
-      }
+      const targetNodeId = resolveEdgePlaybackTarget(
+        auditionTargetRef.current,
+        selectedNodeId,
+      );
+      setActiveEdgeIds(
+        nextActiveEdgeIds({
+          event: mediaEvent,
+          workflow: workflowRef.current,
+          targetNodeId,
+        }),
+      );
     };
     const transport = document.querySelector<HTMLAudioElement>(".transport__audio");
     if (!transport) return;
@@ -1116,7 +1161,7 @@ export default function App() {
       transport.removeEventListener("pause", onAudioEvent);
       transport.removeEventListener("ended", onAudioEvent);
     };
-  }, [workflow, selectedNodeId, selectedNodePreview]);
+  }, [selectedNodeId, selectedNodePreview]);
 
   const selectedTemplateId = activeTemplateId;
 
