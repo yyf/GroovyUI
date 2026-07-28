@@ -19,6 +19,7 @@ import {
   startActivationSession,
 } from "./activationDiagnostics";
 import {
+  API,
   executeWorkflow,
   fetchCompliance,
   fetchAllNodeSchemas,
@@ -52,6 +53,13 @@ import SettingsDrawer from "./components/SettingsDrawer";
 import SidePanel from "./components/SidePanel";
 import StudioTopBar from "./components/StudioTopBar";
 import TransportBar from "./components/TransportBar";
+import CanvasErrorBoundary from "./components/CanvasErrorBoundary";
+import {
+  apiLedTone,
+  canvasLedTone,
+  renderLedTone,
+  type StatusLedSpec,
+} from "./components/StatusLeds";
 import RenderActivityBar from "./components/RenderActivityBar";
 import { AuditionContext } from "./context/AuditionContext";
 import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
@@ -103,6 +111,7 @@ import {
   toggleGroupCollapsed,
   workflowToFlowEdges,
   workflowToFlowNodes,
+  normalizeLoadedWorkflow,
 } from "./workflow";
 
 const nodeTypes: NodeTypes = { groovy: GroovyFlowNode, groovyGroup: ModuleGroupNode };
@@ -184,6 +193,8 @@ export default function App() {
   /** Set synchronously before auditionNonce so play events highlight the right path. */
   const auditionTargetRef = useRef<string | null>(null);
   const [auditionNonce, setAuditionNonce] = useState(0);
+  const [apiOnline, setApiOnline] = useState<boolean | null>(null);
+  const [canvasCrashed, setCanvasCrashed] = useState(false);
 
   const handleStudioSettingsChange = useCallback(
     (settings: import("./types").StudioSettings) => {
@@ -282,7 +293,7 @@ export default function App() {
       clipboardRef.current = null;
       pasteCountRef.current = 0;
       const data = layoutWorkflowNodes(await fetchTemplate(templateId));
-      resetHistory(data);
+      resetHistory(normalizeLoadedWorkflow(data));
       setActiveTemplateId(templateId);
       setViewportFitKey((key) => key + 1);
       setLoadError(null);
@@ -365,14 +376,54 @@ export default function App() {
 
   useEffect(() => {
     fetchAllNodeSchemas()
-      .then(setNodeSchemas)
-      .catch(() => setNodeSchemas({}));
+      .then((schemas) => {
+        setNodeSchemas(schemas);
+        setApiOnline(true);
+      })
+      .catch(() => {
+        setNodeSchemas({});
+        setApiOnline(false);
+      });
     listTemplates()
       .then(setTemplates)
       .catch(() => setTemplates([]));
     fetchStudioSettings()
       .then((settings) => setInferenceStubActive(settings.inference_stub_active))
       .catch(() => setInferenceStubActive(false));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let wasOnline: boolean | null = null;
+    const ping = () => {
+      fetch(`${API}/api/health`)
+        .then(async (res) => {
+          if (cancelled) return;
+          const online = res.ok;
+          setApiOnline(online);
+          if (online && wasOnline === false) {
+            try {
+              const schemas = await fetchAllNodeSchemas();
+              if (!cancelled) setNodeSchemas(schemas);
+            } catch {
+              /* keep prior schemas */
+            }
+          }
+          wasOnline = online;
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setApiOnline(false);
+            wasOnline = false;
+          }
+        });
+    };
+    ping();
+    const timer = window.setInterval(ping, 15_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {
@@ -1167,7 +1218,7 @@ export default function App() {
 
   const applyWorkflow = useCallback(
     (next: Workflow) => {
-      resetHistory(next);
+      resetHistory(normalizeLoadedWorkflow(next));
       setLastJob(null);
       setNodeStatus({});
       setComplianceFastPath(false);
@@ -1323,6 +1374,48 @@ export default function App() {
     [setWorkflow],
   );
 
+  const canvasIssueCount = Object.keys(nodeIssues).length;
+  const statusLeds = useMemo<StatusLedSpec[]>(() => {
+    const apiTone = apiLedTone(apiOnline);
+    const rndTone = renderLedTone({ running, statusMessage: status });
+    const cvsTone = canvasLedTone({ issueCount: canvasIssueCount, crashed: canvasCrashed });
+    return [
+      {
+        id: "api",
+        label: "API",
+        tone: apiTone,
+        title:
+          apiOnline === null
+            ? "API status unknown"
+            : apiOnline
+              ? "API online"
+              : "API offline — start groovy-server",
+      },
+      {
+        id: "rnd",
+        label: "RND",
+        tone: rndTone,
+        title: running ? "Render in progress" : status || "Render idle",
+      },
+      {
+        id: "cvs",
+        label: "CVS",
+        tone: cvsTone,
+        title: canvasCrashed
+          ? "Canvas crashed — reset to recover"
+          : canvasIssueCount > 0
+            ? `${canvasIssueCount} node issue${canvasIssueCount === 1 ? "" : "s"}`
+            : "Canvas OK",
+      },
+    ];
+  }, [apiOnline, running, status, canvasIssueCount, canvasCrashed]);
+
+  const resetCanvasAfterCrash = useCallback(() => {
+    setCanvasCrashed(false);
+    setViewportFitKey((key) => key + 1);
+    setStatus("Canvas reset");
+  }, []);
+
   if (loadError) {
     return (
       <div className="app app--error">
@@ -1412,35 +1505,44 @@ export default function App() {
             }}
           >
             {dropHint ? <div className="canvas__drop-hint">Drop audio to load</div> : null}
-            <ReactFlowProvider>
-              <ReactFlow
-                nodes={displayNodes}
-                edges={flowEdges}
-                nodeTypes={nodeTypes}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onConnect={onConnect}
-                onNodeDragStop={onNodeDragStop}
-                onNodeClick={() => openInspector()}
-                onNodeDoubleClick={(_, node) => auditionNode(node.id)}
-                deleteKeyCode={["Backspace", "Delete"]}
-                panOnDrag={[1, 2]}
-                panActivationKeyCode="Space"
-                selectionOnDrag
-                selectionKeyCode={null}
-                multiSelectionKeyCode={["Shift", "Meta", "Control"]}
-                proOptions={{ hideAttribution: true }}
-              >
-                <FlowViewportBridge
-                  canvasSelector=".canvas"
-                  onCenterReady={registerFlowCenter}
-                  nodeSyncKey={flowNodeSyncKey}
-                  fitViewKey={viewportFitKey}
-                />
-                <Background gap={28} color="#222222" size={1} />
-                <Controls className="flow-controls" showInteractive={false} />
-              </ReactFlow>
-            </ReactFlowProvider>
+            <CanvasErrorBoundary
+              crashed={canvasCrashed}
+              onError={() => {
+                setCanvasCrashed(true);
+                setStatus("Failed: canvas crash");
+              }}
+              onReset={resetCanvasAfterCrash}
+            >
+              <ReactFlowProvider>
+                <ReactFlow
+                  nodes={displayNodes}
+                  edges={flowEdges}
+                  nodeTypes={nodeTypes}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onConnect={onConnect}
+                  onNodeDragStop={onNodeDragStop}
+                  onNodeClick={() => openInspector()}
+                  onNodeDoubleClick={(_, node) => auditionNode(node.id)}
+                  deleteKeyCode={["Backspace", "Delete"]}
+                  panOnDrag={[1, 2]}
+                  panActivationKeyCode="Space"
+                  selectionOnDrag
+                  selectionKeyCode={null}
+                  multiSelectionKeyCode={["Shift", "Meta", "Control"]}
+                  proOptions={{ hideAttribution: true }}
+                >
+                  <FlowViewportBridge
+                    canvasSelector=".canvas"
+                    onCenterReady={registerFlowCenter}
+                    nodeSyncKey={flowNodeSyncKey}
+                    fitViewKey={viewportFitKey}
+                  />
+                  <Background gap={28} color="#222222" size={1} />
+                  <Controls className="flow-controls" showInteractive={false} />
+                </ReactFlow>
+              </ReactFlowProvider>
+            </CanvasErrorBoundary>
           </div>
           {!focusMode ? (
             <SidePanel side="right" label="Inspector" open={helperOpen} onToggle={() => setHelperOpen((prev) => !prev)}>
@@ -1496,6 +1598,7 @@ export default function App() {
           emptyHint={transportEmptyHint}
           running={running}
           statusMessage={status}
+          statusLeds={statusLeds}
           onRender={() => void runRender()}
           onRenderAll={() => void runRender(undefined, true)}
           onPlay={playSelectedNode}

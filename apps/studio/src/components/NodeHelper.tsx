@@ -27,6 +27,7 @@ import {
 import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
 import ControlCurvePreview, { syncPointsFromStartEnd } from "./ControlCurvePreview";
+import MatrixMixerPanel from "./MatrixMixerPanel";
 import { ParamFader, ParamPot, ParamStepped, ParamSwitch } from "./ParamControls";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
@@ -355,11 +356,22 @@ export default function NodeHelper({
                 />
               </section>
             ) : null}
+            {node.type === "MatrixMixer" ? (
+              <section className="node-helper__matrix-panel">
+                <h4 className="node-helper__compare-subtitle">Matrix</h4>
+                <MatrixMixerPanel
+                  widgets={node.widgets}
+                  onChange={(name, value) => onWidgetChange(node.id, name, value)}
+                />
+              </section>
+            ) : null}
             {(() => {
               const widgetsForForm =
                 node.type === "ControlCurve"
                   ? schema.widgets.filter((widget) => widget.name !== "points")
-                  : schema.widgets;
+                  : node.type === "MatrixMixer"
+                    ? schema.widgets.filter((widget) => !widget.name.startsWith("gain_"))
+                    : schema.widgets;
               const { pinned, rest } = partitionExplorationWidgets(widgetsForForm, node.type);
               const renderWidget = (widget: (typeof schema.widgets)[number]) => {
                 const mergedWidget = mergeSpecWithModelParam(widget, modelParamMap.get(widget.name));

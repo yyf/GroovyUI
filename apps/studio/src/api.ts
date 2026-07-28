@@ -12,6 +12,7 @@ import type {
   WorkflowValidationResult,
 } from "./types";
 import { applyNodeSchemaFallbacks } from "./nodeSchemaFallbacks";
+import { normalizeLoadedWorkflow } from "./workflow";
 
 export const API = import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188";
 
@@ -310,7 +311,7 @@ export async function fetchTemplate(templateId: string): Promise<Workflow> {
   if (!res.ok) {
     throw new Error(`Template not found: ${templateId}`);
   }
-  return res.json();
+  return normalizeLoadedWorkflow(await res.json());
 }
 
 export async function fetchNodeSchema(nodeType: string): Promise<NodeSchema> {

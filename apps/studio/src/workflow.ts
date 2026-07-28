@@ -340,9 +340,19 @@ export function proxyNodeId(groupId: string): string {
   return `proxy_${groupId}`;
 }
 
+/** Ensure optional array fields exist so canvas helpers never iterate undefined. */
+export function normalizeLoadedWorkflow(raw: Workflow): Workflow {
+  return {
+    ...raw,
+    nodes: raw.nodes ?? [],
+    links: raw.links ?? [],
+    groups: raw.groups ?? [],
+  };
+}
+
 export function collapsedMemberIds(workflow: Workflow): Set<string> {
   const hidden = new Set<string>();
-  for (const group of workflow.groups) {
+  for (const group of workflow.groups ?? []) {
     if (!group.collapsed) continue;
     for (const nodeId of group.node_ids) {
       hidden.add(nodeId);
@@ -541,7 +551,7 @@ export function workflowToFlowNodes(
       };
     });
 
-  for (const group of workflow.groups) {
+  for (const group of workflow.groups ?? []) {
     if (!group.collapsed) continue;
     const position = group.proxy_pos ?? groupCentroid(workflow, group);
     nodes.push({
@@ -1214,6 +1224,10 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
       width = 220;
       height = 120;
       break;
+    case "MatrixMixer":
+      width = 220;
+      height = 140;
+      break;
     case "Prompt":
     case "GenerateAudio":
     case "TTS":
@@ -1227,6 +1241,12 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
       break;
     case "ControlCurve":
     case "SignalGenerator":
+    case "Oscillator":
+    case "NoiseGenerator":
+    case "Envelope":
+    case "LFO":
+    case "Clock":
+    case "Float":
       height = 100;
       break;
     default:

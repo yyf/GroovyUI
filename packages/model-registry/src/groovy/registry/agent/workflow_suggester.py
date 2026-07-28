@@ -8,6 +8,14 @@ from typing import Any
 TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\b(hello|first.?run|onboard)\b", re.I), "hello-groovy", "Hello GroovyUI Prompt → TTS"),
     (re.compile(r"\b(granulat)\b", re.I), "prompt-modular-synth", "Prompt Modular Synth grain cloud"),
+    (
+        re.compile(
+            r"\b(generat(ive)?.?sequenc|clock.+(quantiz|sample.?and.?hold)|modular.?sequenc|random.?sequenc|systems.?not.?notes|probability.?gat)\b",
+            re.I,
+        ),
+        "modular-generative-rack",
+        "Modular Generative Rack",
+    ),
     (re.compile(r"\b(normalize|load.?audio.?chain)\b", re.I), "hello-groovy", "Hello GroovyUI starter chain"),
     (
         re.compile(r"\b(cleanup.?and.?transcrib|denoise.+(transcrib|whisper)|clean.+(transcrib|whisper))\b", re.I),

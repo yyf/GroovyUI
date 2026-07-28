@@ -36,6 +36,7 @@ import {
   workflowToFlowEdges,
   workflowToFlowNodes,
   edgeIdsOnPathToNode,
+  normalizeLoadedWorkflow,
 } from "./workflow";
 
 function sampleWorkflow(): Workflow {
@@ -537,6 +538,18 @@ describe("findOpenNodePosition", () => {
       nodes: [...sampleWorkflow().nodes, { id: "n4", type: "Mix", pos, widgets: {} }],
     };
     expect(workflowHasOverlappingNodes(placed)).toBe(false);
+  });
+});
+
+describe("normalizeLoadedWorkflow", () => {
+  it("defaults missing groups so canvas helpers do not crash", () => {
+    const raw = {
+      ...sampleWorkflow(),
+      groups: undefined,
+    } as unknown as Workflow;
+    const normalized = normalizeLoadedWorkflow(raw);
+    expect(normalized.groups).toEqual([]);
+    expect(() => workflowToFlowNodes(normalized, {})).not.toThrow();
   });
 });
 

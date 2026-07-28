@@ -35,9 +35,13 @@ const STRING_OPTIONS: Record<string, string[]> = {
   stem: ["vocals", "drums", "bass", "other", "accompaniment"],
   midi_kind: ["control", "performance", "transcript"],
   layout: ["mono", "stereo", "5.1", "7.1", "7.1.4"],
-  operation: ["add", "multiply"],
+  operation: ["add", "multiply", "divide"],
   output: ["stereo", "binaural", "5.1"],
   source_layout: ["mono", "stereo", "5.1", "7.1"],
+  waveform: ["sine", "saw", "square", "triangle"],
+  color: ["white", "pink", "brown"],
+  filter_type: ["lowpass", "highpass", "bandpass", "notch"],
+  scale: ["chromatic", "major", "minor", "pentatonic"],
 };
 
 const SAMPLE_RATES = [8000, 16000, 22050, 24000, 32000, 44100, 48000, 88200, 96000, 192000];
@@ -49,12 +53,21 @@ type SpecLike = {
   min?: number;
   max?: number;
   step?: number;
+  choices?: string[];
+  options?: string[];
 };
 
-function isTextLike(name: string, type: string): boolean {
+function schemaChoices(spec: SpecLike): string[] | undefined {
+  const raw = spec.choices ?? spec.options;
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  return raw.map(String);
+}
+
+function isTextLike(name: string, type: string, spec?: SpecLike): boolean {
   if (type === "MODEL_REF") return true;
   if (name === "seed") return true;
   if (type !== "STRING" && type !== "TEXT") return false;
+  if (spec && schemaChoices(spec)) return false;
   if (TEXT_NAMES.has(name)) return true;
   if (STRING_OPTIONS[name]) return false;
   return true;
@@ -124,12 +137,12 @@ export function resolveWidgetControl(spec: SpecLike): ResolvedControl {
     return { kind: "switch", min: 0, max: 1, step: 1 };
   }
 
-  if (isTextLike(name, type)) {
+  if (isTextLike(name, type, spec)) {
     return { kind: "text", min: 0, max: 0, step: 0 };
   }
 
   if (type === "STRING" || type === "TEXT") {
-    const options = STRING_OPTIONS[name];
+    const options = schemaChoices(spec) ?? STRING_OPTIONS[name];
     if (options?.length) {
       return { kind: "stepped", min: 0, max: options.length - 1, step: 1, options };
     }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchSpectrogram, type SpectrogramData } from "../api";
 import SpectrogramMini from "./SpectrogramMini";
+import StatusLeds, { type StatusLedSpec } from "./StatusLeds";
 import WaveformMini from "./WaveformMini";
 import MidiRollMini, { type MidiRollNote } from "./MidiRollMini";
 
@@ -57,6 +58,7 @@ type Props = {
   emptyHint?: string;
   running: boolean;
   statusMessage?: string;
+  statusLeds?: StatusLedSpec[];
   onRender: () => void;
   onRenderAll?: () => void;
   onPlay: () => void;
@@ -76,6 +78,7 @@ export default function TransportBar({
   emptyHint = "No render yet",
   running,
   statusMessage,
+  statusLeds = [],
   onRender,
   onRenderAll,
   onPlay,
@@ -447,6 +450,7 @@ export default function TransportBar({
     <footer className="transport">
       <div className="transport__shell">
         <div className="transport__controls">
+          {statusLeds.length > 0 ? <StatusLeds leds={statusLeds} /> : null}
           <div className="transport__transport-group">
             <button
               type="button"

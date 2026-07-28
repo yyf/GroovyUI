@@ -18,6 +18,20 @@ describe("resolveWidgetControl", () => {
     expect(mode.options).toEqual(["lufs", "peak"]);
   });
 
+  it("maps waveform choices from schema or name map to stepped", () => {
+    const fromName = resolveWidgetControl({ name: "waveform", type: "STRING", default: "sine" });
+    expect(fromName.kind).toBe("stepped");
+    expect(fromName.options).toEqual(["sine", "saw", "square", "triangle"]);
+    const fromSchema = resolveWidgetControl({
+      name: "filter_type",
+      type: "STRING",
+      default: "lowpass",
+      choices: ["lowpass", "highpass"],
+    });
+    expect(fromSchema.kind).toBe("stepped");
+    expect(fromSchema.options).toEqual(["lowpass", "highpass"]);
+  });
+
   it("maps gains to faders and most floats to pots", () => {
     expect(resolveWidgetControl({ name: "gain_a", type: "FLOAT", default: 1 }).kind).toBe("fader");
     expect(resolveWidgetControl({ name: "target_lufs", type: "FLOAT", default: -16 }).kind).toBe("pot");

@@ -24,10 +24,24 @@ const MODULAR_NODES = new Set([
   "LoadMIDI",
   "Prompt",
   "SignalGenerator",
+  "NoiseGenerator",
+  "Oscillator",
+  "MatrixMixer",
+  "Filter",
+  "Amplifier",
+  "Envelope",
+  "LFO",
+  "Attenuator",
+  "Logic",
+  "Comparator",
+  "SampleAndHold",
+  "Quantizer",
+  "Clock",
   "ControlCurve",
   "MIDIToFloat",
   "MIDINoteGate",
   "AutomationApply",
+  "Float",
   "FloatMath",
   "FloatRoute",
   "ModuleInlet",
@@ -136,8 +150,8 @@ function isPaletteVisible(node: NodeTypeInfo): boolean {
 
 function tierForNode(node: NodeTypeInfo): PaletteTier[] {
   const tiers: PaletteTier[] = ["all"];
-  // Oscillators are both Core sources and Modular synth building blocks.
-  if (node.type === "SignalGenerator") {
+  // Oscillators / noise are both Core sources and Modular synth building blocks.
+  if (node.type === "SignalGenerator" || node.type === "Oscillator" || node.type === "NoiseGenerator") {
     tiers.push("core", "modular");
     return tiers;
   }
@@ -167,8 +181,18 @@ function paletteGroup(node: NodeTypeInfo): GroupId {
   if (AUTHENTICITY.has(node.type)) return "authenticity";
   if (node.category.includes("AI")) return aiPaletteGroup(node.type);
   if (node.type === "ModuleInlet" || node.type === "ModuleOutlet") return "subgraph";
-  if (node.type === "SignalGenerator") return "core-dsp";
-  if (MODULAR_NODES.has(node.type) || node.type.includes("Float")) return "control";
+  if (node.type === "SignalGenerator" || node.type === "Oscillator" || node.type === "NoiseGenerator") {
+    return "core-dsp";
+  }
+  if (
+    MODULAR_NODES.has(node.type) ||
+    node.type.includes("Float") ||
+    ["Filter", "Amplifier", "Envelope", "LFO", "Attenuator", "Logic", "Comparator", "SampleAndHold", "Quantizer", "Clock", "MatrixMixer"].includes(
+      node.type,
+    )
+  ) {
+    return "control";
+  }
   if (CORE_IO.has(node.type)) return "core-io";
   return "core-dsp";
 }
