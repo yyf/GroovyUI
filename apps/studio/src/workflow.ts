@@ -3,7 +3,7 @@ import type { JobOutput, NodeRenderStatus, NodeSchema, Workflow, WorkflowGroup, 
 import type { GroovyGroupNodeData } from "./components/ModuleGroupNode";
 import type { GroovyNodeData, NodeSocketSpec } from "./components/GroovyFlowNode";
 import { canvasNodeKind } from "./nodeKinds";
-import { edgeTypeClass, socketTypeColor } from "./socketTypes";
+import { edgeTypeClass, normalizeEdgeColor, resolveEdgeStroke } from "./socketTypes";
 
 export function previewOutputSlot(workflow: Workflow, nodeId: string): number {
   const outbound = workflow.links.filter((link) => link.from[0] === nodeId);
@@ -331,6 +331,9 @@ export function mergeFlowEdges<T extends Edge>(current: T[], next: T[]): T[] {
       className: fresh.className,
       animated: fresh.animated,
       hidden: fresh.hidden,
+      style: fresh.style,
+      labelStyle: fresh.labelStyle,
+      labelBgStyle: fresh.labelBgStyle,
     });
   }
   return merged;
@@ -463,14 +466,92 @@ export function nodeIssuesFromValidation(
 }
 
 /** Per-channel outlet labels for LoadAudio (matches runtime MULTI slot order). */
+export function channelLayoutLabel(channels: number): string {
+  const count = Math.max(0, Math.floor(channels));
+  if (count <= 0) return "—";
+  if (count === 1) return "mono";
+  if (count === 2) return "stereo";
+  if (count === 3) return "LRC";
+  if (count === 4) return "quad";
+  if (count === 6) return "5.1";
+  if (count === 8) return "7.1";
+  if (count === 12) return "7.1.4";
+  return `${count} ch`;
+}
+
 export function loadAudioChannelOutletSockets(channelCount: number): NodeSocketSpec[] {
   const count = Math.max(1, Math.floor(channelCount));
   const stereoNames = ["L", "R"];
   return Array.from({ length: count }, (_, slot) => ({
-    name: count === 2 ? stereoNames[slot]! : count === 1 ? "audio" : `ch${slot}`,
+    name: count === 2 ? stereoNames[slot]! : count === 1 ? "mono" : `ch${slot}`,
     type: "AUDIO",
     slot,
   }));
+}
+
+/** Channel layout / count chip for LoadAudio, Preview, SaveAudio (and selection lists). */
+export function resolveIoChannelLabel(
+  workflow: Workflow,
+  nodeId: string,
+  loadAudioChannels?: Record<string, number>,
+  outputs?: Record<string, JobOutput>,
+  channelLayouts?: Record<string, string>,
+): string | null {
+  if (channelLayouts?.[nodeId]) return channelLayouts[nodeId];
+  const count = resolveIoChannelCount(workflow, nodeId, loadAudioChannels, outputs);
+  if (count == null) return null;
+  return channelLayoutLabel(count);
+}
+
+const IO_CHANNEL_NODE_TYPES = new Set(["LoadAudio", "Preview", "SaveAudio"]);
+
+/** Best-effort channel count for canvas / selection labels. */
+export function resolveIoChannelCount(
+  workflow: Workflow,
+  nodeId: string,
+  loadAudioChannels?: Record<string, number>,
+  outputs?: Record<string, JobOutput>,
+): number | null {
+  const node = workflow.nodes.find((item) => item.id === nodeId);
+  if (!node) return null;
+
+  if (node.type === "LoadAudio") {
+    const probed = loadAudioChannels?.[nodeId];
+    if (typeof probed === "number" && probed > 0) return probed;
+    const jobOut = outputs?.[nodeId];
+    if (jobOut?.type === "MULTI" && jobOut.outputs?.length) return jobOut.outputs.length;
+    // Always show a label — assume mono until the file probe returns.
+    return 1;
+  }
+
+  const direct = outputs?.[nodeId];
+  if (direct?.type === "MULTI" && direct.outputs?.length) return direct.outputs.length;
+
+  if (!IO_CHANNEL_NODE_TYPES.has(node.type)) return null;
+
+  // Preview / SaveAudio: walk upstream toward a known channel count.
+  const visited = new Set<string>();
+  const queue: string[] = [nodeId];
+  while (queue.length) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    if (current !== nodeId) {
+      const probed = loadAudioChannels?.[current];
+      if (typeof probed === "number" && probed > 0) return probed;
+      const jobOut = outputs?.[current];
+      if (jobOut?.type === "MULTI" && jobOut.outputs?.length) return jobOut.outputs.length;
+    }
+
+    for (const link of workflow.links) {
+      if (link.to[0] !== current) continue;
+      if (link.type !== "AUDIO" && link.type !== "STEMS" && link.type !== "AMBISONICS") continue;
+      queue.push(link.from[0]);
+    }
+  }
+
+  return null;
 }
 
 export function workflowToFlowNodes(
@@ -481,6 +562,8 @@ export function workflowToFlowNodes(
   nodeIssues?: Record<string, string>,
   /** Probed channel counts for LoadAudio nodes (path → channels), keyed by node id. */
   loadAudioChannels?: Record<string, number>,
+  /** Optional layout strings from cache metrics (overrides inferred count labels). */
+  channelLayouts?: Record<string, string>,
 ): Node<GroovyNodeData | GroovyGroupNodeData>[] {
   const hidden = collapsedMemberIds(workflow);
   const nodes: Node<GroovyNodeData | GroovyGroupNodeData>[] = workflow.nodes
@@ -517,6 +600,8 @@ export function workflowToFlowNodes(
           if (linkCounts.outputs > 1) {
             return loadAudioChannelOutletSockets(linkCounts.outputs);
           }
+          // Always expose at least a mono outlet label before probe/render.
+          return loadAudioChannelOutletSockets(1);
         }
         if (!schema) return placeholderOutputSockets(linkCounts.outputs);
         return schema.outputs.map((socket, slot) => ({
@@ -532,6 +617,11 @@ export function workflowToFlowNodes(
             ? n.widgets.text
             : String(n.widgets.text ?? "")
           : undefined;
+      const channelCount = resolveIoChannelCount(workflow, n.id, loadAudioChannels, outputs);
+      const channelLabel = IO_CHANNEL_NODE_TYPES.has(n.type)
+        ? channelLayouts?.[n.id] ||
+          (channelCount != null ? channelLayoutLabel(channelCount) : "—")
+        : undefined;
       return {
         id: n.id,
         type: "groovy",
@@ -545,6 +635,7 @@ export function workflowToFlowNodes(
           issue: nodeIssues?.[n.id],
           previewText: previewTextSnippet(jobOut) ?? undefined,
           noteText,
+          channelLabel,
           inputs,
           outputs: outputSockets,
         },
@@ -574,7 +665,7 @@ export function workflowToFlowEdges(workflow: Workflow, activeEdgeIds?: Set<stri
   return links.map((l: WorkflowLink) => {
     const typeClass = edgeTypeClass(l.type);
     const active = activeEdgeIds?.has(l.id) ?? false;
-    const color = socketTypeColor(l.type);
+    const color = resolveEdgeStroke(l.type, l.color);
     return {
       id: l.id,
       source: l.from[0],
@@ -584,7 +675,14 @@ export function workflowToFlowEdges(workflow: Workflow, activeEdgeIds?: Set<stri
       label: l.type,
       className: [typeClass, active ? "groovy-edge--active" : ""].filter(Boolean).join(" "),
       animated: active,
-      style: { stroke: color, strokeWidth: 2 },
+      style: {
+        stroke: color,
+        strokeWidth: active ? 3 : 2,
+        // CSS vars so type/selected stylesheet rules cannot clobber palette colors.
+        ["--edge-stroke" as string]: color,
+        ["--edge-stroke-width" as string]: active ? 3 : 2,
+        ["--edge-glow" as string]: color,
+      },
       labelStyle: { fill: color, fontSize: 10, fontWeight: 600 },
       labelBgStyle: { fill: "#151820", fillOpacity: 0.92 },
       labelBgPadding: [4, 3] as [number, number],
@@ -678,8 +776,28 @@ export function flowNodesSyncKey(nodes: Node[]): string {
 
 export function flowEdgesSyncKey(edges: Edge[]): string {
   return edges
-    .map((edge) => `${edge.id}:${edge.source}->${edge.target}:${edge.className ?? ""}:${edge.animated ? 1 : 0}`)
+    .map((edge) => {
+      const stroke = typeof edge.style?.stroke === "string" ? edge.style.stroke : "";
+      return `${edge.id}:${edge.source}->${edge.target}:${edge.className ?? ""}:${edge.animated ? 1 : 0}:${stroke}`;
+    })
     .join("|");
+}
+
+/** Update optional link stroke color (palette hex or clear). */
+export function setLinkColor(workflow: Workflow, linkId: string, color: string | null): Workflow {
+  const normalized = color ? normalizeEdgeColor(color) : null;
+  return {
+    ...workflow,
+    links: workflow.links.map((link) => {
+      if (link.id !== linkId) return link;
+      if (!normalized) {
+        const next = { ...link };
+        delete next.color;
+        return next;
+      }
+      return { ...link, color: normalized };
+    }),
+  };
 }
 
 export function workflowToFlow(

@@ -6,6 +6,11 @@
 
 - **`rave-v1` + `TimbreTransfer`** — Model Browser install downloads ACIDS RAVE TorchScript (`sol_ordinario_fast`); real encode/decode inference (stub only when Inference = Stub)
 - **Sample-accuracy honesty** — canvas chip when AI/nondeterministic hops present; Note nodes on generative templates; `sample_accurate` / `deterministic` / `duration_locked` on node schemas (metadata only; no executor gates)
+- **Template Notes** — compact `Note` on every bundled workflow template
+- **Connection color** — click a wire → Inspector palette swatches (B/W/signal-red + greys); optional `links[].color` in workflow JSON
+- **Active-edge glow** — subtle drop-shadow on animated path wires during audition (tracks stroke color; no heavy VFX)
+- **`ChannelMerge`** — stack mono / LoadAudio per-channel outlets into stereo (or up to 7.1) for `SaveAudio`
+- **Multi-select channel info** — Inspector selection / A/B compare shows per-node channel layout when known
 
 ### Removed
 

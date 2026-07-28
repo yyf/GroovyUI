@@ -17,11 +17,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Podcast Denoise \u2014 Load dialogue, AI denoise, normalize to -16 LUFS, preview, save to exports."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "path": "assets/samples/male-1.wav"
@@ -32,7 +43,7 @@
       "type": "Denoise",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "model": "deepfilternet-v3",
@@ -44,7 +55,7 @@
       "type": "Normalize",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "mode": "lufs",
@@ -56,7 +67,7 @@
       "type": "Preview",
       "pos": {
         "x": 708,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {}
     },
@@ -65,7 +76,7 @@
       "type": "SaveAudio",
       "pos": {
         "x": 708,
-        "y": 124
+        "y": 224.0
       },
       "widgets": {
         "path": "exports",

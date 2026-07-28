@@ -27,7 +27,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+        "text": "Text to Music- Stable Audio \u2014 Hero text-to-audio with Stable Audio Open 1.0 \u2014 Prompt a bed or SFX, preview the cached render, and save.\nOffline sample-accurate render \u00b7 Play = cached PCM."
       }
     },
     {

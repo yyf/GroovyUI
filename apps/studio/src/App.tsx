@@ -24,6 +24,7 @@ import {
   fetchCompliance,
   fetchAllNodeSchemas,
   fetchAudioFileMeta,
+  fetchCacheMetrics,
   fetchStudioSettings,
   fetchWorkflowValidation,
   fetchTemplate,
@@ -108,6 +109,7 @@ import {
   resolveNodeInspectorOutput,
   resolveRenderAllTargets,
   resolveTargetNode,
+  setLinkColor,
   syncPositions,
   toggleGroupCollapsed,
   workflowToFlowEdges,
@@ -145,6 +147,8 @@ export default function App() {
   const [nodeSchemas, setNodeSchemas] = useState<Record<string, NodeSchema>>({});
   /** LoadAudio node id → probed channel count (drives per-channel canvas outlets). */
   const [loadAudioChannels, setLoadAudioChannels] = useState<Record<string, number>>({});
+  /** Preview / SaveAudio node id → layout label from cache metrics (post-render). */
+  const [channelLayouts, setChannelLayouts] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
   const clipboardRef = useRef<WorkflowClipboard | null>(null);
   const flowCenterRef = useRef(() => ({ x: 320, y: 200 }));
@@ -191,6 +195,7 @@ export default function App() {
     maxPitch: number;
   } | null>(null);
   const [activeEdgeIds, setActiveEdgeIds] = useState<Set<string>>(new Set());
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   /** Set synchronously before auditionNonce so play events highlight the right path. */
   const auditionTargetRef = useRef<string | null>(null);
   const [auditionNonce, setAuditionNonce] = useState(0);
@@ -266,13 +271,18 @@ export default function App() {
             nodeSchemas,
             nodeIssues,
             loadAudioChannels,
+            channelLayouts,
           )
         : [],
-    [workflow, nodeStatus, lastJob?.outputs, nodeSchemas, nodeIssues, loadAudioChannels],
+    [workflow, nodeStatus, lastJob?.outputs, nodeSchemas, nodeIssues, loadAudioChannels, channelLayouts],
   );
   const flowEdges = useMemo(
     () => (workflow ? workflowToFlowEdges(workflow, activeEdgeIds) : []),
     [workflow, activeEdgeIds],
+  );
+  const displayEdges = useMemo(
+    () => flowEdges.map((edge) => ({ ...edge, selected: edge.id === selectedEdgeId })),
+    [flowEdges, selectedEdgeId],
   );
   const flowNodeSyncKey = useMemo(() => flowNodesSyncKey(flowNodes), [flowNodes]);
   const [nodes, setNodes, applyNodeChanges] = useNodesState<Node>([]);
@@ -399,6 +409,55 @@ export default function App() {
   }, [workflow, loadAudioPathKey]);
 
   useEffect(() => {
+    if (!workflow || !lastJob?.outputs) {
+      setChannelLayouts({});
+      return;
+    }
+    const ioNodes = workflow.nodes.filter((node) => {
+      const listen = resolveNodeListenOutput(workflow, node.id, lastJob.outputs);
+      return Boolean(
+        previewCacheId(listen) ?? previewCacheId(lastJob.outputs?.[node.id]),
+      );
+    });
+    if (ioNodes.length === 0) {
+      setChannelLayouts({});
+      return;
+    }
+
+    let cancelled = false;
+    Promise.all(
+      ioNodes.map(async (node) => {
+        const listen = resolveNodeListenOutput(workflow, node.id, lastJob.outputs);
+        const cacheId = previewCacheId(listen) ?? previewCacheId(lastJob.outputs?.[node.id]);
+        if (!cacheId) return null;
+        try {
+          const metrics = await fetchCacheMetrics(cacheId);
+          const layout =
+            typeof metrics.channel_layout === "string" && metrics.channel_layout.trim()
+              ? metrics.channel_layout.trim()
+              : metrics.channels > 0
+                ? `${metrics.channels} ch`
+                : null;
+          return layout ? ([node.id, layout] as const) : null;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      const next: Record<string, string> = {};
+      for (const entry of entries) {
+        if (entry) next[entry[0]] = entry[1];
+      }
+      setChannelLayouts(next);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workflow, lastJob?.outputs, lastJob?.status]);
+
+  useEffect(() => {
     fetchAllNodeSchemas()
       .then((schemas) => {
         setNodeSchemas(schemas);
@@ -490,6 +549,7 @@ export default function App() {
         .filter((change): change is EdgeChange & { type: "remove"; id: string } => change.type === "remove")
         .map((change) => change.id);
       if (removedIds.length === 0) return;
+      setSelectedEdgeId((prev) => (prev && removedIds.includes(prev) ? null : prev));
       setWorkflow((prev) => {
         if (!prev) return prev;
         return removeLinks(prev, new Set(removedIds));
@@ -514,8 +574,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (selectedNodeId) openInspector();
-  }, [selectedNodeId, openInspector]);
+    // Rubber-band / node select clears wire selection. Edge click deselects nodes in the
+    // same tick, so this only runs when nodes are actually selected.
+    if (selectedNodeIds.length > 0) {
+      setSelectedEdgeId(null);
+      openInspector();
+    }
+  }, [selectedNodeIds, openInspector]);
+
+  useEffect(() => {
+    if (selectedEdgeId) openInspector();
+  }, [selectedEdgeId, openInspector]);
+
+  const updateLinkColor = useCallback(
+    (linkId: string, color: string | null) => {
+      setWorkflow((prev) => (prev ? setLinkColor(prev, linkId, color) : prev));
+    },
+    [setWorkflow],
+  );
 
   const updateWidget = useCallback(
     (nodeId: string, name: string, value: unknown) => {
@@ -1080,6 +1156,7 @@ export default function App() {
   }, [workflow, currentNode]);
 
   const selectedNode = workflow?.nodes.find((n) => n.id === selectedNodeId) ?? null;
+  const selectedLink = workflow?.links.find((link) => link.id === selectedEdgeId) ?? null;
   const selectedNodes = useMemo(() => {
     if (!workflow) return [];
     const byId = new Map(workflow.nodes.map((node) => [node.id, node]));
@@ -1545,13 +1622,23 @@ export default function App() {
               <ReactFlowProvider>
                 <ReactFlow
                   nodes={displayNodes}
-                  edges={flowEdges}
+                  edges={displayEdges}
                   nodeTypes={nodeTypes}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
                   onConnect={onConnect}
                   onNodeDragStop={onNodeDragStop}
-                  onNodeClick={() => openInspector()}
+                  onNodeClick={() => {
+                    setSelectedEdgeId(null);
+                    openInspector();
+                  }}
+                  onEdgeClick={(event, edge) => {
+                    event.stopPropagation();
+                    setSelectedEdgeId(edge.id);
+                    setNodes((current) => current.map((node) => ({ ...node, selected: false })));
+                    openInspector();
+                  }}
+                  onPaneClick={() => setSelectedEdgeId(null)}
                   onNodeDoubleClick={(_, node) => auditionNode(node.id)}
                   deleteKeyCode={["Backspace", "Delete"]}
                   panOnDrag={[1, 2]}
@@ -1559,6 +1646,8 @@ export default function App() {
                   selectionOnDrag
                   selectionKeyCode={null}
                   multiSelectionKeyCode={["Shift", "Meta", "Control"]}
+                  elevateEdgesOnSelect
+                  defaultEdgeOptions={{ interactionWidth: 28 }}
                   proOptions={{ hideAttribution: true }}
                 >
                   <FlowViewportBridge
@@ -1577,8 +1666,12 @@ export default function App() {
             <SidePanel side="right" label="Inspector" open={helperOpen} onToggle={() => setHelperOpen((prev) => !prev)}>
               <NodeHelper
                 node={selectedNode}
+                selectedLink={selectedLink}
+                onLinkColorChange={updateLinkColor}
                 selectedNodes={selectedNodes}
                 selectionOutputs={lastJob?.outputs ?? null}
+                loadAudioChannels={loadAudioChannels}
+                channelLayouts={channelLayouts}
                 workflow={workflow}
                 output={selectedInspectorOutput}
                 previewUrl={selectedNodePreview}

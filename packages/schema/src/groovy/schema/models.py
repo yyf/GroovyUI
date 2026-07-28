@@ -28,6 +28,8 @@ class Link(BaseModel):
     from_: list[str | int] = Field(alias="from")
     to: list[str | int]
     type: str
+    # Optional studio-only stroke override; must be a palette hex when set.
+    color: str | None = None
 
     model_config = {"populate_by_name": True}
 

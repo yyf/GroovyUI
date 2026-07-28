@@ -16,11 +16,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Surround downmix \u2014 Load 5.1 surround audio, ITU-R BS.775 downmix to stereo, transcode to FLAC, preview."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "path": "assets/samples/surround_51.wav"
@@ -31,7 +42,7 @@
       "type": "ChannelConvert",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "layout": "stereo"
@@ -42,7 +53,7 @@
       "type": "Transcode",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "format": "flac",
@@ -54,7 +65,7 @@
       "type": "Preview",
       "pos": {
         "x": 708,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {}
     }

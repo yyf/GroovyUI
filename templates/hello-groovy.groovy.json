@@ -27,7 +27,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+        "text": "Hello GroovyUI \u2014 Onboarding hello: Prompt \u2192 Kokoro TTS, then a ControlCurve drives AutomationApply to fade the take before N\u2026.\nOffline sample-accurate render \u00b7 Play = cached PCM."
       }
     },
     {

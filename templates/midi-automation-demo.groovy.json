@@ -15,11 +15,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "MIDI Automation Demo \u2014 Load MIDI CC curve, apply gain automation to dialogue audio."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "path": "assets/samples/male-1.wav"
@@ -30,7 +41,7 @@
       "type": "LoadMIDI",
       "pos": {
         "x": 0,
-        "y": 124
+        "y": 224.0
       },
       "widgets": {
         "path": "assets/samples/automation_cc7.mid",
@@ -42,7 +53,7 @@
       "type": "MIDIToFloat",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "cc": 7,
@@ -54,7 +65,7 @@
       "type": "AutomationApply",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "gain": 1.0
@@ -65,7 +76,7 @@
       "type": "Preview",
       "pos": {
         "x": 708,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {}
     }

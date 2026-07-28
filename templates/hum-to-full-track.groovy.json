@@ -26,7 +26,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+        "text": "Hum / Melody -> Full Track \u2014 Use Audio->MIDI (basic-pitch) on humming/melody audio, then MusicGen Melody to render a full track.\nOffline sample-accurate render \u00b7 Play = cached PCM."
       }
     },
     {

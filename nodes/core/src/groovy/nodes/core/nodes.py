@@ -50,6 +50,7 @@ def register_all() -> None:
         Prompt,
         LoadMIDI,
         ChannelConvert,
+        ChannelMerge,
         Transcode,
         MultichannelNormalize,
         SignalGenerator,
@@ -915,6 +916,129 @@ class ChannelConvert(GroovyNode):
             format_overrides["layout_order"] = None
         inherit_format_meta(buffer, audio, **format_overrides)
         self._ctx.cache.write_audio(buffer, pcm)
+        return (buffer,)
+
+
+@register_node
+class ChannelMerge(GroovyNode):
+    """Stack mono (or single-channel) inputs into one stereo / multichannel buffer.
+
+    Intended path for SaveAudio after LoadAudio's per-channel outlets:
+    ``LoadAudio L + R → ChannelMerge (stereo) → SaveAudio``.
+    """
+
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("AUDIO",)
+    CHANNEL_KEYS = tuple(f"ch{i}" for i in range(8))
+    LAYOUT_COUNTS = {
+        "mono": 1,
+        "stereo": 2,
+        "LRC": 3,
+        "quad": 4,
+        "5.1": 6,
+        "7.1": 8,
+        "auto": 0,
+    }
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {key: ("AUDIO",) for key in cls.CHANNEL_KEYS[2:]}
+        optional["output_layout"] = (
+            "STRING",
+            {
+                "default": "stereo",
+                "description": (
+                    "Output layout. Wire ch0..chN mono (or LoadAudio channel outlets); "
+                    "count must match layout unless output_layout=auto."
+                ),
+            },
+        )
+        return {
+            "required": {
+                "ch0": ("AUDIO",),
+                "ch1": ("AUDIO",),
+            },
+            "optional": optional,
+        }
+
+    @staticmethod
+    def _plane_from_buffer(pcm: np.ndarray, channel_index: int | None) -> np.ndarray:
+        if pcm.ndim != 2 or pcm.shape[0] < 1:
+            raise ValueError("ChannelMerge expects planar audio (channels, frames)")
+        if pcm.shape[0] == 1:
+            return np.asarray(pcm[0], dtype=np.float64)
+        if channel_index is not None and 0 <= int(channel_index) < pcm.shape[0]:
+            return np.asarray(pcm[int(channel_index)], dtype=np.float64)
+        # LoadAudio masked stereo: pick the loudest channel.
+        peaks = np.max(np.abs(pcm), axis=1)
+        return np.asarray(pcm[int(np.argmax(peaks))], dtype=np.float64)
+
+    def run(self, **kwargs) -> tuple[AudioBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        layout = str(kwargs.get("output_layout", kwargs.get("layout", "stereo"))).strip() or "stereo"
+        if layout not in self.LAYOUT_COUNTS:
+            raise ValueError(
+                f"Unsupported ChannelMerge layout '{layout}'. "
+                f"Choose one of: {', '.join(self.LAYOUT_COUNTS)}"
+            )
+
+        planes: list[np.ndarray] = []
+        sample_rate: int | None = None
+        parents: list[AudioBuffer] = []
+        for key in self.CHANNEL_KEYS:
+            audio = kwargs.get(key)
+            if audio is None:
+                continue
+            if not isinstance(audio, AudioBuffer):
+                raise TypeError(f"ChannelMerge {key} must be AUDIO")
+            _, pcm = self._ctx.cache.load_audio(audio.id)
+            if sample_rate is None:
+                sample_rate = int(audio.sample_rate)
+            elif int(audio.sample_rate) != sample_rate:
+                raise ValueError("Sample rate mismatch — insert Resample before ChannelMerge")
+            meta = self._ctx.cache.read_meta(audio.id)
+            channel_index = meta.get("channel_index")
+            if channel_index is not None:
+                try:
+                    channel_index = int(channel_index)
+                except (TypeError, ValueError):
+                    channel_index = None
+            planes.append(self._plane_from_buffer(pcm, channel_index))
+            parents.append(audio)
+
+        if len(planes) < 2:
+            raise ValueError("ChannelMerge needs at least two wired AUDIO inputs (ch0, ch1, …)")
+
+        expected = self.LAYOUT_COUNTS[layout]
+        if layout == "auto":
+            layout = channel_layout_for_channels(len(planes))
+        elif len(planes) != expected:
+            raise ValueError(
+                f"ChannelMerge layout '{layout}' expects {expected} inputs, got {len(planes)}. "
+                "Wire the matching ch* sockets or set layout=auto."
+            )
+
+        max_frames = max(plane.shape[0] for plane in planes)
+        stacked = np.zeros((len(planes), max_frames), dtype=np.float64)
+        for index, plane in enumerate(planes):
+            stacked[index, : plane.shape[0]] = plane
+
+        assert sample_rate is not None
+        buffer = AudioBuffer.from_planar(
+            stacked,
+            sample_rate,
+            source_node_type="ChannelMerge",
+            channel_layout=layout,
+        )
+        inherit_format_meta(
+            buffer,
+            parents[0],
+            channel_map=channel_map_for_layout(layout, stacked.shape[0]),
+            encoding_scheme=f"ChannelMerge ({len(planes)} mono → {layout})",
+            layout_order=None,
+        )
+        self._ctx.cache.write_audio(buffer, stacked)
         return (buffer,)
 
 

@@ -25,6 +25,8 @@ export type GroovyNodeData = {
   previewText?: string;
   /** Freeform Note comment shown on-node. */
   noteText?: string;
+  /** Channel layout / count chip (LoadAudio, Preview, SaveAudio). */
+  channelLabel?: string;
   inputs?: NodeSocketSpec[];
   outputs?: NodeSocketSpec[];
 };
@@ -125,15 +127,20 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             ))}
           </ul>
         ) : null}
-        {outputs.length > 1 ? (
+        {outputs.length > 1 || (nodeData.channelLabel && outputs.length === 1 && nodeData.label === "LoadAudio") ? (
           <ul className="groovy-node__socket-list groovy-node__socket-list--outputs" aria-hidden>
             {outputs.map((socket) => (
-              <li key={`out-label-${socket.name}`}>
+              <li key={`out-label-${socket.slot ?? socket.name}`}>
                 <span className="groovy-node__socket-dot" style={{ background: socketTypeColor(socket.type) }} />
                 {socket.name}
               </li>
             ))}
           </ul>
+        ) : null}
+        {nodeData.channelLabel ? (
+          <p className="groovy-node__channel" title={`Channel layout: ${nodeData.channelLabel}`}>
+            {nodeData.channelLabel}
+          </p>
         ) : null}
         {nodeData.noteText != null ? (
           <p

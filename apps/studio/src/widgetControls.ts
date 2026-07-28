@@ -35,6 +35,7 @@ const STRING_OPTIONS: Record<string, string[]> = {
   stem: ["vocals", "drums", "bass", "other", "accompaniment"],
   midi_kind: ["control", "performance", "transcript"],
   layout: ["mono", "stereo", "5.1", "7.1", "7.1.4"],
+  output_layout: ["stereo", "LRC", "quad", "5.1", "7.1", "auto"],
   operation: ["add", "multiply", "divide"],
   output: ["stereo", "binaural", "5.1"],
   source_layout: ["mono", "stereo", "5.1", "7.1"],

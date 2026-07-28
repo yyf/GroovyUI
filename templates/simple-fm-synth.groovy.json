@@ -19,11 +19,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Simple FM Synth \u2014 Patch classic FM from blocks: I = \u0394f/f_m (FloatMath), mod Osc(f_m, I), carrier Osc(f_c, A_c, phase_mod=mod) \u2192 y = A_c\u00b7sin(2\u03c0 f_c t + I\u00b7si\u2026"
+      }
+    },
+    {
       "id": "n1",
       "type": "ControlCurve",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "start_value": 0.0,
@@ -38,7 +49,7 @@
       "type": "ControlCurve",
       "pos": {
         "x": 0,
-        "y": 136
+        "y": 236.0
       },
       "widgets": {
         "start_value": 440.0,
@@ -53,7 +64,7 @@
       "type": "ControlCurve",
       "pos": {
         "x": 0,
-        "y": 272
+        "y": 372.0
       },
       "widgets": {
         "start_value": 220.0,
@@ -68,7 +79,7 @@
       "type": "ControlCurve",
       "pos": {
         "x": 0,
-        "y": 408
+        "y": 508.0
       },
       "widgets": {
         "start_value": 770.0,
@@ -83,7 +94,7 @@
       "type": "FloatMath",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "operation": "divide"
@@ -94,7 +105,7 @@
       "type": "SignalGenerator",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "waveform": "sine",
@@ -109,7 +120,7 @@
       "type": "SignalGenerator",
       "pos": {
         "x": 708,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "waveform": "sine",
@@ -124,7 +135,7 @@
       "type": "Normalize",
       "pos": {
         "x": 944,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "mode": "peak",
@@ -136,7 +147,7 @@
       "type": "Preview",
       "pos": {
         "x": 1180,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {}
     },
@@ -145,7 +156,7 @@
       "type": "SaveAudio",
       "pos": {
         "x": 1180,
-        "y": 124
+        "y": 224.0
       },
       "widgets": {
         "path": "exports",

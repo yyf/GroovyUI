@@ -16,11 +16,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Transcribe to Synth \u2014 Transcribe audio to MIDI and forward the stream to an external synth (virtual out log)."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "path": "assets/samples/male-1.wav"
@@ -31,7 +42,7 @@
       "type": "AudioToMIDI",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "model": "basic-pitch"
@@ -42,7 +53,7 @@
       "type": "MIDIOutDevice",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "device_id": "virtual:out-demo",

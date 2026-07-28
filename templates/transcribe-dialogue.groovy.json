@@ -17,11 +17,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Transcribe Dialogue \u2014 Load dialogue \u2192 Whisper transcript Preview; same LoadAudio \u2192 waveform Preview and SaveAudio."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "path": "assets/samples/male-1.wav"
@@ -32,7 +43,7 @@
       "type": "WhisperSTT",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "model": "whisper-large-v3-turbo",
@@ -44,7 +55,7 @@
       "type": "Preview",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {}
     },
@@ -53,7 +64,7 @@
       "type": "Preview",
       "pos": {
         "x": 236,
-        "y": 132
+        "y": 232.0
       },
       "widgets": {}
     },
@@ -62,7 +73,7 @@
       "type": "SaveAudio",
       "pos": {
         "x": 236,
-        "y": 256
+        "y": 356.0
       },
       "widgets": {
         "path": "exports",

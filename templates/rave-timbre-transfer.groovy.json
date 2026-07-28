@@ -27,7 +27,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "RAVE (Realtime Audio VAE): encode/decode for timbre transfer. Install rave-v1 from Model Browser; set Inference = Real. CC-BY-NC \u2014 review Compliance before commercial use.\n\nSample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+        "text": "RAVE Timbre Transfer \u2014 Realtime Audio Variational autoEncoder (IRCAM ACIDS RAVE): LoadAudio \u2192 TimbreTransfer (rave-v1) \u2192 Normalize\u2026.\nOffline sample-accurate render \u00b7 Play = cached PCM."
       }
     },
     {
