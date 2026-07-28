@@ -35,6 +35,7 @@ import {
   wiredPromptPreview,
   workflowToFlowEdges,
   workflowToFlowNodes,
+  edgeIdsOnPathToNode,
 } from "./workflow";
 
 function sampleWorkflow(): Workflow {
@@ -97,6 +98,30 @@ describe("mergeFlowEdges", () => {
   it("clears edges when next is an empty workflow snapshot", () => {
     const current = [{ id: "l1", source: "n1", target: "n2" }];
     expect(mergeFlowEdges(current, [])).toEqual([]);
+  });
+
+  it("updates animated and className from the next snapshot", () => {
+    const current = [
+      {
+        id: "l1",
+        source: "n1",
+        target: "n2",
+        animated: true,
+        className: "groovy-edge--type-audio groovy-edge--active",
+      },
+    ];
+    const next = [
+      {
+        id: "l1",
+        source: "n1",
+        target: "n2",
+        animated: false,
+        className: "groovy-edge--type-audio",
+      },
+    ];
+    const merged = mergeFlowEdges(current, next);
+    expect(merged[0]?.animated).toBe(false);
+    expect(merged[0]?.className).toBe("groovy-edge--type-audio");
   });
 });
 
@@ -270,6 +295,33 @@ describe("workflowToFlowEdges", () => {
     const edges = workflowToFlowEdges(sampleWorkflow());
     expect(edges[0]?.label).toBe("AUDIO");
     expect(edges[0]?.className).toContain("groovy-edge--type-audio");
+  });
+
+  it("animates and marks only active path edges during playback", () => {
+    const edges = workflowToFlowEdges(sampleWorkflow(), new Set(["l2"]));
+    const byId = Object.fromEntries(edges.map((edge) => [edge.id, edge]));
+    expect(byId.l1?.animated).toBe(false);
+    expect(byId.l1?.className).not.toContain("groovy-edge--active");
+    expect(byId.l2?.animated).toBe(true);
+    expect(byId.l2?.className).toContain("groovy-edge--active");
+  });
+
+  it("leaves all edges idle when active set is empty", () => {
+    const edges = workflowToFlowEdges(sampleWorkflow(), new Set());
+    expect(edges.every((edge) => edge.animated === false)).toBe(true);
+    expect(edges.every((edge) => !edge.className?.includes("groovy-edge--active"))).toBe(true);
+  });
+});
+
+describe("edgeIdsOnPathToNode", () => {
+  it("returns upstream link ids into the audition target", () => {
+    expect([...edgeIdsOnPathToNode(sampleWorkflow(), "n3")].sort()).toEqual(["l1", "l2"]);
+    expect([...edgeIdsOnPathToNode(sampleWorkflow(), "n2")]).toEqual(["l1"]);
+    expect(edgeIdsOnPathToNode(sampleWorkflow(), "n1").size).toBe(0);
+  });
+
+  it("returns empty for an unknown node", () => {
+    expect(edgeIdsOnPathToNode(sampleWorkflow(), "missing").size).toBe(0);
   });
 });
 
