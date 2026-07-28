@@ -235,6 +235,27 @@ def run_voice_convert(cache: CacheStore, kwargs: dict) -> list[dict]:
     return [{"type": "AUDIO", "cache_id": out_buffer.id}]
 
 
+def run_timbre_transfer(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import float_param
+
+    audio_id = kwargs["audio_id"]
+    model_id = str(kwargs.get("model", "rave-v1"))
+    fidelity = float_param(kwargs, "fidelity", 1.0)
+    buffer, pcm = cache.load_audio(audio_id)
+    out = timbre_transfer_audio(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        fidelity=fidelity,
+        project_dir=cache.project_dir,
+    )
+    out_buffer = AudioBuffer.from_planar(
+        out, buffer.sample_rate, source_node_type="TimbreTransfer", channel_layout=buffer.channel_layout
+    )
+    cache.write_audio(out_buffer, out)
+    return [{"type": "AUDIO", "cache_id": out_buffer.id}]
+
+
 def denoise_audio(
     pcm: np.ndarray,
     *,
@@ -607,6 +628,55 @@ def voice_convert_audio(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> 
     max_len = max(len(c) for c in out_channels)
     padded = [np.pad(c, (0, max_len - len(c))) for c in out_channels]
     return np.stack(padded, axis=0)
+
+
+def timbre_transfer_audio(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    fidelity: float = 1.0,
+    project_dir: Path | None = None,
+) -> np.ndarray:
+    """RAVE-class encode/decode timbre transfer (real TorchScript when installed)."""
+    from groovy.nodes.ai.inference_env import inference_stub_enabled, rave_available
+
+    fidelity = float(np.clip(fidelity, 0.0, 1.0))
+    if model_id == "rave-v1":
+        if rave_available() and not inference_stub_enabled():
+            from groovy.nodes.ai.backends.rave_runner import transfer_pcm
+
+            root = Path(project_dir) if project_dir else Path.cwd()
+            model_path = root / ".groovy" / "models" / model_id / "sol_ordinario_fast.ts"
+            return transfer_pcm(
+                pcm,
+                sample_rate=sample_rate,
+                model_path=model_path,
+                fidelity=fidelity,
+            )
+        if inference_stub_enabled():
+            return _timbre_transfer_audio_stub(pcm, fidelity=fidelity)
+        raise RuntimeError(
+            "RAVE inference is not ready. Install rave-v1 from Model Browser (Cmd+K) "
+            "(downloads TorchScript weights; requires torch)."
+        )
+    return _timbre_transfer_audio_stub(pcm, fidelity=fidelity)
+
+
+def _timbre_transfer_audio_stub(pcm: np.ndarray, *, fidelity: float) -> np.ndarray:
+    if pcm.ndim == 1:
+        pcm = pcm.reshape(1, -1)
+    # Stub: mild spectral blur + soft saturation so A/B is audible without real RAVE weights.
+    out = pcm.astype(np.float64).copy()
+    blur = max(3, int(round(5 + (1.0 - fidelity) * 40)))
+    if blur % 2 == 0:
+        blur += 1
+    for ch in range(out.shape[0]):
+        smoothed = median_filter(out[ch], size=blur)
+        wet = fidelity * out[ch] + (1.0 - fidelity) * smoothed
+        out[ch] = np.tanh(wet * (1.15 + 0.35 * (1.0 - fidelity)))
+    peak = float(np.max(np.abs(out))) or 1.0
+    return (out / peak * 0.9).astype(np.float64)
 
 
 def run_audio_to_midi(cache: CacheStore, kwargs: dict) -> list[dict]:

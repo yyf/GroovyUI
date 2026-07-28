@@ -51,6 +51,13 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "description": "Convert speaker timbre while preserving timing and intelligibility (RVC / OpenVoice).",
         "widgets": {"model": "Voice conversion / RVC model."},
     },
+    "TimbreTransfer": {
+        "description": "Neural resynthesis / timbre transfer via RAVE-class VAEs (encode → latent → decode).",
+        "widgets": {
+            "model": "RAVE / timbre-transfer checkpoint (e.g. rave-v1).",
+            "fidelity": "Reconstruction fidelity vs latent compactness (1 = faithful encode/decode).",
+        },
+    },
     "AudioToMIDI": {
         "description": "Transcribe pitched audio into a symbolic MIDI buffer (Basic Pitch class).",
         "widgets": {"model": "Audio-to-MIDI model (e.g. basic-pitch)."},

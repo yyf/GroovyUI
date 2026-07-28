@@ -110,6 +110,15 @@ def f5_tts_available() -> bool:
         return False
 
 
+def rave_available() -> bool:
+    try:
+        import torch  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "deepfilternet-v3": deepfilternet_available,
     "basic-pitch": basic_pitch_available,
@@ -124,6 +133,7 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "whisper-small-en": whisper_available,
     "kokoro-82m": kokoro_available,
     "f5-tts-base": f5_tts_available,
+    "rave-v1": rave_available,
 }
 
 

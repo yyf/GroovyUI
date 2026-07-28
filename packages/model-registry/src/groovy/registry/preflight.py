@@ -19,6 +19,7 @@ _SECONDS_PER_MINUTE: dict[str, tuple[int, int]] = {
     "DiarizeTranscribe": (20, 180),
     "AudioToMIDI": (5, 45),
     "VoiceConvert": (15, 120),
+    "TimbreTransfer": (10, 90),
     "DeepfakeDetect": (5, 45),
     "TTS": (5, 60),
     "MIDIToAudio": (30, 240),

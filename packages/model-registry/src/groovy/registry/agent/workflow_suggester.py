@@ -44,6 +44,11 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"\b(tts|text.to.speech|voiceover|kokoro|greeting)\b", re.I), "hello-groovy", "Hello GroovyUI Prompt → TTS"),
     (re.compile(r"\b(voice.?clon|f5.?tts|zero.?shot.?voice)\b", re.I), "voice-cloning", "Voice cloning"),
     (re.compile(r"\b(voice.?convert|rvc)\b", re.I), "voice-convert-demo", "Voice conversion"),
+    (
+        re.compile(r"\b(rave|timbre.?transfer|variational.?autoencoder|neural.?resynth)\b", re.I),
+        "rave-timbre-transfer",
+        "RAVE Timbre Transfer",
+    ),
     (re.compile(r"\b(authentic|deepfake|provenance.?verify)\b", re.I), "authenticity-check", "Authenticity analysis"),
     (re.compile(r"\b(audio.?to.?midi|midi.?transcrib)\b", re.I), "transcribe-to-midi", "Audio to MIDI"),
     (re.compile(r"\b(regenerat|midi.?to.?audio|musicgen)\b", re.I), "transcribe-and-regenerate", "Transcribe and regenerate"),

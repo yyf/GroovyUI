@@ -431,6 +431,17 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     nodes: [load("n1", 0), { id: "n2", type: "VoiceConvert", x: 260, widgets: { model: "rvc-v2-base" } }, preview("n3", 520)],
     links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
   },
+  TimbreTransfer: {
+    title: "RAVE Timbre Transfer",
+    description: "Neural resynthesis / timbre transfer with RAVE.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      { id: "n2", type: "TimbreTransfer", x: 260, widgets: { model: "rave-v1", fidelity: 0.85 } },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
+  },
   AudioToMIDI: {
     title: "Audio to MIDI",
     description: "Transcribe pitched audio to MIDI.",
