@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from groovy.registry import ModelRegistry
 from groovy.registry.download import copy_bundle_file
 
@@ -23,3 +25,33 @@ def test_bundle_model_install(tmp_path: Path) -> None:
     assert state.status == "ready"
     weights = tmp_path / ".groovy" / "models" / "groovy-verify-weights" / "hello_weights.bin"
     assert weights.exists()
+
+
+def test_ready_without_weights_retriggers_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stub→real upgrades: status=ready but missing weight files must re-download."""
+    from groovy.registry import installer as installer_mod
+    from groovy.registry.models import InstallState
+
+    registry = ModelRegistry(tmp_path)
+    model_id = "rave-v1"
+    registry.store.update(InstallState(model_id=model_id, status="ready"))
+    model_dir = tmp_path / ".groovy" / "models" / model_id
+    model_dir.mkdir(parents=True, exist_ok=True)
+    (model_dir / "installed.json").write_text("{}")
+
+    calls: list[str] = []
+
+    def fake_download(url, dest, **kwargs):
+        calls.append(Path(dest).name)
+        dest.write_bytes(b"fake-weights")
+        return dest
+
+    monkeypatch.setattr(installer_mod, "download_file", fake_download)
+    monkeypatch.setattr(installer_mod, "_install_python_deps", lambda *a, **k: None)
+    monkeypatch.setattr(installer_mod, "_verify_imports", lambda *a, **k: None)
+    monkeypatch.setattr(installer_mod, "_verify_runtime", lambda *a, **k: None)
+
+    state = registry.installer.install(model_id)
+    assert state.status == "ready"
+    assert "sol_ordinario_fast.ts" in calls
+    assert (model_dir / "sol_ordinario_fast.ts").exists()

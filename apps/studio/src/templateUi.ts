@@ -9,6 +9,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "podcast-denoise",
   "prompt-modular-synth",
   "modular-generative-rack",
+  "rave-timbre-transfer",
   "stable-audio",
   "stem-separation",
   "text-to-music",

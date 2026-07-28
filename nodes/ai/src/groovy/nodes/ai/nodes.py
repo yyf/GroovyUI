@@ -12,6 +12,7 @@ def register_all() -> None:
         DiarizeTranscribe,
         TTS,
         VoiceConvert,
+        TimbreTransfer,
         AudioToMIDI,
         DeepfakeDetect,
         MIDIToAudio,
@@ -195,6 +196,35 @@ class VoiceConvert(GroovyNode):
 
     def run(self, **kwargs):
         raise RuntimeError("VoiceConvert must run in AI worker subprocess")
+
+
+@register_node
+class TimbreTransfer(GroovyNode):
+    """Neural audio resynthesis / timbre transfer (RAVE and similar VAEs)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = ["rave-v1"]
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "model": ("MODEL_REF", {"default": "rave-v1"}),
+            },
+            "optional": {
+                "fidelity": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0}),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("TimbreTransfer must run in AI worker subprocess")
 
 
 @register_node

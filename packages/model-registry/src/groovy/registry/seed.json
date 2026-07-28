@@ -358,6 +358,52 @@
       "similar_models": ["openvoice-v2"]
     },
     {
+      "id": "rave-v1",
+      "status": "published",
+      "trust": "verified",
+      "name": "RAVE v1",
+      "description": "Realtime Audio Variational autoEncoder (IRCAM ACIDS) for neural resynthesis and timbre transfer. Installs the ACIDS Studio OnLine Ordinario (fast) TorchScript checkpoint (~41MB) via Hugging Face mirror. CC-BY-NC — non-commercial use only.",
+      "task_types": ["timbre-transfer", "neural-synthesis", "conversion"],
+      "tags": ["rave", "vae", "timbre", "neural-synth", "ircam", "acids"],
+      "author": "IRCAM ACIDS",
+      "license": {
+        "spdx": "CC-BY-NC-4.0",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 45,
+      "compatible_nodes": ["TimbreTransfer"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [{ "package": "torch", "version": ">=2.0.0" }],
+        "verify_imports": ["torch"],
+        "weights": [
+          {
+            "url": "https://huggingface.co/AEmotionStudio/rave-models/resolve/main/sol_ordinario_fast.ts",
+            "filename": "sol_ordinario_fast.ts",
+            "sha256": "9a8d32002efd6f385b521d64691e0d2d90d691ca4c50e85149ea88c6be399793"
+          },
+          {
+            "url": "https://huggingface.co/AEmotionStudio/rave-models/resolve/main/sol_ordinario_fast.json",
+            "filename": "sol_ordinario_fast.json"
+          }
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "fidelity",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Reconstruction fidelity vs latent compactness (1 = faithful encode/decode)."
+        }
+      ],
+      "similar_models": ["rvc-v2-base"]
+    },
+    {
       "id": "uvr-mdx-net",
       "status": "published",
       "trust": "verified",

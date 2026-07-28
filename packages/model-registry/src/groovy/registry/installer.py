@@ -38,7 +38,11 @@ class ModelInstaller:
             return self.store.mark_failed(model_id, f"Unknown model: {model_id}")
 
         existing = self.store.get(model_id)
-        if existing.status == "ready" and _imports_verified(manifest, project_dir=self.project_dir):
+        if (
+            existing.status == "ready"
+            and _imports_verified(manifest, project_dir=self.project_dir)
+            and _weights_present(manifest, self.project_dir / ".groovy" / "models" / model_id)
+        ):
             return existing
 
         def cancelled() -> bool:
@@ -310,6 +314,25 @@ def _run_pip_install(
         if proc.poll() is None:
             proc.kill()
             proc.wait(timeout=5)
+
+
+def _weights_present(manifest: ModelManifest, model_dir: Path) -> bool:
+    """True when every declared weight/bundle file exists under the model dir.
+
+    Stub installs can leave status=ready with no files; upgrading a seed entry
+    from ``dev_stub`` to real weights must re-enter the download path.
+    """
+    weights = manifest.install.weights
+    if not weights:
+        return True
+    for weight in weights:
+        filename = weight.get("filename")
+        if not filename:
+            bundle = weight.get("bundle")
+            filename = str(bundle) if bundle else _filename_from_url(str(weight.get("url") or ""))
+        if not filename or not (model_dir / filename).is_file():
+            return False
+    return True
 
 
 def _filename_from_url(url: str) -> str:

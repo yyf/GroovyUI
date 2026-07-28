@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- **`rave-v1` + `TimbreTransfer`** — Model Browser install downloads ACIDS RAVE TorchScript (`sol_ordinario_fast`); real encode/decode inference (stub only when Inference = Stub)
+
 ### Removed
 
 - **`StemPick`** node — unused after SeparateStems exposed per-stem AUDIO outs

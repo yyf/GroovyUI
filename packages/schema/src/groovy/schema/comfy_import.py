@@ -16,6 +16,7 @@ COMFY_NODE_MAP: dict[str, str] = {
     "Whisper": "WhisperSTT",
     "TTS": "TTS",
     "VoiceConvert": "VoiceConvert",
+    "TimbreTransfer": "TimbreTransfer",
 }
 
 # Comfy link type → Groovy socket type.
@@ -109,7 +110,7 @@ def _widgets_from_comfy(node: dict[str, Any], groovy_type: str) -> dict[str, Any
             widgets["filename"] = full
     elif groovy_type == "Normalize":
         widgets.setdefault("target_lufs", -16.0)
-    elif groovy_type in {"Denoise", "SeparateStems", "WhisperSTT", "TTS", "VoiceConvert"}:
+    elif groovy_type in {"Denoise", "SeparateStems", "WhisperSTT", "TTS", "VoiceConvert", "TimbreTransfer"}:
         if widgets_values and isinstance(widgets_values[0], str):
             widgets["model"] = widgets_values[0]
 

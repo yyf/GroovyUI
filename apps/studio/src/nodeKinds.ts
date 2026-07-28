@@ -9,6 +9,7 @@ const AI_NODE_TYPES = new Set([
   "DiarizeTranscribe",
   "TTS",
   "VoiceConvert",
+  "TimbreTransfer",
   "AudioToMIDI",
   "DeepfakeDetect",
   "MIDIToAudio",

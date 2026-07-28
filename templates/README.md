@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-30 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+31 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -15,6 +15,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Voice Cloning | [voice-cloning.groovy.json](voice-cloning.groovy.json) | 1 / **featured** | `f5-tts-base` (+ reference LoadAudio) |
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | 2 / **featured** | `kokoro-82m` (+ Granulate cloud) |
 | Modular Generative Rack | [modular-generative-rack.groovy.json](modular-generative-rack.groovy.json) | 2 / **featured** | — (tension arc, poly XOR clash, probability bass; no models) |
+| RAVE Timbre Transfer | [rave-timbre-transfer.groovy.json](rave-timbre-transfer.groovy.json) | 2 / **featured** | `rave-v1` (TimbreTransfer; ACIDS sol_ordinario_fast TorchScript) |
 | Simple FM Synth | [simple-fm-synth.groovy.json](simple-fm-synth.groovy.json) | 2 | — (Osc + FloatMath + ControlCurves; hidden from default picker) |
 | Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 / **featured** | `demucs-v4` |
 | Text to Music- ACE Step 1.5 | [ace-step-1.5.groovy.json](ace-step-1.5.groovy.json) | 2 / **featured** | `ace-step-1.5` |

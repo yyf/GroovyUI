@@ -77,7 +77,7 @@ const AUTHENTICITY = new Set(["VerifyProvenance", "AuthenticitySummary", "Deepfa
 const AI_GENERATE = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "SingFromMIDI"]);
 
 /** Shape or convert existing audio (processors). */
-const AI_TRANSFORM = new Set(["Denoise", "SeparateStems", "VoiceConvert"]);
+const AI_TRANSFORM = new Set(["Denoise", "SeparateStems", "VoiceConvert", "TimbreTransfer"]);
 
 /** Read audio into text / MIDI (analysis — neither generate nor transform). */
 const AI_ANALYZE = new Set(["WhisperSTT", "DiarizeTranscribe", "AudioToMIDI"]);
