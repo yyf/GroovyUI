@@ -262,6 +262,25 @@ export default function NodeHelper({
       ) : null}
       <div className="node-helper__scroll">
         {schema?.description ? <p className="node-helper__desc">{schema.description}</p> : null}
+        {schema && (schema.sample_accurate !== undefined || schema.deterministic !== undefined || schema.duration_locked !== undefined) ? (
+          <p className="node-helper__integrity-meta" title="Integrity metadata only — does not change render behavior">
+            {[
+              schema.sample_accurate === false
+                ? "offline bus: n/a"
+                : schema.sample_accurate
+                  ? "offline sample-accurate"
+                  : null,
+              schema.deterministic === false ? "nondeterministic" : schema.deterministic ? "deterministic" : null,
+              schema.duration_locked === false
+                ? "duration model-chosen"
+                : schema.duration_locked
+                  ? "duration locked"
+                  : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        ) : null}
         {hasMinimalPatch(node.type) ? (
           <p className="node-helper__hint">Press <kbd>Tab</kbd> to wire missing example inputs and outputs for this node.</p>
         ) : null}

@@ -28,6 +28,9 @@ class GroovyNode:
     EXPORT_TIER = "EXPORTABLE"
     SAMPLE_ACCURATE = True
     DETERMINISTIC = True
+    # True when output length is fixed by input frames / DSP widgets (not model-chosen).
+    # Metadata only — the executor does not gate on this flag.
+    DURATION_LOCKED = True
     # Side-effecting sinks (e.g. SaveAudio) set this False so the executor never
     # serves a stale cached result — they must re-run and re-emit fresh outputs.
     CACHEABLE = True
@@ -123,6 +126,8 @@ class GroovyNode:
             "widgets": widgets,
             "run_in_worker": cls.run_in_worker,
             "deterministic": cls.DETERMINISTIC,
+            "sample_accurate": cls.SAMPLE_ACCURATE,
+            "duration_locked": cls.DURATION_LOCKED,
             "provenance_class": cls.PROVENANCE_CLASS,
         }
 

@@ -5,7 +5,7 @@
   "metadata": {
     "title": "Hello GroovyUI",
     "author": "groovy",
-    "description": "Onboarding hello: Prompt → Kokoro TTS, then a ControlCurve drives AutomationApply to fade the take before Normalize, Preview, and Save. Install kokoro-82m for real inference.",
+    "description": "Onboarding hello: Prompt \u2192 Kokoro TTS, then a ControlCurve drives AutomationApply to fade the take before Normalize, Preview, and Save. Install kokoro-82m for real inference.",
     "tags": [
       "starter",
       "featured",
@@ -20,9 +20,23 @@
   },
   "nodes": [
     {
+      "id": "note-sample-accuracy",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+      }
+    },
+    {
       "id": "n1",
       "type": "Prompt",
-      "pos": { "x": 0, "y": 0 },
+      "pos": {
+        "x": 0,
+        "y": 120.0
+      },
       "widgets": {
         "text": "Hello from GroovyUI. Patch a prompt into TTS, then shape the take with control.",
         "language": "en"
@@ -31,7 +45,10 @@
     {
       "id": "n2",
       "type": "TTS",
-      "pos": { "x": 246, "y": 0 },
+      "pos": {
+        "x": 246,
+        "y": 120.0
+      },
       "widgets": {
         "model": "kokoro-82m",
         "text": "",
@@ -41,7 +58,10 @@
     {
       "id": "n4",
       "type": "ControlCurve",
-      "pos": { "x": 0, "y": 136 },
+      "pos": {
+        "x": 0,
+        "y": 256.0
+      },
       "widgets": {
         "start_value": 0.0,
         "end_value": 1.0,
@@ -53,7 +73,10 @@
     {
       "id": "n5",
       "type": "AutomationApply",
-      "pos": { "x": 492, "y": 0 },
+      "pos": {
+        "x": 492,
+        "y": 120.0
+      },
       "widgets": {
         "gain": 1.0
       }
@@ -61,7 +84,10 @@
     {
       "id": "n7",
       "type": "Normalize",
-      "pos": { "x": 728, "y": 0 },
+      "pos": {
+        "x": 728,
+        "y": 120.0
+      },
       "widgets": {
         "mode": "lufs",
         "target_lufs": -16.0
@@ -70,13 +96,19 @@
     {
       "id": "n8",
       "type": "Preview",
-      "pos": { "x": 964, "y": 0 },
+      "pos": {
+        "x": 964,
+        "y": 120.0
+      },
       "widgets": {}
     },
     {
       "id": "n9",
       "type": "SaveAudio",
-      "pos": { "x": 964, "y": 124 },
+      "pos": {
+        "x": 964,
+        "y": 244.0
+      },
       "widgets": {
         "path": "exports",
         "filename": "hello-groovy.wav",
@@ -85,16 +117,85 @@
     }
   ],
   "links": [
-    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "TEXT" },
-    { "id": "l2", "from": ["n2", 0], "to": ["n5", 0], "type": "AUDIO" },
-    { "id": "l4", "from": ["n4", 0], "to": ["n5", 1], "type": "AUTOMATION" },
-    { "id": "l5", "from": ["n5", 0], "to": ["n7", 0], "type": "AUDIO" },
-    { "id": "l7", "from": ["n7", 0], "to": ["n8", 0], "type": "AUDIO" },
-    { "id": "l8", "from": ["n7", 0], "to": ["n9", 0], "type": "AUDIO" }
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "TEXT"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n5",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": [
+        "n4",
+        0
+      ],
+      "to": [
+        "n5",
+        1
+      ],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l5",
+      "from": [
+        "n5",
+        0
+      ],
+      "to": [
+        "n7",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l7",
+      "from": [
+        "n7",
+        0
+      ],
+      "to": [
+        "n8",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l8",
+      "from": [
+        "n7",
+        0
+      ],
+      "to": [
+        "n9",
+        0
+      ],
+      "type": "AUDIO"
+    }
   ],
   "groups": [],
   "view": {
     "zoom": 0.85,
-    "pan": { "x": 0, "y": 0 }
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
   }
 }

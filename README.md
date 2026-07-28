@@ -1,6 +1,6 @@
 # GroovyUI
 
-Patch-bay for AI audio — patch models in a graph, render sample-accurate previews, share workflows as JSON.
+Patch-bay for AI audio — patch models in a graph, render sample-accurate offline previews (cached PCM), share workflows as JSON.
 
 ## Quick start
 

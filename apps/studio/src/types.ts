@@ -207,6 +207,12 @@ export type NodeSchema = {
   description?: string;
   enriched?: boolean;
   provenance_class?: string;
+  /** Offline frame-indexed audio bus (metadata; not an executor gate). */
+  sample_accurate?: boolean;
+  /** False for AI / stochastic hops — PCM may vary by seed/hardware. */
+  deterministic?: boolean;
+  /** False when model chooses output length (TTS / MusicGen / etc.). Metadata only. */
+  duration_locked?: boolean;
   inputs: Array<{ name: string; type: string; optional?: boolean; description?: string }>;
   outputs: Array<{ name: string; type: string; description?: string }>;
   widgets: NodeWidgetSpec[];

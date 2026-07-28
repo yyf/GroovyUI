@@ -19,11 +19,22 @@
   },
   "nodes": [
     {
+      "id": "note-sample-accuracy",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+      }
+    },
+    {
       "id": "n0",
       "type": "Prompt",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "text": "Welcome to GroovyUI. Patch a prompt into TTS, then shape the take with control.",
@@ -35,7 +46,7 @@
       "type": "TTS",
       "pos": {
         "x": 0,
-        "y": 40
+        "y": 160.0
       },
       "widgets": {
         "text": "Welcome to GroovyUI. Patch a prompt into TTS, then shape the take with control.",
@@ -47,7 +58,7 @@
       "type": "Normalize",
       "pos": {
         "x": 260,
-        "y": 40
+        "y": 160.0
       },
       "widgets": {
         "mode": "lufs",
@@ -59,7 +70,7 @@
       "type": "ControlCurve",
       "pos": {
         "x": 0,
-        "y": 220
+        "y": 340.0
       },
       "widgets": {
         "start_value": 95.0,
@@ -74,7 +85,7 @@
       "type": "ControlCurve",
       "pos": {
         "x": 0,
-        "y": 360
+        "y": 480.0
       },
       "widgets": {
         "start_value": 42.0,
@@ -89,7 +100,7 @@
       "type": "ControlCurve",
       "pos": {
         "x": 260,
-        "y": 220
+        "y": 340.0
       },
       "widgets": {
         "start_value": 0.0,
@@ -104,7 +115,7 @@
       "type": "ControlCurve",
       "pos": {
         "x": 260,
-        "y": 360
+        "y": 480.0
       },
       "widgets": {
         "start_value": 0.0,
@@ -119,7 +130,7 @@
       "type": "ControlCurve",
       "pos": {
         "x": 260,
-        "y": 500
+        "y": 620.0
       },
       "widgets": {
         "start_value": 0.0,
@@ -134,7 +145,7 @@
       "type": "Granulate",
       "pos": {
         "x": 560,
-        "y": 80
+        "y": 200.0
       },
       "widgets": {
         "grain_ms": 50.0,
@@ -156,7 +167,7 @@
       "type": "Preview",
       "pos": {
         "x": 840,
-        "y": 40
+        "y": 160.0
       },
       "widgets": {}
     },
@@ -165,7 +176,7 @@
       "type": "SaveAudio",
       "pos": {
         "x": 840,
-        "y": 164
+        "y": 284.0
       },
       "widgets": {
         "path": "exports",
