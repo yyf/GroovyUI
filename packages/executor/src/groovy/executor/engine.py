@@ -489,7 +489,7 @@ def _input_name(node_cls: type, index: int) -> str:
                 "OSC",
             }:
                 names.append(name)
-            elif socket_type == "FLOAT":
+            elif socket_type == "FLOAT" and name in {"gain_a", "gain_b", "value"}:
                 names.append(name)
     if index < len(names):
         return names[index]

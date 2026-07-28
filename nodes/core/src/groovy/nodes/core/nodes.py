@@ -34,6 +34,8 @@ from scipy import signal
 
 def register_all() -> None:
     """Import side-effect registers all core nodes."""
+    from groovy.nodes.core.modular_synth import register_modular_synth
+
     _ = (
         LoadAudio,
         SaveAudio,
@@ -55,12 +57,14 @@ def register_all() -> None:
         MIDIToFloat,
         MIDINoteGate,
         AutomationApply,
+        Float,
         FloatMath,
         FloatRoute,
         Granulate,
     )
     register_immersive()
     register_modular_io()
+    register_modular_synth()
     register_live_io()
 
 
@@ -797,7 +801,13 @@ class SignalGenerator(GroovyNode):
                 "frequency": ("AUTOMATION",),
                 "amplitude": ("AUTOMATION",),
                 "phase_mod": ("AUDIO",),
-                "waveform": ("STRING", {"default": "sine"}),
+                "waveform": (
+                    "STRING",
+                    {
+                        "default": "sine",
+                        "choices": ["sine", "saw", "square", "triangle"],
+                    },
+                ),
                 "frequency_hz": ("FLOAT", {"default": 440.0, "min": 1.0, "max": 20000.0}),
                 "amplitude_default": ("FLOAT", {"default": 0.4, "min": 0.0, "max": 8.0}),
                 "duration_sec": ("FLOAT", {"default": 2.0, "min": 0.05, "max": 60.0}),
@@ -808,6 +818,8 @@ class SignalGenerator(GroovyNode):
     def run(self, **kwargs) -> tuple[AudioBuffer]:
         if not self._ctx:
             raise RuntimeError("Node context not bound")
+        from groovy.nodes.core.modular_synth import automation_or_const, oscillator_from_phase
+
         freq_curve = kwargs.get("frequency")
         amp_curve = kwargs.get("amplitude")
         phase_mod = kwargs.get("phase_mod")
@@ -818,8 +830,8 @@ class SignalGenerator(GroovyNode):
         sample_rate = int(np.clip(int(kwargs.get("sample_rate", 48000)), 8000, 192000))
         frame_count = max(1, int(round(duration_sec * sample_rate)))
 
-        freq = _automation_or_const(freq_curve, frame_count, freq_default)
-        amp = _automation_or_const(amp_curve, frame_count, amp_default)
+        freq = automation_or_const(freq_curve, frame_count, freq_default)
+        amp = automation_or_const(amp_curve, frame_count, amp_default)
         freq = np.clip(freq, 1.0, 20000.0)
         amp = np.clip(amp, 0.0, 8.0)
 
@@ -835,7 +847,7 @@ class SignalGenerator(GroovyNode):
                 mono = np.interp(x_new, x_old, mono.astype(np.float64))
             phase = phase + mono.astype(np.float64)
 
-        wave = _oscillator_from_phase(phase, waveform) * amp
+        wave = oscillator_from_phase(phase, waveform) * amp
         pcm = wave.reshape(1, -1)
         buffer = AudioBuffer.from_planar(
             pcm,
@@ -845,28 +857,6 @@ class SignalGenerator(GroovyNode):
         )
         self._ctx.cache.write_audio(buffer, pcm)
         return (buffer,)
-
-
-def _automation_or_const(
-    curve: AutomationBuffer | None,
-    frame_count: int,
-    default: float,
-) -> np.ndarray:
-    if curve is None:
-        return np.full(frame_count, float(default), dtype=np.float64)
-    return np.asarray(curve.resample_to(frame_count), dtype=np.float64)
-
-
-def _oscillator_from_phase(phase: np.ndarray, waveform: str) -> np.ndarray:
-    """Band-limited-enough offline waveshapes from an unwrapped phase ramp."""
-    if waveform in {"saw", "sawtooth"}:
-        return 2.0 * (np.mod(phase / (2.0 * np.pi), 1.0) - 0.5)
-    if waveform in {"square", "sq"}:
-        return np.where(np.mod(phase, 2.0 * np.pi) < np.pi, 1.0, -1.0)
-    if waveform in {"triangle", "tri"}:
-        saw = 2.0 * (np.mod(phase / (2.0 * np.pi), 1.0) - 0.5)
-        return 2.0 * np.abs(saw) - 1.0
-    return np.sin(phase)
 
 
 @register_node
@@ -1194,6 +1184,46 @@ class AutomationApply(GroovyNode):
 
 
 @register_node
+class Float(GroovyNode):
+    """Constant float as AUTOMATION — patch into FloatMath, FloatRoute, and CV inputs."""
+
+    CATEGORY = "GroovyUI/Modular"
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ("AUTOMATION",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            # Required so `value` stays a widget (optional FLOAT named value is a socket).
+            "required": {
+                "value": ("FLOAT", {"default": 1.0, "min": -1_000_000.0, "max": 1_000_000.0}),
+            },
+            "optional": {
+                "duration_sec": ("FLOAT", {"default": 1.0, "min": 0.05, "max": 60.0}),
+                "sample_rate": ("INT", {"default": 48000, "min": 8000, "max": 192000}),
+            },
+        }
+
+    def run(
+        self,
+        value: float = 1.0,
+        duration_sec: float = 1.0,
+        sample_rate: int = 48000,
+        **kwargs,
+    ) -> tuple[AutomationBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        value = float(kwargs.get("value", value))
+        duration_sec = float(np.clip(float(kwargs.get("duration_sec", duration_sec)), 0.05, 60.0))
+        sample_rate = int(np.clip(int(kwargs.get("sample_rate", sample_rate)), 8000, 192000))
+        frame_count = max(1, int(round(duration_sec * sample_rate)))
+        values = np.full(frame_count, value, dtype=np.float64)
+        curve = AutomationBuffer.from_values(values, sample_rate=sample_rate, source_node_type="Float")
+        self._ctx.cache.write_automation(curve)
+        return (curve,)
+
+
+@register_node
 class FloatMath(GroovyNode):
     RETURN_TYPES = ("AUTOMATION",)
 
@@ -1204,7 +1234,7 @@ class FloatMath(GroovyNode):
             "optional": {
                 "a": ("AUTOMATION",),
                 "b": ("AUTOMATION",),
-                "operation": ("STRING", {"default": "add"}),
+                "operation": ("STRING", {"default": "add", "choices": ["add", "multiply", "divide"]}),
             },
         }
 

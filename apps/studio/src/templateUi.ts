@@ -8,6 +8,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "hello-groovy",
   "podcast-denoise",
   "prompt-modular-synth",
+  "modular-generative-rack",
   "stable-audio",
   "stem-separation",
   "text-to-music",

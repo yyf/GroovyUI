@@ -90,9 +90,11 @@ class GroovyNode:
                                 "optional": section == "optional",
                             }
                         )
-                    elif socket_type == "FLOAT" and section == "optional" and (
-                        name.startswith("gain_") or name == "value"
-                    ):
+                    elif socket_type == "FLOAT" and section == "optional" and name in {
+                        "gain_a",
+                        "gain_b",
+                        "value",
+                    }:
                         input_sockets.append(
                             {
                                 "name": name,

@@ -20,6 +20,10 @@ type NumericProps = BaseProps & {
   step: number;
   isInt?: boolean;
   onChange: (value: number) => void;
+  /** When false, hide the numeric text field (knob-only chrome). */
+  showValue?: boolean;
+  /** Accessible name for the dial (defaults to formatted value). */
+  ariaLabel?: string;
 };
 
 function useDragValue({
@@ -166,7 +170,17 @@ export function ParamSwitch({
 }
 
 /** Rotary potentiometer — drag vertically to adjust, or type the value below. */
-export function ParamPot({ value, min, max, step, isInt = false, onChange, disabled }: NumericProps) {
+export function ParamPot({
+  value,
+  min,
+  max,
+  step,
+  isInt = false,
+  onChange,
+  disabled,
+  showValue = true,
+  ariaLabel,
+}: NumericProps) {
   const span = Math.max(1e-9, max - min);
   const t = Math.min(1, Math.max(0, (value - min) / span));
   // Travel ~270° from 7:30 to 4:30
@@ -182,7 +196,7 @@ export function ParamPot({ value, min, max, step, isInt = false, onChange, disab
   });
 
   return (
-    <div className={`param-pot${disabled ? " param-pot--disabled" : ""}`}>
+    <div className={`param-pot${disabled ? " param-pot--disabled" : ""}${showValue ? "" : " param-pot--knob-only"}`}>
       <button
         type="button"
         className="param-pot__dial"
@@ -190,6 +204,7 @@ export function ParamPot({ value, min, max, step, isInt = false, onChange, disab
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
+        aria-label={ariaLabel ?? `Value ${value}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -200,16 +215,18 @@ export function ParamPot({ value, min, max, step, isInt = false, onChange, disab
           <span className="param-pot__pointer" />
         </span>
       </button>
-      <ParamValueField
-        className="param-pot__value"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        isInt={isInt}
-        onChange={onChange}
-        disabled={disabled}
-      />
+      {showValue ? (
+        <ParamValueField
+          className="param-pot__value"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          isInt={isInt}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      ) : null}
     </div>
   );
 }
