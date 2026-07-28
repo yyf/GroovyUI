@@ -122,6 +122,29 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l3", "n3", "n4", "AUDIO"),
     ],
   },
+  ChannelMerge: {
+    title: "Channel Merge",
+    description: "Combine LoadAudio L/R (or mono) outlets into one stereo buffer for SaveAudio.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0, 0, "assets/samples/Knockout_41k.wav"),
+      { id: "n2", type: "ChannelMerge", x: 280, widgets: { output_layout: "stereo" } },
+      preview("n3", 540),
+      {
+        id: "n4",
+        type: "SaveAudio",
+        x: 540,
+        y: 120,
+        widgets: { path: "exports", filename: "stereo-merge.wav" },
+      },
+    ],
+    links: [
+      link("l1", "n1", "n2", "AUDIO", 0, 0),
+      link("l2", "n1", "n2", "AUDIO", 1, 1),
+      link("l3", "n2", "n3", "AUDIO"),
+      link("l4", "n2", "n4", "AUDIO"),
+    ],
+  },
   Normalize: {
     title: "Normalize",
     description: "Load audio and normalize to −16 LUFS.",

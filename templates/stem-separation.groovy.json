@@ -18,11 +18,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Stem Separation \u2014 Demucs separates vocals, drums, bass, and other \u2014 preview all four stems; save vocals to exports."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 80
+        "y": 180.0
       },
       "widgets": {
         "path": "assets/samples/Knockout_41k_mono.wav"
@@ -33,7 +44,7 @@
       "type": "SeparateStems",
       "pos": {
         "x": 260,
-        "y": 80
+        "y": 180.0
       },
       "widgets": {
         "model": "demucs-v4",
@@ -48,7 +59,7 @@
       "type": "Preview",
       "pos": {
         "x": 560,
-        "y": -40
+        "y": 60.0
       },
       "widgets": {}
     },
@@ -57,7 +68,7 @@
       "type": "SaveAudio",
       "pos": {
         "x": 780,
-        "y": -40
+        "y": 60.0
       },
       "widgets": {
         "path": "exports",
@@ -71,7 +82,7 @@
       "type": "Preview",
       "pos": {
         "x": 560,
-        "y": 80
+        "y": 180.0
       },
       "widgets": {}
     },
@@ -80,7 +91,7 @@
       "type": "Preview",
       "pos": {
         "x": 560,
-        "y": 200
+        "y": 300.0
       },
       "widgets": {}
     },
@@ -89,7 +100,7 @@
       "type": "Preview",
       "pos": {
         "x": 560,
-        "y": 320
+        "y": 420.0
       },
       "widgets": {}
     }

@@ -19,7 +19,7 @@ from groovy.executor.template_integrity_registry import (
 SR_CONVERT_NODES = frozenset({"Resample", "LoadAudio"})
 
 # Nodes allowed to change channel layout on an AUDIO edge.
-LAYOUT_CONVERT_NODES = frozenset({"ChannelConvert", "Granulate", "LoadAudio"})
+LAYOUT_CONVERT_NODES = frozenset({"ChannelConvert", "ChannelMerge", "Granulate", "LoadAudio"})
 
 REQUIRED_AUDIO_SIGNAL_FIELDS = (
     "sample_rate",

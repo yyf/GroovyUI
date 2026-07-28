@@ -16,11 +16,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Authenticity Check \u2014 Verify provenance sidecar and run deepfake detection on inbound audio."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "path": "assets/samples/male-1.wav"
@@ -31,7 +42,7 @@
       "type": "VerifyProvenance",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "check_sidecar": true
@@ -42,7 +53,7 @@
       "type": "DeepfakeDetect",
       "pos": {
         "x": 236,
-        "y": 248
+        "y": 348.0
       },
       "widgets": {
         "model": "rawnet2-asvspoof",
@@ -54,7 +65,7 @@
       "type": "AuthenticitySummary",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "spoof_threshold": 0.5
@@ -65,7 +76,7 @@
       "type": "Preview",
       "pos": {
         "x": 236,
-        "y": 124
+        "y": 224.0
       },
       "widgets": {}
     }

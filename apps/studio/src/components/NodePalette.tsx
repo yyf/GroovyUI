@@ -69,7 +69,7 @@ const HIDDEN_FROM_PALETTE = new Set([
   "ModuleOutlet",
 ]);
 
-const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix", "Note"]);
+const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix", "ChannelMerge", "Note"]);
 
 const AUTHENTICITY = new Set(["VerifyProvenance", "AuthenticitySummary", "DeepfakeDetect"]);
 

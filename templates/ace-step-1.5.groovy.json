@@ -27,7 +27,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+        "text": "Text to Music- ACE Step 1.5 \u2014 Hero text-to-music with ACE-Step 1.5 (turbo DiT) \u2014 Prompt a track, optional lyrics on GenerateAudio, previe\u2026.\nOffline sample-accurate render \u00b7 Play = cached PCM."
       }
     },
     {

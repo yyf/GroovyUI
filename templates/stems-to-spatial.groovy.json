@@ -17,11 +17,22 @@
   },
   "nodes": [
     {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Stems to Spatial \u2014 Separate stems, place as spatial objects, render binaural stereo preview."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "path": "assets/samples/male-1.wav"
@@ -32,7 +43,7 @@
       "type": "SeparateToObjects",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "model": "demucs-v4-objects"
@@ -43,7 +54,7 @@
       "type": "ObjectPlacement",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "model": "object-placement-heuristic",
@@ -55,7 +66,7 @@
       "type": "RenderObjectScene",
       "pos": {
         "x": 708,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {
         "output": "stereo"
@@ -66,7 +77,7 @@
       "type": "Preview",
       "pos": {
         "x": 944,
-        "y": 0
+        "y": 100.0
       },
       "widgets": {}
     }

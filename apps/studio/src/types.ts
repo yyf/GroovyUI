@@ -10,6 +10,8 @@ export type WorkflowLink = {
   from: [string, number];
   to: [string, number];
   type: string;
+  /** Optional stroke from EDGE_COLOR_PALETTE; omit = socket-type default. */
+  color?: string;
 };
 
 export type WorkflowGroup = {

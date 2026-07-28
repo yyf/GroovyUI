@@ -37,6 +37,7 @@ import {
   workflowToFlowNodes,
   edgeIdsOnPathToNode,
   normalizeLoadedWorkflow,
+  setLinkColor,
 } from "./workflow";
 
 function sampleWorkflow(): Workflow {
@@ -312,6 +313,41 @@ describe("workflowToFlowEdges", () => {
     expect(edges.every((edge) => edge.animated === false)).toBe(true);
     expect(edges.every((edge) => !edge.className?.includes("groovy-edge--active"))).toBe(true);
   });
+
+  it("uses palette color override and exposes glow CSS var", () => {
+    const base = sampleWorkflow();
+    const workflow: Workflow = {
+      ...base,
+      links: base.links.map((link, i) => (i === 0 ? { ...link, color: "#ffffff" } : link)),
+    };
+    const edges = workflowToFlowEdges(workflow);
+    expect(edges[0]?.style?.stroke).toBe("#ffffff");
+    expect((edges[0]?.style as Record<string, string>)["--edge-glow"]).toBe("#ffffff");
+  });
+
+  it("ignores out-of-palette colors and falls back to socket type", () => {
+    const base = sampleWorkflow();
+    const workflow: Workflow = {
+      ...base,
+      links: base.links.map((link, i) => (i === 0 ? { ...link, color: "#7c3aed" } : link)),
+    };
+    const edges = workflowToFlowEdges(workflow);
+    expect(edges[0]?.style?.stroke).toBe("#ff002b");
+  });
+});
+
+describe("setLinkColor", () => {
+  it("sets palette color and clears with null", () => {
+    const colored = setLinkColor(sampleWorkflow(), "l1", "#a3a3a3");
+    expect(colored.links.find((l) => l.id === "l1")?.color).toBe("#a3a3a3");
+    const cleared = setLinkColor(colored, "l1", null);
+    expect(cleared.links.find((l) => l.id === "l1")?.color).toBeUndefined();
+  });
+
+  it("rejects non-palette colors", () => {
+    const next = setLinkColor(sampleWorkflow(), "l1", "#00ff00");
+    expect(next.links.find((l) => l.id === "l1")?.color).toBeUndefined();
+  });
 });
 
 describe("edgeIdsOnPathToNode", () => {
@@ -383,7 +419,55 @@ describe("workflowToFlowNodes", () => {
       { name: "L", type: "AUDIO", slot: 0 },
       { name: "R", type: "AUDIO", slot: 1 },
     ]);
-    expect((load?.data as { kind?: string }).kind).toBe("core");
+    expect((load?.data as { kind?: string; channelLabel?: string }).kind).toBe("core");
+    expect((load?.data as { channelLabel?: string }).channelLabel).toBe("stereo");
+  });
+
+  it("always labels LoadAudio / Preview / SaveAudio channel layout", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "load", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
+        { id: "prev", type: "Preview", pos: { x: 200, y: 0 }, widgets: {} },
+        { id: "save", type: "SaveAudio", pos: { x: 400, y: 0 }, widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["load", 0], to: ["prev", 0], type: "AUDIO" },
+        { id: "l2", from: ["load", 0], to: ["save", 0], type: "AUDIO" },
+      ],
+    };
+    const schemas: Record<string, import("./types").NodeSchema> = {
+      LoadAudio: {
+        type: "LoadAudio",
+        category: "GroovyUI/Core",
+        inputs: [],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [],
+      },
+      Preview: {
+        type: "Preview",
+        category: "GroovyUI/Core",
+        inputs: [
+          { name: "audio", type: "AUDIO", optional: true },
+          { name: "text", type: "TEXT", optional: true },
+        ],
+        outputs: [{ name: "audio", type: "AUDIO" }],
+        widgets: [],
+      },
+      SaveAudio: {
+        type: "SaveAudio",
+        category: "GroovyUI/Core",
+        inputs: [{ name: "audio", type: "AUDIO" }],
+        outputs: [{ name: "path", type: "STRING" }],
+        widgets: [],
+      },
+    };
+    const nodes = workflowToFlowNodes(workflow, {}, undefined, schemas, undefined, { load: 1 });
+    const byId = Object.fromEntries(nodes.map((node) => [node.id, node.data as { channelLabel?: string; outputs?: { name: string }[] }]));
+    expect(byId.load?.channelLabel).toBe("mono");
+    expect(byId.load?.outputs?.[0]?.name).toBe("mono");
+    expect(byId.prev?.channelLabel).toBe("mono");
+    expect(byId.save?.channelLabel).toBe("mono");
   });
 
   it("marks AI vs core kind on canvas nodes", () => {

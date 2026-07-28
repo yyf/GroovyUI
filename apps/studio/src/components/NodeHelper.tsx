@@ -13,10 +13,18 @@ import {
   type AbCompareResult,
   type CacheSignalMetrics,
 } from "../api";
-import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowNode } from "../types";
+import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowLink, WorkflowNode } from "../types";
 import type { CompareHop } from "../workflow";
-import { joinSaveAudioPath, jobOutputAtSlot, wiredInputSupersedesWidget, wiredInputsForNode, wiredPromptPreview } from "../workflow";
+import {
+  joinSaveAudioPath,
+  jobOutputAtSlot,
+  resolveIoChannelLabel,
+  wiredInputSupersedesWidget,
+  wiredInputsForNode,
+  wiredPromptPreview,
+} from "../workflow";
 import { hasMinimalPatch } from "../nodeMinimalPatches";
+import { EDGE_COLOR_PALETTE, normalizeEdgeColor, socketTypeColor } from "../socketTypes";
 import {
   asWidgetSpec,
   mergeSpecWithModelParam,
@@ -48,8 +56,13 @@ type CompareEntry = {
 
 type Props = {
   node: WorkflowNode | null;
+  /** When a wire is selected on the canvas (takes priority over empty node selection). */
+  selectedLink?: WorkflowLink | null;
+  onLinkColorChange?: (linkId: string, color: string | null) => void;
   selectedNodes?: WorkflowNode[];
   selectionOutputs?: Record<string, JobOutput> | null;
+  loadAudioChannels?: Record<string, number>;
+  channelLayouts?: Record<string, string>;
   workflow: Workflow;
   output?: JobOutput;
   previewUrl?: string | null;
@@ -70,8 +83,12 @@ type Props = {
 
 export default function NodeHelper({
   node,
+  selectedLink = null,
+  onLinkColorChange,
   selectedNodes = [],
   selectionOutputs = null,
+  loadAudioChannels,
+  channelLayouts,
   workflow,
   output,
   previewUrl,
@@ -216,7 +233,58 @@ export default function NodeHelper({
             waveforms={compareWaveforms}
             onCompareAudition={onCompareAudition}
             onSelectCompareHop={onSelectCompareHop}
+            workflow={workflow}
+            loadAudioChannels={loadAudioChannels}
+            channelLayouts={channelLayouts}
+            selectionOutputs={selectionOutputs}
           />
+        </div>
+      </aside>
+    );
+  }
+
+  if (selectedLink) {
+    const typeColor = socketTypeColor(selectedLink.type);
+    const custom = normalizeEdgeColor(selectedLink.color);
+    return (
+      <aside className="node-helper node-helper--compare-only">
+        <header className="node-helper__header">
+          <h2>Connection</h2>
+          <span className="node-helper__id">{selectedLink.id}</span>
+        </header>
+        <div className="node-helper__scroll">
+          <p className="node-helper__edge-meta">
+            <SocketTypeBadge type={selectedLink.type} />{" "}
+            {selectedLink.from[0]}:{selectedLink.from[1]} → {selectedLink.to[0]}:{selectedLink.to[1]}
+          </p>
+          <label className="node-helper__field">
+            Stroke color
+            <div className="edge-color-picker" role="listbox" aria-label="Connection color">
+              {EDGE_COLOR_PALETTE.map((hex) => {
+                const active = (custom ?? typeColor).toLowerCase() === hex.toLowerCase();
+                return (
+                  <button
+                    key={hex}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    title={hex}
+                    className={`edge-color-picker__swatch${active ? " edge-color-picker__swatch--active" : ""}`}
+                    style={{ background: hex }}
+                    onClick={() => onLinkColorChange?.(selectedLink.id, hex)}
+                  />
+                );
+              })}
+            </div>
+          </label>
+          <button
+            type="button"
+            className="edge-color-picker__reset"
+            disabled={!custom}
+            onClick={() => onLinkColorChange?.(selectedLink.id, null)}
+          >
+            Reset to type default
+          </button>
         </div>
       </aside>
     );
@@ -226,7 +294,13 @@ export default function NodeHelper({
     return (
       <aside className="node-helper node-helper--selection-only">
         <div className="node-helper__scroll">
-          <MultiSelectSummary nodes={selectedNodes} workflow={workflow} outputs={selectionOutputs} />
+          <MultiSelectSummary
+            nodes={selectedNodes}
+            workflow={workflow}
+            outputs={selectionOutputs}
+            loadAudioChannels={loadAudioChannels}
+            channelLayouts={channelLayouts}
+          />
         </div>
       </aside>
     );
@@ -236,7 +310,7 @@ export default function NodeHelper({
     return (
       <aside className="node-helper node-helper--compare-only">
         <div className="node-helper__scroll">
-          <p className="node-helper__empty-hint">Select a node to edit parameters.</p>
+          <p className="node-helper__empty-hint">Select a node or connection to edit.</p>
         </div>
       </aside>
     );
@@ -626,10 +700,14 @@ function MultiSelectSummary({
   nodes,
   workflow,
   outputs,
+  loadAudioChannels,
+  channelLayouts,
 }: {
   nodes: WorkflowNode[];
   workflow: Workflow;
   outputs?: Record<string, JobOutput> | null;
+  loadAudioChannels?: Record<string, number>;
+  channelLayouts?: Record<string, string>;
 }) {
   const typeCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -663,7 +741,7 @@ function MultiSelectSummary({
     if (!outputs) return 0;
     return nodes.filter((node) => {
       const out = outputs[node.id];
-      return Boolean(out?.cache_id || out?.midi_id || out?.text || out?.stems);
+      return Boolean(out?.cache_id || out?.midi_id || out?.text || out?.stems || out?.outputs?.length);
     }).length;
   }, [nodes, outputs]);
 
@@ -712,6 +790,29 @@ function MultiSelectSummary({
       </dl>
 
       <div className="node-helper__compare-section">
+        <h4 className="node-helper__compare-section-title">Channels</h4>
+        <ul className="node-helper__selection-nodes">
+          {nodes.map((node) => {
+            const channel =
+              resolveIoChannelLabel(
+                workflow,
+                node.id,
+                loadAudioChannels,
+                outputs ?? undefined,
+                channelLayouts,
+              ) ?? "—";
+            return (
+              <li key={`ch-${node.id}`}>
+                <span className="node-helper__selection-id">{node.id}</span>
+                <span className="node-helper__selection-node-type">{node.type}</span>
+                <span className="node-helper__selection-channel">{channel}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <div className="node-helper__compare-section">
         <h4 className="node-helper__compare-section-title">By type</h4>
         <ul className="node-helper__selection-types">
           {typeCounts.map(([type, count]) => (
@@ -728,11 +829,22 @@ function MultiSelectSummary({
         <ul className="node-helper__selection-nodes">
           {nodes.map((node) => {
             const out = outputs?.[node.id];
-            const hasRender = Boolean(out?.cache_id || out?.midi_id || out?.text || out?.stems);
+            const hasRender = Boolean(
+              out?.cache_id || out?.midi_id || out?.text || out?.stems || out?.outputs?.length,
+            );
+            const channel =
+              resolveIoChannelLabel(
+                workflow,
+                node.id,
+                loadAudioChannels,
+                outputs ?? undefined,
+                channelLayouts,
+              ) ?? "—";
             return (
               <li key={node.id}>
                 <span className="node-helper__selection-id">{node.id}</span>
                 <span className="node-helper__selection-node-type">{node.type}</span>
+                <span className="node-helper__selection-channel">{channel}</span>
                 <span
                   className={`node-helper__selection-status${hasRender ? " node-helper__selection-status--ready" : ""}`}
                 >
@@ -757,6 +869,10 @@ function ComparePanel({
   waveforms,
   onCompareAudition,
   onSelectCompareHop,
+  workflow,
+  loadAudioChannels,
+  channelLayouts,
+  selectionOutputs,
 }: {
   comparePair?: CompareEntry[] | null;
   compareNote?: string | null;
@@ -765,6 +881,10 @@ function ComparePanel({
   waveforms: [number[], number[]];
   onCompareAudition?: (nodeId: string) => void;
   onSelectCompareHop?: (nodeIdA: string, nodeIdB: string) => void;
+  workflow: Workflow;
+  loadAudioChannels?: Record<string, number>;
+  channelLayouts?: Record<string, string>;
+  selectionOutputs?: Record<string, JobOutput> | null;
 }) {
   const a = comparePair?.[0];
   const b = comparePair?.[1];
@@ -781,6 +901,24 @@ function ComparePanel({
   const labelB = b ? `${b.node.type} · ${b.node.id}` : "B";
   const legendA = a ? a.node.type : "A";
   const legendB = b ? b.node.type : "B";
+  const channelA = a
+    ? resolveIoChannelLabel(
+        workflow,
+        a.node.id,
+        loadAudioChannels,
+        selectionOutputs ?? undefined,
+        channelLayouts,
+      ) ?? "—"
+    : "—";
+  const channelB = b
+    ? resolveIoChannelLabel(
+        workflow,
+        b.node.id,
+        loadAudioChannels,
+        selectionOutputs ?? undefined,
+        channelLayouts,
+      ) ?? "—"
+    : "—";
 
   useEffect(() => {
     fetchCompareModels()
@@ -877,6 +1015,17 @@ function ComparePanel({
       </header>
 
       {notice ? <p className="node-helper__compare-info">{notice}</p> : null}
+
+      <dl className="node-helper__compare-meta">
+        <div className="node-helper__compare-meta-row">
+          <dt>A channels</dt>
+          <dd>{channelA}</dd>
+        </div>
+        <div className="node-helper__compare-meta-row">
+          <dt>B channels</dt>
+          <dd>{channelB}</dd>
+        </div>
+      </dl>
 
       <div className="node-helper__compare-signal">
         <WaveformCompare
