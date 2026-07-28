@@ -16,11 +16,22 @@
   },
   "nodes": [
     {
+      "id": "note-sample-accuracy",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "path": "assets/samples/male-1.wav"
@@ -31,7 +42,7 @@
       "type": "SeparateStems",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "model": "demucs-v4"
@@ -42,7 +53,7 @@
       "type": "AudioToMIDI",
       "pos": {
         "x": 492,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "model": "basic-pitch"
@@ -53,7 +64,7 @@
       "type": "MIDIToAudio",
       "pos": {
         "x": 728,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "model": "musicgen-melody-small",
@@ -65,7 +76,7 @@
       "type": "Preview",
       "pos": {
         "x": 964,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {}
     }

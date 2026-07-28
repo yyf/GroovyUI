@@ -5,6 +5,7 @@
 ### Added
 
 - **`rave-v1` + `TimbreTransfer`** — Model Browser install downloads ACIDS RAVE TorchScript (`sol_ordinario_fast`); real encode/decode inference (stub only when Inference = Stub)
+- **Sample-accuracy honesty** — canvas chip when AI/nondeterministic hops present; Note nodes on generative templates; `sample_accurate` / `deterministic` / `duration_locked` on node schemas (metadata only; no executor gates)
 
 ### Removed
 

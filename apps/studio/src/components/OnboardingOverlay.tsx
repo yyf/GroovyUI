@@ -32,7 +32,8 @@ export default function OnboardingOverlay({ open, onClose, onStartHello }: Props
       <div className="onboarding">
         <h2>Welcome to GroovyUI</h2>
         <p>
-          Patch AI audio like a modular synth. Render sample-accurate previews, then save files
+          Patch AI audio like a modular synth. Render sample-accurate offline previews
+          (Play auditions cached PCM — not live inference), then save files.
           from the graph. Keep Inference on <strong>Real</strong> for demos (Stub is UI/CI only).
         </p>
         <ol className="onboarding__steps">

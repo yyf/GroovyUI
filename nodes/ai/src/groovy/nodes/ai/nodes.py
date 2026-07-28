@@ -142,6 +142,7 @@ class TTS(GroovyNode):
     EXPORT_TIER = "OFFLINE_RENDER"
     SAMPLE_ACCURATE = True
     DETERMINISTIC = False
+    DURATION_LOCKED = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_generated"
     COMPATIBLE_MODELS = ["kokoro-82m", "cosyvoice-300m", "f5-tts-base", "gpt-sovits-v2"]
@@ -283,6 +284,7 @@ class MIDIToAudio(GroovyNode):
     EXPORT_TIER = "OFFLINE_RENDER"
     SAMPLE_ACCURATE = True
     DETERMINISTIC = False
+    DURATION_LOCKED = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_generated"
     COMPATIBLE_MODELS = ["musicgen-melody-small"]
@@ -313,6 +315,7 @@ class GenerateAudio(GroovyNode):
     EXPORT_TIER = "OFFLINE_RENDER"
     SAMPLE_ACCURATE = True
     DETERMINISTIC = False
+    DURATION_LOCKED = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_generated"
     COMPATIBLE_MODELS = [
@@ -350,6 +353,7 @@ class SingFromMIDI(GroovyNode):
     EXPORT_TIER = "OFFLINE_RENDER"
     SAMPLE_ACCURATE = True
     DETERMINISTIC = False
+    DURATION_LOCKED = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_generated"
     COMPATIBLE_MODELS = ["diffsinger-opencpop"]

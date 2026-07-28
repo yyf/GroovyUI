@@ -5,7 +5,7 @@
   "metadata": {
     "title": "Text to Music- ACE Step 1.5",
     "author": "groovy",
-    "description": "Hero text-to-music with ACE-Step 1.5 (turbo DiT) — Prompt a track, optional lyrics on GenerateAudio, preview the cached render, and save. MIT weights; prefer NVIDIA CUDA. Install ace-step-1.5 from Model Browser before first real Render.",
+    "description": "Hero text-to-music with ACE-Step 1.5 (turbo DiT) \u2014 Prompt a track, optional lyrics on GenerateAudio, preview the cached render, and save. MIT weights; prefer NVIDIA CUDA. Install ace-step-1.5 from Model Browser before first real Render.",
     "tags": [
       "featured",
       "hero",
@@ -20,11 +20,22 @@
   },
   "nodes": [
     {
+      "id": "note-sample-accuracy",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+      }
+    },
+    {
       "id": "n0",
       "type": "Prompt",
       "pos": {
         "x": 0,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "text": "upbeat synthwave with driving drums and a catchy lead, 110 BPM",
@@ -36,7 +47,7 @@
       "type": "GenerateAudio",
       "pos": {
         "x": 246,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "model": "ace-step-1.5",
@@ -53,7 +64,7 @@
       "type": "Normalize",
       "pos": {
         "x": 492,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "mode": "lufs",
@@ -65,7 +76,7 @@
       "type": "Preview",
       "pos": {
         "x": 738,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {}
     },
@@ -74,7 +85,7 @@
       "type": "SaveAudio",
       "pos": {
         "x": 738,
-        "y": 124
+        "y": 244.0
       },
       "widgets": {
         "path": "exports",
@@ -87,26 +98,50 @@
   "links": [
     {
       "id": "l0",
-      "from": ["n0", 0],
-      "to": ["n1", 0],
+      "from": [
+        "n0",
+        0
+      ],
+      "to": [
+        "n1",
+        0
+      ],
       "type": "TEXT"
     },
     {
       "id": "l1",
-      "from": ["n1", 0],
-      "to": ["n2", 0],
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
       "type": "AUDIO"
     },
     {
       "id": "l2",
-      "from": ["n2", 0],
-      "to": ["n3", 0],
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
       "type": "AUDIO"
     },
     {
       "id": "l3",
-      "from": ["n2", 0],
-      "to": ["n4", 0],
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
       "type": "AUDIO"
     }
   ],

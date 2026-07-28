@@ -76,6 +76,7 @@ import {
   widgetsAfterModelSwap,
   widgetsForDroppedModel,
 } from "./modelNodeWidgets";
+import { isAiNodeType } from "./nodeKinds";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import { nextActiveEdgeIds, resolveEdgePlaybackTarget } from "./edgePlayback";
@@ -275,6 +276,29 @@ export default function App() {
   );
   const flowNodeSyncKey = useMemo(() => flowNodesSyncKey(flowNodes), [flowNodes]);
   const [nodes, setNodes, applyNodeChanges] = useNodesState<Node>([]);
+
+  const sampleAccuracyNote = useMemo(() => {
+    if (!workflow?.nodes?.length) return null;
+    const nondet = workflow.nodes.filter((node) => {
+      const schema = nodeSchemas[node.type];
+      if (schema?.deterministic === false) return true;
+      return isAiNodeType(node.type, schema?.category);
+    });
+    if (nondet.length === 0) return null;
+    const generative = new Set([
+      "GenerateAudio",
+      "MIDIToAudio",
+      "TTS",
+      "SingFromMIDI",
+      "TimbreTransfer",
+    ]);
+    const hasGenerative = nondet.some((node) => generative.has(node.type));
+    if (hasGenerative) {
+      return "Sample-accurate offline render · Play = cached PCM · Generative hops choose length/timbre (seed/hardware may vary)";
+    }
+    return "Sample-accurate offline render · Play = cached PCM · AI hops may vary by seed/hardware (not bit-identical)";
+  }, [workflow, nodeSchemas]);
+
   const displayNodes = useMemo(() => {
     let merged = mergeFlowNodes(nodes, flowNodes);
     const pending = pendingSelectionRef.current;
@@ -1505,6 +1529,11 @@ export default function App() {
             }}
           >
             {dropHint ? <div className="canvas__drop-hint">Drop audio to load</div> : null}
+            {sampleAccuracyNote && !dropHint ? (
+              <div className="canvas__integrity-note" role="note">
+                {sampleAccuracyNote}
+              </div>
+            ) : null}
             <CanvasErrorBoundary
               crashed={canvasCrashed}
               onError={() => {

@@ -18,11 +18,22 @@
   },
   "nodes": [
     {
+      "id": "note-sample-accuracy",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Sample-accurate offline render: Play auditions cached PCM at discrete frames (not a live DAW clock). Generative / AI hops in this graph are nondeterministic \u2014 length and timbre may vary by seed and hardware."
+      }
+    },
+    {
       "id": "n1",
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 80
+        "y": 200.0
       },
       "widgets": {
         "path": "assets/samples/male-1.wav"
@@ -33,10 +44,10 @@
       "type": "TTS",
       "pos": {
         "x": 236,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
-        "text": "Hello from GroovyUI — this line is spoken in the reference speaker's voice.",
+        "text": "Hello from GroovyUI \u2014 this line is spoken in the reference speaker's voice.",
         "model": "f5-tts-base",
         "seed": 7
       }
@@ -46,7 +57,7 @@
       "type": "Normalize",
       "pos": {
         "x": 472,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {
         "mode": "lufs",
@@ -58,7 +69,7 @@
       "type": "Preview",
       "pos": {
         "x": 708,
-        "y": 0
+        "y": 120.0
       },
       "widgets": {}
     },
@@ -67,7 +78,7 @@
       "type": "SaveAudio",
       "pos": {
         "x": 708,
-        "y": 124
+        "y": 244.0
       },
       "widgets": {
         "path": "exports",
@@ -80,26 +91,50 @@
   "links": [
     {
       "id": "l1",
-      "from": ["n1", 0],
-      "to": ["n2", 1],
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        1
+      ],
       "type": "AUDIO"
     },
     {
       "id": "l2",
-      "from": ["n2", 0],
-      "to": ["n3", 0],
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
       "type": "AUDIO"
     },
     {
       "id": "l3",
-      "from": ["n3", 0],
-      "to": ["n4", 0],
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
       "type": "AUDIO"
     },
     {
       "id": "l4",
-      "from": ["n3", 0],
-      "to": ["n5", 0],
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n5",
+        0
+      ],
       "type": "AUDIO"
     }
   ],
