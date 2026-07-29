@@ -41,8 +41,10 @@ import {
   uploadProjectAudio,
   type TemplateListItem,
 } from "./api";
+import { CANVAS_MAX_ZOOM, CANVAS_MIN_ZOOM, FIT_ALL_OPTIONS } from "./canvasViewport";
 import ComplianceDrawer from "./components/ComplianceDrawer";
 import FlowViewportBridge from "./components/FlowViewportBridge";
+import FitAllControl from "./components/FitAllControl";
 import GroovyFlowNode from "./components/GroovyFlowNode";
 import type { GroovyNodeData } from "./components/GroovyFlowNode";
 import ModuleGroupNode from "./components/ModuleGroupNode";
@@ -1648,6 +1650,9 @@ export default function App() {
                   multiSelectionKeyCode={["Shift", "Meta", "Control"]}
                   elevateEdgesOnSelect
                   defaultEdgeOptions={{ interactionWidth: 28 }}
+                  minZoom={CANVAS_MIN_ZOOM}
+                  maxZoom={CANVAS_MAX_ZOOM}
+                  fitViewOptions={FIT_ALL_OPTIONS}
                   proOptions={{ hideAttribution: true }}
                 >
                   <FlowViewportBridge
@@ -1657,7 +1662,14 @@ export default function App() {
                     fitViewKey={viewportFitKey}
                   />
                   <Background gap={28} color="#222222" size={1} />
-                  <Controls className="flow-controls" showInteractive={false} />
+                  <Controls
+                    className="flow-controls"
+                    showInteractive={false}
+                    showFitView={false}
+                    fitViewOptions={FIT_ALL_OPTIONS}
+                  >
+                    <FitAllControl />
+                  </Controls>
                 </ReactFlow>
               </ReactFlowProvider>
             </CanvasErrorBoundary>

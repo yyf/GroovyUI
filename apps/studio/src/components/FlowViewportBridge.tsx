@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useReactFlow, useUpdateNodeInternals } from "@xyflow/react";
+import { FIT_ALL_OPTIONS } from "../canvasViewport";
 
 type Props = {
   canvasSelector: string;
@@ -9,6 +10,12 @@ type Props = {
   /** Bumps after template load — fits all nodes in view. */
   fitViewKey?: number;
 };
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+}
 
 export default function FlowViewportBridge({
   canvasSelector,
@@ -45,10 +52,22 @@ export default function FlowViewportBridge({
     if (!fitViewKey || !nodeSyncKey) return;
     const frame = requestAnimationFrame(() => {
       if (getNodes().length === 0) return;
-      void fitView({ padding: 0.2, duration: 0 });
+      void fitView({ ...FIT_ALL_OPTIONS, duration: 0 });
     });
     return () => cancelAnimationFrame(frame);
   }, [fitViewKey, nodeSyncKey, fitView, getNodes]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) return;
+      if (!(event.metaKey || event.ctrlKey) || event.key !== "0") return;
+      if (getNodes().length === 0) return;
+      event.preventDefault();
+      void fitView({ ...FIT_ALL_OPTIONS });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fitView, getNodes]);
 
   return null;
 }
