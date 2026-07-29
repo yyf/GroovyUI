@@ -147,13 +147,20 @@ def _templates_dir() -> Path:
 
 def _terminal_node_ids(workflow: Workflow) -> tuple[str, ...]:
     sources = {link.from_[0] for link in workflow.links}
-    return tuple(node.id for node in workflow.nodes if node.id not in sources)
+    return tuple(
+        node.id
+        for node in workflow.nodes
+        if node.id not in sources and node.type != "Note"
+    )
 
 
 def _primary_terminal(workflow: Workflow, terminal_ids: tuple[str, ...]) -> str:
     by_id = {node.id: node for node in workflow.nodes}
     for node_id in terminal_ids:
         if by_id[node_id].type == "Preview":
+            return node_id
+    for node_id in terminal_ids:
+        if by_id[node_id].type != "Note":
             return node_id
     return terminal_ids[0]
 
