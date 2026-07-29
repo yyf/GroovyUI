@@ -25,14 +25,20 @@ def test_timbre_transfer_stub_when_inference_stub(monkeypatch: pytest.MonkeyPatc
 def test_timbre_transfer_requires_install_when_real(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv("GROOVY_INFERENCE_STUB", raising=False)
     monkeypatch.setenv("GROOVY_INFERENCE_STUB", "0")
-    # Force "real" path: torch available, stub off, missing checkpoint → runner error or install error.
+    # Force "real" path without importing torch: stub off, runner present, missing checkpoint.
     monkeypatch.setattr("groovy.nodes.ai.inference_env.inference_stub_enabled", lambda: False)
     monkeypatch.setattr("groovy.nodes.ai.inference_env.rave_available", lambda: True)
 
     def _boom(*_a, **_k):
         raise RuntimeError("RAVE checkpoint not found")
 
-    monkeypatch.setattr("groovy.nodes.ai.backends.rave_runner.transfer_pcm", _boom)
+    import sys
+    import types
+
+    fake_runner = types.ModuleType("groovy.nodes.ai.backends.rave_runner")
+    fake_runner.transfer_pcm = _boom  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "groovy.nodes.ai.backends.rave_runner", fake_runner)
+
     pcm = np.zeros((1, 1000), dtype=np.float64)
     with pytest.raises(RuntimeError, match="RAVE checkpoint not found"):
         timbre_transfer_audio(

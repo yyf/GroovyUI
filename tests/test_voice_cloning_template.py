@@ -31,7 +31,8 @@ def test_voice_cloning_template_schema_and_stub_render(tmp_path: Path, monkeypat
     path = ROOT / "templates" / "voice-cloning.groovy.json"
     data = json.loads(path.read_text())
     assert "featured" in data["metadata"]["tags"]
-    assert data["nodes"][1]["widgets"]["model"] == "f5-tts-base"
+    tts = next(node for node in data["nodes"] if node["type"] == "TTS")
+    assert tts["widgets"]["model"] == "f5-tts-base"
     # LoadAudio → TTS reference_audio (socket index 1)
     assert ["n1", 0] == data["links"][0]["from"]
     assert ["n2", 1] == data["links"][0]["to"]

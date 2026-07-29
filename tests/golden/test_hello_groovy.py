@@ -23,6 +23,7 @@ def test_hello_groovy_template_shape() -> None:
     assert workflow.metadata.title == "Hello GroovyUI"
     types = [n.type for n in workflow.nodes]
     assert types == [
+        "Note",
         "Prompt",
         "TTS",
         "ControlCurve",
