@@ -16,7 +16,7 @@ def cache(tmp_path: Path) -> CacheStore:
     uploads = tmp_path / "assets" / "uploads"
     samples.mkdir(parents=True)
     uploads.mkdir(parents=True)
-    (samples / "male-1.wav").write_bytes(b"RIFF")
+    (samples / "noisy_speech_1214.wav").write_bytes(b"RIFF")
     (samples / "Knockout_41k.wav").write_bytes(b"RIFF")
     (samples / "nested" / "dialogue.wav").parent.mkdir(parents=True)
     (samples / "nested" / "dialogue.wav").write_bytes(b"RIFF")
@@ -24,15 +24,15 @@ def cache(tmp_path: Path) -> CacheStore:
 
 
 def test_resolve_direct_project_relative_path(cache: CacheStore) -> None:
-    resolved, canonical = resolve_project_media_path(cache, "assets/samples/male-1.wav")
-    assert resolved.name == "male-1.wav"
-    assert canonical == "assets/samples/male-1.wav"
+    resolved, canonical = resolve_project_media_path(cache, "assets/samples/noisy_speech_1214.wav")
+    assert resolved.name == "noisy_speech_1214.wav"
+    assert canonical == "assets/samples/noisy_speech_1214.wav"
 
 
 def test_resolve_bare_filename_in_samples(cache: CacheStore) -> None:
-    resolved, canonical = resolve_project_media_path(cache, "male-1.wav")
-    assert resolved.name == "male-1.wav"
-    assert canonical == "assets/samples/male-1.wav"
+    resolved, canonical = resolve_project_media_path(cache, "noisy_speech_1214.wav")
+    assert resolved.name == "noisy_speech_1214.wav"
+    assert canonical == "assets/samples/noisy_speech_1214.wav"
 
 
 def test_fuzzy_hyphen_underscore_match(cache: CacheStore) -> None:

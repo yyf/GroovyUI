@@ -1,21 +1,22 @@
 {
   "schema_version": "1.0.0",
   "groovy_version": "0.1.0",
-  "id": "c3d4e5f6-a7b8-9012-abcd-karaokestems01",
+  "id": "c3d4e5f6-a7b8-9012-bcde-denoisodiar01",
   "metadata": {
-    "title": "Karaoke Stems",
+    "title": "Denoise, Diarize and Transcribe",
     "author": "groovy",
-    "description": "Demucs vocals vs instrumental mix \u2014 preview both, save vocals. Same separator as Stem Split; oriented for karaoke / remix language.",
+    "description": "Noisy multi-speaker podcast \u2192 DeepFilterNet (denoise) \u2192 pyannote (diarize) \u2192 Whisper (transcribe) \u2014 one clean who-said-what transcript without three separate WebUIs. Preview labeled turns; save cleaned audio.",
     "tags": [
-      "featured",
       "ai",
-      "separation",
-      "stems",
-      "karaoke",
-      "vocals"
+      "denoise",
+      "diarization",
+      "stt",
+      "podcast",
+      "meeting",
+      "compound"
     ],
-    "created_at": "2026-07-15T12:00:00Z",
-    "modified_at": "2026-07-15T12:00:00Z"
+    "created_at": "2026-07-29T20:00:00Z",
+    "modified_at": "2026-07-29T20:00:00Z"
   },
   "nodes": [
     {
@@ -26,7 +27,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "Karaoke Stems \u2014 Demucs vocals vs instrumental mix \u2014 preview both, save vocals."
+        "text": "Denoise, Diarize and Transcribe \u2014 DeepFilterNet \u2192 pyannote \u2192 Whisper for a who-said-what transcript from a noisy multi-speaker recording."
       }
     },
     {
@@ -37,53 +38,51 @@
         "y": 100.0
       },
       "widgets": {
-        "path": "assets/samples/noisy_speech_1214.wav"
+        "path": "assets/samples/diarization.wav"
       }
     },
     {
       "id": "n2",
-      "type": "SeparateStems",
+      "type": "Denoise",
       "pos": {
         "x": 236,
         "y": 100.0
       },
       "widgets": {
-        "model": "demucs-v4",
-        "shifts": 1,
-        "overlap": 0.25,
-        "segment": 0,
-        "split": true
+        "model": "deepfilternet-v3",
+        "strength": 1.0
       }
     },
     {
       "id": "n3",
-      "type": "Mix",
+      "type": "Normalize",
       "pos": {
-        "x": 492,
-        "y": 348.0
+        "x": 472,
+        "y": 100.0
       },
       "widgets": {
-        "gain_a": 1.0,
-        "gain_b": 1.0
+        "mode": "lufs",
+        "target_lufs": -16.0
       }
     },
     {
       "id": "n4",
-      "type": "Mix",
+      "type": "DiarizeTranscribe",
       "pos": {
-        "x": 728,
+        "x": 708,
         "y": 100.0
       },
       "widgets": {
-        "gain_a": 1.0,
-        "gain_b": 1.0
+        "model": "whisper-large-v3-turbo",
+        "diarize_model": "pyannote-diarization-3.1",
+        "language": "en"
       }
     },
     {
       "id": "n5",
       "type": "Preview",
       "pos": {
-        "x": 492,
+        "x": 944,
         "y": 100.0
       },
       "widgets": {}
@@ -92,8 +91,8 @@
       "id": "n6",
       "type": "Preview",
       "pos": {
-        "x": 964,
-        "y": 100.0
+        "x": 708,
+        "y": 232.0
       },
       "widgets": {}
     },
@@ -101,12 +100,12 @@
       "id": "n7",
       "type": "SaveAudio",
       "pos": {
-        "x": 492,
-        "y": 224.0
+        "x": 708,
+        "y": 356.0
       },
       "widgets": {
         "path": "exports",
-        "filename": "karaoke-vocals.wav",
+        "filename": "podcast-who-said-what.wav",
         "format": "wav"
       }
     }
@@ -131,7 +130,7 @@
         0
       ],
       "to": [
-        "n5",
+        "n3",
         0
       ],
       "type": "AUDIO"
@@ -139,11 +138,11 @@
     {
       "id": "l3",
       "from": [
-        "n2",
+        "n3",
         0
       ],
       "to": [
-        "n7",
+        "n4",
         0
       ],
       "type": "AUDIO"
@@ -151,24 +150,24 @@
     {
       "id": "l4",
       "from": [
-        "n2",
-        1
-      ],
-      "to": [
-        "n3",
+        "n4",
         0
       ],
-      "type": "AUDIO"
+      "to": [
+        "n5",
+        1
+      ],
+      "type": "TEXT"
     },
     {
       "id": "l5",
       "from": [
-        "n2",
-        2
+        "n3",
+        0
       ],
       "to": [
-        "n3",
-        1
+        "n6",
+        0
       ],
       "type": "AUDIO"
     },
@@ -179,31 +178,7 @@
         0
       ],
       "to": [
-        "n4",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l7",
-      "from": [
-        "n2",
-        3
-      ],
-      "to": [
-        "n4",
-        1
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l8",
-      "from": [
-        "n4",
-        0
-      ],
-      "to": [
-        "n6",
+        "n7",
         0
       ],
       "type": "AUDIO"

@@ -28,7 +28,7 @@ def api_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     sr = 48000
     t = np.linspace(0, 1.0, sr, endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "male-1.wav", tone, sr)
+    sf.write(assets / "noisy_speech_1214.wav", tone, sr)
 
     monkeypatch.setenv("GROOVY_PROJECT_DIR", str(tmp_path))
     main.PROJECT_DIR = tmp_path
@@ -43,7 +43,7 @@ def _render_demo(api_client: TestClient, tmp_path: Path) -> dict[str, dict]:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/male-1.wav"
+            node.widgets["path"] = "assets/samples/noisy_speech_1214.wav"
 
     executor = Executor(tmp_path)
     result = executor.execute(workflow, target_nodes=["n4"])
@@ -111,7 +111,7 @@ def test_job_manifest_api(api_client: TestClient, tmp_path: Path) -> None:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/male-1.wav"
+            node.widgets["path"] = "assets/samples/noisy_speech_1214.wav"
 
     executor = Executor(tmp_path)
     result = executor.execute(workflow, target_nodes=["n4"])

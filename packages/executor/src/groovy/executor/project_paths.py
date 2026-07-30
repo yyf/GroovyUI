@@ -5,7 +5,7 @@ from pathlib import Path
 from groovy.executor.cache import CacheStore
 
 MEDIA_SEARCH_DIRS = ("assets/samples", "assets/uploads")
-MEDIA_EXTENSIONS = {".wav", ".flac", ".aiff", ".aif", ".mp3", ".ogg", ".mid", ".midi"}
+MEDIA_EXTENSIONS = {".wav", ".flac", ".aiff", ".aif", ".mp3", ".ogg", ".mid", ".midi", ".mp4", ".m4a"}
 
 
 def _normalize_relative(path: str) -> str:
@@ -53,7 +53,7 @@ def resolve_project_media_path(cache: CacheStore, relative: str) -> tuple[Path, 
     Resolve a project-relative media path.
 
     Returns ``(absolute_path, canonical_project_relative_path)``.
-    Bare filenames (e.g. ``male-1.wav``) also match under ``assets/samples/`` and
+    Bare filenames (e.g. ``noisy_speech_1214.wav``) also match under ``assets/samples/`` and
     ``assets/uploads/``. Hyphen/underscore spelling differences are tolerated when
     the match is unambiguous.
     """

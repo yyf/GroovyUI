@@ -20,6 +20,7 @@ MODULAR_TYPES = [
     "Envelope",
     "LFO",
     "Attenuator",
+    "Reverb",
     "Logic",
     "Comparator",
     "SampleAndHold",
@@ -96,6 +97,48 @@ def test_noise_oscillator_filter_amp_chain(tmp_path: Path) -> None:
 
     result = Executor(tmp_path).execute(workflow, target_nodes=["prev"])
     assert result.status == "completed", result.error
+
+
+def test_reverb_mix_and_passthrough(tmp_path: Path) -> None:
+    workflow = Workflow(
+        schema_version="1.0.0",
+        groovy_version="0.1.0",
+        id="mod-reverb",
+        metadata=WorkflowMetadata(title="reverb"),
+        nodes=[
+            NodeInstance(
+                id="osc",
+                type="Oscillator",
+                pos={"x": 0, "y": 0},
+                widgets={
+                    "waveform": "square",
+                    "frequency_hz": 110.0,
+                    "amplitude_default": 0.4,
+                    "duration_sec": 0.25,
+                    "sample_rate": 48000,
+                },
+            ),
+            NodeInstance(
+                id="rev",
+                type="Reverb",
+                pos={"x": 200, "y": 0},
+                widgets={"mix": 0.35, "room_sec": 0.8, "damping": 0.5},
+            ),
+            NodeInstance(id="prev", type="Preview", pos={"x": 400, "y": 0}, widgets={}),
+        ],
+        links=[
+            Link(id="l1", **{"from": ["osc", 0], "to": ["rev", 0], "type": "AUDIO"}),
+            Link(id="l2", **{"from": ["rev", 0], "to": ["prev", 0], "type": "AUDIO"}),
+        ],
+    )
+    schema = NODE_REGISTRY["Reverb"].describe()
+    assert [s["name"] for s in schema["inputs"]][:2] == ["audio", "mix_cv"]
+    ex = Executor(tmp_path)
+    result = ex.execute(workflow, target_nodes=["prev"])
+    assert result.status == "completed", result.error
+    _, pcm = ex.cache.load_audio(_audio_id(result.outputs["prev"]))
+    assert pcm.shape[1] > 1000
+    assert float(np.max(np.abs(pcm))) > 0.01
 
 
 def test_oscillator_and_matrix_mixer(tmp_path: Path) -> None:

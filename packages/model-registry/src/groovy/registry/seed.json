@@ -590,26 +590,26 @@
         {
           "name": "max_new_tokens",
           "type": "INT",
-          "default": 512,
+          "default": 256,
           "min": 64,
           "max": 2048,
-          "description": "Generation length cap (affects output duration)."
+          "description": "Generation length cap (~50 tokens/sec). Also capped to melody conditioner duration to avoid noisy freerun tails."
         },
         {
           "name": "melody_weight",
           "type": "FLOAT",
-          "default": 0.55,
+          "default": 1.0,
           "min": 0.0,
           "max": 1.0,
-          "description": "Blend weight for transcribed MIDI melody conditioning."
+          "description": "Weight for MIDI→synth conditioner. Set 0 when wiring Demucs vocals to reference_audio (HF path)."
         },
         {
           "name": "reference_weight",
           "type": "FLOAT",
-          "default": 0.45,
+          "default": 0.0,
           "min": 0.0,
           "max": 1.0,
-          "description": "Blend weight for optional reference audio conditioning."
+          "description": "Weight for reference_audio conditioner. Prefer 1.0 with Demucs vocals; avoid ~0.5 blend with MIDI synth."
         },
         {
           "name": "guidance_scale",
@@ -617,15 +617,15 @@
           "default": 3.0,
           "min": 0.0,
           "max": 15.0,
-          "description": "Text prompt guidance strength."
+          "description": "Text prompt guidance strength (HF default 3)."
         },
         {
           "name": "temperature",
           "type": "FLOAT",
-          "default": 1.0,
+          "default": 0.7,
           "min": 0.0,
           "max": 2.0,
-          "description": "Sampling temperature (0 = deterministic)."
+          "description": "Sampling temperature. ~0.7 is a good MusicGen Melody default; 0 = greedy (often noisier); 1.0+ gets hissy."
         }
       ],
       "similar_models": ["ace-step-1.5"]

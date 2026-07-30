@@ -27,7 +27,7 @@ def project_dir(tmp_path: Path) -> Path:
     sr = 48000
     t = np.linspace(0, 0.5, int(sr * 0.5), endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "male-1.wav", tone, sr)
+    sf.write(assets / "noisy_speech_1214.wav", tone, sr)
     registry = ModelRegistry(tmp_path)
     registry.installer.install("demucs-v4")
     return tmp_path

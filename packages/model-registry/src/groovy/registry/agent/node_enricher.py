@@ -9,7 +9,7 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "inputs": {},
         "outputs": {"output_0": "Planar PCM audio buffer at native sample rate."},
         "widgets": {
-            "path": "Project-relative path to the audio file (e.g. assets/samples/male-1.wav).",
+            "path": "Project-relative path to the audio file (e.g. assets/samples/noisy_speech_1214.wav).",
         },
     },
     "Denoise": {
@@ -63,11 +63,18 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "widgets": {"model": "Audio-to-MIDI model (e.g. basic-pitch)."},
     },
     "MIDIToAudio": {
-        "description": "Generate audio conditioned on MIDI melody and optional text prompt.",
+        "description": "Generate audio conditioned on MIDI melody and optional text prompt (MusicGen Melody).",
+        "inputs": {
+            "text": "Optional TEXT wire; when connected, overrides the local prompt widget.",
+            "reference_audio": "Optional. Leave unwired — blending raw vocals into the melody conditioner makes output noisy.",
+        },
         "widgets": {
             "model": "MIDI-to-audio model (e.g. MusicGen Melody).",
             "prompt": "Style or instrument description for generation.",
             "seed": "Random seed (−1 = random). Same seed + prompt → repeatable output.",
+            "temperature": "Prefer ~0.7 for MusicGen Melody. 0 = greedy (often noisier); 1.0+ gets hissy.",
+            "reference_weight": "Set 1.0 and wire Demucs vocals to reference_audio (HF path). Avoid ~0.5 blend with MIDI synth.",
+            "max_new_tokens": "Length cap (~50 tok/s); runtime also caps to conditioner duration to avoid noisy freerun tails.",
         },
     },
     "GenerateAudio": {

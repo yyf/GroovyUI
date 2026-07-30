@@ -71,14 +71,14 @@ def project_dir(tmp_path: Path) -> Path:
     t = np.linspace(0, 1.0, int(sr), endpoint=False)
     tone = 0.22 * np.sin(2 * np.pi * 440 * t)
     noise = 0.02 * np.random.default_rng(0).standard_normal(t.size)
-    sf.write(assets / "male-1.wav", tone + noise, sr)
+    sf.write(assets / "noisy_speech_1214.wav", tone + noise, sr)
     sf.write(assets / "Knockout_41k_mono.wav", tone + noise, sr)
     if DIALOGUE_FIXTURE.is_file():
         shutil.copy(DIALOGUE_FIXTURE, assets / "dialogue_48k.wav")
     return tmp_path
 
 
-def _load_template(path: Path, *, sample: str = "assets/samples/male-1.wav") -> Workflow:
+def _load_template(path: Path, *, sample: str = "assets/samples/noisy_speech_1214.wav") -> Workflow:
     workflow = Workflow.model_validate(json.loads(path.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":

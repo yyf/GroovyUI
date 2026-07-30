@@ -42,7 +42,7 @@ def project_dir(tmp_path: Path) -> Path:
     assets.mkdir(parents=True)
     sr = 48_000
     t = np.linspace(0, 1.0, int(sr), endpoint=False)
-    sf.write(assets / "male-1.wav", 0.25 * np.sin(2 * np.pi * 440 * t), sr)
+    sf.write(assets / "noisy_speech_1214.wav", 0.25 * np.sin(2 * np.pi * 440 * t), sr)
     if DIALOGUE_FIXTURE.is_file():
         shutil.copy(DIALOGUE_FIXTURE, assets / "dialogue_48k.wav")
     return tmp_path
@@ -69,7 +69,7 @@ def test_podcast_denoise_cold_machine_gate(project_dir: Path) -> None:
     workflow = Workflow.model_validate(json.loads(PODCAST.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/male-1.wav"
+            node.widgets["path"] = "assets/samples/noisy_speech_1214.wav"
 
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=["n4", "n5"])

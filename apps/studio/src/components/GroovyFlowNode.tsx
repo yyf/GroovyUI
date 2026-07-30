@@ -53,6 +53,19 @@ function handleId(socket: NodeSocketSpec, index: number): string {
   return String(socket.slot ?? index);
 }
 
+function isGenericSocketName(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  return (
+    normalized === "" ||
+    normalized === "in" ||
+    normalized === "out" ||
+    normalized === "audio" ||
+    normalized === "output_0" ||
+    /^in_\d+$/.test(normalized) ||
+    /^out_\d+$/.test(normalized)
+  );
+}
+
 function GroovyFlowNode({ data, selected }: NodeProps) {
   const nodeData = data as GroovyNodeData;
   const badge = statusLabel(nodeData.status);
@@ -68,6 +81,13 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
   const isNote = nodeData.label === "Note";
   const kind = nodeData.kind ?? "core";
   const kindClass = isNote ? "" : ` groovy-node--${kind}`;
+  const namedInlets = inputs.some((socket) => !isGenericSocketName(socket.name));
+  const namedOutlets = outputs.some((socket) => !isGenericSocketName(socket.name));
+  const showInputLabels = inputs.length > 1 || namedInlets;
+  const showOutputLabels =
+    outputs.length > 1 ||
+    (nodeData.channelLabel && outputs.length === 1 && nodeData.label === "LoadAudio") ||
+    namedOutlets;
 
   return (
     <div
@@ -117,7 +137,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             {badge ? <span className={`groovy-node__badge groovy-node__badge--${nodeData.status}`}>{badge}</span> : null}
           </span>
         </div>
-        {inputs.length > 1 ? (
+        {showInputLabels ? (
           <ul className="groovy-node__socket-list" aria-hidden>
             {inputs.map((socket) => (
               <li key={socket.name}>
@@ -127,7 +147,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             ))}
           </ul>
         ) : null}
-        {outputs.length > 1 || (nodeData.channelLabel && outputs.length === 1 && nodeData.label === "LoadAudio") ? (
+        {showOutputLabels ? (
           <ul className="groovy-node__socket-list groovy-node__socket-list--outputs" aria-hidden>
             {outputs.map((socket) => (
               <li key={`out-label-${socket.slot ?? socket.name}`}>

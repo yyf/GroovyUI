@@ -888,6 +888,85 @@ body {
   position: relative;
 }
 
+.canvas__fps {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 4;
+  pointer-events: none;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  opacity: 0.35;
+}
+
+.canvas-node-picker {
+  position: fixed;
+  z-index: 50;
+  width: 200px;
+  background: var(--gradient-panel);
+  border: 1px solid var(--border-silver);
+  border-radius: 0;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  padding: 4px 0 0;
+}
+
+.canvas-node-picker__input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 10px;
+  border: none;
+  border-bottom: 1px solid var(--border-dim);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.canvas-node-picker__input::placeholder {
+  color: var(--text-muted);
+}
+
+.canvas-node-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.canvas-node-picker__empty {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.canvas-node-picker__option {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.canvas-node-picker__option:hover,
+.canvas-node-picker__option--active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .node-helper {
   background: var(--bg-panel);
   display: flex;
@@ -2950,6 +3029,23 @@ body {
 
 .groovy-node__socket-list--outputs li {
   justify-content: flex-end;
+}
+
+.groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 8px;
+  align-items: start;
+}
+
+.groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__title {
+  grid-column: 1 / -1;
+}
+
+.groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__channel,
+.groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__note-text,
+.groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__preview-text {
+  grid-column: 1 / -1;
 }
 
 .groovy-node__socket-dot {
@@ -5368,17 +5464,44 @@ body {
   font-weight: 600;
 }
 
-.canvas__integrity-note {
+.canvas__integrity {
   position: absolute;
   right: 12px;
-  left: auto;
   bottom: 12px;
   z-index: 4;
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
   max-width: min(420px, calc(100% - 72px));
-  padding: 8px 12px;
+}
+
+.canvas__integrity-btn {
+  pointer-events: auto;
+  margin: 0;
+  padding: 5px 10px;
   border: 1px solid var(--border-silver);
   background: rgba(12, 12, 12, 0.88);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.canvas__integrity-btn:hover,
+.canvas__integrity-btn--open {
+  color: var(--text-primary);
+  border-color: var(--border-bright);
+  background: rgba(22, 22, 22, 0.95);
+}
+
+.canvas__integrity-panel {
+  pointer-events: none;
+  padding: 8px 12px;
+  border: 1px solid var(--border-silver);
+  background: rgba(12, 12, 12, 0.92);
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1.35;

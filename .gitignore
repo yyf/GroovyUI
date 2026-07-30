@@ -21,10 +21,13 @@ dist/
 workspace/
 .groovy/
 *.wav
+*.mp3
+*.mp4
+*.m4a
 !tests/fixtures/*.wav
 !tests/golden/fixtures/*.wav
 !workspace/assets/samples/dialogue_48k.wav
-!workspace/assets/samples/male-1.wav
+!workspace/assets/samples/noisy_speech_1214.wav
 
 # IDE / OS
 .DS_Store
