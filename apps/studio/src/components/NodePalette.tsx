@@ -32,6 +32,7 @@ const MODULAR_NODES = new Set([
   "Envelope",
   "LFO",
   "Attenuator",
+  "Reverb",
   "Logic",
   "Comparator",
   "SampleAndHold",
@@ -142,7 +143,7 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
   },
 };
 
-function isPaletteVisible(node: NodeTypeInfo): boolean {
+export function isPaletteVisible(node: NodeTypeInfo): boolean {
   if (HIDDEN_FROM_PALETTE.has(node.type)) return false;
   if (node.category.includes("Immersive") || node.category.includes("Live")) return false;
   return true;
@@ -187,7 +188,7 @@ function paletteGroup(node: NodeTypeInfo): GroupId {
   if (
     MODULAR_NODES.has(node.type) ||
     node.type.includes("Float") ||
-    ["Filter", "Amplifier", "Envelope", "LFO", "Attenuator", "Logic", "Comparator", "SampleAndHold", "Quantizer", "Clock", "MatrixMixer"].includes(
+    ["Filter", "Amplifier", "Envelope", "LFO", "Attenuator", "Reverb", "Logic", "Comparator", "SampleAndHold", "Quantizer", "Clock", "MatrixMixer"].includes(
       node.type,
     )
   ) {

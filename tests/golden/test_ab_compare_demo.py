@@ -28,7 +28,7 @@ def project_dir(tmp_path: Path) -> Path:
     duration = 1.0
     t = np.linspace(0, duration, int(sr * duration), endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "male-1.wav", tone, sr)
+    sf.write(assets / "noisy_speech_1214.wav", tone, sr)
     registry = ModelRegistry(tmp_path)
     registry.installer.install("deepfilternet-v3")
     return tmp_path
@@ -38,7 +38,7 @@ def _workflow(project_dir: Path) -> Workflow:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/male-1.wav"
+            node.widgets["path"] = "assets/samples/noisy_speech_1214.wav"
     return workflow
 
 

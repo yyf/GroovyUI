@@ -20,7 +20,7 @@ def ensure_project_samples(project_dir: Path, *, bundled_dir: Path | None = None
     for path in sorted(source.iterdir()):
         if not path.is_file():
             continue
-        if path.suffix.lower() not in {".wav", ".flac", ".mid", ".midi"}:
+        if path.suffix.lower() not in {".wav", ".flac", ".mid", ".midi", ".mp4", ".m4a", ".mp3"}:
             continue
         target = dest / path.name
         if target.exists():

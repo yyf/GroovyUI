@@ -35,7 +35,7 @@ class TemplateIntegritySpec:
     target_nodes: tuple[str, ...]
     terminal_node: str
     terminal_output_type: TerminalOutputType = "AUDIO"
-    sample_path: str | None = "assets/samples/male-1.wav"
+    sample_path: str | None = "assets/samples/noisy_speech_1214.wav"
     midi_path: str | None = None
     models: tuple[str, ...] = ()
     fixture: FixtureKind = "tone"
@@ -54,8 +54,8 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("kokoro-82m",),
         "required_outputs": (("n8", "AUDIO"),),
     },
-    "podcast-denoise": {"sample_path": "assets/samples/male-1.wav"},
-    "ab-compare-demo": {"sample_path": "assets/samples/male-1.wav", "spot_check": "ab_compare"},
+    "podcast-denoise": {"sample_path": "assets/samples/noisy_speech_1214.wav"},
+    "ab-compare-demo": {"sample_path": "assets/samples/noisy_speech_1214.wav", "spot_check": "ab_compare"},
     "stem-separation": {
         "sample_path": "assets/samples/Knockout_41k_mono.wav",
         "expect_stems_node": "n2",
@@ -90,7 +90,7 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "required_outputs": (("n3", "AUDIO"),),
     },
     "voice-cloning": {
-        "sample_path": "assets/samples/male-1.wav",
+        "sample_path": "assets/samples/noisy_speech_1214.wav",
         "models": ("f5-tts-base",),
         "required_outputs": (("n4", "AUDIO"),),
     },
@@ -120,8 +120,20 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "terminal_output_type": "TEXT",
         "required_outputs": (("n2", "TEXT"), ("n3", "TEXT"), ("n4", "AUDIO")),
     },
+    "denoise-diarize-transcribe": {
+        "sample_path": "assets/samples/diarization.wav",
+        "terminal_output_type": "TEXT",
+        "required_outputs": (("n4", "TEXT"), ("n5", "TEXT"), ("n6", "AUDIO")),
+    },
+    "song-cover-remix": {
+        # CI writes a tone fixture as WAV; studio template LoadAudio still uses Signe mp4.
+        "sample_path": "assets/samples/Knockout_41k_mono.wav",
+        "expect_stems_node": "n2",
+        "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
+        "required_outputs": (("n9", "AUDIO"),),
+    },
     "karaoke-stems": {
-        "sample_path": "assets/samples/male-1.wav",
+        "sample_path": "assets/samples/noisy_speech_1214.wav",
         "expect_stems_node": "n2",
         "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
         "required_outputs": (("n5", "AUDIO"), ("n6", "AUDIO")),

@@ -17,6 +17,8 @@ describe("templatesVisibleInUi", () => {
     bundled("stem-separation"),
     bundled("transcribe-dialogue"),
     bundled("transcribe-and-diarize"),
+    bundled("denoise-diarize-transcribe"),
+    bundled("song-cover-remix"),
     bundled("cleanup-and-transcribe"),
     bundled("voice-cloning"),
     bundled("prompt-modular-synth"),
@@ -42,6 +44,7 @@ describe("templatesVisibleInUi", () => {
       "isolate-vocals-to-voice-convert",
       "podcast-denoise",
       "prompt-modular-synth",
+      "song-cover-remix",
       "stable-audio",
       "stem-separation",
       "text-to-music",
@@ -50,6 +53,15 @@ describe("templatesVisibleInUi", () => {
       "transcribe-dialogue",
       "voice-cloning",
     ]);
+  });
+
+  it("hides denoise-diarize-transcribe unless it is the active selection", () => {
+    expect(templatesVisibleInUi(allBundled).map((t) => t.id)).not.toContain(
+      "denoise-diarize-transcribe",
+    );
+    expect(
+      templatesVisibleInUi(allBundled, "denoise-diarize-transcribe").map((t) => t.id),
+    ).toContain("denoise-diarize-transcribe");
   });
 
   it("sorts by display title, not id", () => {

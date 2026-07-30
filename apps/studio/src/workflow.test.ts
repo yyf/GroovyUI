@@ -35,6 +35,7 @@ import {
   wiredPromptPreview,
   workflowToFlowEdges,
   workflowToFlowNodes,
+  channelConvertSocketLabels,
   edgeIdsOnPathToNode,
   normalizeLoadedWorkflow,
   setLinkColor,
@@ -362,7 +363,54 @@ describe("edgeIdsOnPathToNode", () => {
   });
 });
 
+describe("channelConvertSocketLabels", () => {
+  it("labels mono→stereo conversion", () => {
+    expect(channelConvertSocketLabels("stereo", 1)).toEqual({ input: "MONO", output: "STEREO" });
+    expect(channelConvertSocketLabels("stereo", null)).toEqual({ input: "MONO", output: "STEREO" });
+  });
+
+  it("labels stereo→mono conversion", () => {
+    expect(channelConvertSocketLabels("mono", 2)).toEqual({ input: "STEREO", output: "MONO" });
+  });
+});
+
 describe("workflowToFlowNodes", () => {
+  it("labels ChannelConvert sockets from layout widget", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "src", type: "MIDIToAudio", pos: { x: 0, y: 0 }, widgets: {} },
+        {
+          id: "cc",
+          type: "ChannelConvert",
+          pos: { x: 200, y: 0 },
+          widgets: { layout: "stereo" },
+        },
+      ],
+      links: [{ id: "l1", from: ["src", 0], to: ["cc", 0], type: "AUDIO" }],
+    };
+    const schemas: Record<string, import("./types").NodeSchema> = {
+      MIDIToAudio: {
+        type: "MIDIToAudio",
+        category: "GroovyUI/AI",
+        inputs: [{ name: "midi", type: "MIDI" }],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [],
+      },
+      ChannelConvert: {
+        type: "ChannelConvert",
+        category: "GroovyUI/Core",
+        inputs: [{ name: "audio", type: "AUDIO" }],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [{ name: "layout", type: "STRING", default: "mono" }],
+      },
+    };
+    const nodes = workflowToFlowNodes(workflow, {}, undefined, schemas);
+    const cc = nodes.find((node) => node.id === "cc");
+    expect(cc?.data.inputs).toEqual([{ name: "MONO", type: "AUDIO", slot: 0 }]);
+    expect(cc?.data.outputs).toEqual([{ name: "STEREO", type: "AUDIO", slot: 0 }]);
+  });
+
   it("shows only wireable Mix inputs with stable slot ids", () => {
     const workflow: Workflow = {
       ...sampleWorkflow(),

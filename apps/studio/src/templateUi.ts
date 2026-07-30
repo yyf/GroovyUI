@@ -10,6 +10,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "prompt-modular-synth",
   "modular-generative-rack",
   "rave-timbre-transfer",
+  "song-cover-remix",
   "stable-audio",
   "stem-separation",
   "text-to-music",

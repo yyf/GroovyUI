@@ -591,7 +591,7 @@ export default function NodeHelper({
             {node.type === "LoadAudio" ? (
               <p className="node-helper__hint">
                 Choose a file to upload into the project, or enter a project-relative path (e.g.{" "}
-                <code>assets/samples/male-1.wav</code>). You can also drop audio onto the canvas.
+                <code>assets/samples/noisy_speech_1214.wav</code>). You can also drop audio onto the canvas.
               </p>
             ) : null}
             {schema.widgets.length === 0 && modelParamRows.length === 0 && node.type !== "SaveAudio" ? (

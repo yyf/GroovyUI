@@ -5,20 +5,20 @@
   "metadata": {
     "title": "Modular Generative Rack",
     "author": "groovy",
-    "description": "Emergent tension systems patch: rising ControlCurve macro opens filter/FM/grit, 108\u00d7144 polyrhythm XOR accents a chromatic clash voice against pentatonic lead/bass, probability-gated bass, mixed slow LFOs. Steer the tension curve, BPM, seeds \u2014 re-render. No models.",
+    "description": "Generative = Clock samples noise (S&H) into a minor Quantizer so pitch chooses itself. Minimal Rival Consoles-leaning pulse: warm sine bass + filtered triangle lead, soft gates, room reverb. Steer BPM, seed, filter LFO \u2014 re-render. No models.",
     "tags": [
       "featured",
       "modular",
       "generative",
       "sequencer",
-      "tension",
-      "probability",
       "clock",
       "quantizer",
+      "reverb",
+      "ambient",
       "fast"
     ],
     "created_at": "2026-07-27T22:00:00Z",
-    "modified_at": "2026-07-28T18:00:00Z"
+    "modified_at": "2026-07-29T19:40:00Z"
   },
   "nodes": [
     {
@@ -29,7 +29,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "Tension: rising arc \u2192 filter/FM/grit \u00b7 108 vs 144 XOR chromatic clash \u00b7 pentatonic lead/bass \u00b7 probability bass. Steer ControlCurve points, Comparator threshold, seeds."
+        "text": "Generative here: Clock\u2192S&H(noise)\u2192Quantizer chooses pitch each pulse \u2014 the patch plays itself. Rival Consoles lean: warm bass pulse + soft filtered lead + room. Steer BPM / noise seed / filter LFO."
       }
     },
     {
@@ -37,502 +37,197 @@
       "type": "Clock",
       "pos": {
         "x": 0,
-        "y": 140
+        "y": 160
       },
       "widgets": {
         "bpm": 108.0,
-        "pulse_ms": 32.0,
-        "duration_sec": 8.0,
+        "pulse_ms": 110.0,
+        "duration_sec": 10.0,
         "sample_rate": 48000
       }
     },
     {
       "id": "n2",
-      "type": "Clock",
-      "pos": {
-        "x": 0,
-        "y": 280
-      },
-      "widgets": {
-        "bpm": 216.0,
-        "pulse_ms": 16.0,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
-      }
-    },
-    {
-      "id": "n29",
-      "type": "Clock",
-      "pos": {
-        "x": 0,
-        "y": 420
-      },
-      "widgets": {
-        "bpm": 144.0,
-        "pulse_ms": 22.0,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
-      }
-    },
-    {
-      "id": "n3",
       "type": "NoiseGenerator",
       "pos": {
         "x": 0,
-        "y": 560
+        "y": 320
       },
       "widgets": {
         "color": "white",
         "amplitude": 1.0,
-        "duration_sec": 8.0,
+        "duration_sec": 10.0,
         "sample_rate": 48000,
-        "seed": 5
+        "seed": 11
+      }
+    },
+    {
+      "id": "n3",
+      "type": "LFO",
+      "pos": {
+        "x": 0,
+        "y": 480
+      },
+      "widgets": {
+        "waveform": "sine",
+        "rate_hz": 0.045,
+        "amplitude": 520.0,
+        "offset": 980.0,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
       }
     },
     {
       "id": "n4",
-      "type": "NoiseGenerator",
+      "type": "SampleAndHold",
       "pos": {
-        "x": 0,
-        "y": 700
+        "x": 280,
+        "y": 220
       },
       "widgets": {
-        "color": "pink",
-        "amplitude": 1.0,
-        "duration_sec": 8.0,
-        "sample_rate": 48000,
-        "seed": 23
-      }
-    },
-    {
-      "id": "n30",
-      "type": "ControlCurve",
-      "pos": {
-        "x": 0,
-        "y": 840
-      },
-      "widgets": {
-        "start_value": 0.05,
-        "end_value": 0.12,
-        "frame_count": 384000,
-        "sample_rate": 48000,
-        "points": "[{\"t\":0,\"v\":0.05},{\"t\":0.35,\"v\":0.45},{\"t\":0.62,\"v\":1.0},{\"t\":0.78,\"v\":0.7},{\"t\":1,\"v\":0.08}]"
+        "threshold": 0.5
       }
     },
     {
       "id": "n5",
-      "type": "LFO",
+      "type": "Quantizer",
       "pos": {
-        "x": 0,
-        "y": 980
+        "x": 540,
+        "y": 120
       },
       "widgets": {
-        "waveform": "sine",
-        "rate_hz": 0.11,
-        "amplitude": 700.0,
-        "offset": 900.0,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
+        "scale": "minor",
+        "root_hz": 41.2
       }
     },
     {
       "id": "n6",
-      "type": "LFO",
+      "type": "Quantizer",
       "pos": {
-        "x": 0,
-        "y": 1120
+        "x": 540,
+        "y": 300
       },
       "widgets": {
-        "waveform": "triangle",
-        "rate_hz": 0.04,
-        "amplitude": 0.22,
-        "offset": 0.68,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
+        "scale": "minor",
+        "root_hz": 164.8
       }
     },
     {
       "id": "n7",
-      "type": "Envelope",
+      "type": "Oscillator",
       "pos": {
-        "x": 260,
-        "y": 840
+        "x": 820,
+        "y": 80
       },
       "widgets": {
-        "attack_ms": 180.0,
-        "decay_ms": 1400.0,
-        "sustain": 0.62,
-        "release_ms": 2800.0,
-        "duration_sec": 8.0,
+        "waveform": "sine",
+        "frequency_hz": 41.2,
+        "amplitude_default": 0.78,
+        "duration_sec": 10.0,
         "sample_rate": 48000
       }
     },
     {
       "id": "n8",
-      "type": "Float",
+      "type": "Oscillator",
       "pos": {
-        "x": 260,
-        "y": 980
+        "x": 820,
+        "y": 280
       },
       "widgets": {
-        "value": 3200.0,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
-      }
-    },
-    {
-      "id": "n31",
-      "type": "Float",
-      "pos": {
-        "x": 260,
-        "y": 1120
-      },
-      "widgets": {
-        "value": 1.35,
-        "duration_sec": 8.0,
+        "waveform": "triangle",
+        "frequency_hz": 164.8,
+        "amplitude_default": 0.28,
+        "duration_sec": 10.0,
         "sample_rate": 48000
       }
     },
     {
       "id": "n9",
-      "type": "SampleAndHold",
+      "type": "Filter",
       "pos": {
-        "x": 520,
-        "y": 140
+        "x": 1100,
+        "y": 280
       },
       "widgets": {
-        "threshold": 0.5
+        "filter_type": "lowpass",
+        "cutoff_hz": 980.0,
+        "q": 1.15
       }
     },
     {
       "id": "n10",
-      "type": "Quantizer",
+      "type": "Amplifier",
       "pos": {
-        "x": 780,
+        "x": 1100,
         "y": 80
-      },
-      "widgets": {
-        "scale": "pentatonic",
-        "root_hz": 110.0
-      }
-    },
-    {
-      "id": "n32",
-      "type": "Quantizer",
-      "pos": {
-        "x": 780,
-        "y": 200
-      },
-      "widgets": {
-        "scale": "chromatic",
-        "root_hz": 146.8
-      }
-    },
-    {
-      "id": "n11",
-      "type": "SampleAndHold",
-      "pos": {
-        "x": 520,
-        "y": 360
-      },
-      "widgets": {
-        "threshold": 0.5
-      }
-    },
-    {
-      "id": "n12",
-      "type": "Quantizer",
-      "pos": {
-        "x": 780,
-        "y": 360
-      },
-      "widgets": {
-        "scale": "pentatonic",
-        "root_hz": 55.0
-      }
-    },
-    {
-      "id": "n13",
-      "type": "Comparator",
-      "pos": {
-        "x": 520,
-        "y": 560
-      },
-      "widgets": {
-        "threshold": 0.18
-      }
-    },
-    {
-      "id": "n14",
-      "type": "Logic",
-      "pos": {
-        "x": 780,
-        "y": 560
-      },
-      "widgets": {
-        "operation": "and",
-        "threshold": 0.5
-      }
-    },
-    {
-      "id": "n33",
-      "type": "Logic",
-      "pos": {
-        "x": 780,
-        "y": 680
-      },
-      "widgets": {
-        "operation": "xor",
-        "threshold": 0.5
-      }
-    },
-    {
-      "id": "n15",
-      "type": "FloatMath",
-      "pos": {
-        "x": 520,
-        "y": 800
-      },
-      "widgets": {
-        "operation": "multiply"
-      }
-    },
-    {
-      "id": "n16",
-      "type": "FloatMath",
-      "pos": {
-        "x": 780,
-        "y": 800
-      },
-      "widgets": {
-        "operation": "multiply"
-      }
-    },
-    {
-      "id": "n34",
-      "type": "FloatMath",
-      "pos": {
-        "x": 520,
-        "y": 920
-      },
-      "widgets": {
-        "operation": "multiply"
-      }
-    },
-    {
-      "id": "n17",
-      "type": "FloatMath",
-      "pos": {
-        "x": 520,
-        "y": 1040
-      },
-      "widgets": {
-        "operation": "multiply"
-      }
-    },
-    {
-      "id": "n18",
-      "type": "FloatMath",
-      "pos": {
-        "x": 780,
-        "y": 920
-      },
-      "widgets": {
-        "operation": "add"
-      }
-    },
-    {
-      "id": "n35",
-      "type": "FloatMath",
-      "pos": {
-        "x": 780,
-        "y": 1040
-      },
-      "widgets": {
-        "operation": "add"
-      }
-    },
-    {
-      "id": "n36",
-      "type": "FloatMath",
-      "pos": {
-        "x": 520,
-        "y": 1160
-      },
-      "widgets": {
-        "operation": "multiply"
-      }
-    },
-    {
-      "id": "n19",
-      "type": "Oscillator",
-      "pos": {
-        "x": 1060,
-        "y": 0
-      },
-      "widgets": {
-        "waveform": "sine",
-        "frequency_hz": 73.4,
-        "amplitude_default": 0.15,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
-      }
-    },
-    {
-      "id": "n20",
-      "type": "Oscillator",
-      "pos": {
-        "x": 1060,
-        "y": 140
-      },
-      "widgets": {
-        "waveform": "saw",
-        "frequency_hz": 220.0,
-        "amplitude_default": 0.32,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
-      }
-    },
-    {
-      "id": "n21",
-      "type": "Oscillator",
-      "pos": {
-        "x": 1060,
-        "y": 360
-      },
-      "widgets": {
-        "waveform": "triangle",
-        "frequency_hz": 110.0,
-        "amplitude_default": 0.4,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
-      }
-    },
-    {
-      "id": "n37",
-      "type": "Oscillator",
-      "pos": {
-        "x": 1060,
-        "y": 520
-      },
-      "widgets": {
-        "waveform": "square",
-        "frequency_hz": 165.0,
-        "amplitude_default": 0.28,
-        "duration_sec": 8.0,
-        "sample_rate": 48000
-      }
-    },
-    {
-      "id": "n22",
-      "type": "Filter",
-      "pos": {
-        "x": 1340,
-        "y": 140
-      },
-      "widgets": {
-        "filter_type": "lowpass",
-        "cutoff_hz": 800.0,
-        "q": 6.0
-      }
-    },
-    {
-      "id": "n38",
-      "type": "Filter",
-      "pos": {
-        "x": 1340,
-        "y": 520
-      },
-      "widgets": {
-        "filter_type": "bandpass",
-        "cutoff_hz": 900.0,
-        "q": 4.5
-      }
-    },
-    {
-      "id": "n23",
-      "type": "Amplifier",
-      "pos": {
-        "x": 1620,
-        "y": 140
-      },
-      "widgets": {
-        "gain": 1.0
-      }
-    },
-    {
-      "id": "n24",
-      "type": "Amplifier",
-      "pos": {
-        "x": 1340,
-        "y": 360
-      },
-      "widgets": {
-        "gain": 1.0
-      }
-    },
-    {
-      "id": "n39",
-      "type": "Amplifier",
-      "pos": {
-        "x": 1620,
-        "y": 520
       },
       "widgets": {
         "gain": 1.15
       }
     },
     {
-      "id": "n40",
+      "id": "n11",
       "type": "Amplifier",
       "pos": {
-        "x": 1340,
-        "y": 700
+        "x": 1380,
+        "y": 280
       },
       "widgets": {
-        "gain": 0.2
+        "gain": 0.95
       }
     },
     {
-      "id": "n25",
-      "type": "MatrixMixer",
+      "id": "n12",
+      "type": "Mix",
       "pos": {
-        "x": 1900,
-        "y": 320
+        "x": 1660,
+        "y": 160
       },
       "widgets": {
-        "gain_0_0": 1.0,
-        "gain_1_0": 0.65,
-        "gain_2_0": 0.55,
-        "gain_3_0": 0.12
+        "gain_a": 1.25,
+        "gain_b": 0.62
       }
     },
     {
-      "id": "n26",
+      "id": "n13",
+      "type": "Reverb",
+      "pos": {
+        "x": 1940,
+        "y": 160
+      },
+      "widgets": {
+        "mix": 0.24,
+        "room_sec": 2.0,
+        "damping": 0.38
+      }
+    },
+    {
+      "id": "n14",
       "type": "Attenuator",
       "pos": {
-        "x": 2180,
-        "y": 320
+        "x": 2220,
+        "y": 160
       },
       "widgets": {
-        "amount": 0.62
+        "amount": 0.72
       }
     },
     {
-      "id": "n27",
+      "id": "n15",
       "type": "Preview",
       "pos": {
-        "x": 2460,
-        "y": 260
+        "x": 2500,
+        "y": 100
       },
       "widgets": {}
     },
     {
-      "id": "n28",
+      "id": "n16",
       "type": "SaveAudio",
       "pos": {
-        "x": 2460,
-        "y": 400
+        "x": 2500,
+        "y": 240
       },
       "widgets": {
         "filename": "modular-generative-rack.wav",
@@ -548,7 +243,7 @@
         0
       ],
       "to": [
-        "n9",
+        "n4",
         0
       ],
       "type": "AUTOMATION"
@@ -556,11 +251,11 @@
     {
       "id": "l1",
       "from": [
-        "n3",
+        "n2",
         0
       ],
       "to": [
-        "n9",
+        "n4",
         2
       ],
       "type": "AUDIO"
@@ -568,11 +263,11 @@
     {
       "id": "l2",
       "from": [
-        "n9",
+        "n4",
         0
       ],
       "to": [
-        "n10",
+        "n5",
         0
       ],
       "type": "AUTOMATION"
@@ -580,11 +275,11 @@
     {
       "id": "l3",
       "from": [
-        "n9",
+        "n4",
         0
       ],
       "to": [
-        "n32",
+        "n6",
         0
       ],
       "type": "AUTOMATION"
@@ -592,11 +287,11 @@
     {
       "id": "l4",
       "from": [
-        "n10",
+        "n5",
         0
       ],
       "to": [
-        "n20",
+        "n7",
         0
       ],
       "type": "AUTOMATION"
@@ -604,11 +299,11 @@
     {
       "id": "l5",
       "from": [
-        "n32",
+        "n6",
         0
       ],
       "to": [
-        "n37",
+        "n8",
         0
       ],
       "type": "AUTOMATION"
@@ -616,23 +311,23 @@
     {
       "id": "l6",
       "from": [
-        "n30",
+        "n8",
         0
       ],
       "to": [
-        "n36",
+        "n9",
         0
       ],
-      "type": "AUTOMATION"
+      "type": "AUDIO"
     },
     {
       "id": "l7",
       "from": [
-        "n31",
+        "n3",
         0
       ],
       "to": [
-        "n36",
+        "n9",
         1
       ],
       "type": "AUTOMATION"
@@ -640,503 +335,119 @@
     {
       "id": "l8",
       "from": [
-        "n36",
+        "n7",
         0
       ],
       "to": [
-        "n19",
-        1
+        "n10",
+        0
       ],
-      "type": "AUTOMATION"
+      "type": "AUDIO"
     },
     {
       "id": "l9",
       "from": [
-        "n19",
+        "n1",
         0
       ],
       "to": [
-        "n20",
-        2
+        "n10",
+        1
       ],
-      "type": "AUDIO"
+      "type": "AUTOMATION"
     },
     {
       "id": "l10",
       "from": [
-        "n2",
+        "n9",
         0
       ],
       "to": [
         "n11",
         0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l11",
-      "from": [
-        "n3",
-        0
-      ],
-      "to": [
-        "n11",
-        2
       ],
       "type": "AUDIO"
     },
     {
+      "id": "l11",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n11",
+        1
+      ],
+      "type": "AUTOMATION"
+    },
+    {
       "id": "l12",
+      "from": [
+        "n10",
+        0
+      ],
+      "to": [
+        "n12",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l13",
       "from": [
         "n11",
         0
       ],
       "to": [
         "n12",
-        0
+        1
       ],
-      "type": "AUTOMATION"
+      "type": "AUDIO"
     },
     {
-      "id": "l13",
+      "id": "l14",
       "from": [
         "n12",
         0
       ],
       "to": [
-        "n21",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l14",
-      "from": [
-        "n4",
-        0
-      ],
-      "to": [
         "n13",
-        1
+        0
       ],
       "type": "AUDIO"
     },
     {
       "id": "l15",
       "from": [
-        "n2",
-        0
-      ],
-      "to": [
-        "n14",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l16",
-      "from": [
         "n13",
         0
       ],
       "to": [
         "n14",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l17",
-      "from": [
-        "n1",
-        0
-      ],
-      "to": [
-        "n33",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l18",
-      "from": [
-        "n29",
-        0
-      ],
-      "to": [
-        "n33",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l19",
-      "from": [
-        "n7",
-        0
-      ],
-      "to": [
-        "n15",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l20",
-      "from": [
-        "n1",
-        0
-      ],
-      "to": [
-        "n15",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l21",
-      "from": [
-        "n15",
-        0
-      ],
-      "to": [
-        "n16",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l22",
-      "from": [
-        "n6",
-        0
-      ],
-      "to": [
-        "n16",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l23",
-      "from": [
-        "n30",
-        0
-      ],
-      "to": [
-        "n17",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l24",
-      "from": [
-        "n8",
-        0
-      ],
-      "to": [
-        "n17",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l25",
-      "from": [
-        "n5",
-        0
-      ],
-      "to": [
-        "n18",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l26",
-      "from": [
-        "n17",
-        0
-      ],
-      "to": [
-        "n18",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l27",
-      "from": [
-        "n18",
-        0
-      ],
-      "to": [
-        "n35",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l28",
-      "from": [
-        "n7",
-        0
-      ],
-      "to": [
-        "n34",
-        0
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l29",
-      "from": [
-        "n8",
-        0
-      ],
-      "to": [
-        "n34",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l30",
-      "from": [
-        "n34",
-        0
-      ],
-      "to": [
-        "n35",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l31",
-      "from": [
-        "n20",
-        0
-      ],
-      "to": [
-        "n22",
         0
       ],
       "type": "AUDIO"
     },
     {
-      "id": "l32",
-      "from": [
-        "n35",
-        0
-      ],
-      "to": [
-        "n22",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l33",
-      "from": [
-        "n22",
-        0
-      ],
-      "to": [
-        "n23",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l34",
-      "from": [
-        "n16",
-        0
-      ],
-      "to": [
-        "n23",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l35",
-      "from": [
-        "n21",
-        0
-      ],
-      "to": [
-        "n24",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l36",
+      "id": "l16",
       "from": [
         "n14",
         0
       ],
       "to": [
-        "n24",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l37",
-      "from": [
-        "n37",
-        0
-      ],
-      "to": [
-        "n38",
+        "n15",
         0
       ],
       "type": "AUDIO"
     },
     {
-      "id": "l38",
+      "id": "l17",
       "from": [
-        "n18",
+        "n14",
         0
       ],
       "to": [
-        "n38",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l39",
-      "from": [
-        "n38",
-        0
-      ],
-      "to": [
-        "n39",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l40",
-      "from": [
-        "n33",
-        0
-      ],
-      "to": [
-        "n39",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l41",
-      "from": [
-        "n4",
-        0
-      ],
-      "to": [
-        "n40",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l42",
-      "from": [
-        "n30",
-        0
-      ],
-      "to": [
-        "n40",
-        1
-      ],
-      "type": "AUTOMATION"
-    },
-    {
-      "id": "l43",
-      "from": [
-        "n23",
-        0
-      ],
-      "to": [
-        "n25",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l44",
-      "from": [
-        "n24",
-        0
-      ],
-      "to": [
-        "n25",
-        1
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l45",
-      "from": [
-        "n39",
-        0
-      ],
-      "to": [
-        "n25",
-        2
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l46",
-      "from": [
-        "n40",
-        0
-      ],
-      "to": [
-        "n25",
-        3
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l47",
-      "from": [
-        "n25",
-        0
-      ],
-      "to": [
-        "n26",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l48",
-      "from": [
-        "n26",
-        0
-      ],
-      "to": [
-        "n27",
-        0
-      ],
-      "type": "AUDIO"
-    },
-    {
-      "id": "l49",
-      "from": [
-        "n26",
-        0
-      ],
-      "to": [
-        "n28",
+        "n16",
         0
       ],
       "type": "AUDIO"

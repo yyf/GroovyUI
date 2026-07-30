@@ -27,6 +27,7 @@ def register_modular_synth() -> None:
         Envelope,
         LFO,
         Attenuator,
+        Reverb,
         Logic,
         Comparator,
         SampleAndHold,
@@ -578,6 +579,118 @@ class Attenuator(GroovyNode):
                 pcm,
                 audio.sample_rate,
                 source="Attenuator",
+                channel_layout=audio.channel_layout,
+                inherit_from=audio,
+            ),
+        )
+
+
+def _comb_filter(x: np.ndarray, delay: int, feedback: float, damp: float) -> np.ndarray:
+    """Feedback comb with one-pole damping in the loop (Schroeder-style)."""
+    delay = max(1, int(delay))
+    out = np.empty_like(x)
+    buf = np.zeros(delay, dtype=np.float64)
+    idx = 0
+    filter_state = 0.0
+    damp = float(np.clip(damp, 0.0, 0.98))
+    feedback = float(np.clip(feedback, 0.0, 0.97))
+    for i in range(x.shape[0]):
+        delayed = buf[idx]
+        filter_state = delayed * (1.0 - damp) + filter_state * damp
+        out[i] = x[i] + filter_state
+        buf[idx] = x[i] + filter_state * feedback
+        idx += 1
+        if idx >= delay:
+            idx = 0
+    return out
+
+
+def _allpass_filter(x: np.ndarray, delay: int, feedback: float = 0.5) -> np.ndarray:
+    delay = max(1, int(delay))
+    out = np.empty_like(x)
+    buf = np.zeros(delay, dtype=np.float64)
+    idx = 0
+    feedback = float(np.clip(feedback, 0.0, 0.9))
+    for i in range(x.shape[0]):
+        buffered = buf[idx]
+        out[i] = -x[i] + buffered
+        buf[idx] = x[i] + buffered * feedback
+        idx += 1
+        if idx >= delay:
+            idx = 0
+    return out
+
+
+def schroeder_reverb_mono(
+    dry: np.ndarray,
+    sample_rate: int,
+    *,
+    room_sec: float,
+    damping: float,
+) -> np.ndarray:
+    """Compact Schroeder reverb via short IR + FFT convolution (fast on long buffers)."""
+    room_sec = float(np.clip(room_sec, 0.15, 4.0))
+    damping = float(np.clip(damping, 0.05, 0.95))
+    feedback = float(np.clip(0.72 + 0.2 * min(room_sec / 2.5, 1.0), 0.55, 0.92))
+    ir_len = max(64, int(round(sample_rate * min(room_sec * 1.4, 2.8))))
+    impulse = np.zeros(ir_len, dtype=np.float64)
+    impulse[0] = 1.0
+    comb_ms = (29.7, 37.1, 41.1, 43.7)
+    ir = np.zeros(ir_len, dtype=np.float64)
+    for ms in comb_ms:
+        delay = max(1, int(sample_rate * ms * 0.001 * (0.85 + 0.15 * room_sec)))
+        ir += _comb_filter(impulse, delay, feedback, damping)
+    ir *= 0.25
+    ir = _allpass_filter(ir, max(1, int(sample_rate * 0.005)), 0.5)
+    ir = _allpass_filter(ir, max(1, int(sample_rate * 0.0017)), 0.5)
+    wet = scipy_signal.fftconvolve(dry, ir, mode="full")[: dry.shape[0]]
+    return wet.astype(np.float64, copy=False)
+
+
+@register_node
+class Reverb(GroovyNode):
+    """Lightweight Schroeder reverb — optional mix AUTOMATION for evolving wet amount."""
+
+    CATEGORY = "GroovyUI/Modular"
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"audio": ("AUDIO",)},
+            "optional": {
+                "mix_cv": ("AUTOMATION",),
+                "mix": ("FLOAT", {"default": 0.18, "min": 0.0, "max": 1.0}),
+                "room_sec": ("FLOAT", {"default": 1.2, "min": 0.15, "max": 4.0}),
+                "damping": ("FLOAT", {"default": 0.45, "min": 0.05, "max": 0.95}),
+            },
+        }
+
+    def run(self, audio: AudioBuffer, **kwargs) -> tuple[AudioBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        _, pcm = self._ctx.cache.load_audio(audio.id)
+        pcm = pcm.astype(np.float64)
+        mix_default = float(np.clip(float(kwargs.get("mix", 0.18)), 0.0, 1.0))
+        room_sec = float(kwargs.get("room_sec", 1.2))
+        damping = float(kwargs.get("damping", 0.45))
+        frames = pcm.shape[1]
+        mix = np.clip(automation_or_const(kwargs.get("mix_cv"), frames, mix_default), 0.0, 1.0)
+        wet = np.zeros_like(pcm)
+        for ch in range(pcm.shape[0]):
+            wet[ch] = schroeder_reverb_mono(pcm[ch], audio.sample_rate, room_sec=room_sec, damping=damping)
+        mix_row = mix.reshape(1, -1)
+        out = pcm * (1.0 - mix_row) + wet * mix_row
+        peak = float(np.max(np.abs(out))) if out.size else 0.0
+        if peak > 1.0:
+            out *= 1.0 / peak
+        return (
+            _write_audio(
+                self._ctx,
+                out,
+                audio.sample_rate,
+                source="Reverb",
                 channel_layout=audio.channel_layout,
                 inherit_from=audio,
             ),

@@ -272,6 +272,34 @@ function schemaInputSockets(schema: NodeSchema): NodeSocketSpec[] {
     .filter((socket) => isWireableInput(socket));
 }
 
+/** Canvas labels for ChannelConvert: e.g. MONO inlet → STEREO outlet. */
+export function channelConvertSocketLabels(
+  targetLayout: unknown,
+  upstreamChannels: number | null,
+): { input: string; output: string } {
+  const target = String(targetLayout ?? "mono").trim().toLowerCase() || "mono";
+  const output =
+    target === "mono"
+      ? "MONO"
+      : target === "stereo"
+        ? "STEREO"
+        : target.toUpperCase();
+
+  if (upstreamChannels === 1) {
+    return { input: "MONO", output };
+  }
+  if (upstreamChannels === 2) {
+    return { input: "STEREO", output };
+  }
+  if (upstreamChannels != null && upstreamChannels > 2) {
+    return { input: channelLayoutLabel(upstreamChannels).toUpperCase(), output };
+  }
+  // No upstream probe yet — hint the usual conversion for the target widget.
+  if (target === "stereo") return { input: "MONO", output: "STEREO" };
+  if (target === "mono") return { input: "STEREO", output: "MONO" };
+  return { input: "AUDIO", output };
+}
+
 function placeholderInputSockets(count: number): NodeSocketSpec[] {
   return Array.from({ length: count }, (_, slot) => ({
     name: slot === 0 ? "in" : `in_${slot}`,
@@ -571,13 +599,45 @@ export function workflowToFlowNodes(
     .map((n: WorkflowNode) => {
       const schema = schemas?.[n.type];
       const linkCounts = inferNodeSocketCounts(workflow, n.id);
-      const inputs: NodeSocketSpec[] = schema
-        ? schemaInputSockets(schema)
-        : linkCounts.inputs > 0
-          ? placeholderInputSockets(linkCounts.inputs)
-          : [];
+      const inputs: NodeSocketSpec[] = (() => {
+        if (n.type === "ChannelConvert") {
+          const upstreamId = workflow.links.find(
+            (link) => link.to[0] === n.id && link.to[1] === 0 && link.type === "AUDIO",
+          )?.from[0];
+          let resolvedUpstream: number | null =
+            upstreamId != null
+              ? resolveIoChannelCount(workflow, upstreamId, loadAudioChannels, outputs)
+              : null;
+          const layoutHint =
+            (upstreamId != null ? channelLayouts?.[upstreamId] : undefined)?.toLowerCase() ?? null;
+          if (layoutHint === "mono") resolvedUpstream = 1;
+          else if (layoutHint === "stereo") resolvedUpstream = 2;
+          const labels = channelConvertSocketLabels(n.widgets.layout, resolvedUpstream);
+          return [{ name: labels.input, type: "AUDIO", slot: 0 }];
+        }
+        return schema
+          ? schemaInputSockets(schema)
+          : linkCounts.inputs > 0
+            ? placeholderInputSockets(linkCounts.inputs)
+            : [];
+      })();
       const jobOut = outputs?.[n.id];
       const outputSockets: NodeSocketSpec[] = (() => {
+        if (n.type === "ChannelConvert") {
+          const upstreamId = workflow.links.find(
+            (link) => link.to[0] === n.id && link.to[1] === 0 && link.type === "AUDIO",
+          )?.from[0];
+          let resolvedUpstream: number | null =
+            upstreamId != null
+              ? resolveIoChannelCount(workflow, upstreamId, loadAudioChannels, outputs)
+              : null;
+          const layoutHint =
+            (upstreamId != null ? channelLayouts?.[upstreamId] : undefined)?.toLowerCase() ?? null;
+          if (layoutHint === "mono") resolvedUpstream = 1;
+          else if (layoutHint === "stereo") resolvedUpstream = 2;
+          const labels = channelConvertSocketLabels(n.widgets.layout, resolvedUpstream);
+          return [{ name: labels.output, type: "AUDIO", slot: 0 }];
+        }
         // LoadAudio exposes one AUDIO outlet per file channel. Prefer a filesystem
         // probe (so handles appear before first render), then MULTI job output,
         // then keep enough sockets for any already-wired outbound slots.

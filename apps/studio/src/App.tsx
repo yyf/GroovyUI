@@ -45,6 +45,9 @@ import { CANVAS_MAX_ZOOM, CANVAS_MIN_ZOOM, FIT_ALL_OPTIONS } from "./canvasViewp
 import ComplianceDrawer from "./components/ComplianceDrawer";
 import FlowViewportBridge from "./components/FlowViewportBridge";
 import FitAllControl from "./components/FitAllControl";
+import SampleAccuracyBadge from "./components/SampleAccuracyBadge";
+import CanvasNodePicker from "./components/CanvasNodePicker";
+import FpsMeter from "./components/FpsMeter";
 import GroovyFlowNode from "./components/GroovyFlowNode";
 import type { GroovyNodeData } from "./components/GroovyFlowNode";
 import ModuleGroupNode from "./components/ModuleGroupNode";
@@ -188,6 +191,7 @@ export default function App() {
   const [generateOpenNonce, setGenerateOpenNonce] = useState(0);
   const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboardingComplete());
   const [dropHint, setDropHint] = useState(false);
+  const [nodePicker, setNodePicker] = useState<{ x: number; y: number } | null>(null);
   const [transportWaveform, setTransportWaveform] = useState<number[]>([]);
   const [transportWaveformDuration, setTransportWaveformDuration] = useState(0);
   const [transportMidiRoll, setTransportMidiRoll] = useState<{
@@ -1608,10 +1612,9 @@ export default function App() {
             }}
           >
             {dropHint ? <div className="canvas__drop-hint">Drop audio to load</div> : null}
+            <FpsMeter />
             {sampleAccuracyNote && !dropHint ? (
-              <div className="canvas__integrity-note" role="note">
-                {sampleAccuracyNote}
-              </div>
+              <SampleAccuracyBadge note={sampleAccuracyNote} />
             ) : null}
             <CanvasErrorBoundary
               crashed={canvasCrashed}
@@ -1640,10 +1643,25 @@ export default function App() {
                     setNodes((current) => current.map((node) => ({ ...node, selected: false })));
                     openInspector();
                   }}
-                  onPaneClick={() => setSelectedEdgeId(null)}
+                  onPaneClick={() => {
+                    setSelectedEdgeId(null);
+                    setNodePicker(null);
+                  }}
+                  onPaneContextMenu={(event) => {
+                    event.preventDefault();
+                    setNodePicker({ x: event.clientX, y: event.clientY });
+                  }}
+                  onNodeContextMenu={(event) => {
+                    event.preventDefault();
+                    setNodePicker({ x: event.clientX, y: event.clientY });
+                  }}
+                  onEdgeContextMenu={(event) => {
+                    event.preventDefault();
+                    setNodePicker({ x: event.clientX, y: event.clientY });
+                  }}
                   onNodeDoubleClick={(_, node) => auditionNode(node.id)}
                   deleteKeyCode={["Backspace", "Delete"]}
-                  panOnDrag={[1, 2]}
+                  panOnDrag={[1]}
                   panActivationKeyCode="Space"
                   selectionOnDrag
                   selectionKeyCode={null}
@@ -1671,6 +1689,30 @@ export default function App() {
                     <FitAllControl />
                   </Controls>
                 </ReactFlow>
+                {nodePicker ? (
+                  <CanvasNodePicker
+                    clientX={nodePicker.x}
+                    clientY={nodePicker.y}
+                    onClose={() => setNodePicker(null)}
+                    onPick={(nodeType, flowPos) => {
+                      setNodePicker(null);
+                      void defaultWidgetsForNode(nodeType).then((widgets) => {
+                        setWorkflow((prev) => {
+                          if (!prev) return prev;
+                          const { workflow: next, nodeId } = addNodeToWorkflow(
+                            prev,
+                            nodeType,
+                            widgets,
+                            flowPos,
+                          );
+                          pendingSelectionRef.current = new Set([nodeId]);
+                          return next;
+                        });
+                        setLastJob(null);
+                      });
+                    }}
+                  />
+                ) : null}
               </ReactFlowProvider>
             </CanvasErrorBoundary>
           </div>

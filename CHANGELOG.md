@@ -2,8 +2,20 @@
 
 ## Unreleased
 
+### Changed
+
+- **MusicGen Melody conditioning** — prefer Demucs vocals as HF audio conditioner when wired; band-pass 120–3500 Hz + silence trim; cap tokens to melody duration; default `temperature=0.7` + top_k/top_p; soft output peak
+- **`ChannelConvert` canvas labels** — e.g. MONO inlet / STEREO outlet when converting to stereo
+- **`song-cover-remix`** — LoadAudio uses `Signe_Jakobsen_short.mp4`; vocals-conditioned MusicGen + RVC → stereo Mix
+- **Sample bootstrap** — copy bundled `.mp4` / `.m4a` / `.mp3` into the project workspace alongside WAV/MIDI
+- **`musicgen-small`** — real text-to-music inference via `facebook/musicgen-small` (no longer a tone stub when `GROOVY_INFERENCE_STUB` is off)
+- **Featured template picker** — portfolio ship set only: podcast denoise → stems → dialogue → diarize → TTS → text-to-music → regenerate → hello
+- **Kokoro TTS** — no silent sine fallback when stub is off (raises if package missing)
+
 ### Added
 
+- **`song-cover-remix` template** — Demucs → Basic Pitch → MusicGen Melody → RVC compound cover/remix chain (featured)
+- **`denoise-diarize-transcribe` template** — DeepFilterNet → pyannote → Whisper who-said-what chain (bundled; hidden from default picker)
 - **`rave-v1` + `TimbreTransfer`** — Model Browser install downloads ACIDS RAVE TorchScript (`sol_ordinario_fast`); real encode/decode inference (stub only when Inference = Stub)
 - **Sample-accuracy honesty** — canvas chip when AI/nondeterministic hops present; Note nodes on generative templates; `sample_accurate` / `deterministic` / `duration_locked` on node schemas (metadata only; no executor gates)
 - **Template Notes** — compact `Note` on every bundled workflow template
@@ -15,12 +27,6 @@
 ### Removed
 
 - **`StemPick`** node — unused after SeparateStems exposed per-stem AUDIO outs
-
-### Changed
-
-- **`musicgen-small`** — real text-to-music inference via `facebook/musicgen-small` (no longer a tone stub when `GROOVY_INFERENCE_STUB` is off)
-- **Featured template picker** — portfolio ship set only: podcast denoise → stems → dialogue → diarize → TTS → text-to-music → regenerate → hello
-- **Kokoro TTS** — no silent sine fallback when stub is off (raises if package missing)
 
 ## [0.19.0] - 2026-07-09
 
@@ -68,7 +74,7 @@
 - **Multi-select** — Shift/Cmd/Ctrl additive selection without conflicting with marquee select
 - **LoadAudio path input** — widget edits no longer clear selection or wipe text after one character
 - **Node sync** — preserve React Flow measured dimensions during workflow updates
-- Podcast template default sample: `male-1.wav`
+- Podcast template default sample: `noisy_speech_1214.wav`
 
 ### Fixed (0.18.0 follow-up)
 
