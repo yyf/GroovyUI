@@ -107,8 +107,13 @@ def test_load_audio_node_accepts_mp4(project_dir: Path) -> None:
     )
     result = Executor(project_dir).execute(workflow, target_nodes=["n2"])
     assert result.status == "completed", result.error
-    assert result.outputs["n1"]["type"] == "AUDIO"
-
+    # Stereo LoadAudio emits per-channel AUDIO outlets as MULTI (outlet 0 → Preview).
+    load_out = result.outputs["n1"]
+    assert load_out["type"] == "MULTI"
+    assert len(load_out["outputs"]) == 2
+    assert all(slot.get("type") == "AUDIO" and slot.get("cache_id") for slot in load_out["outputs"])
+    assert result.outputs["n2"]["type"] == "AUDIO"
+    assert result.outputs["n2"].get("cache_id")
 
 def test_save_audio_writes_mp4(project_dir: Path) -> None:
     workflow = Workflow(

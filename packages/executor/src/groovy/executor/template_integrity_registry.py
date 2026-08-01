@@ -10,6 +10,7 @@ from typing import Any, Literal
 import numpy as np
 import soundfile as sf
 from groovy.registry import ModelRegistry
+from groovy.registry.studio_settings import inference_stub_active
 from groovy.schema.models import Workflow
 
 FixtureKind = Literal["tone", "surround_51", "none"]
@@ -309,8 +310,16 @@ def prepare_template_project(project_dir: Path, spec: TemplateIntegritySpec) -> 
         midi_abs.parent.mkdir(parents=True, exist_ok=True)
         midi_abs.write_bytes(MIDI_STUB_BYTES)
     registry = ModelRegistry(project_dir)
+    stub_mode = inference_stub_active(project_dir=project_dir)
     for model_id in spec.models:
-        registry.installer.install(model_id)
+        if stub_mode:
+            # CI stub path: mark installed without downloading multi-GB / gated weights.
+            # AI workers still require installed.json; inference uses stubs when env is set.
+            model_dir = project_dir / ".groovy" / "models" / model_id
+            model_dir.mkdir(parents=True, exist_ok=True)
+            registry.store.mark_ready(model_id)
+        else:
+            registry.installer.install(model_id)
     return project_dir
 
 
