@@ -7,10 +7,8 @@ from math import gcd
 from pathlib import Path
 
 import numpy as np
-import torch
 from pretty_midi import PrettyMIDI
 from scipy import signal
-from transformers import AutoProcessor, MusicgenMelodyForConditionalGeneration
 
 from groovy.executor.midi import MidiBuffer
 
@@ -24,7 +22,11 @@ MELODY_BANDPASS_HZ = (120.0, 3_500.0)
 
 
 @lru_cache(maxsize=1)
-def _load_musicgen_melody() -> tuple[AutoProcessor, MusicgenMelodyForConditionalGeneration, str]:
+def _load_musicgen_melody() -> tuple[object, object, str]:
+    # Lazy: keep module importable in CI (no torch) for conditioner unit tests.
+    import torch
+    from transformers import AutoProcessor, MusicgenMelodyForConditionalGeneration
+
     processor = AutoProcessor.from_pretrained(HF_MODEL_ID)
     model = MusicgenMelodyForConditionalGeneration.from_pretrained(HF_MODEL_ID)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -159,6 +161,8 @@ def regenerate_audio_from_midi(
         reference_weight=reference_weight,
     )
     token_budget = tokens_for_melody_duration(melody_audio, requested=max_new_tokens)
+
+    import torch
 
     processor, model, device = _load_musicgen_melody()
     inputs = processor(
