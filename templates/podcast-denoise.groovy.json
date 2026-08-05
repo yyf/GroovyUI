@@ -5,7 +5,7 @@
   "metadata": {
     "title": "Podcast Denoise",
     "author": "groovy",
-    "description": "Load noisy speech, AI denoise, normalize to -16 LUFS, preview, save to exports.",
+    "description": "Load dialogue, AI denoise, normalize to -16 LUFS, preview, save to exports.",
     "tags": [
       "starter",
       "ai",
@@ -13,7 +13,7 @@
       "podcast"
     ],
     "created_at": "2026-07-05T12:00:00Z",
-    "modified_at": "2026-07-29T20:20:00Z"
+    "modified_at": "2026-07-05T12:00:00Z"
   },
   "nodes": [
     {
@@ -24,7 +24,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "Podcast Denoise \u2014 Load noisy_speech_1214, AI denoise, normalize to -16 LUFS, preview, save to exports."
+        "text": "Podcast Denoise \u2014 Load dialogue, AI denoise, normalize to -16 LUFS, preview, save to exports."
       }
     },
     {
@@ -35,7 +35,7 @@
         "y": 100.0
       },
       "widgets": {
-        "path": "assets/samples/noisy_speech_1214.wav"
+        "path": "assets/samples/male-1.wav"
       }
     },
     {

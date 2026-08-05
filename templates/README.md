@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-37 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+31 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -10,13 +10,11 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Podcast Denoise | [podcast-denoise.groovy.json](podcast-denoise.groovy.json) | 1 | `deepfilternet-v3` |
 | Stem Separation | [stem-separation.groovy.json](stem-separation.groovy.json) | 1 / **featured** | `demucs-v4` |
 | Transcribe Dialogue | [transcribe-dialogue.groovy.json](transcribe-dialogue.groovy.json) | 1 / **featured** | `whisper-large-v3-turbo` |
-| Denoise, Diarize and Transcribe | [denoise-diarize-transcribe.groovy.json](denoise-diarize-transcribe.groovy.json) | 1 | deepfilternet + pyannote + whisper *(hidden from default picker)* |
-| Song Cover / Remix | [song-cover-remix.groovy.json](song-cover-remix.groovy.json) | 1 / **featured** | demucs + basic-pitch + musicgen-melody + rvc (`Signe_Jakobsen_short.mp4`) |
 | Cleanup and Transcribe | [cleanup-and-transcribe.groovy.json](cleanup-and-transcribe.groovy.json) | 1 / **featured** | deepfilternet + whisper |
 | Transcribe and Diarize | [transcribe-and-diarize.groovy.json](transcribe-and-diarize.groovy.json) | 1 / **featured** | whisper + pyannote (energy fallback) |
 | Voice Cloning | [voice-cloning.groovy.json](voice-cloning.groovy.json) | 1 / **featured** | `f5-tts-base` (+ reference LoadAudio) |
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | 2 / **featured** | `kokoro-82m` (+ Granulate cloud) |
-| Modular Generative Rack | [modular-generative-rack.groovy.json](modular-generative-rack.groovy.json) | 2 / **featured** | — (generative S&H pitch; Rival Consoles-leaning pulse + room; no models) |
+| Modular Generative Rack | [modular-generative-rack.groovy.json](modular-generative-rack.groovy.json) | 2 / **featured** | — (tension arc, poly XOR clash, probability bass; no models) |
 | RAVE Timbre Transfer | [rave-timbre-transfer.groovy.json](rave-timbre-transfer.groovy.json) | 2 / **featured** | `rave-v1` (TimbreTransfer; ACIDS sol_ordinario_fast TorchScript) |
 | Simple FM Synth | [simple-fm-synth.groovy.json](simple-fm-synth.groovy.json) | 2 | — (Osc + FloatMath + ControlCurves; hidden from default picker) |
 | Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 / **featured** | `demucs-v4` |
@@ -40,4 +38,4 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | AI MIDI to Hardware | [ai-midi-to-hardware.groovy.json](ai-midi-to-hardware.groovy.json) | 2.5 | musicgen |
 | A/B Compare Demo | [ab-compare-demo.groovy.json](ab-compare-demo.groovy.json) | 2 hardening | `deepfilternet-v3` |
 
-Sample assets: `workspace/assets/samples/` (default speech: `noisy_speech_1214.wav`; stem split: `Knockout_41k_mono.wav`; also `dialogue_48k.wav`, etc.).
+Sample assets: `workspace/assets/samples/` (stem split: `Knockout_41k_mono.wav`; also `male-1.wav`, `dialogue_48k.wav`, etc.).

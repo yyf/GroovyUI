@@ -21,6 +21,7 @@ import {
   resolveIoChannelLabel,
   wiredInputSupersedesWidget,
   wiredInputsForNode,
+  wiredOutputsForNode,
   wiredPromptPreview,
 } from "../workflow";
 import { hasMinimalPatch } from "../nodeMinimalPatches";
@@ -36,6 +37,7 @@ import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
 import ControlCurvePreview, { syncPointsFromStartEnd } from "./ControlCurvePreview";
 import MatrixMixerPanel from "./MatrixMixerPanel";
+import ModelSubgraphPanel from "./ModelSubgraphPanel";
 import { ParamFader, ParamPot, ParamStepped, ParamSwitch } from "./ParamControls";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
@@ -47,7 +49,7 @@ const GENERATIVE_NODE_TYPES = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "S
 /** Pin exploration controls (model → prompt-like → seed) above the rest of Config. */
 const EXPLORATION_WIDGET_ORDER = ["model", "prompt", "text", "lyrics", "seed"];
 
-type Tab = "config" | "inputs" | "outputs" | "provenance";
+type Tab = "config" | "subgraph" | "inputs" | "outputs" | "provenance";
 
 type CompareEntry = {
   node: WorkflowNode;
@@ -73,6 +75,10 @@ type Props = {
   onSelectCompareHop?: (nodeIdA: string, nodeIdB: string) => void;
   showCompare?: boolean;
   onWidgetChange: (nodeId: string, name: string, value: unknown) => void;
+  /** Disconnect all canvas wires on one input/output slot (Subgraph tab checkboxes). */
+  onDisconnectPort?: (nodeId: string, direction: "in" | "out", slot: number) => void;
+  /** Widen Inspector while Subgraph tab is active. */
+  onSubgraphActiveChange?: (active: boolean) => void;
   onBrowseModel?: (nodeId: string, widgetName: string) => void;
   onAudition?: () => void;
   onCompareAudition?: (nodeId: string) => void;
@@ -99,6 +105,8 @@ export default function NodeHelper({
   onSelectCompareHop,
   showCompare = false,
   onWidgetChange,
+  onDisconnectPort,
+  onSubgraphActiveChange,
   onBrowseModel,
   onAudition,
   onCompareAudition,
@@ -129,6 +137,18 @@ export default function NodeHelper({
   useEffect(() => {
     setTab("config");
   }, [node?.id]);
+
+  const subgraphWide =
+    Boolean(node) &&
+    !showCompare &&
+    !selectedLink &&
+    selectedNodes.length <= 1 &&
+    tab === "subgraph";
+
+  useEffect(() => {
+    onSubgraphActiveChange?.(subgraphWide);
+    return () => onSubgraphActiveChange?.(false);
+  }, [subgraphWide, onSubgraphActiveChange]);
 
   useEffect(() => {
     if (!node) {
@@ -206,6 +226,11 @@ export default function NodeHelper({
 
   const inputRows = useMemo(
     () => (schema && node ? wiredInputsForNode(workflow, node.id, schema.inputs) : []),
+    [schema, node, workflow],
+  );
+
+  const outputRows = useMemo(
+    () => (schema && node ? wiredOutputsForNode(workflow, node.id, schema.outputs) : []),
     [schema, node, workflow],
   );
 
@@ -361,6 +386,14 @@ export default function NodeHelper({
         <nav className="node-helper__tabs">
         <button type="button" className={tab === "config" ? "active" : ""} onClick={() => setTab("config")}>
           Config
+        </button>
+        <button
+          type="button"
+          className={tab === "subgraph" ? "active" : ""}
+          onClick={() => setTab("subgraph")}
+          disabled={!schema}
+        >
+          Subgraph
         </button>
         <button type="button" className={tab === "inputs" ? "active" : ""} onClick={() => setTab("inputs")} disabled={!schema}>
           Inputs
@@ -612,6 +645,102 @@ export default function NodeHelper({
               <pre className="node-helper__render-error-inline node-helper__path-error">{fileMetaError}</pre>
             ) : null}
           </div>
+        ) : null}
+        {tab === "subgraph" && schema ? (
+          <ModelSubgraphPanel
+            nodeType={node.type}
+            modelLabel={selectedModelId}
+            inputs={inputRows.map((row) => ({
+              index: row.index,
+              name: row.name,
+              type: row.type,
+              optional: row.optional,
+              connected: row.connected,
+              detail: row.connected
+                ? `← ${row.sourceNode?.type ?? "upstream"}${row.sourceNode?.id ? ` (${row.sourceNode.id.slice(0, 8)})` : ""}`
+                : row.optional
+                  ? "optional — unwired"
+                  : "required — unwired",
+            }))}
+            outputs={outputRows.map((row) => ({
+              index: row.index,
+              name: row.name,
+              type: row.type,
+              connected: row.connected,
+              detail: row.connected
+                ? `→ ${row.linkCount} wire${row.linkCount === 1 ? "" : "s"}`
+                : "unwired",
+            }))}
+            architectureNotes={modelCard?.architecture_notes}
+            internalConnections={modelCard?.internal_connections}
+            onDisconnectInput={(slot) => onDisconnectPort?.(node.id, "in", slot)}
+            onDisconnectOutput={(slot) => onDisconnectPort?.(node.id, "out", slot)}
+            config={
+              <div className="model-subgraph__config-fields">
+                {(() => {
+                  const widgetsForForm =
+                    node.type === "ControlCurve"
+                      ? schema.widgets.filter((widget) => widget.name !== "points")
+                      : node.type === "MatrixMixer"
+                        ? schema.widgets.filter((widget) => !widget.name.startsWith("gain_"))
+                        : schema.widgets;
+                  const { pinned, rest } = partitionExplorationWidgets(widgetsForForm, node.type);
+                  const renderWidget = (widget: (typeof schema.widgets)[number]) => {
+                    const mergedWidget = mergeSpecWithModelParam(widget, modelParamMap.get(widget.name));
+                    const supersededBy = wiredInputSupersedesWidget(node.type, mergedWidget.name, inputRows);
+                    return (
+                      <label
+                        key={mergedWidget.name}
+                        className={[
+                          "node-helper__field",
+                          supersededBy ? "node-helper__field--superseded" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                      >
+                        <span>{widgetLabel(mergedWidget.name, node.type)}</span>
+                        <WidgetInput
+                          spec={mergedWidget}
+                          value={node.widgets[mergedWidget.name] ?? mergedWidget.default ?? ""}
+                          disabled={Boolean(supersededBy)}
+                          onChange={(value) => onWidgetChange(node.id, mergedWidget.name, value)}
+                          nodeType={node.type}
+                          nodeWidgets={node.widgets}
+                          onMultiWidgetChange={(name, value) => onWidgetChange(node.id, name, value)}
+                          onBrowse={
+                            mergedWidget.type === "MODEL_REF"
+                              ? () => onBrowseModel?.(node.id, mergedWidget.name)
+                              : undefined
+                          }
+                        />
+                      </label>
+                    );
+                  };
+                  return (
+                    <>
+                      {[...pinned, ...rest].map(renderWidget)}
+                      {modelParamRows.map((param) => {
+                        const spec = asWidgetSpec(param);
+                        return (
+                          <label key={param.name} className="node-helper__field">
+                            <span>{widgetLabel(param.name, node.type)}</span>
+                            <WidgetInput
+                              spec={spec}
+                              value={node.widgets[param.name] ?? paramDefault(param)}
+                              onChange={(value) => onWidgetChange(node.id, param.name, value)}
+                            />
+                          </label>
+                        );
+                      })}
+                      {widgetsForForm.length === 0 && modelParamRows.length === 0 ? (
+                        <p className="node-helper__hint">No configurable parameters on this node.</p>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </div>
+            }
+          />
         ) : null}
         {tab === "inputs" && schema ? (
           <ul className="node-helper__socket-detail-list">
