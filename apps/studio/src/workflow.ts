@@ -825,6 +825,61 @@ export function wiredInputsForNode(
   });
 }
 
+export type WiredOutputRow = {
+  index: number;
+  name: string;
+  type: string;
+  description?: string;
+  connected: boolean;
+  linkCount: number;
+  targetNodeIds: string[];
+};
+
+/** Map schema output sockets to outbound workflow links by slot index. */
+export function wiredOutputsForNode(
+  workflow: Workflow,
+  nodeId: string,
+  outputs: NodeSchema["outputs"],
+): WiredOutputRow[] {
+  return outputs.map((spec, index) => {
+    const links = workflow.links.filter((item) => item.from[0] === nodeId && item.from[1] === index);
+    return {
+      index,
+      name: spec.name,
+      type: spec.type,
+      description: spec.description,
+      connected: links.length > 0,
+      linkCount: links.length,
+      targetNodeIds: links.map((link) => String(link.to[0])),
+    };
+  });
+}
+
+/** Links that land on a node's input slot. */
+export function linksForInputPort(workflow: Workflow, nodeId: string, slot: number): WorkflowLink[] {
+  return workflow.links.filter((link) => link.to[0] === nodeId && link.to[1] === slot);
+}
+
+/** Links that leave a node's output slot. */
+export function linksForOutputPort(workflow: Workflow, nodeId: string, slot: number): WorkflowLink[] {
+  return workflow.links.filter((link) => link.from[0] === nodeId && link.from[1] === slot);
+}
+
+/** Disconnect every wire on one input or output slot (Inspector Subgraph checkboxes). */
+export function disconnectPort(
+  workflow: Workflow,
+  nodeId: string,
+  direction: "in" | "out",
+  slot: number,
+): Workflow {
+  const doomed =
+    direction === "in"
+      ? new Set(linksForInputPort(workflow, nodeId, slot).map((link) => link.id))
+      : new Set(linksForOutputPort(workflow, nodeId, slot).map((link) => link.id));
+  if (doomed.size === 0) return workflow;
+  return removeLinks(workflow, doomed);
+}
+
 export function flowNodesSyncKey(nodes: Node[]): string {
   return nodes
     .map(

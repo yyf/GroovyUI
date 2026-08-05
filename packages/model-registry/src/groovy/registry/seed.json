@@ -39,6 +39,12 @@
           "description": "Denoising blend (0 = dry, 1 = full noise reduction)."
         }
       ],
+      "architecture_notes": "DeepFilterNet: ERB + Deep Filtering stages on STFT features → enhanced waveform.",
+      "internal_connections": [
+        { "from": "noisy audio", "to": "ERB encoder", "label": "STFT / ERB" },
+        { "from": "ERB encoder", "to": "DF decoder", "label": "deep filtering" },
+        { "from": "DF decoder", "to": "enhanced audio", "label": "iSTFT" }
+      ],
       "similar_models": ["whisper-small-en"]
     },
     {
@@ -98,6 +104,15 @@
           "default": true,
           "description": "Split long files into segments during separation."
         }
+      ],
+      "architecture_notes": "Hybrid Demucs / htdemucs-family: encoder → bottleneck → decoder with stem heads (vocals, drums, bass, other).",
+      "internal_connections": [
+        { "from": "mix", "to": "encoder", "label": "waveform" },
+        { "from": "encoder", "to": "decoder", "label": "latents" },
+        { "from": "decoder", "to": "vocals", "label": "stem" },
+        { "from": "decoder", "to": "drums", "label": "stem" },
+        { "from": "decoder", "to": "bass", "label": "stem" },
+        { "from": "decoder", "to": "other", "label": "stem" }
       ],
       "similar_models": ["demucs-v4-ht", "uvr-mdx-net", "spleeter-2stems"]
     },
@@ -196,6 +211,12 @@
           "max": 1.0,
           "description": "Sampling temperature (0 = greedy decode)."
         }
+      ],
+      "architecture_notes": "Whisper (faster-whisper): audio → 16 kHz mel → encoder → decoder → text tokens.",
+      "internal_connections": [
+        { "from": "audio", "to": "mel encoder", "label": "16 kHz features" },
+        { "from": "mel encoder", "to": "decoder", "label": "cross-attn" },
+        { "from": "decoder", "to": "transcript", "label": "tokens → text" }
       ],
       "similar_models": ["whisper-small-en"]
     },

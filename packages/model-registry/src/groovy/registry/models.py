@@ -46,6 +46,10 @@ class ModelManifest(BaseModel):
     install: InstallSpec = Field(default_factory=InstallSpec)
     similar_models: list[str] = Field(default_factory=list)
     inference_params: list[InferenceParam] = Field(default_factory=list)
+    # Optional model-internals for Inspector Subgraph tab (curated or copied from HF cards).
+    architecture_notes: str | None = None
+    # Free-form edges shown as-is, typically {"from": "...", "to": "...", "label": "..."}.
+    internal_connections: list[dict[str, str]] = Field(default_factory=list)
 
 
 class InstallState(BaseModel):

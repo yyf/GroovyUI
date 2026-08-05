@@ -171,6 +171,12 @@ export type MissingWorkflowModel = {
   compatible_nodes?: string[];
 };
 
+export type ModelInternalConnection = {
+  from: string;
+  to: string;
+  label?: string;
+};
+
 export type ModelCard = {
   id: string;
   name: string;
@@ -192,6 +198,10 @@ export type ModelCard = {
   status?: string;
   trust?: string;
   source_url?: string;
+  /** Curated / HF-card architecture notes for Inspector Subgraph (optional). */
+  architecture_notes?: string | null;
+  /** Published internal edges; shown as-is when present. */
+  internal_connections?: ModelInternalConnection[];
 };
 
 export type ModelInstallState = {

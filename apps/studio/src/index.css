@@ -747,6 +747,12 @@ body {
 
 .side-panel--right.side-panel--open {
   flex: 0 0 306px;
+  transition: flex-basis 180ms ease;
+}
+
+.side-panel--right.side-panel--open.side-panel--wide {
+  /* Room for inputs | model | outputs without crushing the subgraph canvas */
+  flex: 0 0 min(540px, 46vw);
 }
 
 .side-panel__tab {
@@ -795,6 +801,12 @@ body {
 
 .side-panel--right .side-panel__body {
   width: 280px;
+  transition: width 180ms ease;
+}
+
+.side-panel--right.side-panel--wide .side-panel__body {
+  width: calc(100% - 26px);
+  min-width: 0;
 }
 
 .side-panel--right .side-panel__body .node-helper {
@@ -1092,13 +1104,15 @@ body {
 
 .node-helper__tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   padding: 6px 10px;
   border-bottom: 1px solid var(--border-dim);
 }
 
 .node-helper__tabs button {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 4.5rem;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -1119,6 +1133,214 @@ body {
 .node-helper__tabs button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Inspector Subgraph tab — compact I/O + config canvas */
+.model-subgraph {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.model-subgraph__canvas {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) minmax(120px, 1.4fr) minmax(72px, 1fr);
+  gap: 6px;
+  align-items: stretch;
+  padding: 8px;
+  border: 1px solid var(--border-dim);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 48%),
+    var(--bg-elevated);
+  min-height: 180px;
+}
+
+.side-panel--wide .model-subgraph__canvas {
+  grid-template-columns: minmax(120px, 1fr) minmax(200px, 1.55fr) minmax(120px, 1fr);
+  gap: 12px;
+  padding: 12px;
+  min-height: 240px;
+}
+
+.side-panel--wide .model-subgraph__port {
+  padding: 8px;
+}
+
+.side-panel--wide .model-subgraph__node {
+  max-height: 380px;
+  padding: 10px;
+}
+
+.side-panel--wide .model-subgraph__port-name {
+  font-size: 12px;
+}
+
+.model-subgraph__ports {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.model-subgraph__port-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.model-subgraph__port {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border-dim);
+  border-left-width: 2px;
+  background: var(--bg-panel, #12141a);
+}
+
+.model-subgraph__port--idle {
+  opacity: 0.55;
+}
+
+.model-subgraph__port--live {
+  opacity: 1;
+}
+
+.model-subgraph__port-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.model-subgraph__port-toggle input:disabled {
+  cursor: not-allowed;
+}
+
+.model-subgraph__port-name {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.model-subgraph__port-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.model-subgraph__center {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.model-subgraph__wires {
+  position: absolute;
+  inset: 18% 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.model-subgraph__rail {
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  background: var(--border-silver);
+  opacity: 0.55;
+}
+
+.model-subgraph__rail--in {
+  left: -4px;
+  right: 50%;
+}
+
+.model-subgraph__rail--out {
+  left: 50%;
+  right: -4px;
+}
+
+.model-subgraph__node {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-silver);
+  background: var(--bg-panel, #0e1016);
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 43, 0.12);
+  max-height: 320px;
+  overflow: auto;
+}
+
+.model-subgraph__node-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.model-subgraph__node-head strong {
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.model-subgraph__model-id {
+  font-size: 10px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.model-subgraph__config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.model-subgraph__config-fields .node-helper__field {
+  margin: 0;
+}
+
+.model-subgraph__internals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.model-subgraph__notes {
+  margin: 0;
+  padding: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-secondary, #c5c9d3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.model-subgraph__edge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.model-subgraph__edge-list code {
+  font-size: 10px;
 }
 
 .node-helper__body {

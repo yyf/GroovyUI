@@ -32,7 +32,9 @@ import {
   jobOutputAtSlot,
   wiredInputsForNode,
   wiredInputSupersedesWidget,
+  wiredOutputsForNode,
   wiredPromptPreview,
+  disconnectPort,
   workflowToFlowEdges,
   workflowToFlowNodes,
   channelConvertSocketLabels,
@@ -1021,5 +1023,48 @@ describe("resolveRenderAllTargets", () => {
       groups: [],
     };
     expect(resolveRenderAllTargets(workflow).sort()).toEqual(["n1", "n2"]);
+  });
+});
+
+describe("subgraph port wiring", () => {
+  const stemsWorkflow = (): Workflow => ({
+    schema_version: "1.0.0",
+    groovy_version: "0.1.0",
+    id: "wf",
+    metadata: { title: "stems" },
+    nodes: [
+      { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
+      { id: "n2", type: "SeparateStems", pos: { x: 200, y: 0 }, widgets: {} },
+      { id: "p1", type: "Preview", pos: { x: 400, y: 0 }, widgets: {} },
+      { id: "p2", type: "Preview", pos: { x: 400, y: 80 }, widgets: {} },
+    ],
+    links: [
+      { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+      { id: "l2", from: ["n2", 0], to: ["p1", 0], type: "AUDIO" },
+      { id: "l3", from: ["n2", 1], to: ["p2", 0], type: "AUDIO" },
+    ],
+    groups: [],
+  });
+
+  it("maps outbound links per output slot", () => {
+    const rows = wiredOutputsForNode(stemsWorkflow(), "n2", [
+      { name: "vocals", type: "AUDIO" },
+      { name: "drums", type: "AUDIO" },
+      { name: "bass", type: "AUDIO" },
+      { name: "other", type: "AUDIO" },
+    ]);
+    expect(rows.map((r) => r.connected)).toEqual([true, true, false, false]);
+    expect(rows[0].linkCount).toBe(1);
+    expect(rows[1].targetNodeIds).toEqual(["p2"]);
+  });
+
+  it("disconnects an output slot without touching other wires", () => {
+    const next = disconnectPort(stemsWorkflow(), "n2", "out", 0);
+    expect(next.links.map((l) => l.id).sort()).toEqual(["l1", "l3"]);
+  });
+
+  it("disconnects an input slot", () => {
+    const next = disconnectPort(stemsWorkflow(), "n2", "in", 0);
+    expect(next.links.map((l) => l.id).sort()).toEqual(["l2", "l3"]);
   });
 });

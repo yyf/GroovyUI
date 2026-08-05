@@ -106,6 +106,7 @@ import {
   extractSelection,
   pasteSelection,
   preferredAuditionNodeId,
+  disconnectPort,
   removeLinks,
   removeNodesFromWorkflow,
   resolveComparePair,
@@ -187,6 +188,7 @@ export default function App() {
   const [focusMode, setFocusMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);
+  const [inspectorWide, setInspectorWide] = useState(false);
   const [workflowBarOpen, setWorkflowBarOpen] = useState(true);
   const [generateOpenNonce, setGenerateOpenNonce] = useState(0);
   const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboardingComplete());
@@ -611,6 +613,14 @@ export default function App() {
         };
       });
       setNodeStatus((prev) => ({ ...prev, [nodeId]: "stale" }));
+    },
+    [setWorkflow],
+  );
+
+  const disconnectPortCb = useCallback(
+    (nodeId: string, direction: "in" | "out", slot: number) => {
+      setWorkflow((prev) => (prev ? disconnectPort(prev, nodeId, direction, slot) : prev));
+      setLastJob(null);
     },
     [setWorkflow],
   );
@@ -1717,7 +1727,18 @@ export default function App() {
             </CanvasErrorBoundary>
           </div>
           {!focusMode ? (
-            <SidePanel side="right" label="Inspector" open={helperOpen} onToggle={() => setHelperOpen((prev) => !prev)}>
+            <SidePanel
+              side="right"
+              label="Inspector"
+              open={helperOpen}
+              wide={inspectorWide}
+              onToggle={() => {
+                setHelperOpen((prev) => {
+                  if (prev) setInspectorWide(false);
+                  return !prev;
+                });
+              }}
+            >
               <NodeHelper
                 node={selectedNode}
                 selectedLink={selectedLink}
@@ -1736,6 +1757,8 @@ export default function App() {
                 onSelectCompareHop={focusCompareHop}
                 showCompare={selectedNodeIds.length === 2}
                 onWidgetChange={updateWidget}
+                onDisconnectPort={disconnectPortCb}
+                onSubgraphActiveChange={setInspectorWide}
                 onBrowseModel={(nodeId, widget) => {
                   setModelPickTarget({ nodeId, widget });
                   openModelBrowser();
