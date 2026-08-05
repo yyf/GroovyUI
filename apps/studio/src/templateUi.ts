@@ -18,6 +18,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "transcribe-dialogue",
   "isolate-vocals-to-transcribe",
   "isolate-vocals-to-voice-convert",
+  "localize-dialogue-a-to-b",
   "voice-cloning",
 ] as const;
 

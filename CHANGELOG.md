@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Added
+
+- **`SpeechTranslate` + `seamless-m4t-v2-large`** — speech-to-speech localization (Meta SeamlessM4T v2); `speaker_id` 0–199 (vocoder voice, not gender/source clone); stub when Inference=Stub; Real uses transformers when installed
+- **`localize-dialogue-a-to-b` template** — denoise → Soft eng→spa translate → normalize → preview/export (featured; CC-BY-NC weights)
+
 ### Changed
 
 - **MusicGen Melody conditioning** — prefer Demucs vocals as HF audio conditioner when wired; band-pass 120–3500 Hz + silence trim; cap tokens to melody duration; default `temperature=0.7` + top_k/top_p; soft output peak

@@ -119,6 +119,18 @@ export const TEMPLATE_LICENSE_MATRIX: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "localize-dialogue-a-to-b",
+    title: "Localize Dialogue (A→B)",
+    models: "deepfilternet-v3, seamless-m4t-v2-large",
+    licenses: "deepfilternet-v3: MIT; seamless-m4t-v2-large: CC-BY-NC-4.0",
+    impact: "High",
+    cluster: "Localization / S2ST",
+    commercial: "Not safe",
+    conference: "OK with attribution (NC weights)",
+    final: "Not commercial · Conference with attribution",
+    tone: "nc",
+  },
+  {
     id: "denoise-diarize-transcribe",
     title: "Denoise, Diarize and Transcribe",
     models: "deepfilternet-v3, whisper-large-v3-turbo, pyannote-diarization-3.1",

@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-31 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+38 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -11,6 +11,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Stem Separation | [stem-separation.groovy.json](stem-separation.groovy.json) | 1 / **featured** | `demucs-v4` |
 | Transcribe Dialogue | [transcribe-dialogue.groovy.json](transcribe-dialogue.groovy.json) | 1 / **featured** | `whisper-large-v3-turbo` |
 | Cleanup and Transcribe | [cleanup-and-transcribe.groovy.json](cleanup-and-transcribe.groovy.json) | 1 / **featured** | deepfilternet + whisper |
+| Localize Dialogue (A→B) | [localize-dialogue-a-to-b.groovy.json](localize-dialogue-a-to-b.groovy.json) | 1 / **featured** | deepfilternet + `seamless-m4t-v2-large` (S2ST; eng→spa default; CC-BY-NC) |
 | Transcribe and Diarize | [transcribe-and-diarize.groovy.json](transcribe-and-diarize.groovy.json) | 1 / **featured** | whisper + pyannote (energy fallback) |
 | Voice Cloning | [voice-cloning.groovy.json](voice-cloning.groovy.json) | 1 / **featured** | `f5-tts-base` (+ reference LoadAudio) |
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | 2 / **featured** | `kokoro-82m` (+ Granulate cloud) |

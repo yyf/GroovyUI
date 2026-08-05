@@ -51,6 +51,15 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "description": "Convert speaker timbre while preserving timing and intelligibility (RVC / OpenVoice).",
         "widgets": {"model": "Voice conversion / RVC model."},
     },
+    "SpeechTranslate": {
+        "description": "Speech-to-speech translation for dialogue localization (source language → target language).",
+        "widgets": {
+            "model": "Speech translation model (e.g. SeamlessM4T).",
+            "src_lang": "Source language (ISO 639-3 preferred: eng, spa, fra).",
+            "tgt_lang": "Target language (ISO 639-3 preferred: eng, spa, fra).",
+            "speaker_id": "Vocoder speaker 0–199 (timbre); not a gender control and not source cloning.",
+        },
+    },
     "TimbreTransfer": {
         "description": "Neural resynthesis / timbre transfer via RAVE-class VAEs (encode → latent → decode).",
         "widgets": {

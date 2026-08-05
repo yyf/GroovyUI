@@ -12,6 +12,7 @@ def register_all() -> None:
         DiarizeTranscribe,
         TTS,
         VoiceConvert,
+        SpeechTranslate,
         TimbreTransfer,
         AudioToMIDI,
         DeepfakeDetect,
@@ -197,6 +198,58 @@ class VoiceConvert(GroovyNode):
 
     def run(self, **kwargs):
         raise RuntimeError("VoiceConvert must run in AI worker subprocess")
+
+
+@register_node
+class SpeechTranslate(GroovyNode):
+    """Speech-to-speech translation for localization (source language → target language)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    DURATION_LOCKED = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = ["seamless-m4t-v2-large"]
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "model": ("MODEL_REF", {"default": "seamless-m4t-v2-large"}),
+            },
+            "optional": {
+                "src_lang": (
+                    "STRING",
+                    {
+                        "default": "eng",
+                        "description": "Source language (ISO 639-3 preferred: eng, spa, fra; 2-letter also ok).",
+                    },
+                ),
+                "tgt_lang": (
+                    "STRING",
+                    {
+                        "default": "spa",
+                        "description": "Target language (ISO 639-3 preferred: eng, spa, fra; 2-letter also ok).",
+                    },
+                ),
+                "speaker_id": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 199,
+                        "description": "Seamless vocoder speaker (0–199). Not source-voice clone; try other IDs if gender/timbre is wrong. Some IDs work better per language.",
+                    },
+                ),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("SpeechTranslate must run in AI worker subprocess")
 
 
 @register_node
