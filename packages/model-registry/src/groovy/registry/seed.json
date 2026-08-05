@@ -1031,6 +1031,64 @@
       "compatible_nodes": [],
       "install": { "dev_stub": true },
       "similar_models": ["groovy-signal-diff", "whisper-large-v3-turbo", "whisper-small-en"]
+    },
+    {
+      "id": "seamless-m4t-v2-large",
+      "status": "published",
+      "trust": "verified",
+      "name": "SeamlessM4T v2 Large",
+      "description": "Speech-to-speech translation for language localization (facebook/seamless-m4t-v2-large). Source dialogue → target-language speech. CC-BY-NC — non-commercial; attribution required. First Real download is multi‑GB.",
+      "task_types": ["speech-translation", "localization", "conversion"],
+      "tags": ["seamless", "s2st", "translation", "localization", "multilingual", "meta"],
+      "author": "Meta",
+      "license": {
+        "spdx": "CC-BY-NC-4.0",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 12,
+      "download_size_mb_estimate": 9000,
+      "compatible_nodes": ["SpeechTranslate"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "transformers", "version": ">=4.42.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" },
+          { "package": "accelerate", "version": ">=0.28.0" }
+        ],
+        "verify_imports": ["transformers", "torch"]
+      },
+      "inference_params": [
+        {
+          "name": "src_lang",
+          "type": "STRING",
+          "default": "eng",
+          "description": "Source language (ISO 639-3 preferred: eng, spa, fra; 2-letter aliases ok)."
+        },
+        {
+          "name": "tgt_lang",
+          "type": "STRING",
+          "default": "spa",
+          "description": "Target language (ISO 639-3 preferred: eng, spa, fra; 2-letter aliases ok)."
+        },
+        {
+          "name": "speaker_id",
+          "type": "INT",
+          "default": 0,
+          "min": 0,
+          "max": 199,
+          "description": "Vocoder speaker id (0–199). Not source-voice clone; try other IDs if gender/timbre is off. No official gender map from Meta."
+        }
+      ],
+      "architecture_notes": "SeamlessM4T v2: speech → multilingual encoder → speech decoder (S2ST) for localization.",
+      "internal_connections": [
+        { "from": "source speech", "to": "encoder", "label": "16 kHz features" },
+        { "from": "encoder", "to": "speech decoder", "label": "tgt_lang" },
+        { "from": "speech decoder", "to": "translated speech", "label": "waveform" }
+      ],
+      "similar_models": []
     }
   ]
 }

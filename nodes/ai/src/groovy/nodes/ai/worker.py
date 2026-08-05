@@ -19,6 +19,7 @@ from groovy.nodes.ai.inference import (
     run_tts,
     run_timbre_transfer,
     run_voice_convert,
+    run_speech_translate,
     run_whisper_stt,
 )
 
@@ -30,6 +31,7 @@ HANDLERS = {
     "DiarizeTranscribe": run_diarize_transcribe,
     "TTS": run_tts,
     "VoiceConvert": run_voice_convert,
+    "SpeechTranslate": run_speech_translate,
     "TimbreTransfer": run_timbre_transfer,
     "AudioToMIDI": run_audio_to_midi,
     "DeepfakeDetect": run_deepfake_detect,

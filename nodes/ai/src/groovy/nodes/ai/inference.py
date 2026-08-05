@@ -235,6 +235,33 @@ def run_voice_convert(cache: CacheStore, kwargs: dict) -> list[dict]:
     return [{"type": "AUDIO", "cache_id": out_buffer.id}]
 
 
+def run_speech_translate(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import int_param
+
+    audio_id = kwargs["audio_id"]
+    model_id = str(kwargs.get("model", "seamless-m4t-v2-large"))
+    src_lang = str(kwargs.get("src_lang", "eng"))
+    tgt_lang = str(kwargs.get("tgt_lang", "spa"))
+    speaker_id = int_param(kwargs, "speaker_id", 0)
+    buffer, pcm = cache.load_audio(audio_id)
+    out = speech_translate_audio(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        src_lang=src_lang,
+        tgt_lang=tgt_lang,
+        speaker_id=speaker_id,
+    )
+    out_buffer = AudioBuffer.from_planar(
+        out,
+        buffer.sample_rate,
+        source_node_type="SpeechTranslate",
+        channel_layout=buffer.channel_layout,
+    )
+    cache.write_audio(out_buffer, out)
+    return [{"type": "AUDIO", "cache_id": out_buffer.id}]
+
+
 def run_timbre_transfer(cache: CacheStore, kwargs: dict) -> list[dict]:
     from groovy.nodes.ai.model_params import float_param
 
@@ -625,6 +652,84 @@ def voice_convert_audio(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> 
     for ch in pcm:
         new_len = int(len(ch) / ratio)
         out_channels.append(signal.resample(ch, new_len))
+    max_len = max(len(c) for c in out_channels)
+    padded = [np.pad(c, (0, max_len - len(c))) for c in out_channels]
+    return np.stack(padded, axis=0)
+
+
+def speech_translate_audio(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    src_lang: str = "eng",
+    tgt_lang: str = "spa",
+    speaker_id: int = 0,
+) -> np.ndarray:
+    """Speech-to-speech localization (SeamlessM4T when installed; stub otherwise)."""
+    from groovy.nodes.ai.inference_env import inference_stub_enabled, seamless_available
+
+    if model_id == "seamless-m4t-v2-large":
+        if seamless_available() and not inference_stub_enabled():
+            from groovy.nodes.ai.backends.seamless_runner import translate_pcm
+
+            return translate_pcm(
+                pcm,
+                sample_rate=sample_rate,
+                src_lang=src_lang,
+                tgt_lang=tgt_lang,
+                speaker_id=speaker_id,
+            )
+        if inference_stub_enabled():
+            return _speech_translate_stub(
+                pcm,
+                sample_rate=sample_rate,
+                src_lang=src_lang,
+                tgt_lang=tgt_lang,
+                speaker_id=speaker_id,
+            )
+        raise RuntimeError(
+            "seamless-m4t-v2-large needs torch + transformers for Real inference. "
+            "Install the model from Model Browser, or switch Settings → Inference to Stub."
+        )
+    return _speech_translate_stub(
+        pcm,
+        sample_rate=sample_rate,
+        src_lang=src_lang,
+        tgt_lang=tgt_lang,
+        speaker_id=speaker_id,
+    )
+
+
+def _speech_translate_stub(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    src_lang: str,
+    tgt_lang: str,
+    speaker_id: int = 0,
+) -> np.ndarray:
+    """Audible stand-in: mild retune + band emphasis keyed by language codes."""
+    _ = sample_rate
+    if pcm.ndim == 1:
+        pcm = pcm.reshape(1, -1)
+    # Different tgt codes nudge pitch so A/B eng→spa vs eng→fra is distinguishable in Stub.
+    nudge = 1.0 + (sum(ord(c) for c in (tgt_lang or "spa")[:3]) % 7) * 0.01
+    src_bias = 0.97 + (sum(ord(c) for c in (src_lang or "eng")[:3]) % 5) * 0.005
+    # speaker_id shifts pitch so stub can stand in for “different vocoder voice”.
+    spk = 1.0 + (int(speaker_id) % 20) * 0.004
+    ratio = max(0.85, min(1.15, nudge * src_bias * spk))
+    out_channels = []
+    for ch in pcm:
+        new_len = max(1, int(round(len(ch) / ratio)))
+        resampled = signal.resample(ch.astype(np.float64), new_len).astype(np.float32)
+        # Mild high-shelf attenuation — “re-voiced” not identical.
+        if len(resampled) > 8:
+            kernel = np.array([0.25, 0.5, 0.25], dtype=np.float32)
+            pad = np.pad(resampled, (1, 1), mode="edge")
+            smoothed = np.convolve(pad, kernel, mode="valid")
+            resampled = 0.65 * resampled + 0.35 * smoothed
+        out_channels.append(resampled)
     max_len = max(len(c) for c in out_channels)
     padded = [np.pad(c, (0, max_len - len(c))) for c in out_channels]
     return np.stack(padded, axis=0)
