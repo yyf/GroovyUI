@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Settings → Model installs** — list local weight installs with size, per-model Remove (checkbox / button), **HF cache** (opens shared Hugging Face hub folder for manual delete), and **Remove all installed models**; APIs `GET /api/models/installed`, `POST /api/models/installed/clear`, `POST /api/system/reveal-hf-cache`
 - **`SpeechTranslate` + `seamless-m4t-v2-large`** — speech-to-speech localization (Meta SeamlessM4T v2); `speaker_id` 0–199 (vocoder voice, not gender/source clone); stub when Inference=Stub; Real uses transformers when installed
 - **`localize-dialogue-a-to-b` template** — denoise → Soft eng→spa translate → normalize → preview/export (featured; CC-BY-NC weights)
 

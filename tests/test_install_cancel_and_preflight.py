@@ -181,6 +181,40 @@ def test_uninstall_removes_weights_and_resets_state(tmp_path: Path) -> None:
     assert registry.store.get(model_id).status == "not_installed"
 
 
+def test_list_and_clear_installed_models_api(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GROOVY_PROJECT_DIR", str(tmp_path))
+    main.PROJECT_DIR = tmp_path
+    main._registry = ModelRegistry(tmp_path)
+    main._install_threads.clear()
+    main._install_cancel_flags.clear()
+
+    registry = main._registry
+    for model_id in ("deepfilternet-v3", "cosyvoice-300m"):
+        registry.store.mark_ready(model_id)
+        weight = registry.store.model_dir(model_id) / "w.bin"
+        weight.write_bytes(b"x" * (2 * 1024 * 1024))
+
+    client = TestClient(main.app)
+    listed = client.get("/api/models/installed")
+    assert listed.status_code == 200
+    body = listed.json()
+    ids = {row["id"] for row in body["models"]}
+    assert "deepfilternet-v3" in ids
+    assert "cosyvoice-300m" in ids
+    assert sum(row["size_mb"] for row in body["models"]) >= 3.0
+    assert all(row.get("size_label") for row in body["models"])
+    assert all(row["can_remove"] for row in body["models"])
+
+    cleared = client.post("/api/models/installed/clear")
+    assert cleared.status_code == 200
+    result = cleared.json()
+    assert len(result["removed"]) >= 2
+    assert result["freed_mb"] > 0
+
+    empty = client.get("/api/models/installed").json()
+    assert empty["models"] == []
+
+
 def test_uninstall_api_blocks_active_install(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

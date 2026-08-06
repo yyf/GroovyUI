@@ -103,3 +103,42 @@ def test_model_provenance_metadata_includes_license_and_hash_status(
     assert metadata["task_types"] == ["denoise"]
     assert metadata["license"]["spdx"] == "MIT"
     assert metadata["weights_hash_status"] == "unavailable"
+
+
+def test_reveal_hf_cache_opens_hub_dir(
+    api_client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    hub = tmp_path / "hf-hub"
+    hub.mkdir()
+    monkeypatch.setenv("HF_HUB_CACHE", str(hub))
+
+    calls: list[list[str]] = []
+
+    def fake_popen(cmd, **kwargs):
+        calls.append(list(cmd))
+
+        class Proc:
+            pass
+
+        return Proc()
+
+    monkeypatch.setattr(main.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(main.platform, "system", lambda: "Darwin")
+
+    info = api_client.get("/api/system/hf-cache")
+    assert info.status_code == 200
+    assert Path(info.json()["hub_dir"]) == hub.resolve()
+
+    res = api_client.post("/api/system/reveal-hf-cache")
+    assert res.status_code == 200
+    assert Path(res.json()["path"]) == hub.resolve()
+    assert calls and calls[0][:2] == ["open", str(hub.resolve())]
+
+
+def test_reveal_hf_cache_missing(
+    api_client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    missing = tmp_path / "no-such-hf-cache" / "hub"
+    monkeypatch.setenv("HF_HUB_CACHE", str(missing))
+    res = api_client.post("/api/system/reveal-hf-cache")
+    assert res.status_code == 404

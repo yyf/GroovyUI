@@ -2,12 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import {
   API,
   clearActivationDiagnostics,
+  clearInstalledModels,
   clearRenderCache,
   fetchActivationDiagnostics,
   fetchC2paStatus,
+  fetchInstalledModels,
   fetchStudioSettings,
   fetchSystemCapabilities,
+  removeModelInstall,
+  revealHfCache,
   updateStudioSettings,
+  type InstalledModelRow,
   type StudioSettings,
 } from "../api";
 import { buildCleanMachineReport } from "../cleanMachineReport";
@@ -29,6 +34,23 @@ async function copyText(value: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function formatInstalledSize(model: InstalledModelRow): string {
+  if (model.size_label?.trim()) return model.size_label.trim();
+  if (typeof model.size_mb === "number" && model.size_mb > 0) {
+    return `${model.size_mb} MB`;
+  }
+  if (typeof model.size_bytes === "number" && model.size_bytes > 0) {
+    if (model.size_bytes >= 1024 * 1024) {
+      return `${(model.size_bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+    if (model.size_bytes >= 1024) {
+      return `${Math.round(model.size_bytes / 1024)} KB`;
+    }
+    return `${model.size_bytes} B`;
+  }
+  return "size unknown";
 }
 
 function formatElapsed(elapsedMs: number): string {
@@ -64,9 +86,27 @@ export default function SettingsDrawer({
   const [activationDiagnostics, setActivationDiagnostics] =
     useState<ActivationDiagnosticsSummary | null>(null);
   const [capabilities, setCapabilities] = useState<SystemCapabilities | null>(null);
+  const [installedModels, setInstalledModels] = useState<InstalledModelRow[]>([]);
+  const [modelsUsedMb, setModelsUsedMb] = useState<number | null>(null);
+  const [modelsDir, setModelsDir] = useState<string | null>(null);
+  const [modelsBusy, setModelsBusy] = useState(false);
+  const [removingModelId, setRemovingModelId] = useState<string | null>(null);
   const [hfTokenDraft, setHfTokenDraft] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const refreshInstalledModels = useCallback(async () => {
+    try {
+      const installed = await fetchInstalledModels();
+      setInstalledModels(installed.models);
+      setModelsUsedMb(installed.models_used_mb);
+      setModelsDir(installed.models_dir);
+    } catch {
+      setInstalledModels([]);
+      setModelsUsedMb(null);
+      setModelsDir(null);
+    }
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -84,6 +124,7 @@ export default function SettingsDrawer({
       onSettingsChange?.(studio);
       setHfTokenDraft("");
       setStatus("");
+      await refreshInstalledModels();
     } catch {
       setStudioSettings(null);
       setC2paStatus(null);
@@ -93,7 +134,7 @@ export default function SettingsDrawer({
     } finally {
       setLoading(false);
     }
-  }, [onSettingsChange]);
+  }, [onSettingsChange, refreshInstalledModels]);
 
   useEffect(() => {
     if (!open) return;
@@ -131,6 +172,78 @@ export default function SettingsDrawer({
       setStatus(`Cleared ${result.removed} cache file${result.removed === 1 ? "" : "s"}`);
     } catch {
       setStatus("Could not clear render cache");
+    }
+  };
+
+  const handleRemoveInstalledModel = async (model: InstalledModelRow) => {
+    const confirmed = window.confirm(
+      `Remove Groovy install entry for “${model.name}”? Deletes files under .groovy/models only — not the Hugging Face cache. Shared Python packages stay installed.`,
+    );
+    if (!confirmed) return;
+    setRemovingModelId(model.id);
+    try {
+      const result = await removeModelInstall(model.id);
+      await Promise.all([
+        refreshInstalledModels(),
+        fetchSystemCapabilities()
+          .then(setCapabilities)
+          .catch(() => null),
+      ]);
+      setStatus(
+        result.freed_mb > 0
+          ? `Removed ${model.name} (~${result.freed_mb} MB freed).`
+          : `Removed ${model.name} install record.`,
+      );
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Could not remove model");
+    } finally {
+      setRemovingModelId(null);
+    }
+  };
+
+  const handleClearAllInstalledModels = async () => {
+    const removable = installedModels.filter((model) => model.can_remove);
+    if (!removable.length) {
+      setStatus("No removable model installs");
+      return;
+    }
+    const totalMb = Math.round(
+      removable.reduce((sum, model) => sum + (Number(model.size_mb) || 0), 0),
+    );
+    const confirmed = window.confirm(
+      `Remove all ${removable.length} installed model${removable.length === 1 ? "" : "s"}` +
+        (totalMb > 0 ? ` (~${totalMb} MB)` : "") +
+        "? Weight files are deleted. Shared Python packages stay installed.",
+    );
+    if (!confirmed) return;
+    setModelsBusy(true);
+    try {
+      const result = await clearInstalledModels();
+      await Promise.all([
+        refreshInstalledModels(),
+        fetchSystemCapabilities()
+          .then(setCapabilities)
+          .catch(() => null),
+      ]);
+      const skipped = result.skipped.length;
+      setStatus(
+        skipped > 0
+          ? `Removed ${result.removed.length} model(s) (~${result.freed_mb} MB). Skipped ${skipped} in-progress install(s).`
+          : `Removed ${result.removed.length} model(s) (~${result.freed_mb} MB freed).`,
+      );
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Could not clear installed models");
+    } finally {
+      setModelsBusy(false);
+    }
+  };
+
+  const handleOpenHfCache = async () => {
+    try {
+      const result = await revealHfCache();
+      setStatus(`Opened HF cache: ${result.path}`);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : "Could not open HF cache");
     }
   };
 
@@ -278,6 +391,98 @@ export default function SettingsDrawer({
                       Clear token
                     </button>
                   ) : null}
+                </div>
+
+                <h4 className="settings-subsection-title">Installed models</h4>
+                <p className="compliance-hint">
+                  Local weight files under{" "}
+                  <code>{modelsDir ?? `${studioSettings.project_dir}/.groovy/models`}</code>
+                  {modelsUsedMb != null ? (
+                    <>
+                      {" "}
+                      (~
+                      <strong>{Math.round(modelsUsedMb)} MB</strong> in this folder)
+                    </>
+                  ) : null}
+                  . Many models only keep a small marker here; size then shows a catalog estimate
+                  for HF cache / package weights. Remove clears the Groovy install record (+ any
+                  files in this folder); shared Python packages and the HF cache stay unless you
+                  clean those separately. Reinstall from Model Browser (Cmd+K).
+                </p>
+                {installedModels.length === 0 ? (
+                  <p className="compliance-hint">No local model installs yet.</p>
+                ) : (
+                  <ul className="settings-installed-list" aria-label="Installed models">
+                    {installedModels.map((model) => {
+                      const removing = removingModelId === model.id;
+                      return (
+                        <li key={model.id} className="settings-installed-row">
+                          <label className="settings-installed-toggle">
+                            <input
+                              type="checkbox"
+                              checked
+                              disabled={!model.can_remove || modelsBusy || removing}
+                              aria-label={`Keep ${model.name} installed`}
+                              onChange={() => {
+                                if (!model.can_remove || modelsBusy || removing) return;
+                                void handleRemoveInstalledModel(model);
+                              }}
+                            />
+                            <span className="settings-installed-meta">
+                              <span className="settings-installed-name">{model.name}</span>
+                              <span className="settings-installed-detail">
+                                {model.id} · {model.install_status} · {formatInstalledSize(model)}
+                                {!model.can_remove ? " · in progress" : ""}
+                              </span>
+                            </span>
+                          </label>
+                          <div className="settings-installed-actions">
+                            <button
+                              type="button"
+                              className="settings-installed-remove"
+                              disabled={!model.can_remove || modelsBusy || removing}
+                              onClick={() => void handleRemoveInstalledModel(model)}
+                            >
+                              {removing ? "Removing…" : "Remove entry"}
+                            </button>
+                            <button
+                              type="button"
+                              className="settings-installed-hf"
+                              title="Open shared Hugging Face cache folder to delete weights manually"
+                              disabled={modelsBusy}
+                              onClick={() => void handleOpenHfCache()}
+                            >
+                              HF cache
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <div className="model-card__actions">
+                  <button
+                    type="button"
+                    disabled={
+                      modelsBusy ||
+                      removingModelId != null ||
+                      !installedModels.some((model) => model.can_remove)
+                    }
+                    onClick={() => void handleClearAllInstalledModels()}
+                  >
+                    {modelsBusy ? "Removing…" : "Remove all installed models"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={modelsBusy || removingModelId != null}
+                    onClick={() =>
+                      void refreshInstalledModels().then(() =>
+                        setStatus("Refreshed installed models"),
+                      )
+                    }
+                  >
+                    Refresh list
+                  </button>
                 </div>
               </section>
 
@@ -519,8 +724,8 @@ export default function SettingsDrawer({
                     <strong>{Math.round(capabilities.machine.models_used_mb ?? 0)} MB</strong>
                     {" · "}
                     <strong>{Math.round(capabilities.machine.disk_free_mb)} MB</strong> free on
-                    the project volume. Remove unused models from Model Browser (Cmd+K) to reclaim
-                    space.
+                    the project volume. Remove unused models under{" "}
+                    <strong>Model installs</strong> above, or clear the render cache below.
                   </p>
                 ) : null}
                 <div className="model-card__actions">
