@@ -284,6 +284,16 @@ export async function revealProjectPath(path: string): Promise<void> {
   }
 }
 
+/** Open the shared Hugging Face hub cache folder in the OS file manager. */
+export async function revealHfCache(): Promise<{ status: string; path: string }> {
+  const res = await fetch(`${API}/api/system/reveal-hf-cache`, { method: "POST" });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(detail || `Could not open HF cache (${res.status})`);
+  }
+  return res.json();
+}
+
 /** Save a portable workflow JSON file under workspace/share. */
 export async function shareWorkflow(
   workflow: Workflow,
@@ -599,6 +609,48 @@ export async function removeModelInstall(modelId: string): Promise<{
   if (!res.ok) {
     const detail = await res.text();
     throw new Error(detail || `Remove failed: ${modelId}`);
+  }
+  return res.json();
+}
+
+export type InstalledModelRow = {
+  id: string;
+  name: string;
+  install_status: string;
+  size_mb: number;
+  size_bytes?: number;
+  size_mb_local?: number;
+  size_mb_estimate?: number | null;
+  size_label?: string;
+  size_source?: "local" | "estimate" | "marker" | string;
+  can_remove: boolean;
+  task_types?: string[];
+  inference_ready?: boolean;
+};
+
+export async function fetchInstalledModels(): Promise<{
+  models: InstalledModelRow[];
+  models_used_mb: number;
+  models_dir: string;
+}> {
+  const res = await fetch(`${API}/api/models/installed`);
+  if (!res.ok) throw new Error("Failed to list installed models");
+  return res.json();
+}
+
+export async function clearInstalledModels(): Promise<{
+  status: string;
+  removed: Array<{ id: string; freed_mb: number }>;
+  skipped: Array<{ id: string; reason: string }>;
+  freed_mb: number;
+  models_used_mb: number;
+  models_dir: string;
+  note: string;
+}> {
+  const res = await fetch(`${API}/api/models/installed/clear`, { method: "POST" });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to clear installed models");
   }
   return res.json();
 }

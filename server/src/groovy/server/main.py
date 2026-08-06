@@ -641,6 +641,73 @@ def reveal_project_path(body: RevealPathRequest) -> dict[str, str]:
     return {"status": "ok", "path": str(candidate)}
 
 
+def _huggingface_hub_cache_dir() -> Path:
+    """Resolve Hugging Face hub cache (same rules as huggingface_hub defaults)."""
+    import os
+
+    hub = (os.environ.get("HF_HUB_CACHE") or "").strip()
+    if hub:
+        return Path(hub).expanduser().resolve()
+    hf_home = (os.environ.get("HF_HOME") or "").strip()
+    if hf_home:
+        return (Path(hf_home).expanduser() / "hub").resolve()
+    return (Path.home() / ".cache" / "huggingface" / "hub").resolve()
+
+
+def _open_in_file_manager(candidate: Path) -> None:
+    system = platform.system()
+    if system == "Darwin":
+        if candidate.is_dir():
+            subprocess.Popen(["open", str(candidate)], start_new_session=True)
+        else:
+            subprocess.Popen(["open", "-R", str(candidate)], start_new_session=True)
+    elif system == "Windows":
+        if candidate.is_dir():
+            subprocess.Popen(["explorer", str(candidate)], start_new_session=True)
+        else:
+            subprocess.Popen(["explorer", "/select,", str(candidate)], start_new_session=True)
+    else:
+        target = candidate if candidate.is_dir() else candidate.parent
+        subprocess.Popen(["xdg-open", str(target)], start_new_session=True)
+
+
+@app.get("/api/system/hf-cache")
+def hf_cache_info() -> dict[str, Any]:
+    """Report Hugging Face hub cache path (for Settings disk cleanup)."""
+    hub = _huggingface_hub_cache_dir()
+    parent = hub.parent
+    exists = hub.exists() or parent.exists()
+    return {
+        "hub_dir": str(hub),
+        "huggingface_dir": str(parent),
+        "exists": exists,
+        "open_dir": str(hub if hub.exists() else parent if parent.exists() else hub),
+    }
+
+
+@app.post("/api/system/reveal-hf-cache")
+def reveal_hf_cache() -> dict[str, str]:
+    """Open the shared Hugging Face hub cache in the OS file manager for manual cleanup."""
+    hub = _huggingface_hub_cache_dir()
+    if hub.exists():
+        target = hub
+    elif hub.parent.exists():
+        target = hub.parent
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Hugging Face cache not found at {hub}. "
+                "It appears after the first model download (or set HF_HUB_CACHE / HF_HOME)."
+            ),
+        )
+    try:
+        _open_in_file_manager(target)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Could not open file browser: {exc}") from exc
+    return {"status": "ok", "path": str(target)}
+
+
 def _choose_workflow_share_destination(
     share_dir: Path, suggested_name: str
 ) -> Path | None:
@@ -851,6 +918,45 @@ def list_models() -> dict[str, list[dict[str, Any]]]:
     return {"models": [_model_card(m) for m in _registry.catalog.all()]}
 
 
+@app.get("/api/models/installed")
+def list_installed_models() -> dict[str, Any]:
+    """Local weight installs taking disk (or in-progress), for Settings cleanup."""
+    return _installed_models_payload()
+
+
+@app.post("/api/models/installed/clear")
+def clear_installed_models() -> dict[str, Any]:
+    """Remove all removable local model weight installs. Skips in-progress installs."""
+    payload = _installed_models_payload()
+    removed: list[dict[str, Any]] = []
+    skipped: list[dict[str, str]] = []
+    freed_mb = 0.0
+    for entry in payload["models"]:
+        model_id = str(entry["id"])
+        if not entry.get("can_remove"):
+            skipped.append(
+                {
+                    "id": model_id,
+                    "reason": "Install in progress — cancel it before removing.",
+                }
+            )
+            continue
+        result = _registry.installer.uninstall(model_id)
+        freed_mb += float(result.get("freed_mb") or 0)
+        removed.append({"id": model_id, "freed_mb": result.get("freed_mb", 0)})
+    return {
+        "status": "ok",
+        "removed": removed,
+        "skipped": skipped,
+        "freed_mb": round(freed_mb, 1),
+        "models_used_mb": round(
+            _registry.store.directory_size_bytes() / (1024 * 1024), 1
+        ),
+        "models_dir": str(_registry.store.root),
+        "note": "Removed local model weights only; shared Python packages were left installed.",
+    }
+
+
 @app.get("/api/models/discover")
 def discover_models_endpoint(
     query: str = "",
@@ -937,7 +1043,10 @@ def cancel_model_install(model_id: str) -> dict[str, Any]:
 
 @app.delete("/api/models/{model_id}/install")
 def uninstall_model(model_id: str) -> dict[str, Any]:
-    if not _registry.catalog.get(model_id):
+    manifest = _registry.catalog.get(model_id)
+    model_dir = _registry.store.model_dir(model_id)
+    tracked = model_id in _registry.store.all()
+    if not manifest and not tracked and not model_dir.exists():
         raise HTTPException(status_code=404, detail="Model not found")
     active = _install_threads.get(model_id)
     if active is not None and active.is_alive():
@@ -985,6 +1094,134 @@ def recommend_models_endpoint(body: ModelRecommendRequest) -> dict[str, Any]:
 @app.get("/api/models/{model_id}/recovery")
 def model_recovery(model_id: str) -> dict[str, Any]:
     return install_recovery(_registry.catalog, _registry.store, _registry.installer, model_id)
+
+
+def _install_busy(model_id: str, status: str) -> bool:
+    active = _install_threads.get(model_id)
+    if active is not None and active.is_alive():
+        return True
+    return status in {"downloading", "verifying", "cancelling"}
+
+
+def _format_bytes(size_bytes: int) -> str:
+    if size_bytes >= 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+    if size_bytes >= 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    if size_bytes >= 1024:
+        return f"{size_bytes / 1024:.0f} KB"
+    return f"{size_bytes} B"
+
+
+def _format_estimate_mb(estimate_mb: float) -> str:
+    if estimate_mb >= 1024:
+        return f"~{estimate_mb / 1024:g} GB"
+    if estimate_mb >= 1:
+        return f"~{estimate_mb:g} MB"
+    return f"~{estimate_mb:.2f} MB"
+
+
+def _installed_size_fields(
+    size_bytes: int, *, estimate_mb: float | None
+) -> dict[str, Any]:
+    """Local dir size + optional catalog estimate when weights live outside .groovy/models."""
+    size_mb = round(size_bytes / (1024 * 1024), 3)
+    local_label = _format_bytes(size_bytes)
+    # Markers / empty dirs are << 1 MB; real Groovy-managed weights are usually larger.
+    marker_only = size_bytes < 1024 * 1024
+    size_source = "local"
+    if marker_only and estimate_mb is not None and float(estimate_mb) > 0:
+        est = float(estimate_mb)
+        size_label = f"{local_label} local · {_format_estimate_mb(est)} est."
+        size_source = "estimate"
+        display_mb = est
+    elif marker_only:
+        size_label = f"{local_label} local (weights may be in HF cache / packages)"
+        size_source = "marker"
+        display_mb = size_mb
+    else:
+        size_label = local_label
+        display_mb = round(size_bytes / (1024 * 1024), 1)
+    return {
+        "size_bytes": size_bytes,
+        "size_mb": display_mb,
+        "size_mb_local": size_mb,
+        "size_mb_estimate": estimate_mb,
+        "size_label": size_label,
+        "size_source": size_source,
+    }
+
+
+def _installed_models_payload() -> dict[str, Any]:
+    """Build Settings cleanup inventory: store entries + orphan weight dirs."""
+    from groovy.nodes.ai.inference_env import model_inference_ready
+
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for model_id, state in _registry.store.all().items():
+        model_dir = _registry.store.model_dir(model_id)
+        size_bytes = (
+            _registry.store.directory_size_bytes(model_dir) if model_dir.exists() else 0
+        )
+        if state.status in {"not_installed", None} and size_bytes == 0:
+            continue
+        seen.add(model_id)
+        busy = _install_busy(model_id, state.status)
+        manifest = _registry.catalog.get(model_id)
+        estimate = manifest.download_size_mb_estimate if manifest else None
+        items.append(
+            {
+                "id": model_id,
+                "name": manifest.name if manifest else model_id,
+                "install_status": state.status,
+                **_installed_size_fields(size_bytes, estimate_mb=estimate),
+                "can_remove": not busy,
+                "task_types": list(manifest.task_types) if manifest else [],
+                "inference_ready": (
+                    model_inference_ready(model_id, dev_stub=manifest.install.dev_stub)
+                    if manifest
+                    else False
+                ),
+            }
+        )
+
+    if _registry.store.root.exists():
+        for child in sorted(_registry.store.root.iterdir()):
+            if not child.is_dir() or child.name in seen or child.name.startswith("."):
+                continue
+            size_bytes = _registry.store.directory_size_bytes(child)
+            if size_bytes == 0:
+                continue
+            model_id = child.name
+            manifest = _registry.catalog.get(model_id)
+            estimate = manifest.download_size_mb_estimate if manifest else None
+            items.append(
+                {
+                    "id": model_id,
+                    "name": manifest.name if manifest else model_id,
+                    "install_status": "orphaned",
+                    **_installed_size_fields(size_bytes, estimate_mb=estimate),
+                    "can_remove": True,
+                    "task_types": list(manifest.task_types) if manifest else [],
+                    "inference_ready": False,
+                }
+            )
+
+    items.sort(
+        key=lambda row: (
+            -float(row.get("size_mb") or 0),
+            -int(row.get("size_bytes") or 0),
+            str(row["name"]).lower(),
+        )
+    )
+    return {
+        "models": items,
+        "models_used_mb": round(
+            _registry.store.directory_size_bytes() / (1024 * 1024), 1
+        ),
+        "models_dir": str(_registry.store.root),
+    }
 
 
 def _model_card(manifest) -> dict[str, Any]:

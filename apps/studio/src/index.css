@@ -5510,6 +5510,89 @@ body {
   padding: 6px 8px;
 }
 
+.settings-subsection-title {
+  margin: 18px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.settings-installed-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border-dim);
+  background: var(--bg-panel);
+}
+
+.settings-installed-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.settings-installed-row:last-child {
+  border-bottom: none;
+}
+
+.settings-installed-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.settings-installed-toggle input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.settings-installed-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-installed-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.settings-installed-detail {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.settings-installed-remove {
+  flex-shrink: 0;
+}
+
+.settings-installed-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  align-items: center;
+}
+
+.settings-installed-hf {
+  flex-shrink: 0;
+}
+
 .settings-status {
   color: #86efac;
   margin-top: 12px;
