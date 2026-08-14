@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { templatesVisibleInUi } from "./templateUi";
+import {
+  domainIdForTemplate,
+  groupBundledTemplatesByDomain,
+  templatesVisibleInUi,
+} from "./templateUi";
 import type { TemplateListItem } from "./api";
 
-function bundled(id: string): TemplateListItem {
-  return { id, title: id, description: "", source: "bundled" };
+function bundled(id: string, title?: string): TemplateListItem {
+  return { id, title: title ?? id, description: "", source: "bundled" };
 }
 
 function user(id: string): TemplateListItem {
@@ -32,20 +36,40 @@ describe("templatesVisibleInUi", () => {
     bundled("authenticity-check"),
     bundled("isolate-vocals-to-transcribe"),
     bundled("isolate-vocals-to-voice-convert"),
+    bundled("localize-dialogue-a-to-b"),
+    bundled("modular-generative-rack"),
+    bundled("rave-timbre-transfer"),
+    bundled("compare-whisper-sizes"),
+    bundled("script-to-vo-master"),
+    bundled("karaoke-guide-vocal"),
+    bundled("instrumental-tts-dub"),
+    bundled("melody-to-modular-synth"),
+    bundled("compare-stemmers"),
+    bundled("stem-lyrics-to-ace"),
   ];
 
   it("shows featured bundled templates sorted by title", () => {
     const visible = templatesVisibleInUi(allBundled);
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
+      "compare-stemmers",
+      "compare-whisper-sizes",
       "extract-lyrics-to-music-with-ace-step",
       "hello-groovy",
+      "instrumental-tts-dub",
       "isolate-vocals-to-transcribe",
       "isolate-vocals-to-voice-convert",
+      "karaoke-guide-vocal",
+      "localize-dialogue-a-to-b",
+      "melody-to-modular-synth",
+      "modular-generative-rack",
       "podcast-denoise",
       "prompt-modular-synth",
+      "rave-timbre-transfer",
+      "script-to-vo-master",
       "song-cover-remix",
       "stable-audio",
+      "stem-lyrics-to-ace",
       "stem-separation",
       "text-to-music",
       "transcribe-and-diarize",
@@ -93,5 +117,47 @@ describe("templatesVisibleInUi", () => {
   it("keeps the active bundled template visible when it is not featured", () => {
     const visible = templatesVisibleInUi(allBundled, "authenticity-check");
     expect(visible.map((t) => t.id)).toContain("authenticity-check");
+  });
+});
+
+describe("groupBundledTemplatesByDomain", () => {
+  it("groups featured templates into domain submenus", () => {
+    const visible = templatesVisibleInUi([
+      bundled("hello-groovy", "Hello GroovyUI"),
+      bundled("podcast-denoise", "Podcast Denoise"),
+      bundled("stem-separation", "Stem Separation"),
+      bundled("text-to-music", "Text to Music"),
+      bundled("voice-cloning", "Voice Cloning"),
+      bundled("modular-generative-rack", "Modular Generative Rack"),
+      bundled("compare-stemmers", "Compare Stemmers"),
+      user("my-patch"),
+    ]);
+    const groups = groupBundledTemplatesByDomain(visible);
+    expect(groups.map((g) => g.domain.id)).toEqual([
+      "start",
+      "speech",
+      "voice",
+      "stems",
+      "generate",
+      "modular",
+      "compare",
+    ]);
+    expect(groups.find((g) => g.domain.id === "speech")?.templates.map((t) => t.id)).toEqual([
+      "podcast-denoise",
+    ]);
+    expect(groups.every((g) => g.templates.every((t) => t.source !== "user"))).toBe(true);
+  });
+
+  it("puts unknown bundled ids in Other", () => {
+    expect(domainIdForTemplate("authenticity-check")).toBe("other");
+    const groups = groupBundledTemplatesByDomain([
+      bundled("authenticity-check", "Authenticity Check"),
+    ]);
+    expect(groups).toEqual([
+      {
+        domain: { id: "other", label: "Other" },
+        templates: [bundled("authenticity-check", "Authenticity Check")],
+      },
+    ]);
   });
 });

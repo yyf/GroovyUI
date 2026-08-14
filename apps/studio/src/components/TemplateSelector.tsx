@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TemplateListItem } from "../api";
-import { templatesVisibleInUi } from "../templateUi";
+import { groupBundledTemplatesByDomain, templatesVisibleInUi } from "../templateUi";
 
 type Props = {
   templates: TemplateListItem[];
@@ -9,12 +9,6 @@ type Props = {
   onDeleteUserTemplate?: (templateId: string) => void | Promise<void>;
 };
 
-function groupTemplates(templates: TemplateListItem[]) {
-  const bundled = templates.filter((template) => template.source !== "user");
-  const user = templates.filter((template) => template.source === "user");
-  return { bundled, user };
-}
-
 export default function TemplateSelector({
   templates,
   selectedId,
@@ -22,21 +16,35 @@ export default function TemplateSelector({
   onDeleteUserTemplate,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [openDomainId, setOpenDomainId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const visibleTemplates = useMemo(
     () => templatesVisibleInUi(templates, selectedId),
     [templates, selectedId],
   );
-  const { bundled, user } = useMemo(() => groupTemplates(visibleTemplates), [visibleTemplates]);
+  const domainGroups = useMemo(
+    () => groupBundledTemplatesByDomain(visibleTemplates),
+    [visibleTemplates],
+  );
+  const userTemplates = useMemo(
+    () => visibleTemplates.filter((template) => template.source === "user"),
+    [visibleTemplates],
+  );
   const selected = templates.find((template) => template.id === selectedId);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setOpenDomainId(null);
+      return;
+    }
     const onPointer = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        if (openDomainId) setOpenDomainId(null);
+        else setOpen(false);
+      }
     };
     const frame = window.requestAnimationFrame(() => {
       window.addEventListener("mousedown", onPointer);
@@ -47,19 +55,22 @@ export default function TemplateSelector({
       window.removeEventListener("mousedown", onPointer);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, openDomainId]);
+
+  const pickTemplate = (templateId: string) => {
+    setOpen(false);
+    setOpenDomainId(null);
+    if (templateId !== selectedId) onSelect(templateId);
+  };
 
   const renderBundledOption = (template: TemplateListItem) => (
     <li key={template.id}>
       <button
         type="button"
-        role="option"
-        aria-selected={template.id === selectedId}
+        role="menuitem"
+        aria-current={template.id === selectedId ? "true" : undefined}
         className={`template-select__option${template.id === selectedId ? " template-select__option--active" : ""}`}
-        onClick={() => {
-          setOpen(false);
-          if (template.id !== selectedId) onSelect(template.id);
-        }}
+        onClick={() => pickTemplate(template.id)}
       >
         {template.title}
       </button>
@@ -70,13 +81,10 @@ export default function TemplateSelector({
     <li key={template.id} className="template-select__row">
       <button
         type="button"
-        role="option"
-        aria-selected={template.id === selectedId}
+        role="menuitem"
+        aria-current={template.id === selectedId ? "true" : undefined}
         className={`template-select__option${template.id === selectedId ? " template-select__option--active" : ""}`}
-        onClick={() => {
-          setOpen(false);
-          if (template.id !== selectedId) onSelect(template.id);
-        }}
+        onClick={() => pickTemplate(template.id)}
       >
         {template.title}
       </button>
@@ -106,25 +114,72 @@ export default function TemplateSelector({
         className={`template-select__trigger${open ? " template-select__trigger--open" : ""}`}
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
-        aria-haspopup="listbox"
+        aria-haspopup="menu"
         title={selected?.description || undefined}
       >
         {selected?.title ?? "Workflow Templates"}
       </button>
       {open ? (
-        <ul className="template-select__menu" role="listbox" aria-label="Workflow Templates">
+        <ul className="template-select__menu" role="menu" aria-label="Workflow Templates">
           <li className="template-select__group" role="presentation">
             <span className="template-select__group-label">Default templates</span>
-            <ul className="template-select__group-list">
-              {bundled.length > 0 ? bundled.map(renderBundledOption) : (
+            <ul className="template-select__group-list" role="none">
+              {domainGroups.length > 0 ? (
+                domainGroups.map(({ domain, templates: domainTemplates }) => {
+                  const isOpen = openDomainId === domain.id;
+                  const containsSelected = domainTemplates.some((t) => t.id === selectedId);
+                  return (
+                    <li
+                      key={domain.id}
+                      className={`template-select__domain${isOpen ? " template-select__domain--open" : ""}`}
+                      role="none"
+                      onMouseEnter={() => setOpenDomainId(domain.id)}
+                    >
+                      <button
+                        type="button"
+                        className={[
+                          "template-select__domain-btn",
+                          isOpen ? "template-select__domain-btn--open" : "",
+                          containsSelected ? "template-select__domain-btn--active" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        role="menuitem"
+                        aria-haspopup="menu"
+                        aria-expanded={isOpen}
+                        onClick={() =>
+                          setOpenDomainId((prev) => (prev === domain.id ? null : domain.id))
+                        }
+                      >
+                        <span>{domain.label}</span>
+                        <span className="template-select__domain-meta" aria-hidden>
+                          {domainTemplates.length}
+                          <span className="template-select__domain-chevron">›</span>
+                        </span>
+                      </button>
+                      {isOpen ? (
+                        <ul
+                          className="template-select__submenu"
+                          role="menu"
+                          aria-label={domain.label}
+                        >
+                          {domainTemplates.map(renderBundledOption)}
+                        </ul>
+                      ) : null}
+                    </li>
+                  );
+                })
+              ) : (
                 <li className="template-select__empty">No default templates</li>
               )}
             </ul>
           </li>
           <li className="template-select__group" role="presentation">
             <span className="template-select__group-label">Your templates</span>
-            <ul className="template-select__group-list">
-              {user.length > 0 ? user.map(renderUserOption) : (
+            <ul className="template-select__group-list" role="none">
+              {userTemplates.length > 0 ? (
+                userTemplates.map(renderUserOption)
+              ) : (
                 <li className="template-select__empty">Use Settings → Save to Your templates</li>
               )}
             </ul>

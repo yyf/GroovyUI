@@ -147,6 +147,52 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
     "authenticity-check": {
         "required_outputs": (("n4", "AUTHENTICITY"), ("n5", "AUDIO")),
     },
+    "compare-whisper-sizes": {
+        "sample_path": "assets/samples/noisy_speech_1214.wav",
+        "terminal_output_type": "TEXT",
+        "required_outputs": (("n3", "TEXT"), ("n4", "TEXT"), ("n7", "AUDIO")),
+        "spot_check": "ab_compare",
+    },
+    "script-to-vo-master": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("kokoro-82m", "deepfilternet-v3"),
+        "required_outputs": (("n7", "AUDIO"),),
+    },
+    "karaoke-guide-vocal": {
+        "sample_path": "assets/samples/Knockout_41k_mono.wav",
+        "expect_stems_node": "n2",
+        "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
+        "models": ("demucs-v4", "kokoro-82m"),
+        "required_outputs": (("n9", "AUDIO"),),
+    },
+    "instrumental-tts-dub": {
+        "sample_path": "assets/samples/Knockout_41k_mono.wav",
+        "expect_stems_node": "n2",
+        "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
+        "models": ("demucs-v4", "whisper-large-v3-turbo", "kokoro-82m"),
+        "required_outputs": (("n9", "AUDIO"), ("n3", "TEXT")),
+    },
+    "melody-to-modular-synth": {
+        "sample_path": "assets/samples/noisy_speech_1214.wav",
+        "models": ("basic-pitch",),
+        "required_outputs": (("n10", "AUDIO"), ("n2", "MIDI")),
+    },
+    "compare-stemmers": {
+        "sample_path": "assets/samples/Knockout_41k_mono.wav",
+        "expect_stems_node": "n2",
+        "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
+        "models": ("demucs-v4", "demucs-v4-ht"),
+        "required_outputs": (("n4", "AUDIO"), ("n5", "AUDIO")),
+        "spot_check": "ab_compare",
+    },
+    "stem-lyrics-to-ace": {
+        "sample_path": "assets/samples/Knockout_41k_mono.wav",
+        "expect_stems_node": "n2",
+        "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
+        "models": ("demucs-v4", "whisper-large-v3-turbo", "ace-step-1.5-2b-turbo"),
+        "required_outputs": (("n9", "AUDIO"), ("n3", "TEXT")),
+    },
 }
 
 
