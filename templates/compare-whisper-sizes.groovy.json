@@ -1,0 +1,215 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a7c1e2f3-b4d5-4e6f-8a9b-comparewhisper01",
+  "metadata": {
+    "title": "Compare Whisper Sizes",
+    "author": "groovy",
+    "description": "Denoise once, then fork Whisper large-v3-turbo vs whisper-small-en on the same cleaned hop. Shift-select the two Whisper nodes to A/B transcripts \u2014 not a single ASR WebUI.",
+    "tags": [
+      "featured",
+      "ai",
+      "stt",
+      "denoise",
+      "compare",
+      "ab",
+      "whisper"
+    ],
+    "created_at": "2026-08-13T12:00:00Z",
+    "modified_at": "2026-08-13T12:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Compare Whisper Sizes \u2014 Denoise \u2192 Whisper turbo \u2225 small-en. A/B the two Whisper hops (cached). MIT \u00b7 owned dialogue. Offline render \u00b7 Play = cached PCM."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": {
+        "x": 0,
+        "y": 120
+      },
+      "widgets": {
+        "path": "assets/samples/noisy_speech_1214.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "Denoise",
+      "pos": {
+        "x": 240,
+        "y": 120
+      },
+      "widgets": {
+        "model": "deepfilternet-v3",
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "WhisperSTT",
+      "pos": {
+        "x": 500,
+        "y": 40
+      },
+      "widgets": {
+        "model": "whisper-large-v3-turbo",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "WhisperSTT",
+      "pos": {
+        "x": 500,
+        "y": 220
+      },
+      "widgets": {
+        "model": "whisper-small-en",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Preview",
+      "pos": {
+        "x": 760,
+        "y": 40
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n6",
+      "type": "Preview",
+      "pos": {
+        "x": 760,
+        "y": 220
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n7",
+      "type": "Preview",
+      "pos": {
+        "x": 500,
+        "y": 400
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n8",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 760,
+        "y": 400
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "compare-whisper-cleaned.wav",
+        "format": "wav"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n5",
+        1
+      ],
+      "type": "TEXT"
+    },
+    {
+      "id": "l5",
+      "from": [
+        "n4",
+        0
+      ],
+      "to": [
+        "n6",
+        1
+      ],
+      "type": "TEXT"
+    },
+    {
+      "id": "l6",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n7",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l7",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n8",
+        0
+      ],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 0.85,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
+}

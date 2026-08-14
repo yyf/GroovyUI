@@ -8,7 +8,7 @@ import {
 describe("templateLicenseMatrix", () => {
   it("covers all curated bundled templates without duplicate ids", () => {
     const ids = TEMPLATE_LICENSE_MATRIX.map((row) => row.id);
-    expect(ids.length).toBe(38);
+    expect(ids.length).toBe(45);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -26,12 +26,15 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("podcast-denoise")).toBe(true);
     expect(isCommerciallyCleared("ace-step-1.5")).toBe(true);
     expect(isCommerciallyCleared("stem-separation")).toBe(true);
+    expect(isCommerciallyCleared("compare-whisper-sizes")).toBe(true);
+    expect(isCommerciallyCleared("script-to-vo-master")).toBe(true);
+    expect(isCommerciallyCleared("stem-lyrics-to-ace")).toBe(true);
   });
 
   it("summarizes clearance counts", () => {
     const summary = templateLicenseSummary();
-    expect(summary.total).toBe(38);
-    expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(38);
+    expect(summary.total).toBe(45);
+    expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(45);
     expect(summary.commercialSafe).toBeGreaterThan(20);
   });
 });

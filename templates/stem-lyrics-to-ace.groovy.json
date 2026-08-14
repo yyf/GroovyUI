@@ -1,0 +1,355 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a3c7e8f9-b0d1-44c5-e5f6-stemlyricstoace1",
+  "metadata": {
+    "title": "Stem Lyrics to ACE",
+    "author": "groovy",
+    "description": "Demucs vocals \u2192 Whisper lyrics \u2192 ACE-Step 2B turbo generation \u2192 Mix with instrumental \u2192 Normalize/Save. Stronger compound than Load\u2192Whisper\u2192ACE alone.",
+    "tags": [
+      "featured",
+      "ai",
+      "stems",
+      "stt",
+      "ace-step",
+      "generation",
+      "mix"
+    ],
+    "created_at": "2026-08-13T12:00:00Z",
+    "modified_at": "2026-08-13T12:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Stem Lyrics to ACE \u2014 Stems \u2192 Whisper(vocals) \u2192 ACE-Step \u2192 Mix instrumental. ACE MIT-class (verify seed) \u00b7 owned bed. Offline render \u00b7 Play = cached PCM."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": {
+        "x": 0,
+        "y": 180
+      },
+      "widgets": {
+        "path": "assets/samples/Knockout_41k_mono.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "SeparateStems",
+      "pos": {
+        "x": 240,
+        "y": 180
+      },
+      "widgets": {
+        "model": "demucs-v4",
+        "shifts": 1,
+        "overlap": 0.25,
+        "segment": 0,
+        "split": true
+      }
+    },
+    {
+      "id": "n3",
+      "type": "WhisperSTT",
+      "pos": {
+        "x": 500,
+        "y": 40
+      },
+      "widgets": {
+        "model": "whisper-large-v3-turbo",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 760,
+        "y": 40
+      },
+      "widgets": {
+        "model": "ace-step-1.5-2b-turbo",
+        "prompt": "Singable pop bed with clear verse/chorus energy.",
+        "lyrics": "",
+        "seed": 42,
+        "seconds_total": 12.0,
+        "num_inference_steps": 8,
+        "guidance_scale": 1.0
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Mix",
+      "pos": {
+        "x": 500,
+        "y": 300
+      },
+      "widgets": {
+        "gain_a": 1.0,
+        "gain_b": 1.0
+      }
+    },
+    {
+      "id": "n6",
+      "type": "Mix",
+      "pos": {
+        "x": 740,
+        "y": 300
+      },
+      "widgets": {
+        "gain_a": 1.0,
+        "gain_b": 1.0
+      }
+    },
+    {
+      "id": "n7",
+      "type": "Mix",
+      "pos": {
+        "x": 1000,
+        "y": 160
+      },
+      "widgets": {
+        "gain_a": 0.75,
+        "gain_b": 0.7
+      }
+    },
+    {
+      "id": "n8",
+      "type": "Normalize",
+      "pos": {
+        "x": 1240,
+        "y": 160
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n9",
+      "type": "Preview",
+      "pos": {
+        "x": 1480,
+        "y": 160
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n10",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 1480,
+        "y": 300
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "stem-lyrics-to-ace.wav",
+        "format": "wav"
+      }
+    },
+    {
+      "id": "n11",
+      "type": "Preview",
+      "pos": {
+        "x": 500,
+        "y": 160
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n12",
+      "type": "Preview",
+      "pos": {
+        "x": 760,
+        "y": 160
+      },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": [
+        "n1",
+        0
+      ],
+      "to": [
+        "n2",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n3",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": [
+        "n2",
+        0
+      ],
+      "to": [
+        "n11",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n4",
+        0
+      ],
+      "type": "TEXT"
+    },
+    {
+      "id": "l5",
+      "from": [
+        "n3",
+        0
+      ],
+      "to": [
+        "n12",
+        1
+      ],
+      "type": "TEXT"
+    },
+    {
+      "id": "l6",
+      "from": [
+        "n2",
+        1
+      ],
+      "to": [
+        "n5",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l7",
+      "from": [
+        "n2",
+        2
+      ],
+      "to": [
+        "n5",
+        1
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l8",
+      "from": [
+        "n5",
+        0
+      ],
+      "to": [
+        "n6",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l9",
+      "from": [
+        "n2",
+        3
+      ],
+      "to": [
+        "n6",
+        1
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l10",
+      "from": [
+        "n4",
+        0
+      ],
+      "to": [
+        "n7",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l11",
+      "from": [
+        "n6",
+        0
+      ],
+      "to": [
+        "n7",
+        1
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l12",
+      "from": [
+        "n7",
+        0
+      ],
+      "to": [
+        "n8",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l13",
+      "from": [
+        "n8",
+        0
+      ],
+      "to": [
+        "n9",
+        0
+      ],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l14",
+      "from": [
+        "n8",
+        0
+      ],
+      "to": [
+        "n10",
+        0
+      ],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 0.65,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
+}

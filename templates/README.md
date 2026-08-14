@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-38 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+45 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -10,7 +10,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Podcast Denoise | [podcast-denoise.groovy.json](podcast-denoise.groovy.json) | 1 | `deepfilternet-v3` |
 | Stem Separation | [stem-separation.groovy.json](stem-separation.groovy.json) | 1 / **featured** | `demucs-v4` |
 | Transcribe Dialogue | [transcribe-dialogue.groovy.json](transcribe-dialogue.groovy.json) | 1 / **featured** | `whisper-large-v3-turbo` |
-| Cleanup and Transcribe | [cleanup-and-transcribe.groovy.json](cleanup-and-transcribe.groovy.json) | 1 / **featured** | deepfilternet + whisper |
+| Cleanup and Transcribe | [cleanup-and-transcribe.groovy.json](cleanup-and-transcribe.groovy.json) | 1 | deepfilternet + whisper |
 | Localize Dialogue (A→B) | [localize-dialogue-a-to-b.groovy.json](localize-dialogue-a-to-b.groovy.json) | 1 / **featured** | deepfilternet + `seamless-m4t-v2-large` (S2ST; eng→spa default; CC-BY-NC) |
 | Transcribe and Diarize | [transcribe-and-diarize.groovy.json](transcribe-and-diarize.groovy.json) | 1 / **featured** | whisper + pyannote (energy fallback) |
 | Voice Cloning | [voice-cloning.groovy.json](voice-cloning.groovy.json) | 1 / **featured** | `f5-tts-base` (+ reference LoadAudio) |
@@ -18,7 +18,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Modular Generative Rack | [modular-generative-rack.groovy.json](modular-generative-rack.groovy.json) | 2 / **featured** | — (tension arc, poly XOR clash, probability bass; no models) |
 | RAVE Timbre Transfer | [rave-timbre-transfer.groovy.json](rave-timbre-transfer.groovy.json) | 2 / **featured** | `rave-v1` (TimbreTransfer; ACIDS sol_ordinario_fast TorchScript) |
 | Simple FM Synth | [simple-fm-synth.groovy.json](simple-fm-synth.groovy.json) | 2 | — (Osc + FloatMath + ControlCurves; hidden from default picker) |
-| Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 / **featured** | `demucs-v4` |
+| Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 | `demucs-v4` |
 | Text to Music- ACE Step 1.5 | [ace-step-1.5.groovy.json](ace-step-1.5.groovy.json) | 2 / **featured** | `ace-step-1.5` |
 | Text to Music- Stable Audio | [stable-audio.groovy.json](stable-audio.groovy.json) | 2 / **featured** | `stable-audio-open-1.0` |
 | Text to Music- MusicGen | [text-to-music.groovy.json](text-to-music.groovy.json) | 2 / **featured** | `musicgen-small` |
@@ -38,5 +38,12 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Transcribe to Synth | [transcribe-to-synth.groovy.json](transcribe-to-synth.groovy.json) | 2.5 | basic-pitch, musicgen |
 | AI MIDI to Hardware | [ai-midi-to-hardware.groovy.json](ai-midi-to-hardware.groovy.json) | 2.5 | musicgen |
 | A/B Compare Demo | [ab-compare-demo.groovy.json](ab-compare-demo.groovy.json) | 2 hardening | `deepfilternet-v3` |
+| Compare Whisper Sizes | [compare-whisper-sizes.groovy.json](compare-whisper-sizes.groovy.json) | sprint / **featured** | deepfilternet + whisper turbo ∥ small-en |
+| Script to VO Master | [script-to-vo-master.groovy.json](script-to-vo-master.groovy.json) | sprint / **featured** | kokoro + deepfilternet + fade |
+| Karaoke Guide Vocal | [karaoke-guide-vocal.groovy.json](karaoke-guide-vocal.groovy.json) | sprint / **featured** | demucs + kokoro guide over instrumental |
+| Instrumental TTS Dub | [instrumental-tts-dub.groovy.json](instrumental-tts-dub.groovy.json) | sprint / **featured** | demucs + whisper + kokoro → Mix |
+| Melody to Modular Synth | [melody-to-modular-synth.groovy.json](melody-to-modular-synth.groovy.json) | sprint / **featured** | basic-pitch → modular Osc/Filter |
+| Compare Stemmers | [compare-stemmers.groovy.json](compare-stemmers.groovy.json) | sprint / **featured** | demucs-v4 ∥ demucs-v4-ht |
+| Stem Lyrics to ACE | [stem-lyrics-to-ace.groovy.json](stem-lyrics-to-ace.groovy.json) | sprint / **featured** | demucs + whisper + ace-step-1.5-2b-turbo |
 
 Sample assets: `workspace/assets/samples/` (stem split: `Knockout_41k_mono.wav`; also `male-1.wav`, `dialogue_48k.wav`, etc.).
