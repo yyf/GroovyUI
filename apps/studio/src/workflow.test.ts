@@ -319,6 +319,8 @@ describe("workflowToFlowEdges", () => {
     const edges = workflowToFlowEdges(sampleWorkflow());
     expect(edges[0]?.label).toBe("AUDIO");
     expect(edges[0]?.className).toContain("groovy-edge--type-audio");
+    expect(edges[0]?.selectable).toBe(true);
+    expect(edges[0]?.interactionWidth).toBe(36);
   });
 
   it("animates and marks only active path edges during playback", () => {
