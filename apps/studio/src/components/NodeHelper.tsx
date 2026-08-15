@@ -77,6 +77,8 @@ type Props = {
   onWidgetChange: (nodeId: string, name: string, value: unknown) => void;
   /** Disconnect all canvas wires on one input/output slot (Subgraph tab checkboxes). */
   onDisconnectPort?: (nodeId: string, direction: "in" | "out", slot: number) => void;
+  /** Remove the currently selected canvas wire. */
+  onDeleteLink?: (linkId: string) => void;
   /** Widen Inspector while Subgraph tab is active. */
   onSubgraphActiveChange?: (active: boolean) => void;
   onBrowseModel?: (nodeId: string, widgetName: string) => void;
@@ -106,6 +108,7 @@ export default function NodeHelper({
   showCompare = false,
   onWidgetChange,
   onDisconnectPort,
+  onDeleteLink,
   onSubgraphActiveChange,
   onBrowseModel,
   onAudition,
@@ -310,6 +313,14 @@ export default function NodeHelper({
           >
             Reset to type default
           </button>
+          <button
+            type="button"
+            className="node-helper__delete-link"
+            onClick={() => onDeleteLink?.(selectedLink.id)}
+          >
+            Delete connection
+          </button>
+          <p className="node-helper__hint">Or press Delete / Backspace after clicking the wire.</p>
         </div>
       </aside>
     );

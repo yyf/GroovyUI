@@ -556,15 +556,27 @@ export default function App() {
       const removedIds = changes
         .filter((change): change is EdgeChange & { type: "remove"; id: string } => change.type === "remove")
         .map((change) => change.id);
-      if (removedIds.length === 0) return;
-      setSelectedEdgeId((prev) => (prev && removedIds.includes(prev) ? null : prev));
-      setWorkflow((prev) => {
-        if (!prev) return prev;
-        return removeLinks(prev, new Set(removedIds));
-      });
-      setLastJob(null);
+      const selectedIds = changes
+        .filter(
+          (change): change is EdgeChange & { type: "select"; id: string; selected: boolean } =>
+            change.type === "select" && change.selected,
+        )
+        .map((change) => change.id);
+      if (removedIds.length > 0) {
+        setSelectedEdgeId((prev) => (prev && removedIds.includes(prev) ? null : prev));
+        setWorkflow((prev) => {
+          if (!prev) return prev;
+          return removeLinks(prev, new Set(removedIds));
+        });
+        setLastJob(null);
+        return;
+      }
+      if (selectedIds.length > 0) {
+        setSelectedEdgeId(selectedIds[0] ?? null);
+        setNodes((current) => current.map((node) => ({ ...node, selected: false })));
+      }
     },
-    [setWorkflow],
+    [setWorkflow, setNodes],
   );
 
   const selectedNodeIds = useMemo(
@@ -582,13 +594,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Rubber-band / node select clears wire selection. Edge click deselects nodes in the
-    // same tick, so this only runs when nodes are actually selected.
-    if (selectedNodeIds.length > 0) {
-      setSelectedEdgeId(null);
+    // Rubber-band / node select clears wire selection. Skip this tick when the
+    // user just clicked an edge (nodes are deselected in the same React cycle).
+    if (selectedNodeIds.length > 0 && !selectedEdgeId) {
       openInspector();
     }
-  }, [selectedNodeIds, openInspector]);
+  }, [selectedNodeIds, selectedEdgeId, openInspector]);
 
   useEffect(() => {
     if (selectedEdgeId) openInspector();
@@ -620,6 +631,15 @@ export default function App() {
   const disconnectPortCb = useCallback(
     (nodeId: string, direction: "in" | "out", slot: number) => {
       setWorkflow((prev) => (prev ? disconnectPort(prev, nodeId, direction, slot) : prev));
+      setLastJob(null);
+    },
+    [setWorkflow],
+  );
+
+  const deleteSelectedLink = useCallback(
+    (linkId: string) => {
+      setWorkflow((prev) => (prev ? removeLinks(prev, new Set([linkId])) : prev));
+      setSelectedEdgeId((prev) => (prev === linkId ? null : prev));
       setLastJob(null);
     },
     [setWorkflow],
@@ -1643,6 +1663,19 @@ export default function App() {
                   onEdgesChange={onEdgesChange}
                   onConnect={onConnect}
                   onNodeDragStop={onNodeDragStop}
+                  onSelectionChange={({ nodes: selectedFlowNodes, edges: selectedFlowEdges }) => {
+                    const edgeId = selectedFlowEdges[0]?.id ?? null;
+                    if (edgeId) {
+                      setSelectedEdgeId(edgeId);
+                      if (selectedFlowNodes.length > 0) {
+                        setNodes((current) => current.map((node) => ({ ...node, selected: false })));
+                      }
+                      return;
+                    }
+                    if (selectedFlowNodes.length > 0) {
+                      setSelectedEdgeId(null);
+                    }
+                  }}
                   onNodeClick={() => {
                     setSelectedEdgeId(null);
                     openInspector();
@@ -1676,8 +1709,9 @@ export default function App() {
                   selectionOnDrag
                   selectionKeyCode={null}
                   multiSelectionKeyCode={["Shift", "Meta", "Control"]}
+                  edgesFocusable
                   elevateEdgesOnSelect
-                  defaultEdgeOptions={{ interactionWidth: 28 }}
+                  defaultEdgeOptions={{ interactionWidth: 36, selectable: true, focusable: true }}
                   minZoom={CANVAS_MIN_ZOOM}
                   maxZoom={CANVAS_MAX_ZOOM}
                   fitViewOptions={FIT_ALL_OPTIONS}
@@ -1758,6 +1792,7 @@ export default function App() {
                 showCompare={selectedNodeIds.length === 2}
                 onWidgetChange={updateWidget}
                 onDisconnectPort={disconnectPortCb}
+                onDeleteLink={deleteSelectedLink}
                 onSubgraphActiveChange={setInspectorWide}
                 onBrowseModel={(nodeId, widget) => {
                   setModelPickTarget({ nodeId, widget });

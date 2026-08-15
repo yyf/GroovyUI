@@ -3838,12 +3838,35 @@ body {
   --edge-stroke: #555555;
 }
 
-/* Keep our palette stroke when RF applies its selected-edge color. */
+/* Keep our palette stroke when RF applies its selected-edge color.
+   White halo + a bit more width so click-select is obvious vs idle/playback. */
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge.selectable:focus .react-flow__edge-path,
 .react-flow__edge.selectable:focus-visible .react-flow__edge-path {
   stroke: var(--edge-stroke, #ff002b);
-  stroke-width: var(--edge-stroke-width, 2.75);
+  stroke-width: calc(var(--edge-stroke-width, 2) + 2px);
+  filter:
+    drop-shadow(0 0 1px #ffffff)
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.7))
+    drop-shadow(0 0 6px var(--edge-stroke, #ff002b));
+}
+
+.node-helper__delete-link {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-silver);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.node-helper__delete-link:hover {
+  border-color: var(--accent, #ff002b);
+  color: var(--accent, #ff002b);
+  background: rgba(255, 0, 43, 0.06);
 }
 
 .react-flow__edge.groovy-edge--active .react-flow__edge-path {
