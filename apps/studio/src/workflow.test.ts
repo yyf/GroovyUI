@@ -17,6 +17,7 @@ import {
   previewMidiId,
   previewListenId,
   previewTextSnippet,
+  promptWidgetSnippet,
   savedFilePath,
   savedProvenancePath,
   resolveNodeInspectorOutput,
@@ -197,6 +198,24 @@ describe("previewTextSnippet", () => {
     const preview = nodes.find((node) => node.id === "n3");
     expect(preview?.data).toMatchObject({ previewText: "Heard on canvas" });
     expect((preview?.data as { outputs?: { type: string }[] }).outputs?.[0]?.type).toBe("TEXT");
+  });
+
+  it("shows Prompt widget text on the canvas even when last render differs", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n0", type: "Prompt", pos: { x: 0, y: 120 }, widgets: { text: "new inspector prompt" } },
+      ],
+      links: [],
+    };
+    const nodes = workflowToFlowNodes(
+      workflow,
+      {},
+      { n0: { type: "TEXT", text: "stale rendered prompt" } },
+    );
+    const prompt = nodes.find((node) => node.id === "n0");
+    expect(prompt?.data).toMatchObject({ previewText: "new inspector prompt" });
+    expect(promptWidgetSnippet(workflow.nodes[0]!)).toBe("new inspector prompt");
   });
 });
 

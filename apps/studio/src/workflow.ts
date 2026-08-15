@@ -149,9 +149,23 @@ export function previewTextSnippet(output?: JobOutput, maxLen = 140): string | n
   // Preview may return AUDIO with an attached `text` transcript field.
   const raw = typeof output?.text === "string" ? output.text.trim() : "";
   if (!raw) return null;
-  const collapsed = raw.replace(/\s+/g, " ");
+  return truncatePreviewText(raw, maxLen);
+}
+
+/** Collapse whitespace and truncate for on-node Prompt / transcript chrome. */
+export function truncatePreviewText(text: string, maxLen = 140): string | null {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  if (!collapsed) return null;
   if (collapsed.length <= maxLen) return collapsed;
   return `${collapsed.slice(0, Math.max(1, maxLen - 1))}…`;
+}
+
+/** Live Prompt body for canvas chrome — widget text, not last-render output. */
+export function promptWidgetSnippet(node: WorkflowNode, maxLen = 140): string | null {
+  if (node.type !== "Prompt") return null;
+  const raw = node.widgets.text;
+  const text = typeof raw === "string" ? raw : raw == null ? "" : String(raw);
+  return truncatePreviewText(text, maxLen);
 }
 
 /**
@@ -666,8 +680,10 @@ export function workflowToFlowNodes(
         if (!schema) return placeholderOutputSockets(linkCounts.outputs);
         return schema.outputs.map((socket, slot) => ({
           name: socket.name,
-          // When Preview (or passthrough) emits TEXT, color the handle from the job.
-          type: slot === 0 && jobOut?.type === "TEXT" ? "TEXT" : socket.type,
+          type:
+            n.type === "Prompt" || (slot === 0 && (jobOut?.type === "TEXT" || jobOut?.type === "STRING"))
+              ? "TEXT"
+              : socket.type,
           slot,
         }));
       })();
@@ -693,7 +709,7 @@ export function workflowToFlowNodes(
           nodeId: n.id,
           canAudition: nodeHasListenableOutput(workflow, n.id, outputs),
           issue: nodeIssues?.[n.id],
-          previewText: previewTextSnippet(jobOut) ?? undefined,
+          previewText: promptWidgetSnippet(n) ?? previewTextSnippet(jobOut) ?? undefined,
           noteText,
           channelLabel,
           inputs,
