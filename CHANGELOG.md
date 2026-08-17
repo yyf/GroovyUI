@@ -4,6 +4,7 @@
 
 ### Added
 
+- **`authenticity-check` featured** — Trust-domain picker demo of all three Authenticity palette nodes (`VerifyProvenance`, `DeepfakeDetect`, `AuthenticitySummary`) plus source and detector pass-through Previews
 - **License-clear 7-day sprint templates** (featured): `compare-whisper-sizes`, `script-to-vo-master`, `karaoke-guide-vocal`, `instrumental-tts-dub`, `melody-to-modular-synth`, `compare-stemmers`, `stem-lyrics-to-ace` — compound / A/B / modular graphs (MIT/Apache/ACE); Settings license matrix + integrity overrides updated
 - **Settings → Model installs** — list local weight installs with size, per-model Remove (checkbox / button), **HF cache** (opens shared Hugging Face hub folder for manual delete), and **Remove all installed models**; APIs `GET /api/models/installed`, `POST /api/models/installed/clear`, `POST /api/system/reveal-hf-cache`
 - **`SpeechTranslate` + `seamless-m4t-v2-large`** — speech-to-speech localization (Meta SeamlessM4T v2); `speaker_id` 0–199 (vocoder voice, not gender/source clone); stub when Inference=Stub; Real uses transformers when installed
@@ -11,6 +12,11 @@
 
 ### Changed
 
+- **Authenticity sidecar lookup** — VerifyProvenance uses `{stem}.provenance.json` beside the audio, or that filename if it appears exactly once in the project
+- **Authenticity tab refresh** — always include AuthenticitySummary in the render job; prefer its merged report over a selected DeepfakeDetect; ignore stale fetches so sidecar status updates on the first completed render
+- **Upload keeps provenance sidecars** — dropping a wav that already exists next to `*.provenance.json` reuses that project path (instead of copying audio-only into `assets/uploads/`)
+- **Authenticity tab** — prefers `AuthenticitySummary` over the first AUTHENTICITY socket so Label is not blank
+- **Mixed node outputs** — executor caches AUTHENTICITY+AUDIO (and other mixed `RETURN_TYPES`) as MULTI in slot order so DeepfakeDetect pass-through Preview can use outlet 1; stale 1-slot caches are ignored
 - **MusicGen Melody conditioning** — prefer Demucs vocals as HF audio conditioner when wired; band-pass 120–3500 Hz + silence trim; cap tokens to melody duration; default `temperature=0.7` + top_k/top_p; soft output peak
 - **`ChannelConvert` canvas labels** — e.g. MONO inlet / STEREO outlet when converting to stereo
 - **`song-cover-remix`** — LoadAudio uses `Signe_Jakobsen_short.mp4`; vocals-conditioned MusicGen + RVC → stereo Mix

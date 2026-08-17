@@ -52,6 +52,7 @@ describe("templatesVisibleInUi", () => {
     const visible = templatesVisibleInUi(allBundled);
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
+      "authenticity-check",
       "compare-stemmers",
       "compare-whisper-sizes",
       "extract-lyrics-to-music-with-ace-step",
@@ -111,12 +112,13 @@ describe("templatesVisibleInUi", () => {
   it("always shows user templates", () => {
     const visible = templatesVisibleInUi([...allBundled, user("my-export")]);
     expect(visible.some((t) => t.id === "my-export")).toBe(true);
-    expect(visible.some((t) => t.id === "authenticity-check")).toBe(false);
+    expect(visible.some((t) => t.id === "authenticity-check")).toBe(true);
+    expect(visible.some((t) => t.id === "simple-fm-synth")).toBe(false);
   });
 
-  it("keeps the active bundled template visible when it is not featured", () => {
-    const visible = templatesVisibleInUi(allBundled, "authenticity-check");
-    expect(visible.map((t) => t.id)).toContain("authenticity-check");
+  it("keeps a non-featured bundled template visible when it is the active selection", () => {
+    const visible = templatesVisibleInUi(allBundled, "simple-fm-synth");
+    expect(visible.map((t) => t.id)).toContain("simple-fm-synth");
   });
 });
 
@@ -130,6 +132,7 @@ describe("groupBundledTemplatesByDomain", () => {
       bundled("voice-cloning", "Voice Cloning"),
       bundled("modular-generative-rack", "Modular Generative Rack"),
       bundled("compare-stemmers", "Compare Stemmers"),
+      bundled("authenticity-check", "Authenticity Check"),
       user("my-patch"),
     ]);
     const groups = groupBundledTemplatesByDomain(visible);
@@ -141,6 +144,7 @@ describe("groupBundledTemplatesByDomain", () => {
       "generate",
       "modular",
       "compare",
+      "trust",
     ]);
     expect(groups.find((g) => g.domain.id === "speech")?.templates.map((t) => t.id)).toEqual([
       "podcast-denoise",
@@ -149,15 +153,19 @@ describe("groupBundledTemplatesByDomain", () => {
   });
 
   it("puts unknown bundled ids in Other", () => {
-    expect(domainIdForTemplate("authenticity-check")).toBe("other");
+    expect(domainIdForTemplate("ab-compare-demo")).toBe("other");
     const groups = groupBundledTemplatesByDomain([
-      bundled("authenticity-check", "Authenticity Check"),
+      bundled("ab-compare-demo", "A/B Compare Demo"),
     ]);
     expect(groups).toEqual([
       {
         domain: { id: "other", label: "Other" },
-        templates: [bundled("authenticity-check", "Authenticity Check")],
+        templates: [bundled("ab-compare-demo", "A/B Compare Demo")],
       },
     ]);
+  });
+
+  it("places authenticity-check in Trust", () => {
+    expect(domainIdForTemplate("authenticity-check")).toBe("trust");
   });
 });

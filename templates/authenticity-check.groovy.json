@@ -5,14 +5,16 @@
   "metadata": {
     "title": "Authenticity Check",
     "author": "groovy",
-    "description": "Verify provenance sidecar and run deepfake detection on inbound audio.",
+    "description": "Palette Authenticity trio: VerifyProvenance (sidecar) ∥ DeepfakeDetect (RawNet2) → AuthenticitySummary. Preview source and the detector pass-through; open Compliance → Authenticity after render.",
     "tags": [
+      "featured",
       "authenticity",
       "deepfake",
-      "provenance"
+      "provenance",
+      "trust"
     ],
     "created_at": "2026-07-06T12:00:00Z",
-    "modified_at": "2026-07-06T12:00:00Z"
+    "modified_at": "2026-08-15T00:00:00Z"
   },
   "nodes": [
     {
@@ -23,7 +25,7 @@
         "y": 0
       },
       "widgets": {
-        "text": "Authenticity Check \u2014 Verify provenance sidecar and run deepfake detection on inbound audio."
+        "text": "Authenticity Check — all three Authenticity palette nodes.\nLoad → VerifyProvenance ∥ DeepfakeDetect → AuthenticitySummary.\nRender, then Compliance → Authenticity. Offline · Play = cached PCM."
       }
     },
     {
@@ -31,7 +33,7 @@
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 100.0
+        "y": 140
       },
       "widgets": {
         "path": "assets/samples/noisy_speech_1214.wav"
@@ -41,8 +43,8 @@
       "id": "n2",
       "type": "VerifyProvenance",
       "pos": {
-        "x": 236,
-        "y": 100.0
+        "x": 260,
+        "y": 80
       },
       "widgets": {
         "check_sidecar": true
@@ -52,8 +54,8 @@
       "id": "n3",
       "type": "DeepfakeDetect",
       "pos": {
-        "x": 236,
-        "y": 348.0
+        "x": 260,
+        "y": 240
       },
       "widgets": {
         "model": "rawnet2-asvspoof",
@@ -64,8 +66,8 @@
       "id": "n4",
       "type": "AuthenticitySummary",
       "pos": {
-        "x": 472,
-        "y": 100.0
+        "x": 520,
+        "y": 140
       },
       "widgets": {
         "spoof_threshold": 0.5
@@ -75,8 +77,17 @@
       "id": "n5",
       "type": "Preview",
       "pos": {
-        "x": 236,
-        "y": 224.0
+        "x": 260,
+        "y": 400
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n6",
+      "type": "Preview",
+      "pos": {
+        "x": 520,
+        "y": 320
       },
       "widgets": {}
     }
@@ -84,62 +95,38 @@
   "links": [
     {
       "id": "l1",
-      "from": [
-        "n1",
-        0
-      ],
-      "to": [
-        "n2",
-        0
-      ],
+      "from": ["n1", 0],
+      "to": ["n2", 0],
       "type": "AUDIO"
     },
     {
       "id": "l2",
-      "from": [
-        "n1",
-        0
-      ],
-      "to": [
-        "n3",
-        0
-      ],
+      "from": ["n1", 0],
+      "to": ["n3", 0],
       "type": "AUDIO"
     },
     {
       "id": "l3",
-      "from": [
-        "n2",
-        0
-      ],
-      "to": [
-        "n4",
-        0
-      ],
+      "from": ["n2", 0],
+      "to": ["n4", 0],
       "type": "AUTHENTICITY"
     },
     {
       "id": "l4",
-      "from": [
-        "n3",
-        0
-      ],
-      "to": [
-        "n4",
-        1
-      ],
+      "from": ["n3", 0],
+      "to": ["n4", 1],
       "type": "AUTHENTICITY"
     },
     {
       "id": "l5",
-      "from": [
-        "n1",
-        0
-      ],
-      "to": [
-        "n5",
-        0
-      ],
+      "from": ["n1", 0],
+      "to": ["n5", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l6",
+      "from": ["n3", 1],
+      "to": ["n6", 0],
       "type": "AUDIO"
     }
   ],

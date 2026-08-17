@@ -138,6 +138,39 @@ export function jobOutputAtSlot(output?: JobOutput, slot = 0): JobOutput | undef
   return slot === 0 ? output : undefined;
 }
 
+export function authenticityIdFromOutput(output?: JobOutput): string | null {
+  if (!output) return null;
+  if (output.authenticity_id) return output.authenticity_id;
+  if (output.type === "MULTI" && output.outputs?.length) {
+    for (const slot of output.outputs) {
+      if (slot.authenticity_id) return slot.authenticity_id;
+    }
+  }
+  return null;
+}
+
+/** Prefer AuthenticitySummary even if DeepfakeDetect/Preview is selected. */
+export function authenticityReportId(
+  workflow: Workflow,
+  outputs: Record<string, JobOutput>,
+  targetNodeId?: string | null,
+): string | null {
+  for (const node of workflow.nodes) {
+    if (node.type !== "AuthenticitySummary") continue;
+    const id = authenticityIdFromOutput(outputs[node.id]);
+    if (id) return id;
+  }
+  if (targetNodeId) {
+    const focused = authenticityIdFromOutput(outputs[targetNodeId]);
+    if (focused) return focused;
+  }
+  for (const node of workflow.nodes) {
+    const id = authenticityIdFromOutput(outputs[node.id]);
+    if (id) return id;
+  }
+  return null;
+}
+
 export function previewMidiId(output?: JobOutput): string | null {
   if (output?.type === "MIDI" && output.midi_id) return output.midi_id;
   if (output?.midi_id && !output.cache_id) return output.midi_id;
@@ -1163,6 +1196,18 @@ export function resolveTargetNode(workflow: Workflow, selectedId: string | null)
     return preview.id;
   }
   return workflow.nodes[workflow.nodes.length - 1]?.id ?? "";
+}
+
+/** Keep VerifyProvenance / AuthenticitySummary in the job so Compliance is not ML-only. */
+export function withAuthenticityRenderTargets(workflow: Workflow, targets: string[]): string[] {
+  const summaries = workflow.nodes
+    .filter((node) => node.type === "AuthenticitySummary")
+    .map((node) => node.id);
+  const extra = summaries.length
+    ? summaries
+    : workflow.nodes.filter((node) => node.type === "VerifyProvenance").map((node) => node.id);
+  if (!extra.length) return targets;
+  return [...new Set([...targets, ...extra])];
 }
 
 /** Terminal nodes (no outgoing edges) — render-all executes each chain to its sink. */

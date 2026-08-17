@@ -653,6 +653,7 @@ class Note(GroovyNode):
 class VerifyProvenance(GroovyNode):
     CATEGORY = "GroovyUI/Core"
     RETURN_TYPES = ("AUTHENTICITY",)
+    CACHEABLE = False
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -675,7 +676,15 @@ class VerifyProvenance(GroovyNode):
             source_path=str(source_path) if source_path else None,
             check_sidecar=check_sidecar,
         )
-        report = AuthenticityReport.create({"provenance_check": prov_check})
+        from groovy.executor.authenticity import overall_label
+
+        label, confidence, summary = overall_label(prov_check, None)
+        report = AuthenticityReport.create(
+            {
+                "overall": {"label": label, "confidence": confidence, "summary": summary},
+                "provenance_check": prov_check,
+            }
+        )
         self._ctx.cache.write_authenticity(report)
         return (report,)
 
@@ -684,6 +693,7 @@ class VerifyProvenance(GroovyNode):
 class AuthenticitySummary(GroovyNode):
     CATEGORY = "GroovyUI/Core"
     RETURN_TYPES = ("AUTHENTICITY",)
+    CACHEABLE = False
 
     @classmethod
     def INPUT_TYPES(cls):

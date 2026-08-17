@@ -3,6 +3,7 @@ import type { TemplateListItem } from "./api";
 /** Bundled templates shown in the workflow template picker (alphabetical by title in UI). */
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5",
+  "authenticity-check",
   "compare-stemmers",
   "compare-whisper-sizes",
   "extract-lyrics-to-music-with-ace-step",
@@ -37,6 +38,7 @@ export type TemplateDomainId =
   | "generate"
   | "modular"
   | "compare"
+  | "trust"
   | "other";
 
 export type TemplateDomain = {
@@ -53,6 +55,7 @@ export const TEMPLATE_DOMAINS: readonly TemplateDomain[] = [
   { id: "generate", label: "Generate Music" },
   { id: "modular", label: "Modular" },
   { id: "compare", label: "Compare" },
+  { id: "trust", label: "Trust" },
   { id: "other", label: "Other" },
 ] as const;
 
@@ -92,6 +95,8 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "modular-generative-rack": "modular",
   "melody-to-modular-synth": "modular",
   "simple-fm-synth": "modular",
+
+  "authenticity-check": "trust",
 };
 
 const featuredBundledIds = new Set<string>(FEATURED_BUNDLED_TEMPLATE_IDS);

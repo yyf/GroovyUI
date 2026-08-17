@@ -29,6 +29,40 @@ class AuthenticityReport:
         return cls(id=report_id, record=record)
 
 
+_SIDECAR_SKIP_DIRS = {".groovy", ".git", "node_modules", ".venv"}
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as audio_file:
+        for chunk in iter(lambda: audio_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return f"sha256:{digest.hexdigest()}"
+
+
+def sidecar_path_for_audio(audio_path: Path) -> Path:
+    return audio_path.with_name(f"{audio_path.stem}.provenance.json")
+
+
+def find_provenance_sidecar(project_dir: Path, audio_path: Path) -> Path | None:
+    """Sibling ``*.provenance.json``, else that filename if it appears exactly once in the project."""
+    sibling = sidecar_path_for_audio(audio_path)
+    if sibling.is_file():
+        return sibling
+    root = project_dir.resolve()
+    matches: list[Path] = []
+    for path in root.rglob(sibling.name):
+        if not path.is_file():
+            continue
+        rel_parts = set(path.relative_to(root).parts[:-1])
+        if rel_parts & _SIDECAR_SKIP_DIRS:
+            continue
+        matches.append(path)
+    if len(matches) == 1:
+        return matches[0]
+    return None
+
+
 def verify_provenance_for_audio(
     cache: Any,
     audio_id: str,
@@ -42,8 +76,8 @@ def verify_provenance_for_audio(
 
     if check_sidecar and source_path:
         resolved = cache.resolve_project_path(source_path)
-        sidecar = resolved.with_name(f"{resolved.stem}.provenance.json")
-        if sidecar.exists():
+        sidecar = find_provenance_sidecar(cache.project_dir, resolved)
+        if sidecar is not None:
             sidecar_record = json.loads(sidecar.read_text())
 
     provenance = sidecar_record or imported
@@ -63,11 +97,7 @@ def verify_provenance_for_audio(
     artifact_hash = provenance.get("artifact", {}).get("file_hash")
     if artifact_hash and source_path:
         resolved = cache.resolve_project_path(source_path)
-        digest = hashlib.sha256()
-        with resolved.open("rb") as audio_file:
-            for chunk in iter(lambda: audio_file.read(1024 * 1024), b""):
-                digest.update(chunk)
-        chain_intact = chain_intact and artifact_hash == f"sha256:{digest.hexdigest()}"
+        chain_intact = chain_intact and artifact_hash == _sha256_file(resolved)
     else:
         content_hash = meta.get("content_hash")
         if provenance.get("content_hash") and content_hash:
