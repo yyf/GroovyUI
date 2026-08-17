@@ -4,6 +4,9 @@
 
 ### Added
 
+- **`neural-modular-rack` featured** — Mix-bus copy of the self-playing rack (no Ambisonics / no RAVE): dual clock 88/44, intermittent pentatonic bass, probability-gated saw, articulating FM/bandpass drone, ACE-Step (MIT) into Granulate, very dry Mix/Reverb. Commercial-ok (ACE MIT + DSP).
+- **`self-playing-neural-rack`** — Clock/S&H/Quantizer rack with Osc as the DSP voice, ACE-Step as a MIDI-conditioned oscillator (`AutomationToMIDI`), RAVE as the filter, object-bus freeze through FOA. Catalog only (hidden from the studio picker; RAVE is CC-BY-NC). Use **`neural-modular-rack`** for the commercial-ok Modular menu entry.
+- **`AutomationToMIDI`** — convert stepwise Hz CV (Quantizer / S&H) to MIDI notes for AI oscillators. Offline sequencer read, not a live callback.
 - **`authenticity-check` featured** — Trust-domain picker demo of all three Authenticity palette nodes (`VerifyProvenance`, `DeepfakeDetect`, `AuthenticitySummary`) plus source and detector pass-through Previews
 - **License-clear 7-day sprint templates** (featured): `compare-whisper-sizes`, `script-to-vo-master`, `karaoke-guide-vocal`, `instrumental-tts-dub`, `melody-to-modular-synth`, `compare-stemmers`, `stem-lyrics-to-ace` — compound / A/B / modular graphs (MIT/Apache/ACE); Settings license matrix + integrity overrides updated
 - **Settings → Model installs** — list local weight installs with size, per-model Remove (checkbox / button), **HF cache** (opens shared Hugging Face hub folder for manual delete), and **Remove all installed models**; APIs `GET /api/models/installed`, `POST /api/models/installed/clear`, `POST /api/system/reveal-hf-cache`

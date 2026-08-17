@@ -214,10 +214,11 @@ body {
   top: calc(100% + 4px);
   left: 0;
   z-index: 60;
-  min-width: 220px;
-  max-width: min(280px, 70vw);
-  /* Keep overflow visible so domain flyouts are not clipped */
-  overflow: visible;
+  min-width: 240px;
+  max-width: min(320px, 80vw);
+  max-height: min(70vh, 520px);
+  overflow-x: hidden;
+  overflow-y: auto;
   margin: 0;
   padding: 4px 0;
   list-style: none;
@@ -300,20 +301,17 @@ body {
 }
 
 .template-select__submenu {
-  position: absolute;
-  top: 0;
-  left: calc(100% - 2px);
-  z-index: 61;
-  min-width: 220px;
-  max-width: min(320px, 55vw);
-  max-height: min(360px, 50vh);
-  overflow-y: auto;
+  position: static;
   margin: 0;
-  padding: 4px 0;
+  padding: 0 0 4px;
   list-style: none;
-  background: var(--gradient-panel);
-  border: 1px solid var(--border-silver);
-  box-shadow: 8px 12px 36px rgba(0, 0, 0, 0.5);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.template-select__submenu .template-select__option {
+  padding-left: 22px;
 }
 
 .template-select__empty {

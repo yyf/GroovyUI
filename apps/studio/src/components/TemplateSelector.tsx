@@ -32,11 +32,24 @@ export default function TemplateSelector({
   );
   const selected = templates.find((template) => template.id === selectedId);
 
+  const wasMenuOpen = useRef(false);
+
   useEffect(() => {
     if (!open) {
+      wasMenuOpen.current = false;
       setOpenDomainId(null);
       return;
     }
+    if (wasMenuOpen.current) return;
+    wasMenuOpen.current = true;
+    const selectedGroup = domainGroups.find((group) =>
+      group.templates.some((template) => template.id === selectedId),
+    );
+    setOpenDomainId(selectedGroup?.domain.id ?? domainGroups[0]?.domain.id ?? null);
+  }, [open, domainGroups, selectedId]);
+
+  useEffect(() => {
+    if (!open) return;
     const onPointer = (event: MouseEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -133,7 +146,6 @@ export default function TemplateSelector({
                       key={domain.id}
                       className={`template-select__domain${isOpen ? " template-select__domain--open" : ""}`}
                       role="none"
-                      onMouseEnter={() => setOpenDomainId(domain.id)}
                     >
                       <button
                         type="button"
@@ -154,7 +166,7 @@ export default function TemplateSelector({
                         <span>{domain.label}</span>
                         <span className="template-select__domain-meta" aria-hidden>
                           {domainTemplates.length}
-                          <span className="template-select__domain-chevron">›</span>
+                          <span className="template-select__domain-chevron">{isOpen ? "▾" : "▸"}</span>
                         </span>
                       </button>
                       {isOpen ? (

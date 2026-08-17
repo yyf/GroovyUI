@@ -8,6 +8,7 @@ from scipy import signal as scipy_signal
 from groovy.executor.audio import AudioBuffer
 from groovy.executor.control import AutomationBuffer
 from groovy.executor.audio_meta import inherit_format_meta
+from groovy.executor.midi import MidiBuffer
 from groovy.node import GroovyNode, register_node
 
 WAVEFORMS = ("sine", "saw", "square", "triangle")
@@ -33,6 +34,7 @@ def register_modular_synth() -> None:
         SampleAndHold,
         Quantizer,
         Clock,
+        AutomationToMIDI,
     )
 
 
@@ -111,6 +113,55 @@ def _scale_degrees(scale: str) -> np.ndarray:
     if scale in {"pentatonic", "penta"}:
         return np.array([0, 2, 4, 7, 9], dtype=np.int32)
     return np.arange(12, dtype=np.int32)
+
+
+def hz_to_midi_note(hz: np.ndarray | float) -> np.ndarray:
+    """Map Hz CV to MIDI note numbers (A4=440 → 69)."""
+    hz_arr = np.maximum(np.asarray(hz, dtype=np.float64), 8.1757989156)
+    notes = np.rint(69.0 + 12.0 * np.log2(hz_arr / 440.0)).astype(np.int32)
+    return np.clip(notes, 0, 127)
+
+
+def automation_to_midi_events(
+    hz: np.ndarray,
+    *,
+    gate: np.ndarray | None = None,
+    threshold: float = 0.5,
+    velocity: float = 0.8,
+    channel: int = 0,
+) -> list[dict]:
+    """Turn stepwise Hz CV into note_on/note_off events (one note per pitch plateau)."""
+    notes = hz_to_midi_note(hz).reshape(-1)
+    n = int(notes.size)
+    if n == 0:
+        return []
+    if gate is None:
+        gated = np.ones(n, dtype=bool)
+    else:
+        gated = np.asarray(gate, dtype=np.float64).reshape(-1)[:n] >= float(threshold)
+        if gated.size < n:
+            gated = np.pad(gated, (0, n - gated.size), constant_values=False)
+    events: list[dict] = []
+    i = 0
+    vel = float(np.clip(velocity, 0.0, 1.0))
+    ch = int(channel)
+    while i < n:
+        if not gated[i]:
+            i += 1
+            continue
+        note = int(notes[i])
+        start = i
+        i += 1
+        while i < n and gated[i] and int(notes[i]) == note:
+            i += 1
+        end = max(start, i - 1)
+        events.append(
+            {"frame": start, "type": "note_on", "channel": ch, "note": note, "velocity": vel}
+        )
+        events.append(
+            {"frame": end, "type": "note_off", "channel": ch, "note": note, "velocity": 0.0}
+        )
+    return events
 
 
 def quantize_cv(values: np.ndarray, *, root_hz: float, scale: str) -> np.ndarray:
@@ -888,3 +939,57 @@ class Clock(GroovyNode):
             end = min(frame_count, start + pulse)
             values[start:end] = 1.0
         return (_write_automation(self._ctx, values, sample_rate, "Clock"),)
+
+
+@register_node
+class AutomationToMIDI(GroovyNode):
+    """Convert Hz AUTOMATION (and optional gate) into MIDI note events.
+
+    Offline sequencer read of a Quantizer/S&H plateau — not a live MIDI callback.
+    """
+
+    CATEGORY = "GroovyUI/Modular"
+    PROVENANCE_CLASS = "human_edited"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    DURATION_LOCKED = True
+    RETURN_TYPES = ("MIDI",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"cv": ("AUTOMATION",)},
+            "optional": {
+                "gate": ("AUTOMATION",),
+                "threshold": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0}),
+                "velocity": ("FLOAT", {"default": 0.8, "min": 0.0, "max": 1.0}),
+                "midi_kind": ("STRING", {"default": "score"}),
+            },
+        }
+
+    def run(self, cv: AutomationBuffer, **kwargs) -> tuple[MidiBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        from groovy.executor.live_midi import smf_bytes_from_note_events, write_midi_events_meta
+
+        gate = kwargs.get("gate")
+        threshold = float(np.clip(float(kwargs.get("threshold", 0.5)), 0.0, 1.0))
+        velocity = float(np.clip(float(kwargs.get("velocity", 0.8)), 0.0, 1.0))
+        midi_kind = str(kwargs.get("midi_kind", "score") or "score")
+        hz = np.asarray(cv.values, dtype=np.float64)
+        gate_values = None if gate is None else np.asarray(gate.resample_to(hz.size), dtype=np.float64)
+        events = automation_to_midi_events(
+            hz,
+            gate=gate_values,
+            threshold=threshold,
+            velocity=velocity,
+        )
+        midi = MidiBuffer.create(
+            sample_rate=int(cv.sample_rate),
+            frame_count=int(cv.frame_count),
+            source_node_type="AutomationToMIDI",
+            midi_kind=midi_kind,
+        )
+        smf = smf_bytes_from_note_events(events, sample_rate=int(cv.sample_rate))
+        write_midi_events_meta(self._ctx.cache, midi, events, midi_bytes=smf)
+        return (midi,)
