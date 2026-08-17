@@ -16,6 +16,22 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
         "modular-generative-rack",
         "Modular Generative Rack",
     ),
+    (
+        re.compile(
+            r"\b(neural.?modular|mix.?rack|probability.?saw|half.?time.?ace)\b",
+            re.I,
+        ),
+        "neural-modular-rack",
+        "Neural Modular Rack",
+    ),
+    (
+        re.compile(
+            r"\b(neural.?rack|self.?playing|ai.?oscillator|automation.?to.?midi|ace.+rave|rave.+modular)\b",
+            re.I,
+        ),
+        "self-playing-neural-rack",
+        "Self-Playing Neural Rack",
+    ),
     (re.compile(r"\b(normalize|load.?audio.?chain)\b", re.I), "hello-groovy", "Hello GroovyUI starter chain"),
     (
         re.compile(r"\b(cleanup.?and.?transcrib|denoise.+(transcrib|whisper)|clean.+(transcrib|whisper))\b", re.I),
@@ -77,7 +93,7 @@ def suggest_workflows(prompt: str, templates_dir: Path) -> dict[str, Any]:
     scored: list[tuple[int, str, str]] = []
     for pattern, template_id, rationale in TEMPLATE_HINTS:
         if pattern.search(prompt):
-            scored.append((10, template_id, rationale))
+            scored.append((20, template_id, rationale))
 
     for path in sorted(templates_dir.glob("*.groovy.json")):
         template_id = path.name.removesuffix(".groovy.json")

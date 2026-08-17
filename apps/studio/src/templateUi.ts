@@ -19,6 +19,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "prompt-modular-synth",
   "rave-timbre-transfer",
   "script-to-vo-master",
+  "neural-modular-rack",
   "song-cover-remix",
   "stable-audio",
   "stem-lyrics-to-ace",
@@ -94,6 +95,8 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
 
   "modular-generative-rack": "modular",
   "melody-to-modular-synth": "modular",
+  "neural-modular-rack": "modular",
+  "self-playing-neural-rack": "modular",
   "simple-fm-synth": "modular",
 
   "authenticity-check": "trust",

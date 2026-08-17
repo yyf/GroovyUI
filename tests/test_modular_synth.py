@@ -26,6 +26,7 @@ MODULAR_TYPES = [
     "SampleAndHold",
     "Quantizer",
     "Clock",
+    "AutomationToMIDI",
 ]
 
 
@@ -352,3 +353,66 @@ def test_float_feeds_float_math(tmp_path: Path) -> None:
     assert result.status == "completed", result.error
     curve = ex.cache.load_automation(_auto_id(result.outputs["math"]))
     assert float(np.mean(curve.values)) == pytest.approx(6.0, abs=1e-6)
+
+
+def test_hz_to_midi_note_a4() -> None:
+    from groovy.nodes.core.modular_synth import hz_to_midi_note
+
+    assert int(hz_to_midi_note(440.0)[()]) == 69
+    assert int(hz_to_midi_note(np.array([220.0, 440.0, 880.0]))[1]) == 69
+
+
+def test_automation_to_midi_from_quantizer(tmp_path: Path) -> None:
+    workflow = Workflow(
+        schema_version="1.0.0",
+        groovy_version="0.1.0",
+        id="cv-to-midi",
+        metadata=WorkflowMetadata(title="automation to midi"),
+        nodes=[
+            NodeInstance(
+                id="clk",
+                type="Clock",
+                pos={"x": 0, "y": 0},
+                widgets={"bpm": 240.0, "pulse_ms": 40.0, "duration_sec": 0.5, "sample_rate": 48000},
+            ),
+            NodeInstance(
+                id="noise",
+                type="NoiseGenerator",
+                pos={"x": 0, "y": 120},
+                widgets={"color": "white", "amplitude": 1.0, "duration_sec": 0.5, "sample_rate": 48000, "seed": 3},
+            ),
+            NodeInstance(id="sah", type="SampleAndHold", pos={"x": 220, "y": 40}, widgets={"threshold": 0.5}),
+            NodeInstance(
+                id="quant",
+                type="Quantizer",
+                pos={"x": 440, "y": 40},
+                widgets={"scale": "minor", "root_hz": 220.0},
+            ),
+            NodeInstance(
+                id="midi",
+                type="AutomationToMIDI",
+                pos={"x": 660, "y": 40},
+                widgets={"midi_kind": "score", "velocity": 0.8},
+            ),
+        ],
+        links=[
+            Link(id="l1", **{"from": ["clk", 0], "to": ["sah", 0], "type": "AUTOMATION"}),
+            Link(id="l2", **{"from": ["noise", 0], "to": ["sah", 2], "type": "AUDIO"}),
+            Link(id="l3", **{"from": ["sah", 0], "to": ["quant", 0], "type": "AUTOMATION"}),
+            Link(id="l4", **{"from": ["quant", 0], "to": ["midi", 0], "type": "AUTOMATION"}),
+        ],
+    )
+    ex = Executor(tmp_path / "cv-midi")
+    result = ex.execute(workflow, target_nodes=["midi"])
+    assert result.status == "completed", result.error
+    assert result.outputs["midi"]["type"] == "MIDI"
+    midi_id = result.outputs["midi"]["midi_id"]
+    midi = ex.cache.load_midi(midi_id)
+    assert midi.midi_kind == "score"
+    assert midi.frame_count == 24000
+    assert (tmp_path / "cv-midi" / ".groovy" / "cache" / f"{midi_id}.mid").exists()
+    from groovy.executor.live_midi import load_midi_events
+
+    events = load_midi_events(ex.cache, midi_id)
+    ons = [e for e in events if e.get("type") == "note_on"]
+    assert ons, "expected at least one note_on from quantized CV"

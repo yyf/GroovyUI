@@ -296,15 +296,82 @@ def midi_buffer_from_events(
     return midi
 
 
-def write_midi_events_meta(cache: Any, midi: MidiBuffer, events: list[dict[str, Any]]) -> MidiBuffer:
+def write_midi_events_meta(
+    cache: Any,
+    midi: MidiBuffer,
+    events: list[dict[str, Any]],
+    midi_bytes: bytes | None = None,
+) -> MidiBuffer:
     events_path = cache.cache_dir / f"{midi.id}.midi.events.json"
     events_path.write_text(json.dumps(events, indent=2))
-    cache.write_midi(midi, midi_bytes=None)
+    cache.write_midi(midi, midi_bytes=midi_bytes)
     meta = midi.to_meta()
     meta["events_path"] = str(events_path)
     meta_path = cache.cache_dir / f"{midi.id}.midi.meta.json"
     meta_path.write_text(json.dumps(meta, indent=2))
     return midi
+
+
+def smf_bytes_from_note_events(
+    events: list[dict[str, Any]],
+    *,
+    sample_rate: int,
+    tempo_bpm: float = 120.0,
+) -> bytes:
+    """Serialize note_on/note_off executor events to a Type-0 SMF."""
+    import tempfile
+    from pretty_midi import Instrument, Note, PrettyMIDI
+
+    sr = max(1, int(sample_rate))
+    pm = PrettyMIDI(initial_tempo=float(tempo_bpm))
+    inst = Instrument(program=0, is_drum=False)
+    pending: dict[tuple[int, int], tuple[int, float]] = {}
+    ordered = sorted(events, key=lambda item: (int(item.get("frame", 0)), str(item.get("type", ""))))
+    for event in ordered:
+        etype = str(event.get("type", ""))
+        if etype not in {"note_on", "note_off"}:
+            continue
+        channel = int(event.get("channel", 0))
+        note = max(0, min(127, int(event.get("note", 60))))
+        frame = max(0, int(event.get("frame", 0)))
+        velocity = float(event.get("velocity", 0.8))
+        key = (channel, note)
+        if etype == "note_on" and velocity > 0:
+            pending[key] = (frame, velocity)
+            continue
+        start = pending.pop(key, None)
+        if start is None:
+            continue
+        start_frame, start_vel = start
+        start_t = start_frame / sr
+        end_t = max(start_t + (1.0 / sr), frame / sr)
+        inst.notes.append(
+            Note(
+                velocity=max(1, min(127, int(round(start_vel * 127.0)))),
+                pitch=note,
+                start=start_t,
+                end=end_t,
+            )
+        )
+    for (_channel, note), (start_frame, start_vel) in pending.items():
+        start_t = start_frame / sr
+        inst.notes.append(
+            Note(
+                velocity=max(1, min(127, int(round(start_vel * 127.0)))),
+                pitch=note,
+                start=start_t,
+                end=start_t + 0.05,
+            )
+        )
+    pm.instruments.append(inst)
+    handle = tempfile.NamedTemporaryFile(suffix=".mid", delete=False)
+    path = Path(handle.name)
+    handle.close()
+    try:
+        pm.write(str(path))
+        return path.read_bytes()
+    finally:
+        path.unlink(missing_ok=True)
 
 
 def events_from_smf(

@@ -1,0 +1,465 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "c7e8f9a0-b1d2-4e35-9012-neuralmodrack1",
+  "metadata": {
+    "title": "Neural Modular Rack",
+    "author": "groovy",
+    "description": "Dual clock 88/44: intermittent pentatonic bass, probability-gated saw, articulating FM/bandpass drone, ACE-Step (MIT) into Granulate, very dry Mix/Reverb. No Ambisonics, no RAVE. Install ace-step-1.5. Offline \u00b7 Play = cached PCM.",
+    "tags": [
+      "featured",
+      "modular",
+      "generative",
+      "ace-step",
+      "granular",
+      "commercial-ok"
+    ],
+    "created_at": "2026-08-17T17:00:00Z",
+    "modified_at": "2026-08-17T17:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "n0",
+      "type": "Note",
+      "pos": { "x": 0, "y": 0 },
+      "widgets": {
+        "text": "Neural Modular Rack \u2014 commercial-ok. Intermittent bass (clock \u00d7 sparse LFO). Probability-gated saw. Sci-fi drone = sine + slow FM \u2192 resonant bandpass. ACE-Step (MIT) \u2192 Granulate. Very subtle reverb. Offline render \u00b7 Play = cached PCM."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "Clock",
+      "pos": { "x": 0, "y": 160 },
+      "widgets": {
+        "bpm": 88.0,
+        "pulse_ms": 85.0,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n2",
+      "type": "Clock",
+      "pos": { "x": 0, "y": 340 },
+      "widgets": {
+        "bpm": 44.0,
+        "pulse_ms": 220.0,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n3",
+      "type": "NoiseGenerator",
+      "pos": { "x": 0, "y": 520 },
+      "widgets": {
+        "color": "white",
+        "amplitude": 1.0,
+        "duration_sec": 10.0,
+        "sample_rate": 48000,
+        "seed": 7
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Prompt",
+      "pos": { "x": 0, "y": 700 },
+      "widgets": {
+        "text": "sparse sci-fi pulse, intermittent bass, articulating analog drone, no drums, no vocal, no lyrics, 88 BPM, dry room",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "LFO",
+      "pos": { "x": 260, "y": 700 },
+      "widgets": {
+        "waveform": "sine",
+        "rate_hz": 0.04,
+        "amplitude": 0.025,
+        "offset": 0.07,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n6",
+      "type": "LFO",
+      "pos": { "x": 260, "y": 520 },
+      "widgets": {
+        "waveform": "sine",
+        "rate_hz": 0.17,
+        "amplitude": 0.5,
+        "offset": 0.5,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n7",
+      "type": "ControlCurve",
+      "pos": { "x": 260, "y": 340 },
+      "widgets": {
+        "start_value": 420.0,
+        "end_value": 1800.0,
+        "frame_count": 480000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":380},{\"t\":0.28,\"v\":1650},{\"t\":0.55,\"v\":620},{\"t\":0.78,\"v\":2100},{\"t\":1,\"v\":900}]"
+      }
+    },
+    {
+      "id": "n8",
+      "type": "Envelope",
+      "pos": { "x": 260, "y": 160 },
+      "widgets": {
+        "attack_ms": 2200.0,
+        "decay_ms": 1800.0,
+        "sustain": 0.78,
+        "release_ms": 3200.0,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n9",
+      "type": "SampleAndHold",
+      "pos": { "x": 520, "y": 160 },
+      "widgets": { "threshold": 0.5 }
+    },
+    {
+      "id": "n10",
+      "type": "SampleAndHold",
+      "pos": { "x": 520, "y": 340 },
+      "widgets": { "threshold": 0.5 }
+    },
+    {
+      "id": "n11",
+      "type": "Quantizer",
+      "pos": { "x": 780, "y": 80 },
+      "widgets": { "scale": "pentatonic", "root_hz": 41.2 }
+    },
+    {
+      "id": "n12",
+      "type": "Quantizer",
+      "pos": { "x": 780, "y": 240 },
+      "widgets": { "scale": "pentatonic", "root_hz": 164.8 }
+    },
+    {
+      "id": "n13",
+      "type": "Quantizer",
+      "pos": { "x": 780, "y": 400 },
+      "widgets": { "scale": "pentatonic", "root_hz": 82.41 }
+    },
+    {
+      "id": "n14",
+      "type": "Oscillator",
+      "pos": { "x": 1040, "y": 40 },
+      "widgets": {
+        "waveform": "sine",
+        "frequency_hz": 41.2,
+        "amplitude_default": 0.72,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n15",
+      "type": "Oscillator",
+      "pos": { "x": 1040, "y": 220 },
+      "widgets": {
+        "waveform": "saw",
+        "frequency_hz": 164.8,
+        "amplitude_default": 0.3,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n16",
+      "type": "Filter",
+      "pos": { "x": 1300, "y": 220 },
+      "widgets": {
+        "filter_type": "lowpass",
+        "cutoff_hz": 980.0,
+        "q": 1.35
+      }
+    },
+    {
+      "id": "n17",
+      "type": "Comparator",
+      "pos": { "x": 520, "y": 520 },
+      "widgets": { "threshold": 0.52 }
+    },
+    {
+      "id": "n18",
+      "type": "Logic",
+      "pos": { "x": 780, "y": 560 },
+      "widgets": { "operation": "and", "threshold": 0.5 }
+    },
+    {
+      "id": "n19",
+      "type": "Amplifier",
+      "pos": { "x": 1300, "y": 40 },
+      "widgets": { "gain": 1.35 }
+    },
+    {
+      "id": "n20",
+      "type": "Amplifier",
+      "pos": { "x": 1560, "y": 220 },
+      "widgets": { "gain": 0.92 }
+    },
+    {
+      "id": "n21",
+      "type": "Mix",
+      "pos": { "x": 1820, "y": 120 },
+      "widgets": { "gain_a": 1.08, "gain_b": 0.52 }
+    },
+    {
+      "id": "n22",
+      "type": "AutomationToMIDI",
+      "pos": { "x": 1040, "y": 420 },
+      "widgets": {
+        "threshold": 0.5,
+        "velocity": 0.82,
+        "midi_kind": "score"
+      }
+    },
+    {
+      "id": "n23",
+      "type": "GenerateAudio",
+      "pos": { "x": 1300, "y": 420 },
+      "widgets": {
+        "model": "ace-step-1.5",
+        "prompt": "sparse sci-fi pulse, intermittent bass, articulating analog drone, no drums, no vocal, no lyrics, 88 BPM, dry room",
+        "lyrics": "",
+        "seed": 7,
+        "seconds_total": 10.0,
+        "num_inference_steps": 8,
+        "guidance_scale": 1.0
+      }
+    },
+    {
+      "id": "n24",
+      "type": "Granulate",
+      "pos": { "x": 1560, "y": 420 },
+      "widgets": {
+        "grain_ms": 72.0,
+        "hop_ms": 24.0,
+        "pitch_cents": 90.0,
+        "density": 36.0,
+        "spray": 4,
+        "width": 0.42,
+        "window": "hann",
+        "window_alpha": 0.4,
+        "scatter_ms": 160.0,
+        "wet_start": 0.18,
+        "wet_end": 0.62,
+        "seed": 7
+      }
+    },
+    {
+      "id": "n25",
+      "type": "Filter",
+      "pos": { "x": 1820, "y": 420 },
+      "widgets": {
+        "filter_type": "lowpass",
+        "cutoff_hz": 1400.0,
+        "q": 0.85
+      }
+    },
+    {
+      "id": "n26",
+      "type": "Amplifier",
+      "pos": { "x": 2080, "y": 420 },
+      "widgets": { "gain": 0.7 }
+    },
+    {
+      "id": "n27",
+      "type": "ChannelConvert",
+      "pos": { "x": 2080, "y": 120 },
+      "widgets": { "layout": "stereo" }
+    },
+    {
+      "id": "n28",
+      "type": "ChannelConvert",
+      "pos": { "x": 2340, "y": 420 },
+      "widgets": { "layout": "stereo" }
+    },
+    {
+      "id": "n29",
+      "type": "Mix",
+      "pos": { "x": 2600, "y": 240 },
+      "widgets": { "gain_a": 0.95, "gain_b": 0.55 }
+    },
+    {
+      "id": "n30",
+      "type": "Reverb",
+      "pos": { "x": 2860, "y": 240 },
+      "widgets": {
+        "mix": 0.07,
+        "room_sec": 0.55,
+        "damping": 0.72
+      }
+    },
+    {
+      "id": "n31",
+      "type": "Normalize",
+      "pos": { "x": 3120, "y": 240 },
+      "widgets": { "mode": "lufs", "target_lufs": -16.0 }
+    },
+    {
+      "id": "n32",
+      "type": "Preview",
+      "pos": { "x": 3380, "y": 160 },
+      "widgets": {}
+    },
+    {
+      "id": "n33",
+      "type": "SaveAudio",
+      "pos": { "x": 3380, "y": 300 },
+      "widgets": {
+        "path": "exports",
+        "filename": "neural-modular-rack.wav",
+        "format": "wav"
+      }
+    },
+    {
+      "id": "n34",
+      "type": "Comparator",
+      "pos": { "x": 520, "y": 680 },
+      "widgets": { "threshold": 0.74 }
+    },
+    {
+      "id": "n35",
+      "type": "Logic",
+      "pos": { "x": 780, "y": 700 },
+      "widgets": { "operation": "and", "threshold": 0.5 }
+    },
+    {
+      "id": "n36",
+      "type": "Oscillator",
+      "pos": { "x": 1040, "y": 620 },
+      "widgets": {
+        "waveform": "sine",
+        "frequency_hz": 55.0,
+        "amplitude_default": 0.22,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n37",
+      "type": "Oscillator",
+      "pos": { "x": 780, "y": 840 },
+      "widgets": {
+        "waveform": "sine",
+        "frequency_hz": 1.8,
+        "amplitude_default": 2.1,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n38",
+      "type": "Filter",
+      "pos": { "x": 1300, "y": 620 },
+      "widgets": {
+        "filter_type": "bandpass",
+        "cutoff_hz": 320.0,
+        "q": 6.2
+      }
+    },
+    {
+      "id": "n39",
+      "type": "ControlCurve",
+      "pos": { "x": 1040, "y": 800 },
+      "widgets": {
+        "start_value": 180.0,
+        "end_value": 640.0,
+        "frame_count": 480000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":210},{\"t\":0.18,\"v\":540},{\"t\":0.36,\"v\":160},{\"t\":0.58,\"v\":880},{\"t\":0.76,\"v\":280},{\"t\":1,\"v\":420}]"
+      }
+    },
+    {
+      "id": "n40",
+      "type": "LFO",
+      "pos": { "x": 1300, "y": 800 },
+      "widgets": {
+        "waveform": "triangle",
+        "rate_hz": 0.09,
+        "amplitude": 0.28,
+        "offset": 0.42,
+        "duration_sec": 10.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n41",
+      "type": "Amplifier",
+      "pos": { "x": 1560, "y": 620 },
+      "widgets": { "gain": 0.85 }
+    },
+    {
+      "id": "n42",
+      "type": "Mix",
+      "pos": { "x": 1820, "y": 280 },
+      "widgets": { "gain_a": 1.0, "gain_b": 0.42 }
+    }
+  ],
+  "links": [
+    { "id": "l0", "from": ["n1", 0], "to": ["n9", 0], "type": "AUTOMATION" },
+    { "id": "l1", "from": ["n3", 0], "to": ["n9", 2], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n10", 0], "type": "AUTOMATION" },
+    { "id": "l3", "from": ["n3", 0], "to": ["n10", 2], "type": "AUDIO" },
+    { "id": "l4", "from": ["n9", 0], "to": ["n11", 0], "type": "AUTOMATION" },
+    { "id": "l5", "from": ["n9", 0], "to": ["n12", 0], "type": "AUTOMATION" },
+    { "id": "l6", "from": ["n10", 0], "to": ["n13", 0], "type": "AUTOMATION" },
+    { "id": "l7", "from": ["n11", 0], "to": ["n14", 0], "type": "AUTOMATION" },
+    { "id": "l8", "from": ["n12", 0], "to": ["n15", 0], "type": "AUTOMATION" },
+    { "id": "l9", "from": ["n13", 0], "to": ["n22", 0], "type": "AUTOMATION" },
+    { "id": "l10", "from": ["n14", 0], "to": ["n19", 0], "type": "AUDIO" },
+    { "id": "l11", "from": ["n35", 0], "to": ["n19", 1], "type": "AUTOMATION" },
+    { "id": "l12", "from": ["n15", 0], "to": ["n16", 0], "type": "AUDIO" },
+    { "id": "l13", "from": ["n7", 0], "to": ["n16", 1], "type": "AUTOMATION" },
+    { "id": "l14", "from": ["n16", 0], "to": ["n20", 0], "type": "AUDIO" },
+    { "id": "l15", "from": ["n6", 0], "to": ["n17", 0], "type": "AUTOMATION" },
+    { "id": "l16", "from": ["n1", 0], "to": ["n18", 0], "type": "AUTOMATION" },
+    { "id": "l17", "from": ["n17", 0], "to": ["n18", 1], "type": "AUTOMATION" },
+    { "id": "l18", "from": ["n18", 0], "to": ["n20", 1], "type": "AUTOMATION" },
+    { "id": "l19", "from": ["n19", 0], "to": ["n21", 0], "type": "AUDIO" },
+    { "id": "l20", "from": ["n20", 0], "to": ["n21", 1], "type": "AUDIO" },
+    { "id": "l21", "from": ["n4", 0], "to": ["n23", 0], "type": "TEXT" },
+    { "id": "l22", "from": ["n22", 0], "to": ["n23", 1], "type": "MIDI" },
+    { "id": "l23", "from": ["n23", 0], "to": ["n24", 0], "type": "AUDIO" },
+    { "id": "l24", "from": ["n24", 0], "to": ["n25", 0], "type": "AUDIO" },
+    { "id": "l25", "from": ["n7", 0], "to": ["n25", 1], "type": "AUTOMATION" },
+    { "id": "l26", "from": ["n25", 0], "to": ["n26", 0], "type": "AUDIO" },
+    { "id": "l27", "from": ["n8", 0], "to": ["n26", 1], "type": "AUTOMATION" },
+    { "id": "l28", "from": ["n42", 0], "to": ["n27", 0], "type": "AUDIO" },
+    { "id": "l29", "from": ["n26", 0], "to": ["n28", 0], "type": "AUDIO" },
+    { "id": "l30", "from": ["n27", 0], "to": ["n29", 0], "type": "AUDIO" },
+    { "id": "l31", "from": ["n28", 0], "to": ["n29", 1], "type": "AUDIO" },
+    { "id": "l32", "from": ["n29", 0], "to": ["n30", 0], "type": "AUDIO" },
+    { "id": "l33", "from": ["n5", 0], "to": ["n30", 1], "type": "AUTOMATION" },
+    { "id": "l34", "from": ["n30", 0], "to": ["n31", 0], "type": "AUDIO" },
+    { "id": "l35", "from": ["n31", 0], "to": ["n32", 0], "type": "AUDIO" },
+    { "id": "l36", "from": ["n31", 0], "to": ["n33", 0], "type": "AUDIO" },
+    { "id": "l37", "from": ["n6", 0], "to": ["n34", 0], "type": "AUTOMATION" },
+    { "id": "l38", "from": ["n1", 0], "to": ["n35", 0], "type": "AUTOMATION" },
+    { "id": "l39", "from": ["n34", 0], "to": ["n35", 1], "type": "AUTOMATION" },
+    { "id": "l40", "from": ["n11", 0], "to": ["n36", 0], "type": "AUTOMATION" },
+    { "id": "l41", "from": ["n37", 0], "to": ["n36", 2], "type": "AUDIO" },
+    { "id": "l42", "from": ["n36", 0], "to": ["n38", 0], "type": "AUDIO" },
+    { "id": "l43", "from": ["n39", 0], "to": ["n38", 1], "type": "AUTOMATION" },
+    { "id": "l44", "from": ["n38", 0], "to": ["n41", 0], "type": "AUDIO" },
+    { "id": "l45", "from": ["n40", 0], "to": ["n41", 1], "type": "AUTOMATION" },
+    { "id": "l46", "from": ["n21", 0], "to": ["n42", 0], "type": "AUDIO" },
+    { "id": "l47", "from": ["n41", 0], "to": ["n42", 1], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 0.48,
+    "pan": { "x": 0, "y": 0 }
+  }
+}

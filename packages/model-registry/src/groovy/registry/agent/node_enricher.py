@@ -129,6 +129,18 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "description": "Extract a control curve from MIDI CC data (stub: flat default in dev).",
         "widgets": {"cc": "MIDI CC number to follow.", "default_value": "Fallback value when CC is sparse."},
     },
+    "AutomationToMIDI": {
+        "description": "Read stepwise Hz CV (Quantizer / S&H) as MIDI notes for AI oscillators. Offline — not a live callback.",
+        "inputs": {
+            "cv": "AUTOMATION in Hz (typically Quantizer output).",
+            "gate": "Optional AUTOMATION gate; notes only while the gate is high.",
+        },
+        "widgets": {
+            "threshold": "Gate high when the curve is at or above this value.",
+            "velocity": "Note-on velocity (0–1).",
+            "midi_kind": "Usually score — generated from the rack, not a transcript.",
+        },
+    },
     "Preview": {
         "description": "Terminal sink for cached audition (audio) and/or transcript inspection (text).",
         "inputs": {

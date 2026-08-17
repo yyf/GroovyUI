@@ -8,7 +8,7 @@ import {
 describe("templateLicenseMatrix", () => {
   it("covers all curated bundled templates without duplicate ids", () => {
     const ids = TEMPLATE_LICENSE_MATRIX.map((row) => row.id);
-    expect(ids.length).toBe(45);
+    expect(ids.length).toBe(47);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -17,6 +17,7 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("voice-cloning")).toBe(false);
     expect(isCommerciallyCleared("stable-audio")).toBe(false);
     expect(isCommerciallyCleared("rave-timbre-transfer")).toBe(false);
+    expect(isCommerciallyCleared("self-playing-neural-rack")).toBe(false);
     expect(isCommerciallyCleared("song-cover-remix")).toBe(false);
     expect(isCommerciallyCleared("localize-dialogue-a-to-b")).toBe(false);
   });
@@ -29,12 +30,13 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("compare-whisper-sizes")).toBe(true);
     expect(isCommerciallyCleared("script-to-vo-master")).toBe(true);
     expect(isCommerciallyCleared("stem-lyrics-to-ace")).toBe(true);
+    expect(isCommerciallyCleared("neural-modular-rack")).toBe(true);
   });
 
   it("summarizes clearance counts", () => {
     const summary = templateLicenseSummary();
-    expect(summary.total).toBe(45);
-    expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(45);
+    expect(summary.total).toBe(47);
+    expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(47);
     expect(summary.commercialSafe).toBeGreaterThan(20);
   });
 });

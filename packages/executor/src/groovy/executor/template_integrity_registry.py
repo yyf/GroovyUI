@@ -194,6 +194,18 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("demucs-v4", "whisper-large-v3-turbo", "ace-step-1.5-2b-turbo"),
         "required_outputs": (("n9", "AUDIO"), ("n3", "TEXT")),
     },
+    "self-playing-neural-rack": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("ace-step-1.5", "rave-v1", "rawnet2-asvspoof"),
+        "required_outputs": (("n18", "AUDIO"), ("n21", "AUTHENTICITY"), ("n7", "MIDI")),
+    },
+    "neural-modular-rack": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("ace-step-1.5",),
+        "required_outputs": (("n32", "AUDIO"), ("n22", "MIDI")),
+    },
 }
 
 

@@ -335,6 +335,22 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     ],
     links: [link("l1", "n1", "n2", "MIDI"), link("l2", "n2", "n3", "AUTOMATION")],
   },
+  AutomationToMIDI: {
+    title: "Automation to MIDI",
+    description: "Read Quantizer Hz CV as MIDI notes for an AI oscillator.",
+    focusNodeId: "n3",
+    nodes: [
+      {
+        id: "n1",
+        type: "ControlCurve",
+        x: 0,
+        widgets: { start_value: 110, end_value: 440, frame_count: 48000, sample_rate: 48000 },
+      },
+      { id: "n2", type: "Quantizer", x: 240, widgets: { scale: "minor", root_hz: 110 } },
+      { id: "n3", type: "AutomationToMIDI", x: 480, widgets: { midi_kind: "score", velocity: 0.8 } },
+    ],
+    links: [link("l1", "n1", "n2", "AUTOMATION"), link("l2", "n2", "n3", "AUTOMATION")],
+  },
   MIDINoteGate: {
     title: "MIDI Note Gate",
     description: "Gate audio with MIDI note events.",

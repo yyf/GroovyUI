@@ -41,6 +41,8 @@ describe("templatesVisibleInUi", () => {
     bundled("rave-timbre-transfer"),
     bundled("compare-whisper-sizes"),
     bundled("script-to-vo-master"),
+    bundled("neural-modular-rack"),
+    bundled("self-playing-neural-rack"),
     bundled("karaoke-guide-vocal"),
     bundled("instrumental-tts-dub"),
     bundled("melody-to-modular-synth"),
@@ -64,6 +66,7 @@ describe("templatesVisibleInUi", () => {
       "localize-dialogue-a-to-b",
       "melody-to-modular-synth",
       "modular-generative-rack",
+      "neural-modular-rack",
       "podcast-denoise",
       "prompt-modular-synth",
       "rave-timbre-transfer",
@@ -107,6 +110,15 @@ describe("templatesVisibleInUi", () => {
     expect(templatesVisibleInUi(allBundled, "simple-fm-synth").map((t) => t.id)).toContain(
       "simple-fm-synth",
     );
+  });
+
+  it("hides self-playing-neural-rack unless it is the active selection", () => {
+    expect(templatesVisibleInUi(allBundled).map((t) => t.id)).not.toContain(
+      "self-playing-neural-rack",
+    );
+    expect(
+      templatesVisibleInUi(allBundled, "self-playing-neural-rack").map((t) => t.id),
+    ).toContain("self-playing-neural-rack");
   });
 
   it("always shows user templates", () => {
@@ -167,5 +179,13 @@ describe("groupBundledTemplatesByDomain", () => {
 
   it("places authenticity-check in Trust", () => {
     expect(domainIdForTemplate("authenticity-check")).toBe("trust");
+  });
+
+  it("places self-playing-neural-rack in Modular", () => {
+    expect(domainIdForTemplate("self-playing-neural-rack")).toBe("modular");
+  });
+
+  it("places neural-modular-rack in Modular", () => {
+    expect(domainIdForTemplate("neural-modular-rack")).toBe("modular");
   });
 });
