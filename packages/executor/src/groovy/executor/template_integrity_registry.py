@@ -145,7 +145,8 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "required_outputs": (("n2", "MIDI"),),
     },
     "authenticity-check": {
-        "required_outputs": (("n4", "AUTHENTICITY"), ("n5", "AUDIO")),
+        "models": ("rawnet2-asvspoof",),
+        "required_outputs": (("n4", "AUTHENTICITY"), ("n5", "AUDIO"), ("n6", "AUDIO")),
     },
     "compare-whisper-sizes": {
         "sample_path": "assets/samples/noisy_speech_1214.wav",

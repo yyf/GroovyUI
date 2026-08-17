@@ -13,6 +13,7 @@ import type {
   ProvenanceSummary,
   Workflow,
 } from "../types";
+import { authenticityReportId } from "../workflow";
 
 type Tab = "license" | "provenance" | "authenticity" | "disclosure";
 export type ComplianceIntent = "commercial" | "evaluation";
@@ -79,13 +80,8 @@ export default function ComplianceDrawer({
 
   const authenticityId = useMemo(() => {
     if (!outputs) return null;
-    const focus = targetNodeId && outputs[targetNodeId]?.authenticity_id;
-    if (focus) return focus;
-    for (const out of Object.values(outputs)) {
-      if (out.authenticity_id) return out.authenticity_id;
-    }
-    return null;
-  }, [outputs, targetNodeId]);
+    return authenticityReportId(workflow, outputs, targetNodeId);
+  }, [outputs, targetNodeId, workflow]);
 
   useEffect(() => {
     if (!open) return;
@@ -122,9 +118,17 @@ export default function ComplianceDrawer({
       setAuthenticity(null);
       return;
     }
-    fetchAuthenticity(authenticityId)
-      .then(setAuthenticity)
-      .catch(() => setAuthenticity(null));
+    const ac = new AbortController();
+    setAuthenticity(null);
+    fetchAuthenticity(authenticityId, ac.signal)
+      .then((record) => {
+        if (!ac.signal.aborted) setAuthenticity(record);
+      })
+      .catch((err: unknown) => {
+        if (ac.signal.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
+        setAuthenticity(null);
+      });
+    return () => ac.abort();
   }, [open, authenticityId]);
 
   useEffect(() => {
@@ -623,7 +627,11 @@ export default function ComplianceDrawer({
         {tab === "authenticity" ? (
           <div className="compliance-body">
             {!authenticity ? (
-              <p className="compliance-hint">Render an authenticity workflow to populate this report.</p>
+              <p className="compliance-hint">
+                {authenticityId
+                  ? "Updating authenticity report…"
+                  : "Render an authenticity workflow to populate this report."}
+              </p>
             ) : (
               <>
                 <p className="disclosure-text">{overall?.summary}</p>

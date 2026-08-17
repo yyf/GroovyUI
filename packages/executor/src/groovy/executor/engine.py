@@ -337,10 +337,9 @@ class Executor:
                 return {"type": "MULTI", "outputs": slots}
             return None
 
-        if output_meta.get("type") == "AUDIO":
-            return None
-
-        return output_meta
+        # Stale single-slot cache for a multi-outlet node (e.g. DeepfakeDetect
+        # used to persist AUTHENTICITY only, dropping the AUDIO pass-through).
+        return None
 
     def _result_from_worker(self, raw_outputs: list[dict[str, Any]]) -> tuple[Any, ...]:
         result: list[Any] = []
@@ -382,11 +381,77 @@ class Executor:
             slots: list[Any] = []
             for slot in meta.get("outputs", []):
                 loaded = self._result_from_worker([slot])
-                if loaded:
-                    slots.append(loaded[0])
+                if not loaded:
+                    return None
+                slots.append(loaded[0])
             return tuple(slots) if slots else None
         result = self._result_from_worker([meta])
         return result if result else None
+
+    def _slot_meta_from_item(
+        self,
+        item: Any,
+        *,
+        node: NodeInstance,
+        node_cls: type,
+        ctx: JobContext,
+        workflow: Workflow,
+        kwargs: dict[str, Any],
+        name: str | None = None,
+    ) -> dict[str, Any] | None:
+        if isinstance(item, AuthenticityReport):
+            meta = {"type": "AUTHENTICITY", "authenticity_id": item.id}
+        elif isinstance(item, MidiBuffer):
+            meta = {"type": "MIDI", "midi_id": item.id}
+        elif isinstance(item, AutomationBuffer):
+            meta = {"type": "AUTOMATION", "automation_id": item.id}
+        elif isinstance(item, AmbisonicBuffer):
+            meta = {"type": "AMBISONICS", "ambisonics_id": item.id}
+        elif isinstance(item, ObjectScene):
+            meta = {"type": "OBA", "oba_id": item.id}
+        elif isinstance(item, OscBuffer):
+            meta = {"type": "OSC", "osc_id": item.id}
+        elif isinstance(item, AudioBuffer):
+            if not (
+                getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
+                and ctx.cache.read_provenance(item.id)
+            ):
+                self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
+            meta = {"cache_id": item.id, "type": "AUDIO"}
+            if node.type == "Preview" and kwargs.get("text") is not None:
+                meta["text"] = str(kwargs["text"])
+        elif isinstance(item, StemsBuffer):
+            meta = {
+                "type": "STEMS",
+                "stems_id": item.id,
+                "stems": {stem_name: buf.id for stem_name, buf in item.stems.items()},
+            }
+        elif isinstance(item, str):
+            if node.type == "SaveAudio":
+                output_path = Path(item)
+                provenance_path = output_path.with_name(f"{output_path.stem}.provenance.json")
+                if not provenance_path.is_file():
+                    raise RuntimeError(
+                        f"SaveAudio wrote audio but provenance sidecar is missing: "
+                        f"{provenance_path}"
+                    )
+                sidecar = json.loads(provenance_path.read_text())
+                meta = {
+                    "type": "STRING",
+                    "path": item,
+                    "provenance_path": str(provenance_path),
+                    "content_credentials": sidecar.get(
+                        "content_credentials",
+                        {"status": "off", "mode": "off", "verified": False},
+                    ),
+                }
+            else:
+                meta = {"type": "TEXT", "text": item}
+        else:
+            return None
+        if name:
+            meta["name"] = name
+        return meta
 
     def _output_meta_from_result(
         self,
@@ -398,74 +463,31 @@ class Executor:
         workflow: Workflow,
         kwargs: dict[str, Any],
     ) -> dict[str, Any] | None:
-        audio_items = [item for item in result if isinstance(item, AudioBuffer)]
-        if len(audio_items) > 1:
-            names = getattr(node_cls, "OUTPUT_NAMES", None) or tuple(
-                f"output_{index}" for index in range(len(audio_items))
+        names = getattr(node_cls, "OUTPUT_NAMES", None) or tuple(
+            f"output_{index}" for index in range(len(result))
+        )
+        slots: list[dict[str, Any]] = []
+        for index, item in enumerate(result):
+            name = names[index] if index < len(names) else f"output_{index}"
+            slot = self._slot_meta_from_item(
+                item,
+                node=node,
+                node_cls=node_cls,
+                ctx=ctx,
+                workflow=workflow,
+                kwargs=kwargs,
+                name=name if len(result) > 1 else None,
             )
-            slots: list[dict[str, Any]] = []
-            for index, item in enumerate(audio_items):
-                name = names[index] if index < len(names) else f"output_{index}"
-                slots.append({"type": "AUDIO", "cache_id": item.id, "name": name})
-                if not (
-                    getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
-                    and ctx.cache.read_provenance(item.id)
-                ):
-                    self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
-            return {"type": "MULTI", "outputs": slots}
+            if slot is None:
+                continue
+            slots.append(slot)
 
-        for item in result:
-            if isinstance(item, AuthenticityReport):
-                return {"type": "AUTHENTICITY", "authenticity_id": item.id}
-            if isinstance(item, MidiBuffer):
-                return {"type": "MIDI", "midi_id": item.id}
-            if isinstance(item, AutomationBuffer):
-                return {"type": "AUTOMATION", "automation_id": item.id}
-            if isinstance(item, AmbisonicBuffer):
-                return {"type": "AMBISONICS", "ambisonics_id": item.id}
-            if isinstance(item, ObjectScene):
-                return {"type": "OBA", "oba_id": item.id}
-            if isinstance(item, OscBuffer):
-                return {"type": "OSC", "osc_id": item.id}
-            if isinstance(item, AudioBuffer):
-                if not (
-                    getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
-                    and ctx.cache.read_provenance(item.id)
-                ):
-                    self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
-                meta: dict[str, Any] = {"cache_id": item.id, "type": "AUDIO"}
-                # Preview may also carry a transcript when TEXT is wired alongside AUDIO.
-                if node.type == "Preview" and kwargs.get("text") is not None:
-                    meta["text"] = str(kwargs["text"])
-                return meta
-            if isinstance(item, StemsBuffer):
-                return {
-                    "type": "STEMS",
-                    "stems_id": item.id,
-                    "stems": {name: buf.id for name, buf in item.stems.items()},
-                }
-            if isinstance(item, str):
-                if node.type == "SaveAudio":
-                    output_path = Path(item)
-                    provenance_path = output_path.with_name(
-                        f"{output_path.stem}.provenance.json"
-                    )
-                    if not provenance_path.is_file():
-                        raise RuntimeError(
-                            f"SaveAudio wrote audio but provenance sidecar is missing: "
-                            f"{provenance_path}"
-                        )
-                    sidecar = json.loads(provenance_path.read_text())
-                    return {
-                        "type": "STRING",
-                        "path": item,
-                        "provenance_path": str(provenance_path),
-                        "content_credentials": sidecar.get(
-                            "content_credentials",
-                            {"status": "off", "mode": "off", "verified": False},
-                        ),
-                    }
-                return {"type": "TEXT", "text": item}
+        if len(slots) > 1:
+            return {"type": "MULTI", "outputs": slots}
+        if len(slots) == 1:
+            slot = dict(slots[0])
+            slot.pop("name", None)
+            return slot
         return None
 
 

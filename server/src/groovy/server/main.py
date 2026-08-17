@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from groovy.executor import Executor
 from groovy.executor.batch import run_batch_render
 from groovy.executor.engine import GROOVY_VERSION
@@ -54,6 +54,7 @@ from groovy.server.activation_diagnostics import ActivationDiagnosticsStore
 from groovy.server.bootstrap import ensure_project_samples
 from groovy.server.compare import analyze_ab_pair
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
+from groovy.server.project_assets import resolve_uploaded_audio
 from pydantic import BaseModel, Field
 
 register_core()
@@ -284,17 +285,54 @@ def _workflow_from_dict(data: dict[str, Any]) -> Workflow:
     return Workflow.model_validate(data)
 
 
+def _authenticity_id_from_output(output: dict[str, Any] | None) -> str | None:
+    if not isinstance(output, dict):
+        return None
+    if output.get("authenticity_id"):
+        return str(output["authenticity_id"])
+    if output.get("type") == "MULTI":
+        for slot in output.get("outputs") or []:
+            if isinstance(slot, dict) and slot.get("authenticity_id"):
+                return str(slot["authenticity_id"])
+    return None
+
+
+def _with_authenticity_targets(
+    workflow: Workflow, target_nodes: list[str] | None
+) -> list[str] | None:
+    extra = [node.id for node in workflow.nodes if node.type == "AuthenticitySummary"]
+    if not extra:
+        extra = [node.id for node in workflow.nodes if node.type == "VerifyProvenance"]
+    if not extra or not target_nodes:
+        return target_nodes
+    return list(dict.fromkeys([*target_nodes, *extra]))
+
+
 def _authenticity_id_from_outputs(
     outputs: dict[str, Any],
     target_node_id: str | None = None,
+    *,
+    workflow: Workflow | None = None,
 ) -> str | None:
+    nodes = list(workflow.nodes) if workflow is not None else []
+    for node in nodes:
+        if node.type != "AuthenticitySummary":
+            continue
+        found = _authenticity_id_from_output(outputs.get(node.id))
+        if found:
+            return found
     if target_node_id:
-        focus = outputs.get(target_node_id) or {}
-        if isinstance(focus, dict) and focus.get("authenticity_id"):
-            return str(focus["authenticity_id"])
+        focused = _authenticity_id_from_output(outputs.get(target_node_id))
+        if focused:
+            return focused
+    for node in nodes:
+        found = _authenticity_id_from_output(outputs.get(node.id))
+        if found:
+            return found
     for output in outputs.values():
-        if isinstance(output, dict) and output.get("authenticity_id"):
-            return str(output["authenticity_id"])
+        found = _authenticity_id_from_output(output if isinstance(output, dict) else None)
+        if found:
+            return found
     return None
 
 
@@ -594,12 +632,12 @@ def generate_template_endpoint(body: GenerateTemplateRequest) -> dict[str, Any]:
 async def upload_project_asset(file: UploadFile = File(...)) -> dict[str, str]:
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing filename")
-    safe_name = Path(file.filename).name
-    dest_dir = PROJECT_DIR / "assets" / "uploads"
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / safe_name
-    dest.write_bytes(await file.read())
-    return {"path": f"assets/uploads/{safe_name}"}
+    payload = await file.read()
+    try:
+        path = resolve_uploaded_audio(PROJECT_DIR, file.filename, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"path": path}
 
 
 @app.post("/api/project/reveal")
@@ -1396,7 +1434,9 @@ def workflow_compliance_report(body: ComplianceReportRequest) -> Response:
             body.outputs,
             target_node_id=body.target_node_id,
         )
-    authenticity_id = _authenticity_id_from_outputs(body.outputs, body.target_node_id)
+    authenticity_id = _authenticity_id_from_outputs(
+        body.outputs, body.target_node_id, workflow=workflow
+    )
     authenticity = _load_authenticity_record(authenticity_id) if authenticity_id else None
     report = build_compliance_report(
         workflow,
@@ -1450,12 +1490,12 @@ def cache_provenance(cache_id: str) -> dict[str, Any]:
 
 
 @app.get("/api/authenticity/{report_id}")
-def get_authenticity(report_id: str) -> dict[str, Any]:
+def get_authenticity(report_id: str) -> JSONResponse:
     try:
         report = _executor.cache.load_authenticity(report_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Authenticity report not found") from exc
-    return report.record
+    return JSONResponse(report.record, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/execute", status_code=202)
@@ -1499,7 +1539,7 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
             None,
             lambda: _executor.execute(
                 workflow,
-                target_nodes=body.target_nodes,
+                target_nodes=_with_authenticity_targets(workflow, body.target_nodes),
                 force_rebuild=body.force_rebuild,
                 on_progress=on_progress,
                 cancel_check=cancel_flag.is_set,

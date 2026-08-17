@@ -115,6 +115,7 @@ import {
   resolveNodeInspectorOutput,
   resolveRenderAllTargets,
   resolveTargetNode,
+  withAuthenticityRenderTargets,
   setLinkColor,
   syncPositions,
   toggleGroupCollapsed,
@@ -671,7 +672,10 @@ export default function App() {
     async (targetNodeId?: string, renderAll = false, autoAudition = false) => {
       if (!workflow) return false;
       const singleTarget = targetNodeId ?? resolveTargetNode(workflow, selectedNodeId);
-      const targets = renderAll ? resolveRenderAllTargets(workflow) : singleTarget ? [singleTarget] : [];
+      const targets = withAuthenticityRenderTargets(
+        workflow,
+        renderAll ? resolveRenderAllTargets(workflow) : singleTarget ? [singleTarget] : [],
+      );
       if (!targets.length) {
         setStatus("No render target — add nodes to the canvas");
         return false;
@@ -1073,14 +1077,21 @@ export default function App() {
   const handleAudioDrop = useCallback(
     async (files: FileList | null) => {
       if (!files?.length || !workflow) return;
-      const file = files[0];
-      if (!file.type.startsWith("audio/") && !file.name.match(/\.(wav|flac|mp3|ogg|mp4|m4a)$/i)) {
+      const audioMatch = (entry: File) =>
+        entry.type.startsWith("audio/") || /\.(wav|flac|mp3|ogg|mp4|m4a)$/i.test(entry.name);
+      const file = [...files].find(audioMatch);
+      if (!file) {
         setStatus("Drop an audio file (WAV, FLAC, MP3, OGG)");
         return;
       }
       try {
         setStatus("Uploading audio…");
         const path = await uploadProjectAudio(file);
+        const stem = file.name.replace(/\.[^.]+$/, "");
+        const sidecar = [...files].find((entry) => entry.name === `${stem}.provenance.json`);
+        if (sidecar && path.startsWith("assets/uploads/")) {
+          await uploadProjectAudio(sidecar);
+        }
         setWorkflow((prev) => {
           if (!prev) return prev;
           return applyDroppedAudio(prev, path);

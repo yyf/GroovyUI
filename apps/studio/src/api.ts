@@ -864,8 +864,11 @@ export async function batchRenderWorkflow(
   return res.json();
 }
 
-export async function fetchAuthenticity(reportId: string): Promise<Record<string, unknown>> {
-  const res = await fetch(`${API}/api/authenticity/${reportId}`);
+export async function fetchAuthenticity(
+  reportId: string,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API}/api/authenticity/${reportId}`, { signal, cache: "no-store" });
   if (!res.ok) {
     throw new Error("Authenticity report not found");
   }

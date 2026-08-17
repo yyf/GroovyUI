@@ -931,13 +931,6 @@ def run_deepfake_detect(cache: CacheStore, kwargs: dict) -> list[dict]:
     report = AuthenticityReport.create(
         {
             "overall": {"label": label, "confidence": confidence, "summary": summary},
-            "provenance_check": {
-                "status": "missing",
-                "sidecar_found": False,
-                "chain_intact": None,
-                "contribution_class": "unknown",
-                "groovy_origin": False,
-            },
             "ml_detection": ml_det,
         }
     )

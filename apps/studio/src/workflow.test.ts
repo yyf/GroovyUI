@@ -31,6 +31,8 @@ import {
   nodeHasListenableOutput,
   cachedStatusFromOutputs,
   jobOutputAtSlot,
+  authenticityReportId,
+  withAuthenticityRenderTargets,
   wiredInputsForNode,
   wiredInputSupersedesWidget,
   wiredOutputsForNode,
@@ -996,6 +998,65 @@ describe("preview ids", () => {
   });
 });
 
+describe("authenticityReportId", () => {
+  it("prefers AuthenticitySummary over VerifyProvenance", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n2", type: "VerifyProvenance", widgets: {} },
+        { id: "n4", type: "AuthenticitySummary", widgets: {} },
+      ],
+      links: [],
+    };
+    const id = authenticityReportId(workflow, {
+      n2: { type: "AUTHENTICITY", authenticity_id: "verify" },
+      n4: { type: "AUTHENTICITY", authenticity_id: "summary" },
+    });
+    expect(id).toBe("summary");
+  });
+
+  it("reads AUTHENTICITY from a MULTI DeepfakeDetect slot", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [{ id: "n3", type: "DeepfakeDetect", widgets: {} }],
+      links: [],
+    };
+    const id = authenticityReportId(workflow, {
+      n3: {
+        type: "MULTI",
+        outputs: [
+          { type: "AUTHENTICITY", authenticity_id: "ml" },
+          { type: "AUDIO", cache_id: "pass" },
+        ],
+      },
+    });
+    expect(id).toBe("ml");
+  });
+
+  it("keeps AuthenticitySummary when DeepfakeDetect is selected", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n3", type: "DeepfakeDetect", widgets: {} },
+        { id: "n4", type: "AuthenticitySummary", widgets: {} },
+      ],
+      links: [],
+    };
+    const id = authenticityReportId(
+      workflow,
+      {
+        n3: {
+          type: "MULTI",
+          outputs: [{ type: "AUTHENTICITY", authenticity_id: "ml" }],
+        },
+        n4: { type: "AUTHENTICITY", authenticity_id: "summary" },
+      },
+      "n3",
+    );
+    expect(id).toBe("summary");
+  });
+});
+
 describe("saved artifact paths", () => {
   const output: JobOutput = {
     type: "STRING",
@@ -1044,6 +1105,21 @@ describe("resolveRenderAllTargets", () => {
       groups: [],
     };
     expect(resolveRenderAllTargets(workflow).sort()).toEqual(["n1", "n2"]);
+  });
+});
+
+describe("withAuthenticityRenderTargets", () => {
+  it("adds AuthenticitySummary when rendering a Preview", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", widgets: {} },
+        { id: "n4", type: "AuthenticitySummary", widgets: {} },
+        { id: "n5", type: "Preview", widgets: {} },
+      ],
+      links: [{ id: "l1", from: ["n1", 0], to: ["n5", 0], type: "AUDIO" }],
+    };
+    expect(withAuthenticityRenderTargets(workflow, ["n5"]).sort()).toEqual(["n4", "n5"]);
   });
 });
 
