@@ -16,6 +16,7 @@ from groovy.executor.audio_meta import (
     probe_audio_file,
 )
 from groovy.executor.authenticity import AuthenticityReport, verify_provenance_for_audio
+from groovy.executor.sample_integrity import SampleCheckReport, verify_samples_for_audio
 from groovy.executor.content_credentials import (
     build_content_credentials_manifest,
     process_content_credentials,
@@ -46,6 +47,7 @@ def register_all() -> None:
         Preview,
         Note,
         VerifyProvenance,
+        VerifySamples,
         AuthenticitySummary,
         Prompt,
         LoadMIDI,
@@ -687,6 +689,48 @@ class VerifyProvenance(GroovyNode):
         )
         self._ctx.cache.write_authenticity(report)
         return (report,)
+
+
+@register_node
+class VerifySamples(GroovyNode):
+    """Recompute PCM content hash and report offline sample-buffer integrity.
+
+    Wire after any hop that writes WAV/PCM cache (I/O, Processing, AI generate /
+    transform / analyze). Emits a SAMPLE_CHECK report (not Authenticity) plus
+    AUDIO passthrough for the Inspector.
+    """
+
+    CATEGORY = "GroovyUI/Core"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = False
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("SAMPLE_CHECK", "AUDIO")
+    OUTPUT_NAMES = ("report", "audio")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"audio": ("AUDIO",)},
+            "optional": {},
+        }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [
+            {"name": "report", "type": "SAMPLE_CHECK"},
+            {"name": "audio", "type": "AUDIO"},
+        ]
+        return schema
+
+    def run(self, audio: AudioBuffer, **kwargs) -> tuple[SampleCheckReport, AudioBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        sample_check = verify_samples_for_audio(self._ctx.cache, audio.id)
+        report = SampleCheckReport.create({"sample_check": sample_check})
+        self._ctx.cache.write_sample_check(report)
+        return (report, audio)
 
 
 @register_node

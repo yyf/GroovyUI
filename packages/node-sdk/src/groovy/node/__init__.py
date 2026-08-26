@@ -80,6 +80,7 @@ class GroovyNode:
                         "STEMS",
                         "MIDI",
                         "AUTHENTICITY",
+                        "SAMPLE_CHECK",
                         "TEXT",
                         "AUTOMATION",
                         "AMBISONICS",

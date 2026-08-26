@@ -77,6 +77,8 @@ const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix", "ChannelMer
 
 const AUTHENTICITY = new Set(["VerifyProvenance", "AuthenticitySummary", "DeepfakeDetect"]);
 
+const CORE_DSP_EXTRA = new Set(["VerifySamples"]);
+
 /** Create audio from text / MIDI / prompts (sources). */
 const AI_GENERATE = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "SingFromMIDI"]);
 
@@ -111,7 +113,7 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
   },
   "core-dsp": {
     title: "Processing",
-    hint: "Level, trim, resample, oscillators, beat clock",
+    hint: "Level, trim, resample, oscillators, sample verify",
     tiers: ["core", "modular", "all"],
   },
   "ai-generate": {
@@ -187,6 +189,7 @@ function aiPaletteGroup(nodeType: string): GroupId {
 
 function paletteGroup(node: NodeTypeInfo): GroupId {
   if (AUTHENTICITY.has(node.type)) return "authenticity";
+  if (CORE_DSP_EXTRA.has(node.type)) return "core-dsp";
   if (node.category.includes("AI")) return aiPaletteGroup(node.type);
   if (node.type === "ModuleInlet" || node.type === "ModuleOutlet") return "subgraph";
   if (node.type === "SignalGenerator" || node.type === "Oscillator" || node.type === "NoiseGenerator") {

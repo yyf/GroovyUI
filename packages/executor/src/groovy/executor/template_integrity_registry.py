@@ -57,6 +57,11 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
     },
     "podcast-denoise": {"sample_path": "assets/samples/noisy_speech_1214.wav"},
     "ab-compare-demo": {"sample_path": "assets/samples/noisy_speech_1214.wav", "spot_check": "ab_compare"},
+    "sample-verify": {
+        "sample_path": "assets/samples/noisy_speech_1214.wav",
+        "required_outputs": (("n3", "MULTI"), ("n4", "MULTI")),
+        "spot_check": "sample_verify",
+    },
     "stem-separation": {
         "sample_path": "assets/samples/Knockout_41k_mono.wav",
         "expect_stems_node": "n2",

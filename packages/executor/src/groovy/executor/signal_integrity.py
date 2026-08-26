@@ -172,6 +172,23 @@ def _validate_required_output(
     elif expected_type == "AUTHENTICITY":
         if not output.get("authenticity_id"):
             errors.append(f"{node_id}: missing authenticity_id")
+    elif expected_type == "MULTI":
+        slots = output.get("outputs") or []
+        if not slots:
+            errors.append(f"{node_id}: empty MULTI outputs")
+        else:
+            auth = next((slot for slot in slots if slot.get("type") == "AUTHENTICITY"), None)
+            sample = next((slot for slot in slots if slot.get("type") == "SAMPLE_CHECK"), None)
+            audio = next((slot for slot in slots if slot.get("type") == "AUDIO" and slot.get("cache_id")), None)
+            if auth is not None and not auth.get("authenticity_id"):
+                errors.append(f"{node_id}: MULTI AUTHENTICITY slot missing authenticity_id")
+            if sample is not None and not sample.get("sample_check_id"):
+                errors.append(f"{node_id}: MULTI SAMPLE_CHECK slot missing sample_check_id")
+            if audio is not None and int(audio.get("frame_count") or 0) <= 0:
+                # frame_count may only exist after enrichment; fall back to cache
+                meta = cache.read_meta(audio["cache_id"])
+                if int(meta.get("frame_count") or 0) <= 0:
+                    errors.append(f"{node_id}: MULTI AUDIO slot zero-length PCM")
     elif expected_type == "STEMS":
         if not output.get("stems_id"):
             errors.append(f"{node_id}: missing stems_id")

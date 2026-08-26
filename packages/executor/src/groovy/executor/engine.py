@@ -13,6 +13,7 @@ from typing import Any
 from groovy.executor.ambisonics import AmbisonicBuffer
 from groovy.executor.audio import AudioBuffer, StemsBuffer
 from groovy.executor.authenticity import AuthenticityReport
+from groovy.executor.sample_integrity import SampleCheckReport
 from groovy.executor.cache import CacheStore
 from groovy.executor.cancel import JobCancelled
 from groovy.executor.content_credentials import (
@@ -353,6 +354,8 @@ class Executor:
                 result.append(self.cache.load_midi(item["midi_id"]))
             elif item.get("type") == "AUTHENTICITY" and item.get("authenticity_id"):
                 result.append(self.cache.load_authenticity(item["authenticity_id"]))
+            elif item.get("type") == "SAMPLE_CHECK" and item.get("sample_check_id"):
+                result.append(self.cache.load_sample_check(item["sample_check_id"]))
             elif item.get("type") == "AUTOMATION" and item.get("automation_id"):
                 result.append(self.cache.load_automation(item["automation_id"]))
             elif item.get("type") == "AMBISONICS" and item.get("ambisonics_id"):
@@ -399,7 +402,9 @@ class Executor:
         kwargs: dict[str, Any],
         name: str | None = None,
     ) -> dict[str, Any] | None:
-        if isinstance(item, AuthenticityReport):
+        if isinstance(item, SampleCheckReport):
+            meta = {"type": "SAMPLE_CHECK", "sample_check_id": item.id}
+        elif isinstance(item, AuthenticityReport):
             meta = {"type": "AUTHENTICITY", "authenticity_id": item.id}
         elif isinstance(item, MidiBuffer):
             meta = {"type": "MIDI", "midi_id": item.id}
@@ -504,6 +509,7 @@ def _input_name(node_cls: type, index: int) -> str:
                 "STEMS",
                 "MIDI",
                 "AUTHENTICITY",
+                "SAMPLE_CHECK",
                 "TEXT",
                 "AUTOMATION",
                 "AMBISONICS",

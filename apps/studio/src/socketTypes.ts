@@ -23,6 +23,7 @@ export const SOCKET_TYPE_COLORS: Record<string, string> = {
   AUTOMATION: "#5a5a5a",
   FLOAT: "#4a4a4a",
   AUTHENTICITY: "#7a7a7a",
+  SAMPLE_CHECK: "#8c8c8c",
   AMBISONICS: "#9a9a9a",
   OBA: "#707070",
   OSC: "#555555",

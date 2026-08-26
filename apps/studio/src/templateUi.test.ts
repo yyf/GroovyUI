@@ -173,16 +173,21 @@ describe("groupBundledTemplatesByDomain", () => {
   });
 
   it("puts unknown bundled ids in Other", () => {
-    expect(domainIdForTemplate("ab-compare-demo")).toBe("other");
+    expect(domainIdForTemplate("no-such-template")).toBe("other");
     const groups = groupBundledTemplatesByDomain([
-      bundled("ab-compare-demo", "A/B Compare Demo"),
+      bundled("no-such-template", "Mystery Template"),
     ]);
     expect(groups).toEqual([
       {
         domain: { id: "other", label: "Other" },
-        templates: [bundled("ab-compare-demo", "A/B Compare Demo")],
+        templates: [bundled("no-such-template", "Mystery Template")],
       },
     ]);
+  });
+
+  it("places sample-verify and ab-compare-demo in Compare", () => {
+    expect(domainIdForTemplate("sample-verify")).toBe("compare");
+    expect(domainIdForTemplate("ab-compare-demo")).toBe("compare");
   });
 
   it("places authenticity-check in Trust", () => {

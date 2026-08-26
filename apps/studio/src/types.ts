@@ -241,6 +241,7 @@ export type JobOutput = {
   stems?: Record<string, string>;
   midi_id?: string;
   authenticity_id?: string;
+  sample_check_id?: string;
   automation_id?: string;
   outputs?: JobOutput[];
 };

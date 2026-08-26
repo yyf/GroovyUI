@@ -875,6 +875,17 @@ export async function fetchAuthenticity(
   return res.json();
 }
 
+export async function fetchSampleCheck(
+  reportId: string,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API}/api/sample-check/${reportId}`, { signal, cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Sample check report not found");
+  }
+  return res.json();
+}
+
 export type AbCompareClip = {
   cache_id: string;
   label: string;

@@ -107,6 +107,18 @@ export const TEMPLATE_LICENSE_MATRIX: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "sample-verify",
+    title: "Sample Verify",
+    models: "—",
+    licenses: "— (DSP / core only)",
+    impact: "Med",
+    cluster: "Sample integrity",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe · Conference Safe",
+    tone: "safe",
+  },
+  {
     id: "cleanup-and-transcribe",
     title: "Cleanup and Transcribe",
     models: "deepfilternet-v3, whisper-large-v3-turbo",
