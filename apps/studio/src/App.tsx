@@ -1871,7 +1871,6 @@ export default function App() {
                   selectionKeyCode={null}
                   multiSelectionKeyCode={["Shift", "Meta", "Control"]}
                   edgesFocusable
-                  edgesSelectable={false}
                   elevateEdgesOnSelect
                   defaultEdgeOptions={{ interactionWidth: 36, selectable: false, focusable: true }}
                   minZoom={CANVAS_MIN_ZOOM}
