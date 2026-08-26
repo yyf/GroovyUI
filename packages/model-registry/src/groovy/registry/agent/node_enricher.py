@@ -141,6 +141,20 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "midi_kind": "Usually score — generated from the rack, not a transcript.",
         },
     },
+    "BeatTrack": {
+        "description": "Find beats in audio and rebuild a Clock-style pulse train (plus half-time). Falls back to a wired Clock when the groove is too weak to track.",
+        "inputs": {
+            "audio": "Audio to analyze (typically GenerateAudio / a rendered hop).",
+            "fallback_clock": "Pulse train used when onset/tempo confidence is low (stub audio, pads, silence).",
+        },
+        "widgets": {
+            "fallback_bpm": "Metronome BPM when no fallback Clock is wired.",
+            "pulse_ms": "Width of each emitted gate pulse.",
+            "min_bpm": "Lowest tempo considered (helps avoid double-time).",
+            "max_bpm": "Highest tempo considered (helps avoid half-time).",
+            "tightness": "0 = regular grid at estimated BPM; 1 = snap each beat to a nearby onset.",
+        },
+    },
     "Preview": {
         "description": "Terminal sink for cached audition (audio) and/or transcript inspection (text).",
         "inputs": {

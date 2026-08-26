@@ -95,9 +95,11 @@ export default function StudioTopBar({
             type="button"
             className={`top-bar__tool${complianceWarnings > 0 ? " top-bar__tool--warn" : ""}`}
             onClick={onCompliance}
-            title="License, provenance, authenticity, and disclosure"
+            title="License, provenance, authenticity, and disclosure (⌘C / Ctrl+C)"
+            aria-keyshortcuts="Meta+C Control+C"
           >
             Compliance{complianceWarnings > 0 ? ` (${complianceWarnings})` : ""}
+            <kbd className="workflow-generate__kbd">⌘C</kbd>
           </button>
           <button
             type="button"

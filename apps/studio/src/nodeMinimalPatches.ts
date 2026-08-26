@@ -351,6 +351,33 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     ],
     links: [link("l1", "n1", "n2", "AUTOMATION"), link("l2", "n2", "n3", "AUTOMATION")],
   },
+  BeatTrack: {
+    title: "Beat Track",
+    description: "Analyze audio for beats and rebuild a clock; fall back to a free Clock if tracking is weak.",
+    focusNodeId: "n3",
+    nodes: [
+      load("n1", 0),
+      {
+        id: "n2",
+        type: "Clock",
+        x: 0,
+        y: 140,
+        widgets: { bpm: 92, pulse_ms: 160, duration_sec: 4, sample_rate: 48000 },
+      },
+      {
+        id: "n3",
+        type: "BeatTrack",
+        x: 280,
+        widgets: { fallback_bpm: 92, pulse_ms: 160, min_bpm: 80, max_bpm: 110, tightness: 0.55 },
+      },
+      { id: "n4", type: "SampleAndHold", x: 540, widgets: { threshold: 0.5 } },
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUDIO"),
+      link("l2", "n2", "n3", "AUTOMATION", 0, 1),
+      link("l3", "n3", "n4", "AUTOMATION"),
+    ],
+  },
   MIDINoteGate: {
     title: "MIDI Note Gate",
     description: "Gate audio with MIDI note events.",

@@ -18,6 +18,8 @@ type GroupId =
 
 type Props = {
   onAddNode: (nodeType: string) => void;
+  /** Live /api/nodes catalog from App — keeps BeatTrack etc. in sync after server restart. */
+  catalog?: NodeTypeInfo[];
 };
 
 const MODULAR_NODES = new Set([
@@ -36,8 +38,9 @@ const MODULAR_NODES = new Set([
   "Logic",
   "Comparator",
   "SampleAndHold",
-  "Quantizer",
+    "Quantizer",
   "Clock",
+  "BeatTrack",
   "ControlCurve",
   "MIDIToFloat",
   "MIDINoteGate",
@@ -108,7 +111,7 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
   },
   "core-dsp": {
     title: "Processing",
-    hint: "Level, trim, resample, oscillators",
+    hint: "Level, trim, resample, oscillators, beat clock",
     tiers: ["core", "modular", "all"],
   },
   "ai-generate": {
@@ -156,6 +159,10 @@ function tierForNode(node: NodeTypeInfo): PaletteTier[] {
     tiers.push("core", "modular");
     return tiers;
   }
+  if (node.type === "BeatTrack" || node.type === "Clock") {
+    tiers.push("core", "modular");
+    return tiers;
+  }
   if (node.category.includes("Core") && !MODULAR_NODES.has(node.type)) {
     tiers.push("core");
   }
@@ -185,10 +192,13 @@ function paletteGroup(node: NodeTypeInfo): GroupId {
   if (node.type === "SignalGenerator" || node.type === "Oscillator" || node.type === "NoiseGenerator") {
     return "core-dsp";
   }
+  if (node.type === "BeatTrack") {
+    return "core-dsp";
+  }
   if (
     MODULAR_NODES.has(node.type) ||
     node.type.includes("Float") ||
-    ["Filter", "Amplifier", "Envelope", "LFO", "Attenuator", "Reverb", "Logic", "Comparator", "SampleAndHold", "Quantizer", "Clock", "MatrixMixer"].includes(
+    ["Filter", "Amplifier", "Envelope", "LFO", "Attenuator", "Reverb", "Logic", "Comparator", "SampleAndHold", "Quantizer", "Clock", "BeatTrack", "MatrixMixer"].includes(
       node.type,
     )
   ) {
@@ -198,11 +208,12 @@ function paletteGroup(node: NodeTypeInfo): GroupId {
   return "core-dsp";
 }
 
-export default function NodePalette({ onAddNode }: Props) {
-  const [nodes, setNodes] = useState<NodeTypeInfo[]>([]);
+export default function NodePalette({ onAddNode, catalog }: Props) {
+  const [fetched, setFetched] = useState<NodeTypeInfo[]>([]);
   const [tier, setTier] = useState<PaletteTier>("core");
 
   useEffect(() => {
+    if (catalog && catalog.length > 0) return;
     fetch(`${API}/api/nodes`)
       .then((r) => r.json())
       .then((d) => {
@@ -210,10 +221,12 @@ export default function NodePalette({ onAddNode }: Props) {
           type: n.type,
           category: n.category,
         }));
-        setNodes(list.filter(isPaletteVisible));
+        setFetched(list.filter(isPaletteVisible));
       })
-      .catch(() => setNodes([]));
-  }, []);
+      .catch(() => setFetched([]));
+  }, [catalog]);
+
+  const nodes = catalog && catalog.length > 0 ? catalog.filter(isPaletteVisible) : fetched;
 
   const tierMeta = TIERS.find((item) => item.id === tier) ?? TIERS[0];
 

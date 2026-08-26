@@ -13,7 +13,6 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "isolate-vocals-to-voice-convert",
   "karaoke-guide-vocal",
   "localize-dialogue-a-to-b",
-  "melody-to-modular-synth",
   "modular-generative-rack",
   "podcast-denoise",
   "prompt-modular-synth",
@@ -29,6 +28,12 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "transcribe-and-regenerate",
   "transcribe-dialogue",
   "voice-cloning",
+] as const;
+
+/** Bundled templates that never appear in the picker, even if currently loaded. */
+export const PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS = [
+  "melody-to-modular-synth",
+  "self-playing-neural-rack",
 ] as const;
 
 export type TemplateDomainId =
@@ -103,6 +108,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
 };
 
 const featuredBundledIds = new Set<string>(FEATURED_BUNDLED_TEMPLATE_IDS);
+const pickerHiddenBundledIds = new Set<string>(PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS);
 
 export function domainIdForTemplate(templateId: string): TemplateDomainId {
   return TEMPLATE_DOMAIN_BY_ID[templateId] ?? "other";
@@ -114,12 +120,11 @@ export function templatesVisibleInUi(
   selectedId?: string,
 ): TemplateListItem[] {
   return templates
-    .filter(
-      (template) =>
-        template.source === "user" ||
-        featuredBundledIds.has(template.id) ||
-        template.id === selectedId,
-    )
+    .filter((template) => {
+      if (template.source === "user") return true;
+      if (pickerHiddenBundledIds.has(template.id)) return false;
+      return featuredBundledIds.has(template.id) || template.id === selectedId;
+    })
     .sort((a, b) => {
       if (a.source === "user" && b.source !== "user") return 1;
       if (b.source === "user" && a.source !== "user") return -1;

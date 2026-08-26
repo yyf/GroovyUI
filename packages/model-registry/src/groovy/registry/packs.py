@@ -75,6 +75,7 @@ PACK_CATALOG: dict[str, NodePackManifest] = {
             "SampleAndHold",
             "Quantizer",
             "Clock",
+            "BeatTrack",
             "AutomationToMIDI",
             "ModuleInlet",
             "ModuleOutlet",

@@ -21,12 +21,16 @@ export type GroovyNodeData = {
   nodeId: string;
   canAudition?: boolean;
   issue?: string;
+  /** Live render hint (e.g. model download on a slow AI hop). */
+  activityLabel?: string;
   /** Truncated TEXT output shown on-node (Preview / Whisper / Prompt). */
   previewText?: string;
   /** Freeform Note comment shown on-node. */
   noteText?: string;
   /** Channel layout / count chip (LoadAudio, Preview, SaveAudio). */
   channelLabel?: string;
+  /** Brief ⌘F locate pulse. */
+  found?: boolean;
   inputs?: NodeSocketSpec[];
   outputs?: NodeSocketSpec[];
 };
@@ -91,9 +95,10 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
 
   return (
     <div
-      className={`groovy-node groovy-node--${nodeData.status}${kindClass}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}${isNote ? " groovy-node--note" : ""}`}
+      className={`groovy-node groovy-node--${nodeData.status}${kindClass}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}${nodeData.found ? " groovy-node--found" : ""}${isNote ? " groovy-node--note" : ""}`}
       style={{ minHeight }}
       data-kind={isNote ? "note" : kind}
+      aria-busy={nodeData.status === "running"}
     >
       <span className="groovy-node__ticks" aria-hidden />
       {inputs.map((socket, index) => (
@@ -168,6 +173,16 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             title={nodeData.noteText.trim() ? nodeData.noteText : undefined}
           >
             {nodeData.noteText.trim() ? nodeData.noteText : "Add a comment…"}
+          </p>
+        ) : null}
+        {nodeData.issue ? (
+          <p className="groovy-node__issue" title={nodeData.issue}>
+            {nodeData.issue}
+          </p>
+        ) : null}
+        {nodeData.activityLabel ? (
+          <p className="groovy-node__activity" role="status">
+            {nodeData.activityLabel}
           </p>
         ) : null}
         {nodeData.previewText ? (

@@ -75,20 +75,51 @@ def test_neural_modular_rack_schema_and_stub_render(tmp_path: Path, monkeypatch)
     types = {node["type"] for node in data["nodes"]}
     assert "AmbisonicEncode" not in types
     assert "AmbisonicDecode" not in types
-    assert {"Clock", "Quantizer", "Logic", "Filter", "Reverb", "Granulate", "AutomationToMIDI", "GenerateAudio", "Mix"} <= types
+    assert {"Clock", "BeatTrack", "Quantizer", "Logic", "Filter", "Reverb", "AutomationToMIDI", "GenerateAudio", "Mix"} <= types
+    assert "Granulate" in types
+    grain = next(node for node in data["nodes"] if node["type"] == "Granulate")
+    assert grain["widgets"]["wet_end"] <= 0.4
+    assert grain["widgets"]["width"] >= 0.5
     assert "TimbreTransfer" not in types
     assert "DeepfakeDetect" not in types
     drone_filter = next(
         node for node in data["nodes"] if node["type"] == "Filter" and node["widgets"].get("filter_type") == "bandpass"
     )
-    assert drone_filter["widgets"]["q"] >= 5.0
-    reverb = next(node for node in data["nodes"] if node["type"] == "Reverb")
-    assert reverb["widgets"]["mix"] <= 0.1
+    assert drone_filter["widgets"]["q"] >= 1.5
+    reverb = next(node for node in data["nodes"] if node["id"] == "n30")
+    assert reverb["widgets"]["mix"] <= 0.2
+    sparkle = next(node for node in data["nodes"] if node["id"] == "n52")
+    assert sparkle["type"] == "Reverb"
+    assert sparkle["widgets"]["mix"] >= 0.5
     clocks = [node for node in data["nodes"] if node["type"] == "Clock"]
-    assert {clock["widgets"]["bpm"] for clock in clocks} == {88.0, 44.0}
+    assert {clock["widgets"]["bpm"] for clock in clocks} == {136.0, 68.0}
     gen = next(node for node in data["nodes"] if node["type"] == "GenerateAudio")
     assert gen["widgets"]["model"] == "ace-step-1.5"
-    assert gen["widgets"]["seconds_total"] == 10.0
+    assert gen["widgets"]["seconds_total"] == 30.0
+    assert "IDM" in gen["widgets"]["prompt"]
+    bus = next(node for node in data["nodes"] if node["id"] == "n29")
+    assert bus["widgets"]["gain_a"] == 0.5
+    assert bus["widgets"]["gain_b"] == 0.5
+    bass = next(node for node in data["nodes"] if node["id"] == "n14")
+    assert bass["widgets"]["waveform"] == "sine"
+    assert not any(link["from"] == ["n11", 0] and link["to"] == ["n14", 0] for link in data["links"])
+    assert any(link["from"] == ["n3", 0] and link["to"] == ["n49", 0] for link in data["links"])
+    assert any(link["from"] == ["n51", 0] and link["to"] == ["n25", 0] for link in data["links"])
+    assert any(link["from"] == ["n18", 0] and link["to"] == ["n19", 1] for link in data["links"])
+    assert any(link["from"] == ["n35", 0] and link["to"] == ["n20", 1] for link in data["links"])
+    assert any(link["from"] == ["n23", 0] and link["to"] == ["n26", 0] for link in data["links"])
+    assert any(link["from"] == ["n23", 0] and link["to"] == ["n48", 0] for link in data["links"])
+    assert any(link["from"] == ["n1", 0] and link["to"] == ["n48", 1] for link in data["links"])
+    assert any(link["from"] == ["n48", 0] and link["to"] == ["n18", 0] for link in data["links"])
+    assert any(link["from"] == ["n48", 1] and link["to"] == ["n18", 1] for link in data["links"])
+    xor_gate = next(node for node in data["nodes"] if node["id"] == "n18")
+    assert xor_gate["widgets"]["operation"] == "xor"
+    assert any(link["from"] == ["n1", 0] and link["to"] == ["n50", 1] for link in data["links"])
+    assert any(link["from"] == ["n42", 0] and link["to"] == ["n52", 0] for link in data["links"])
+    assert any(link["from"] == ["n52", 0] and link["to"] == ["n53", 0] for link in data["links"])
+    assert any(link["from"] == ["n53", 0] and link["to"] == ["n51", 1] for link in data["links"])
+    assert any(link["from"] == ["n48", 0] and link["to"] == ["n9", 0] for link in data["links"])
+    assert any(link["from"] == ["n2", 0] and link["to"] == ["n10", 0] for link in data["links"])
 
     workflow = Workflow.model_validate(data)
     result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))

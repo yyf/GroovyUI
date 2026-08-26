@@ -17,6 +17,7 @@ type Props = {
   progress?: number;
   startedAt?: number;
   lastProgressAt?: number;
+  downloadingModel?: boolean;
   onCancel?: () => void;
   cancelling?: boolean;
 };
@@ -28,6 +29,7 @@ export default function RenderActivityBar({
   progress,
   startedAt,
   lastProgressAt,
+  downloadingModel = false,
   onCancel,
   cancelling = false,
 }: Props) {
@@ -42,13 +44,16 @@ export default function RenderActivityBar({
   const elapsed = startedAt ? now - startedAt : 0;
   const staleMs = lastProgressAt ? now - lastProgressAt : 0;
   const pct = progress != null ? Math.round(progress * 100) : null;
-  const showPatienceHint = running && staleMs > 30_000;
+  const showPatienceHint = running && (downloadingModel || staleMs > 30_000);
 
   const detail = useMemo(() => {
+    if (downloadingModel) {
+      return nodeLabel ? `Downloading model · ${nodeLabel}` : "Downloading model…";
+    }
     if (message && message !== nodeLabel) return message;
     if (nodeLabel) return `Running ${nodeLabel}`;
     return "Rendering workflow…";
-  }, [message, nodeLabel]);
+  }, [downloadingModel, message, nodeLabel]);
 
   if (!running) return null;
 
@@ -83,7 +88,9 @@ export default function RenderActivityBar({
       />
       {showPatienceHint ? (
         <p className="render-activity__hint">
-          Still working — AI nodes can take several minutes, especially on first model load.
+          {downloadingModel
+            ? "First Hub load can take several minutes. The graph is still rendering."
+            : "Still working — AI nodes can take several minutes, especially on first model load."}
         </p>
       ) : null}
     </div>

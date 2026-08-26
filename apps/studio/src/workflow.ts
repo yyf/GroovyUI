@@ -1543,6 +1543,7 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
     case "Envelope":
     case "LFO":
     case "Clock":
+    case "BeatTrack":
     case "Float":
       height = 100;
       break;

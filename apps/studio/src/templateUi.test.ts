@@ -64,7 +64,6 @@ describe("templatesVisibleInUi", () => {
       "isolate-vocals-to-voice-convert",
       "karaoke-guide-vocal",
       "localize-dialogue-a-to-b",
-      "melody-to-modular-synth",
       "modular-generative-rack",
       "neural-modular-rack",
       "podcast-denoise",
@@ -112,13 +111,22 @@ describe("templatesVisibleInUi", () => {
     );
   });
 
-  it("hides self-playing-neural-rack unless it is the active selection", () => {
+  it("hides self-playing-neural-rack even when it is the active selection", () => {
     expect(templatesVisibleInUi(allBundled).map((t) => t.id)).not.toContain(
       "self-playing-neural-rack",
     );
     expect(
       templatesVisibleInUi(allBundled, "self-playing-neural-rack").map((t) => t.id),
-    ).toContain("self-playing-neural-rack");
+    ).not.toContain("self-playing-neural-rack");
+  });
+
+  it("hides melody-to-modular-synth even when it is the active selection", () => {
+    expect(templatesVisibleInUi(allBundled).map((t) => t.id)).not.toContain(
+      "melody-to-modular-synth",
+    );
+    expect(
+      templatesVisibleInUi(allBundled, "melody-to-modular-synth").map((t) => t.id),
+    ).not.toContain("melody-to-modular-synth");
   });
 
   it("always shows user templates", () => {
