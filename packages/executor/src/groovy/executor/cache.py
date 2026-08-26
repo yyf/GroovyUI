@@ -304,6 +304,25 @@ class CacheStore:
         record = {k: v for k, v in meta.items() if k not in {"id", "type"}}
         return AuthenticityReport(id=meta["id"], record=record)
 
+    def write_sample_check(self, report: Any) -> Any:
+        from groovy.executor.sample_integrity import SampleCheckReport
+
+        if not isinstance(report, SampleCheckReport):
+            raise TypeError("write_sample_check expects SampleCheckReport")
+        meta_path = self.cache_dir / f"{report.id}.sample_check.json"
+        meta_path.write_text(json.dumps(report.to_meta(), indent=2))
+        return report
+
+    def load_sample_check(self, report_id: str) -> Any:
+        from groovy.executor.sample_integrity import SampleCheckReport
+
+        meta_path = self.cache_dir / f"{report_id}.sample_check.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Sample check report not found: {report_id}")
+        meta = json.loads(meta_path.read_text())
+        record = {k: v for k, v in meta.items() if k not in {"id", "type"}}
+        return SampleCheckReport(id=meta["id"], record=record)
+
     def write_automation(self, curve: AutomationBuffer) -> AutomationBuffer:
         f64_path = self.cache_dir / f"{curve.id}.automation.f64"
         curve.values.astype(np.float64).tofile(f64_path)

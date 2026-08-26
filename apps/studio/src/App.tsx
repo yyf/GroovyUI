@@ -617,8 +617,14 @@ export default function App() {
         return;
       }
       if (selectedIds.length > 0) {
-        setSelectedEdgeId(selectedIds[0] ?? null);
-        setNodes((current) => current.map((node) => ({ ...node, selected: false })));
+        // Ignore edge select events when nodes are already selected (marquee overlap).
+        setNodes((current) => {
+          if (current.some((node) => node.selected)) {
+            return current;
+          }
+          setSelectedEdgeId(selectedIds[0] ?? null);
+          return current.map((node) => ({ ...node, selected: false }));
+        });
       }
     },
     [setWorkflow, setNodes],
@@ -1820,16 +1826,15 @@ export default function App() {
                   onConnect={onConnect}
                   onNodeDragStop={onNodeDragStop}
                   onSelectionChange={({ nodes: selectedFlowNodes, edges: selectedFlowEdges }) => {
+                    // Marquee often includes wires between two nodes. Prefer node multi-select
+                    // (A/B compare) over edge selection whenever any node is in the box.
+                    if (selectedFlowNodes.length > 0) {
+                      setSelectedEdgeId(null);
+                      return;
+                    }
                     const edgeId = selectedFlowEdges[0]?.id ?? null;
                     if (edgeId) {
                       setSelectedEdgeId(edgeId);
-                      if (selectedFlowNodes.length > 0) {
-                        setNodes((current) => current.map((node) => ({ ...node, selected: false })));
-                      }
-                      return;
-                    }
-                    if (selectedFlowNodes.length > 0) {
-                      setSelectedEdgeId(null);
                     }
                   }}
                   onNodeClick={() => {
@@ -1866,8 +1871,9 @@ export default function App() {
                   selectionKeyCode={null}
                   multiSelectionKeyCode={["Shift", "Meta", "Control"]}
                   edgesFocusable
+                  edgesSelectable={false}
                   elevateEdgesOnSelect
-                  defaultEdgeOptions={{ interactionWidth: 36, selectable: true, focusable: true }}
+                  defaultEdgeOptions={{ interactionWidth: 36, selectable: false, focusable: true }}
                   minZoom={CANVAS_MIN_ZOOM}
                   maxZoom={CANVAS_MAX_ZOOM}
                   fitViewOptions={FIT_ALL_OPTIONS}

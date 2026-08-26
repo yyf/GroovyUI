@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-47 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+48 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -40,6 +40,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Transcribe to Synth | [transcribe-to-synth.groovy.json](transcribe-to-synth.groovy.json) | 2.5 | basic-pitch, musicgen |
 | AI MIDI to Hardware | [ai-midi-to-hardware.groovy.json](ai-midi-to-hardware.groovy.json) | 2.5 | musicgen |
 | A/B Compare Demo | [ab-compare-demo.groovy.json](ab-compare-demo.groovy.json) | 2 hardening | `deepfilternet-v3` |
+| Sample Verify | [sample-verify.groovy.json](sample-verify.groovy.json) | 2.6 / **featured** | — (`VerifySamples` on Load + Preview; offline PCM hash / frames / layout) |
 | Compare Whisper Sizes | [compare-whisper-sizes.groovy.json](compare-whisper-sizes.groovy.json) | sprint / **featured** | deepfilternet + whisper turbo ∥ small-en |
 | Script to VO Master | [script-to-vo-master.groovy.json](script-to-vo-master.groovy.json) | sprint / **featured** | kokoro + deepfilternet + fade |
 | Karaoke Guide Vocal | [karaoke-guide-vocal.groovy.json](karaoke-guide-vocal.groovy.json) | sprint / **featured** | demucs + kokoro guide over instrumental |

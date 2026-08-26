@@ -17,6 +17,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "podcast-denoise",
   "prompt-modular-synth",
   "rave-timbre-transfer",
+  "sample-verify",
   "script-to-vo-master",
   "neural-modular-rack",
   "song-cover-remix",
@@ -76,6 +77,8 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "denoise-diarize-transcribe": "speech",
   "isolate-vocals-to-transcribe": "speech",
   "compare-whisper-sizes": "compare",
+  "sample-verify": "compare",
+  "ab-compare-demo": "compare",
 
   "voice-cloning": "voice",
   "script-to-vo-master": "voice",

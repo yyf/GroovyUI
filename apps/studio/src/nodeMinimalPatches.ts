@@ -593,6 +593,17 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     nodes: [load("n1", 0), { id: "n2", type: "VerifyProvenance", x: 260, widgets: { check_sidecar: true } }],
     links: [link("l1", "n1", "n2", "AUDIO")],
   },
+  VerifySamples: {
+    title: "Verify Samples",
+    description: "Check PCM content hash, sample rate, frames, and layout on a cached buffer.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      { id: "n2", type: "VerifySamples", x: 260, widgets: {} },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO", 1, 0)],
+  },
   AuthenticitySummary: {
     title: "Authenticity Summary",
     description: "Combine provenance and spoof checks.",

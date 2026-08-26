@@ -177,6 +177,18 @@ describe("previewTextSnippet", () => {
     });
   });
 
+  it("keeps MULTI SampleCheck+Audio for inspector Outputs tab", () => {
+    const multi: JobOutput = {
+      type: "MULTI",
+      outputs: [
+        { type: "SAMPLE_CHECK", sample_check_id: "rep" },
+        { type: "AUDIO", cache_id: "pcm" },
+      ],
+    };
+    const merged = resolveNodeInspectorOutput(multi, { type: "AUDIO", cache_id: "pcm" });
+    expect(merged).toEqual(multi);
+  });
+
   it("attaches previewText on TEXT job outputs in flow nodes", () => {
     const workflow = sampleWorkflow();
     const schemas = {
@@ -906,6 +918,28 @@ describe("resolveNodeListenId", () => {
     };
     expect(resolveNodeListenId(workflow, "n2", outputs)).toBe("vocals");
     expect(nodeHasListenableOutput(workflow, "n2", outputs)).toBe(true);
+  });
+
+  it("listens to AUDIO slot on SAMPLE_CHECK+AUDIO MULTI (VerifySamples)", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", widgets: { path: "a.wav" } },
+        { id: "n2", type: "VerifySamples", widgets: {} },
+      ],
+      links: [{ id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" }],
+    };
+    const outputs: Record<string, JobOutput> = {
+      n1: { type: "AUDIO", cache_id: "src" },
+      n2: {
+        type: "MULTI",
+        outputs: [
+          { type: "SAMPLE_CHECK", sample_check_id: "rep" },
+          { type: "AUDIO", cache_id: "src" },
+        ],
+      },
+    };
+    expect(resolveNodeListenId(workflow, "n2", outputs)).toBe("src");
   });
 
   it("marks wired Preview cached when only upstream rendered", () => {

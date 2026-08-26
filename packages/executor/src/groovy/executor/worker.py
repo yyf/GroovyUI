@@ -108,6 +108,8 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
     for key, value in kwargs.items():
         if hasattr(value, "stems"):
             out[key] = {"type": "STEMS", "stems_id": value.id}
+        elif getattr(value, "socket_type", None) == "SAMPLE_CHECK" and hasattr(value, "id"):
+            out[key] = {"type": "SAMPLE_CHECK", "sample_check_id": value.id}
         elif hasattr(value, "record") and hasattr(value, "id"):
             out[key] = {"type": "AUTHENTICITY", "authenticity_id": value.id}
         elif hasattr(value, "midi_kind") and hasattr(value, "id"):

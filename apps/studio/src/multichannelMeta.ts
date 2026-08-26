@@ -42,6 +42,12 @@ export function formatAudioMeta(meta: Record<string, unknown>): AudioMetaRow[] {
   const codec = [meta.file_format, meta.file_subtype].filter(Boolean).join(" / ");
   push("File codec", codec || null);
   push("Sample rate", meta.sample_rate ? `${meta.sample_rate} Hz` : null);
+  push("Samples", meta.frame_count != null ? String(meta.frame_count) : null);
+
+  if (meta.content_hash) {
+    const hash = String(meta.content_hash).replace(/^sha256:/, "");
+    push("Content hash", hash.length > 20 ? `${hash.slice(0, 12)}…` : hash);
+  }
 
   if (meta.duration_seconds) {
     const seconds = Number(meta.duration_seconds);

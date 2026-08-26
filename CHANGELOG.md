@@ -4,6 +4,9 @@
 
 ### Added
 
+- **`VerifySamples`** — SAMPLE_CHECK+AUDIO node that recomputes PCM content hash and reports sample count / rate / layout (Processing palette; not Authenticity/Compliance)
+- **A/B sample check** — when two nodes are selected, Inspector Summary / Metrics show a horizontal sample table (Samples · Rate · Duration · Layout · Hash)
+- **`sample-verify` template** — Compare-domain demo: LoadAudio → Preview with VerifySamples on each hop
 - **`BeatTrack`** — AUDIO analyzer that rebuilds a Clock-style pulse train (plus half-time) from detected beats; optional fallback Clock when the groove is too weak. DSP (spectral flux), not a downloaded model.
 - **⌘F find node** — dialog to search by node name or id; Enter frames and pulses the match.
 - **Status LEDs** — click red/warn API / RND / CVS to open the fault log in a new window.
@@ -19,6 +22,7 @@
 
 ### Changed
 
+- **Marquee A/B select** — box-select prefers nodes over wires (`edgesSelectable={false}`) so two-node A/B compare works without only shift-click
 - **ACE-Step load errors** — do not treat every Hub message containing `401` as access-denied; skip a broken huggingface-cli login when Settings has no token; include the real Hub error on failure.
 - **`neural-modular-rack` mix** — IDM diptych at 136 BPM: syncopated deep sine vs on-grid ticks; ice/metallic sparkles through a long reverb plus light stereo Granulate; ACE-Step (Telefon Tel Aviv *TTV* / Kodomo *Deep Winter*); bus 50/50.
 - **Render canvas** — pulse-highlight the active node; after 5s of silence on an AI hop, show **Downloading model…** on the node and in the render bar.

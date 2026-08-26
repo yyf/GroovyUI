@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-sampleverify01",
+  "metadata": {
+    "title": "Sample Verify",
+    "author": "groovy",
+    "description": "LoadAudio → Preview with VerifySamples on each hop. Render, click a VerifySamples node (or marquee-select Load + Preview for A/B) to inspect sample count, hash, rate, and layout in the Inspector.",
+    "tags": [
+      "featured",
+      "compare",
+      "sample-accurate",
+      "verify",
+      "integrity"
+    ],
+    "created_at": "2026-08-26T12:00:00Z",
+    "modified_at": "2026-08-26T12:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Sample Verify — offline PCM integrity.\nLoad → Preview; VerifySamples on each.\nRender, then inspect Samples in the Inspector Outputs tab.\nMarquee-select Load + Preview for A/B sample check. Play = cached PCM."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": {
+        "x": 0,
+        "y": 140
+      },
+      "widgets": {
+        "path": "assets/samples/noisy_speech_1214.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "Preview",
+      "pos": {
+        "x": 280,
+        "y": 140
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n3",
+      "type": "VerifySamples",
+      "pos": {
+        "x": 0,
+        "y": 320
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n4",
+      "type": "VerifySamples",
+      "pos": {
+        "x": 280,
+        "y": 320
+      },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n2", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": ["n1", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n2", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
+}

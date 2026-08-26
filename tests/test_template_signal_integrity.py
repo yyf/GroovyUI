@@ -110,6 +110,40 @@ def test_ab_compare_demo_spot_check(tmp_path: Path) -> None:
         assert analysis["verdict"] == expected_verdict
 
 
+def test_sample_verify_spot_check(tmp_path: Path) -> None:
+    from groovy.executor.sample_integrity import sample_pair_check, verify_samples_for_audio
+
+    spec = next(s for s in ALL_TEMPLATE_INTEGRITY_SPECS if s.template_id == "sample-verify")
+    project_dir = prepare_template_project(tmp_path, spec)
+    workflow = load_template_workflow(spec)
+    executor = Executor(project_dir)
+    result = executor.execute(workflow, target_nodes=list(spec.target_nodes))
+    assert result.status == "completed", result.error
+
+    load_out = result.outputs["n1"]
+    preview_out = result.outputs["n2"]
+    vs_load = result.outputs["n3"]
+    vs_preview = result.outputs["n4"]
+    assert vs_load["type"] == "MULTI"
+    assert vs_preview["type"] == "MULTI"
+
+    load_cache = load_out.get("cache_id") or (load_out.get("outputs") or [{}])[0].get("cache_id")
+    preview_cache = preview_out.get("cache_id")
+    assert load_cache and preview_cache
+    # Preview is AUDIO passthrough — same buffer identity for sample claim demo
+    assert load_cache == preview_cache
+
+    check_load = verify_samples_for_audio(executor.cache, vs_load["outputs"][1]["cache_id"])
+    check_preview = verify_samples_for_audio(executor.cache, vs_preview["outputs"][1]["cache_id"])
+    assert check_load["hash_match"] is True
+    assert check_preview["hash_match"] is True
+    pair = sample_pair_check(
+        executor.cache.read_meta(load_cache),
+        executor.cache.read_meta(preview_cache),
+    )
+    assert pair["label"] == "identical"
+
+
 def test_hello_groovy_manifest_cache_rerun_stable(tmp_path: Path) -> None:
     spec = next(s for s in SIGNAL_INTEGRITY_V1_TEMPLATES if s.template_id == "hello-groovy")
     project_dir = prepare_template_project(tmp_path, spec)

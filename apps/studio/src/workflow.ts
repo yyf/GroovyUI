@@ -54,6 +54,11 @@ export function resolveNodeListenOutput(
     const slot = previewOutputSlot(workflow, nodeId);
     const slotOutput = jobOutputAtSlot(direct, slot);
     if (slotOutput && previewListenId(slotOutput, 0)) return slotOutput;
+    // SAMPLE_CHECK+AUDIO or AUTHENTICITY+AUDIO — report is often slot 0.
+    for (let i = 0; i < (direct.outputs?.length ?? 0); i++) {
+      const candidate = jobOutputAtSlot(direct, i);
+      if (candidate && previewListenId(candidate, 0)) return candidate;
+    }
   }
 
   return listenOutputFromInboundLinks(workflow, nodeId, outputs);
@@ -225,6 +230,11 @@ export function resolveNodeInspectorOutput(
   if (direct?.type === "STRING" && direct.path) {
     return direct;
   }
+  // Keep MULTI (SAMPLE_CHECK+AUDIO, AUTHENTICITY+AUDIO, stems, …) so the Outputs
+  // tab can render every socket. Audition still uses resolveNodeListenOutput.
+  if (direct?.type === "MULTI" && direct.outputs?.length) {
+    return direct;
+  }
   return listen ?? direct;
 }
 
@@ -278,6 +288,7 @@ const WIREABLE_INPUT_TYPES = new Set([
   "OBA",
   "OSC",
   "AUTHENTICITY",
+  "SAMPLE_CHECK",
 ]);
 
 /** Widget-only params — never auto-wired or shown as canvas handles. */

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   analyzeAbCompare,
   fetchAudioFileMeta,
+  fetchAuthenticity,
   fetchCacheMeta,
   fetchCacheMetrics,
   fetchCompareModels,
   fetchModelCard,
   fetchNodeSchema,
+  fetchSampleCheck,
   fetchWaveform,
   revealProjectPath,
   uploadProjectAudio,
@@ -35,6 +37,7 @@ import {
 } from "../modelNodeWidgets";
 import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
+import CompareSampleIntegrity, { SampleCheckFromReport } from "./CompareSampleIntegrity";
 import ControlCurvePreview, { syncPointsFromStartEnd } from "./ControlCurvePreview";
 import MatrixMixerPanel from "./MatrixMixerPanel";
 import ModelSubgraphPanel from "./ModelSubgraphPanel";
@@ -781,33 +784,44 @@ export default function NodeHelper({
         ) : null}
         {tab === "outputs" && schema ? (
           <div className="node-helper__outputs">
-            <ul className="node-helper__socket-detail-list">
-              {schema.outputs.map((socket, index) => {
-                const slotOutput = jobOutputAtSlot(output, index);
-                return (
-                <li key={socket.name} className="node-helper__socket-detail">
-                  <div className="node-helper__socket-detail-head">
-                    <SocketTypeBadge type={socket.type} />
-                    <strong className="node-helper__socket-name">{socket.name}</strong>
-                  </div>
-                  {socket.description ? <p className="node-helper__hint">{socket.description}</p> : null}
-                  {slotOutput ? (
-                    <OutputSnapshot
-                      output={slotOutput}
-                      socketType={socket.type}
-                      onOpenCompliance={node.type === "SaveAudio" ? onOpenCompliance : undefined}
-                    />
-                  ) : (
-                    <p className="node-helper__hint">Render to populate this output.</p>
-                  )}
-                </li>
-              )})}
-            </ul>
-            {previewUrl ? (
-              <button type="button" className="node-helper__audition" onClick={onAudition}>
-                ▶ Audition node
-              </button>
-            ) : null}
+            {node?.type === "VerifySamples" ? (
+              <VerifySamplesOutputsPanel output={output} onAudition={previewUrl ? onAudition : undefined} />
+            ) : (
+              <>
+                <ul className="node-helper__socket-detail-list">
+                  {schema.outputs.map((socket, index) => {
+                    const slotOutput = jobOutputAtSlot(output, index);
+                    return (
+                      <li key={socket.name} className="node-helper__socket-detail">
+                        <div className="node-helper__socket-detail-head">
+                          <SocketTypeBadge type={socket.type} />
+                          <strong className="node-helper__socket-name">{socket.name}</strong>
+                        </div>
+                        {socket.description ? <p className="node-helper__hint">{socket.description}</p> : null}
+                        {slotOutput ? (
+                          <OutputSnapshot
+                            output={slotOutput}
+                            socketType={socket.type}
+                            onOpenCompliance={
+                              node.type === "SaveAudio" || socket.type === "AUTHENTICITY"
+                                ? onOpenCompliance
+                                : undefined
+                            }
+                          />
+                        ) : (
+                          <p className="node-helper__hint">Render to populate this output.</p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                {previewUrl ? (
+                  <button type="button" className="node-helper__audition" onClick={onAudition}>
+                    ▶ Audition node
+                  </button>
+                ) : null}
+              </>
+            )}
           </div>
         ) : null}
         {tab === "provenance" && provenance ? (
@@ -1156,16 +1170,21 @@ function ComparePanel({
 
       {notice ? <p className="node-helper__compare-info">{notice}</p> : null}
 
-      <dl className="node-helper__compare-meta">
-        <div className="node-helper__compare-meta-row">
-          <dt>A channels</dt>
-          <dd>{channelA}</dd>
-        </div>
-        <div className="node-helper__compare-meta-row">
-          <dt>B channels</dt>
-          <dd>{channelB}</dd>
-        </div>
-      </dl>
+      <p className="node-helper__sample-inline node-helper__sample-inline--channels">
+        <span>
+          <em>A channels</em> {channelA}
+        </span>
+        <span>
+          <em>B channels</em> {channelB}
+        </span>
+      </p>
+
+      <CompareSampleIntegrity
+        cacheIdA={a.output.cache_id}
+        cacheIdB={b.output.cache_id}
+        labelA={legendA}
+        labelB={legendB}
+      />
 
       <div className="node-helper__compare-signal">
         <WaveformCompare
@@ -1274,18 +1293,21 @@ function ComparePanel({
                 {result.verdict_summary}
               </p>
 
-              <dl className="node-helper__compare-meta">
-                <div className="node-helper__compare-meta-row">
-                  <dt>Model</dt>
-                  <dd>{models.find((model) => model.id === result.model_id)?.name ?? result.model_id}</dd>
-                </div>
-                <div className="node-helper__compare-meta-row">
-                  <dt>Clips</dt>
-                  <dd>
-                    {legendA} (A) vs {legendB} (B)
-                  </dd>
-                </div>
-              </dl>
+              <p className="node-helper__sample-inline">
+                <span>
+                  <em>Model</em> {models.find((model) => model.id === result.model_id)?.name ?? result.model_id}
+                </span>
+                <span>
+                  <em>Clips</em> {legendA} (A) vs {legendB} (B)
+                </span>
+              </p>
+
+              <CompareSampleIntegrity
+                cacheIdA={a.output.cache_id}
+                cacheIdB={b.output.cache_id}
+                labelA={legendA}
+                labelB={legendB}
+              />
 
               {result.differences.length > 0 ? (
                 <div className="node-helper__compare-section">
@@ -1329,6 +1351,12 @@ function ComparePanel({
             </div>
           ) : (
             <div className="node-helper__compare-metrics-panel" role="tabpanel">
+              <CompareSampleIntegrity
+                cacheIdA={a.output.cache_id}
+                cacheIdB={b.output.cache_id}
+                labelA={legendA}
+                labelB={legendB}
+              />
               <CompareMetricsViz
                 clipA={result.clip_a}
                 clipB={result.clip_b}
@@ -1349,6 +1377,96 @@ function formatPeakDb(peak: number): string {
   return `${(20 * Math.log10(peak)).toFixed(1)} dBFS`;
 }
 
+/** VerifySamples Outputs tab — sample check first, no socket boilerplate. */
+function VerifySamplesOutputsPanel({
+  output,
+  onAudition,
+}: {
+  output?: JobOutput;
+  onAudition?: () => void;
+}) {
+  const reportSlot =
+    jobOutputAtSlot(output, 0)?.type === "SAMPLE_CHECK"
+      ? jobOutputAtSlot(output, 0)
+      : output?.type === "MULTI"
+        ? output.outputs?.find((slot) => slot.type === "SAMPLE_CHECK")
+        : output?.type === "SAMPLE_CHECK"
+          ? output
+          : undefined;
+  const audioSlot =
+    jobOutputAtSlot(output, 1)?.type === "AUDIO"
+      ? jobOutputAtSlot(output, 1)
+      : output?.type === "MULTI"
+        ? output.outputs?.find((slot) => slot.type === "AUDIO" && slot.cache_id)
+        : output?.type === "AUDIO"
+          ? output
+          : undefined;
+
+  const [sampleCheck, setSampleCheck] = useState<Record<string, unknown> | null>(null);
+  const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    const id = reportSlot?.sample_check_id;
+    if (!id) {
+      setSampleCheck(null);
+      return;
+    }
+    let cancelled = false;
+    fetchSampleCheck(id)
+      .then((report) => {
+        if (!cancelled) {
+          setSampleCheck((report.sample_check as Record<string, unknown> | undefined) ?? report);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSampleCheck(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reportSlot?.sample_check_id]);
+
+  useEffect(() => {
+    const cacheId = audioSlot?.cache_id;
+    if (!cacheId) {
+      setMeta(null);
+      return;
+    }
+    fetchCacheMeta(cacheId)
+      .then(setMeta)
+      .catch(() => setMeta(null));
+  }, [audioSlot?.cache_id]);
+
+  if (!reportSlot?.sample_check_id && !audioSlot?.cache_id) {
+    return <p className="node-helper__hint">Render this node to populate sample info.</p>;
+  }
+
+  return (
+    <div className="node-helper__verify-samples">
+      {sampleCheck ? (
+        <SampleCheckFromReport sampleCheck={sampleCheck} />
+      ) : reportSlot?.sample_check_id ? (
+        <p className="node-helper__hint">Loading sample check…</p>
+      ) : null}
+      {meta ? (
+        <div className="node-helper__sample-inline">
+          <span>
+            <em>Source</em> {String(meta.source_node_type ?? "AUDIO")}
+          </span>
+          <span>
+            <em>Cache</em> <code>{String(audioSlot?.cache_id ?? "").slice(0, 8)}…</code>
+          </span>
+        </div>
+      ) : null}
+      {onAudition ? (
+        <button type="button" className="node-helper__audition" onClick={onAudition}>
+          ▶ Audition node
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function OutputSnapshot({
   output,
   socketType,
@@ -1361,6 +1479,8 @@ function OutputSnapshot({
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
   const [signalMetrics, setSignalMetrics] = useState<CacheSignalMetrics | null>(null);
   const [waveform, setWaveform] = useState<number[]>([]);
+  const [authenticity, setAuthenticity] = useState<Record<string, unknown> | null>(null);
+  const [sampleCheckReport, setSampleCheckReport] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     if (!output.cache_id) {
@@ -1379,6 +1499,50 @@ function OutputSnapshot({
       .then((data) => setWaveform(data.peaks))
       .catch(() => setWaveform([]));
   }, [output.cache_id]);
+
+  useEffect(() => {
+    const authenticityId = output.authenticity_id;
+    if (!authenticityId && output.type !== "AUTHENTICITY") {
+      setAuthenticity(null);
+      return;
+    }
+    const id = authenticityId ?? (output.type === "AUTHENTICITY" ? output.authenticity_id : null);
+    if (!id) {
+      setAuthenticity(null);
+      return;
+    }
+    let cancelled = false;
+    fetchAuthenticity(id)
+      .then((report) => {
+        if (!cancelled) setAuthenticity(report);
+      })
+      .catch(() => {
+        if (!cancelled) setAuthenticity(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [output.authenticity_id, output.type]);
+
+  useEffect(() => {
+    const id = output.sample_check_id;
+    if (!id) {
+      setSampleCheckReport(null);
+      return;
+    }
+    let cancelled = false;
+    fetchSampleCheck(id)
+      .then((report) => {
+        if (!cancelled) setSampleCheckReport(report);
+      })
+      .catch(() => {
+        if (!cancelled) setSampleCheckReport(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [output.sample_check_id]);
+
   if (output.type !== socketType && socketType !== "AUDIO") {
     if (socketType === "STRING" && (output.type === "STRING" || output.type === "TEXT")) {
       // SaveAudio path output (STRING) or legacy TEXT path payloads
@@ -1386,16 +1550,44 @@ function OutputSnapshot({
       // AudioToMIDI and other MIDI outputs
     } else if (socketType === "TEXT" && output.type === "TEXT") {
       // Prompt node text output
+    } else if (socketType === "AUTHENTICITY" && output.type === "AUTHENTICITY") {
+      // VerifyProvenance / DeepfakeDetect / AuthenticitySummary
+    } else if (socketType === "SAMPLE_CHECK" && output.type === "SAMPLE_CHECK") {
+      // VerifySamples
     } else {
       return <p className="node-helper__hint">No render for this socket yet.</p>;
     }
   }
+
+  const sampleCheck = sampleCheckReport?.sample_check as Record<string, unknown> | undefined;
 
   return (
     <div className="node-helper__output-snapshot">
       <p className="node-helper__socket-wire">
         <SocketTypeBadge type={socketType} /> {output.type === "STRING" ? "written" : "cached"}
       </p>
+      {output.type === "SAMPLE_CHECK" || socketType === "SAMPLE_CHECK" ? (
+        sampleCheck ? (
+          <SampleCheckFromReport sampleCheck={sampleCheck} />
+        ) : (
+          <p className="node-helper__hint">Render to populate sample check.</p>
+        )
+      ) : null}
+      {output.type === "AUTHENTICITY" || socketType === "AUTHENTICITY" ? (
+        <>
+          {authenticity?.overall ? (
+            <p className="node-helper__hint">
+              {(authenticity.overall as { summary?: string }).summary ??
+                (authenticity.overall as { label?: string }).label}
+            </p>
+          ) : null}
+          {onOpenCompliance ? (
+            <button type="button" className="node-helper__linkish" onClick={onOpenCompliance}>
+              Open Compliance · Authenticity
+            </button>
+          ) : null}
+        </>
+      ) : null}
       {output.type === "STRING" && output.path && output.provenance_path ? (
         <SaveAudioExportPair output={output} onOpenCompliance={onOpenCompliance} />
       ) : output.type === "STRING" && output.path ? (
@@ -1422,6 +1614,12 @@ function OutputSnapshot({
       {meta && output.type === "AUDIO" ? (
         <>
           {waveform.length > 0 ? <WaveformMini peaks={waveform} /> : null}
+          <div className="node-helper__sample-hero node-helper__sample-hero--compact">
+            <span className="node-helper__sample-hero-label">Samples</span>
+            <strong className="node-helper__sample-hero-value">
+              {Number(meta.frame_count || 0).toLocaleString()}
+            </strong>
+          </div>
           <AudioFormatPanel meta={meta} title="Output format" />
           {signalMetrics ? (
             <dl className="node-helper__meta-grid">
@@ -1444,7 +1642,7 @@ function OutputSnapshot({
             </dl>
           ) : null}
           <p className="node-helper__hint">
-            {String(meta.frame_count)} frames @ {String(meta.sample_rate)} Hz
+            {String(meta.frame_count)} samples @ {String(meta.sample_rate)} Hz
           </p>
           {output.cache_id ? <p className="node-helper__mono">{output.cache_id}</p> : null}
         </>

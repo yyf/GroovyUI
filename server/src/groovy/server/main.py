@@ -1498,6 +1498,15 @@ def get_authenticity(report_id: str) -> JSONResponse:
     return JSONResponse(report.record, headers={"Cache-Control": "no-store"})
 
 
+@app.get("/api/sample-check/{report_id}")
+def get_sample_check(report_id: str) -> JSONResponse:
+    try:
+        report = _executor.cache.load_sample_check(report_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Sample check report not found") from exc
+    return JSONResponse(report.record, headers={"Cache-Control": "no-store"})
+
+
 @app.post("/api/execute", status_code=202)
 async def execute(body: ExecuteRequest) -> dict[str, str]:
     ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")

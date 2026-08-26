@@ -168,6 +168,14 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "text": "Your comment. Shown on the node; edit here or in the inspector.",
         },
     },
+    "VerifySamples": {
+        "description": "Recompute PCM content hash and report sample count / rate / layout (SAMPLE_CHECK — not Authenticity).",
+        "inputs": {"audio": "Any AUDIO cache from I/O, Processing, or AI hops."},
+        "outputs": {
+            "report": "SAMPLE_CHECK report with sample_check payload for Inspector.",
+            "audio": "Passthrough of the verified AUDIO buffer.",
+        },
+    },
     "Normalize": {
         "description": "Adjust loudness to a target LUFS and peak ceiling.",
         "widgets": {
