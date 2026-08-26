@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import NoReturn
 
 import numpy as np
-import torch
 from scipy import signal
 
 # XL hero pack (~11GB) vs smallest Diffusers 2B turbo (~6.3GB).
@@ -94,6 +93,9 @@ def _hf_model_id(model_id: str) -> str:
 
 @lru_cache(maxsize=2)
 def _load_pipeline(hf_model_id: str):
+    # Lazy: keep module importable in CI (no torch) for Hub auth unit tests.
+    import torch
+
     _prefer_classic_hf_download()
     try:
         from diffusers import AceStepPipeline
@@ -178,6 +180,8 @@ def generate_from_text(
     duration = float(np.clip(seconds_total, 10.0, 120.0))
     generator = None
     if seed is not None and seed >= 0:
+        import torch
+
         gen_device = "cuda" if device == "cuda" else "cpu"
         generator = torch.Generator(device=gen_device).manual_seed(int(seed) % (2**63 - 1))
 
