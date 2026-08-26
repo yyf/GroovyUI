@@ -5,17 +5,16 @@
   "metadata": {
     "title": "Neural Modular Rack",
     "author": "groovy",
-    "description": "Dual clock 88/44: intermittent pentatonic bass, probability-gated saw, articulating FM/bandpass drone, ACE-Step (MIT) into Granulate, very dry Mix/Reverb. No Ambisonics, no RAVE. Install ace-step-1.5. Offline \u00b7 Play = cached PCM.",
+    "description": "30s IDM diptych: 50% DSP (syncopated deep sine, on-grid ticks, wet sparkles + light stereo grains) + 50% ACE-Step (TTV / Deep Winter). BeatTrack 136 BPM. Offline \u00b7 Play = cached PCM.",
     "tags": [
       "featured",
       "modular",
       "generative",
       "ace-step",
-      "granular",
       "commercial-ok"
     ],
     "created_at": "2026-08-17T17:00:00Z",
-    "modified_at": "2026-08-17T17:00:00Z"
+    "modified_at": "2026-08-18T23:00:00Z"
   },
   "nodes": [
     {
@@ -23,7 +22,7 @@
       "type": "Note",
       "pos": { "x": 0, "y": 0 },
       "widgets": {
-        "text": "Neural Modular Rack \u2014 commercial-ok. Intermittent bass (clock \u00d7 sparse LFO). Probability-gated saw. Sci-fi drone = sine + slow FM \u2192 resonant bandpass. ACE-Step (MIT) \u2192 Granulate. Very subtle reverb. Offline render \u00b7 Play = cached PCM."
+        "text": "Neural Modular Rack \u2014 IDM, 50/50. Syncopated deep bass vs on-grid ticks; ice/metallic sparkles in a long reverb with light stereo granulation. ACE: Telefon Tel Aviv TTV / Kodomo Deep Winter. BeatTrack 136 BPM. Offline \u00b7 Play = cached PCM."
       }
     },
     {
@@ -31,9 +30,9 @@
       "type": "Clock",
       "pos": { "x": 0, "y": 160 },
       "widgets": {
-        "bpm": 88.0,
-        "pulse_ms": 85.0,
-        "duration_sec": 10.0,
+        "bpm": 136.0,
+        "pulse_ms": 11.0,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -42,9 +41,9 @@
       "type": "Clock",
       "pos": { "x": 0, "y": 340 },
       "widgets": {
-        "bpm": 44.0,
-        "pulse_ms": 220.0,
-        "duration_sec": 10.0,
+        "bpm": 68.0,
+        "pulse_ms": 90.0,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -54,10 +53,10 @@
       "pos": { "x": 0, "y": 520 },
       "widgets": {
         "color": "white",
-        "amplitude": 1.0,
-        "duration_sec": 10.0,
+        "amplitude": 0.85,
+        "duration_sec": 30.0,
         "sample_rate": 48000,
-        "seed": 7
+        "seed": 17
       }
     },
     {
@@ -65,7 +64,7 @@
       "type": "Prompt",
       "pos": { "x": 0, "y": 700 },
       "widgets": {
-        "text": "sparse sci-fi pulse, intermittent bass, articulating analog drone, no drums, no vocal, no lyrics, 88 BPM, dry room",
+        "text": "instrumental IDM, glitchy, cold analog-digital atmosphere, icy sparkles in cavernous reverb, syncopated sub bass, on-grid clicks, fractured rhythm, sparse motifs, telefon tel aviv TTV, kodomo Deep Winter, no vocal, no lyrics, no pop hook, 136 BPM",
         "language": "en"
       }
     },
@@ -75,10 +74,10 @@
       "pos": { "x": 260, "y": 700 },
       "widgets": {
         "waveform": "sine",
-        "rate_hz": 0.04,
-        "amplitude": 0.025,
-        "offset": 0.07,
-        "duration_sec": 10.0,
+        "rate_hz": 0.05,
+        "amplitude": 0.05,
+        "offset": 0.14,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -87,11 +86,11 @@
       "type": "LFO",
       "pos": { "x": 260, "y": 520 },
       "widgets": {
-        "waveform": "sine",
-        "rate_hz": 0.17,
+        "waveform": "triangle",
+        "rate_hz": 0.19,
         "amplitude": 0.5,
-        "offset": 0.5,
-        "duration_sec": 10.0,
+        "offset": 0.42,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -100,11 +99,11 @@
       "type": "ControlCurve",
       "pos": { "x": 260, "y": 340 },
       "widgets": {
-        "start_value": 420.0,
-        "end_value": 1800.0,
-        "frame_count": 480000,
+        "start_value": 3800.0,
+        "end_value": 9200.0,
+        "frame_count": 1440000,
         "sample_rate": 48000,
-        "points": "[{\"t\":0,\"v\":380},{\"t\":0.28,\"v\":1650},{\"t\":0.55,\"v\":620},{\"t\":0.78,\"v\":2100},{\"t\":1,\"v\":900}]"
+        "points": "[{\"t\":0,\"v\":4200},{\"t\":0.2,\"v\":7800},{\"t\":0.38,\"v\":3600},{\"t\":0.56,\"v\":9000},{\"t\":0.74,\"v\":5100},{\"t\":1,\"v\":7200}]"
       }
     },
     {
@@ -112,11 +111,11 @@
       "type": "Envelope",
       "pos": { "x": 260, "y": 160 },
       "widgets": {
-        "attack_ms": 2200.0,
-        "decay_ms": 1800.0,
-        "sustain": 0.78,
-        "release_ms": 3200.0,
-        "duration_sec": 10.0,
+        "attack_ms": 180.0,
+        "decay_ms": 80.0,
+        "sustain": 1.0,
+        "release_ms": 420.0,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -136,19 +135,19 @@
       "id": "n11",
       "type": "Quantizer",
       "pos": { "x": 780, "y": 80 },
-      "widgets": { "scale": "pentatonic", "root_hz": 41.2 }
+      "widgets": { "scale": "minor", "root_hz": 164.81 }
     },
     {
       "id": "n12",
       "type": "Quantizer",
       "pos": { "x": 780, "y": 240 },
-      "widgets": { "scale": "pentatonic", "root_hz": 164.8 }
+      "widgets": { "scale": "minor", "root_hz": 1318.51 }
     },
     {
       "id": "n13",
       "type": "Quantizer",
       "pos": { "x": 780, "y": 400 },
-      "widgets": { "scale": "pentatonic", "root_hz": 82.41 }
+      "widgets": { "scale": "minor", "root_hz": 164.81 }
     },
     {
       "id": "n14",
@@ -156,9 +155,9 @@
       "pos": { "x": 1040, "y": 40 },
       "widgets": {
         "waveform": "sine",
-        "frequency_hz": 41.2,
-        "amplitude_default": 0.72,
-        "duration_sec": 10.0,
+        "frequency_hz": 32.7,
+        "amplitude_default": 0.88,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -167,10 +166,10 @@
       "type": "Oscillator",
       "pos": { "x": 1040, "y": 220 },
       "widgets": {
-        "waveform": "saw",
-        "frequency_hz": 164.8,
-        "amplitude_default": 0.3,
-        "duration_sec": 10.0,
+        "waveform": "sine",
+        "frequency_hz": 1318.51,
+        "amplitude_default": 0.34,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -179,48 +178,42 @@
       "type": "Filter",
       "pos": { "x": 1300, "y": 220 },
       "widgets": {
-        "filter_type": "lowpass",
-        "cutoff_hz": 980.0,
-        "q": 1.35
+        "filter_type": "bandpass",
+        "cutoff_hz": 5400.0,
+        "q": 3.6
       }
-    },
-    {
-      "id": "n17",
-      "type": "Comparator",
-      "pos": { "x": 520, "y": 520 },
-      "widgets": { "threshold": 0.52 }
     },
     {
       "id": "n18",
       "type": "Logic",
       "pos": { "x": 780, "y": 560 },
-      "widgets": { "operation": "and", "threshold": 0.5 }
+      "widgets": { "operation": "xor", "threshold": 0.5 }
     },
     {
       "id": "n19",
       "type": "Amplifier",
       "pos": { "x": 1300, "y": 40 },
-      "widgets": { "gain": 1.35 }
+      "widgets": { "gain": 1.0 }
     },
     {
       "id": "n20",
       "type": "Amplifier",
       "pos": { "x": 1560, "y": 220 },
-      "widgets": { "gain": 0.92 }
+      "widgets": { "gain": 0.9 }
     },
     {
       "id": "n21",
       "type": "Mix",
       "pos": { "x": 1820, "y": 120 },
-      "widgets": { "gain_a": 1.08, "gain_b": 0.52 }
+      "widgets": { "gain_a": 1.0, "gain_b": 0.38 }
     },
     {
       "id": "n22",
       "type": "AutomationToMIDI",
       "pos": { "x": 1040, "y": 420 },
       "widgets": {
-        "threshold": 0.5,
-        "velocity": 0.82,
+        "threshold": 0.52,
+        "velocity": 0.7,
         "midi_kind": "score"
       }
     },
@@ -230,93 +223,74 @@
       "pos": { "x": 1300, "y": 420 },
       "widgets": {
         "model": "ace-step-1.5",
-        "prompt": "sparse sci-fi pulse, intermittent bass, articulating analog drone, no drums, no vocal, no lyrics, 88 BPM, dry room",
+        "prompt": "instrumental IDM, glitchy, cold analog-digital atmosphere, icy sparkles in cavernous reverb, syncopated sub bass, on-grid clicks, fractured rhythm, sparse motifs, telefon tel aviv TTV, kodomo Deep Winter, no vocal, no lyrics, no pop hook, 136 BPM",
         "lyrics": "",
-        "seed": 7,
-        "seconds_total": 10.0,
-        "num_inference_steps": 8,
-        "guidance_scale": 1.0
-      }
-    },
-    {
-      "id": "n24",
-      "type": "Granulate",
-      "pos": { "x": 1560, "y": 420 },
-      "widgets": {
-        "grain_ms": 72.0,
-        "hop_ms": 24.0,
-        "pitch_cents": 90.0,
-        "density": 36.0,
-        "spray": 4,
-        "width": 0.42,
-        "window": "hann",
-        "window_alpha": 0.4,
-        "scatter_ms": 160.0,
-        "wet_start": 0.18,
-        "wet_end": 0.62,
-        "seed": 7
+        "seed": 29,
+        "seconds_total": 30.0,
+        "num_inference_steps": 10,
+        "guidance_scale": 1.15
       }
     },
     {
       "id": "n25",
       "type": "Filter",
-      "pos": { "x": 1820, "y": 420 },
+      "pos": { "x": 2210, "y": 160 },
       "widgets": {
         "filter_type": "lowpass",
-        "cutoff_hz": 1400.0,
-        "q": 0.85
+        "cutoff_hz": 11000.0,
+        "q": 0.5
       }
     },
     {
       "id": "n26",
       "type": "Amplifier",
       "pos": { "x": 2080, "y": 420 },
-      "widgets": { "gain": 0.7 }
+      "widgets": { "gain": 1.0 }
     },
     {
       "id": "n27",
       "type": "ChannelConvert",
-      "pos": { "x": 2080, "y": 120 },
+      "pos": { "x": 2470, "y": 120 },
       "widgets": { "layout": "stereo" }
     },
     {
       "id": "n28",
       "type": "ChannelConvert",
-      "pos": { "x": 2340, "y": 420 },
+      "pos": { "x": 2470, "y": 420 },
       "widgets": { "layout": "stereo" }
     },
     {
       "id": "n29",
       "type": "Mix",
-      "pos": { "x": 2600, "y": 240 },
-      "widgets": { "gain_a": 0.95, "gain_b": 0.55 }
+      "pos": { "x": 2730, "y": 240 },
+      "widgets": { "gain_a": 0.5, "gain_b": 0.5 }
     },
     {
       "id": "n30",
       "type": "Reverb",
-      "pos": { "x": 2860, "y": 240 },
+      "pos": { "x": 2990, "y": 240 },
       "widgets": {
-        "mix": 0.07,
-        "room_sec": 0.55,
-        "damping": 0.72
+        "mix": 0.18,
+        "room_sec": 1.8,
+        "damping": 0.42
       }
     },
     {
       "id": "n31",
       "type": "Normalize",
-      "pos": { "x": 3120, "y": 240 },
+      "pos": { "x": 3250, "y": 240 },
       "widgets": { "mode": "lufs", "target_lufs": -16.0 }
     },
     {
       "id": "n32",
       "type": "Preview",
-      "pos": { "x": 3380, "y": 160 },
+      "pos": { "x": 3510, "y": 160 },
       "widgets": {}
     },
     {
       "id": "n33",
       "type": "SaveAudio",
-      "pos": { "x": 3380, "y": 300 },
+      "pos": { "x": 3510, "y": 300 },
       "widgets": {
         "path": "exports",
         "filename": "neural-modular-rack.wav",
@@ -327,7 +301,7 @@
       "id": "n34",
       "type": "Comparator",
       "pos": { "x": 520, "y": 680 },
-      "widgets": { "threshold": 0.74 }
+      "widgets": { "threshold": 0.52 }
     },
     {
       "id": "n35",
@@ -341,9 +315,9 @@
       "pos": { "x": 1040, "y": 620 },
       "widgets": {
         "waveform": "sine",
-        "frequency_hz": 55.0,
-        "amplitude_default": 0.22,
-        "duration_sec": 10.0,
+        "frequency_hz": 329.63,
+        "amplitude_default": 0.26,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -353,9 +327,9 @@
       "pos": { "x": 780, "y": 840 },
       "widgets": {
         "waveform": "sine",
-        "frequency_hz": 1.8,
-        "amplitude_default": 2.1,
-        "duration_sec": 10.0,
+        "frequency_hz": 2.7,
+        "amplitude_default": 0.55,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -365,8 +339,8 @@
       "pos": { "x": 1300, "y": 620 },
       "widgets": {
         "filter_type": "bandpass",
-        "cutoff_hz": 320.0,
-        "q": 6.2
+        "cutoff_hz": 1200.0,
+        "q": 2.6
       }
     },
     {
@@ -374,11 +348,11 @@
       "type": "ControlCurve",
       "pos": { "x": 1040, "y": 800 },
       "widgets": {
-        "start_value": 180.0,
-        "end_value": 640.0,
-        "frame_count": 480000,
+        "start_value": 480.0,
+        "end_value": 2800.0,
+        "frame_count": 1440000,
         "sample_rate": 48000,
-        "points": "[{\"t\":0,\"v\":210},{\"t\":0.18,\"v\":540},{\"t\":0.36,\"v\":160},{\"t\":0.58,\"v\":880},{\"t\":0.76,\"v\":280},{\"t\":1,\"v\":420}]"
+        "points": "[{\"t\":0,\"v\":700},{\"t\":0.18,\"v\":1800},{\"t\":0.34,\"v\":900},{\"t\":0.52,\"v\":2400},{\"t\":0.7,\"v\":1100},{\"t\":0.88,\"v\":2000},{\"t\":1,\"v\":1400}]"
       }
     },
     {
@@ -386,11 +360,11 @@
       "type": "LFO",
       "pos": { "x": 1300, "y": 800 },
       "widgets": {
-        "waveform": "triangle",
-        "rate_hz": 0.09,
-        "amplitude": 0.28,
-        "offset": 0.42,
-        "duration_sec": 10.0,
+        "waveform": "sine",
+        "rate_hz": 0.11,
+        "amplitude": 0.22,
+        "offset": 0.7,
+        "duration_sec": 30.0,
         "sample_rate": 48000
       }
     },
@@ -398,45 +372,144 @@
       "id": "n41",
       "type": "Amplifier",
       "pos": { "x": 1560, "y": 620 },
-      "widgets": { "gain": 0.85 }
+      "widgets": { "gain": 0.62 }
     },
     {
       "id": "n42",
       "type": "Mix",
       "pos": { "x": 1820, "y": 280 },
       "widgets": { "gain_a": 1.0, "gain_b": 0.42 }
+    },
+    {
+      "id": "n44",
+      "type": "Filter",
+      "pos": { "x": 1170, "y": 40 },
+      "widgets": {
+        "filter_type": "lowpass",
+        "cutoff_hz": 148.0,
+        "q": 1.15
+      }
+    },
+    {
+      "id": "n45",
+      "type": "ControlCurve",
+      "pos": { "x": 1820, "y": 40 },
+      "widgets": {
+        "start_value": 1.0,
+        "end_value": 0.0,
+        "frame_count": 1440000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":0},{\"t\":0.04,\"v\":1},{\"t\":0.86,\"v\":1},{\"t\":0.94,\"v\":0.12},{\"t\":1,\"v\":0}]"
+      }
+    },
+    {
+      "id": "n46",
+      "type": "Amplifier",
+      "pos": { "x": 2340, "y": 280 },
+      "widgets": { "gain": 1.0 }
+    },
+    {
+      "id": "n47",
+      "type": "FloatMath",
+      "pos": { "x": 1820, "y": 500 },
+      "widgets": { "operation": "multiply" }
+    },
+    {
+      "id": "n48",
+      "type": "BeatTrack",
+      "pos": { "x": 1560, "y": 500 },
+      "widgets": {
+        "fallback_bpm": 136.0,
+        "pulse_ms": 88.0,
+        "min_bpm": 118.0,
+        "max_bpm": 154.0,
+        "tightness": 0.48
+      }
+    },
+    {
+      "id": "n49",
+      "type": "Filter",
+      "pos": { "x": 1040, "y": 960 },
+      "widgets": {
+        "filter_type": "highpass",
+        "cutoff_hz": 6500.0,
+        "q": 0.65
+      }
+    },
+    {
+      "id": "n50",
+      "type": "Amplifier",
+      "pos": { "x": 1300, "y": 960 },
+      "widgets": { "gain": 0.32 }
+    },
+    {
+      "id": "n51",
+      "type": "Mix",
+      "pos": { "x": 2080, "y": 280 },
+      "widgets": { "gain_a": 1.0, "gain_b": 0.82 }
+    },
+    {
+      "id": "n52",
+      "type": "Reverb",
+      "pos": { "x": 1820, "y": 420 },
+      "widgets": {
+        "mix": 0.68,
+        "room_sec": 2.8,
+        "damping": 0.22
+      }
+    },
+    {
+      "id": "n53",
+      "type": "Granulate",
+      "pos": { "x": 1950, "y": 420 },
+      "widgets": {
+        "grain_ms": 92.0,
+        "hop_ms": 34.0,
+        "pitch_cents": 48.0,
+        "density": 7.0,
+        "spray": 2,
+        "width": 0.7,
+        "window": "hann",
+        "window_alpha": 0.5,
+        "scatter_ms": 95.0,
+        "wet_start": 0.22,
+        "wet_end": 0.36,
+        "seed": 11
+      }
+    },
+    {
+      "id": "n55",
+      "type": "ChannelConvert",
+      "pos": { "x": 1950, "y": 120 },
+      "widgets": { "layout": "stereo" }
     }
   ],
   "links": [
-    { "id": "l0", "from": ["n1", 0], "to": ["n9", 0], "type": "AUTOMATION" },
+    { "id": "l0", "from": ["n48", 0], "to": ["n9", 0], "type": "AUTOMATION" },
     { "id": "l1", "from": ["n3", 0], "to": ["n9", 2], "type": "AUDIO" },
     { "id": "l2", "from": ["n2", 0], "to": ["n10", 0], "type": "AUTOMATION" },
     { "id": "l3", "from": ["n3", 0], "to": ["n10", 2], "type": "AUDIO" },
     { "id": "l4", "from": ["n9", 0], "to": ["n11", 0], "type": "AUTOMATION" },
     { "id": "l5", "from": ["n9", 0], "to": ["n12", 0], "type": "AUTOMATION" },
     { "id": "l6", "from": ["n10", 0], "to": ["n13", 0], "type": "AUTOMATION" },
-    { "id": "l7", "from": ["n11", 0], "to": ["n14", 0], "type": "AUTOMATION" },
     { "id": "l8", "from": ["n12", 0], "to": ["n15", 0], "type": "AUTOMATION" },
     { "id": "l9", "from": ["n13", 0], "to": ["n22", 0], "type": "AUTOMATION" },
     { "id": "l10", "from": ["n14", 0], "to": ["n19", 0], "type": "AUDIO" },
-    { "id": "l11", "from": ["n35", 0], "to": ["n19", 1], "type": "AUTOMATION" },
-    { "id": "l12", "from": ["n15", 0], "to": ["n16", 0], "type": "AUDIO" },
+    { "id": "l11", "from": ["n18", 0], "to": ["n19", 1], "type": "AUTOMATION" },
+    { "id": "l12", "from": ["n15", 0], "to": ["n20", 0], "type": "AUDIO" },
     { "id": "l13", "from": ["n7", 0], "to": ["n16", 1], "type": "AUTOMATION" },
-    { "id": "l14", "from": ["n16", 0], "to": ["n20", 0], "type": "AUDIO" },
-    { "id": "l15", "from": ["n6", 0], "to": ["n17", 0], "type": "AUTOMATION" },
-    { "id": "l16", "from": ["n1", 0], "to": ["n18", 0], "type": "AUTOMATION" },
-    { "id": "l17", "from": ["n17", 0], "to": ["n18", 1], "type": "AUTOMATION" },
-    { "id": "l18", "from": ["n18", 0], "to": ["n20", 1], "type": "AUTOMATION" },
-    { "id": "l19", "from": ["n19", 0], "to": ["n21", 0], "type": "AUDIO" },
-    { "id": "l20", "from": ["n20", 0], "to": ["n21", 1], "type": "AUDIO" },
+    { "id": "l14", "from": ["n20", 0], "to": ["n16", 0], "type": "AUDIO" },
+    { "id": "l16", "from": ["n48", 0], "to": ["n18", 0], "type": "AUTOMATION" },
+    { "id": "l17", "from": ["n48", 1], "to": ["n18", 1], "type": "AUTOMATION" },
+    { "id": "l18", "from": ["n35", 0], "to": ["n20", 1], "type": "AUTOMATION" },
+    { "id": "l19", "from": ["n44", 0], "to": ["n21", 0], "type": "AUDIO" },
+    { "id": "l20", "from": ["n50", 0], "to": ["n21", 1], "type": "AUDIO" },
     { "id": "l21", "from": ["n4", 0], "to": ["n23", 0], "type": "TEXT" },
     { "id": "l22", "from": ["n22", 0], "to": ["n23", 1], "type": "MIDI" },
-    { "id": "l23", "from": ["n23", 0], "to": ["n24", 0], "type": "AUDIO" },
-    { "id": "l24", "from": ["n24", 0], "to": ["n25", 0], "type": "AUDIO" },
-    { "id": "l25", "from": ["n7", 0], "to": ["n25", 1], "type": "AUTOMATION" },
-    { "id": "l26", "from": ["n25", 0], "to": ["n26", 0], "type": "AUDIO" },
-    { "id": "l27", "from": ["n8", 0], "to": ["n26", 1], "type": "AUTOMATION" },
-    { "id": "l28", "from": ["n42", 0], "to": ["n27", 0], "type": "AUDIO" },
+    { "id": "l23", "from": ["n51", 0], "to": ["n25", 0], "type": "AUDIO" },
+    { "id": "l26", "from": ["n23", 0], "to": ["n26", 0], "type": "AUDIO" },
+    { "id": "l27", "from": ["n47", 0], "to": ["n26", 1], "type": "AUTOMATION" },
+    { "id": "l28", "from": ["n46", 0], "to": ["n27", 0], "type": "AUDIO" },
     { "id": "l29", "from": ["n26", 0], "to": ["n28", 0], "type": "AUDIO" },
     { "id": "l30", "from": ["n27", 0], "to": ["n29", 0], "type": "AUDIO" },
     { "id": "l31", "from": ["n28", 0], "to": ["n29", 1], "type": "AUDIO" },
@@ -446,7 +519,7 @@
     { "id": "l35", "from": ["n31", 0], "to": ["n32", 0], "type": "AUDIO" },
     { "id": "l36", "from": ["n31", 0], "to": ["n33", 0], "type": "AUDIO" },
     { "id": "l37", "from": ["n6", 0], "to": ["n34", 0], "type": "AUTOMATION" },
-    { "id": "l38", "from": ["n1", 0], "to": ["n35", 0], "type": "AUTOMATION" },
+    { "id": "l38", "from": ["n48", 1], "to": ["n35", 0], "type": "AUTOMATION" },
     { "id": "l39", "from": ["n34", 0], "to": ["n35", 1], "type": "AUTOMATION" },
     { "id": "l40", "from": ["n11", 0], "to": ["n36", 0], "type": "AUTOMATION" },
     { "id": "l41", "from": ["n37", 0], "to": ["n36", 2], "type": "AUDIO" },
@@ -454,12 +527,27 @@
     { "id": "l43", "from": ["n39", 0], "to": ["n38", 1], "type": "AUTOMATION" },
     { "id": "l44", "from": ["n38", 0], "to": ["n41", 0], "type": "AUDIO" },
     { "id": "l45", "from": ["n40", 0], "to": ["n41", 1], "type": "AUTOMATION" },
-    { "id": "l46", "from": ["n21", 0], "to": ["n42", 0], "type": "AUDIO" },
-    { "id": "l47", "from": ["n41", 0], "to": ["n42", 1], "type": "AUDIO" }
+    { "id": "l46", "from": ["n16", 0], "to": ["n42", 0], "type": "AUDIO" },
+    { "id": "l47", "from": ["n41", 0], "to": ["n42", 1], "type": "AUDIO" },
+    { "id": "l48", "from": ["n19", 0], "to": ["n44", 0], "type": "AUDIO" },
+    { "id": "l49", "from": ["n25", 0], "to": ["n46", 0], "type": "AUDIO" },
+    { "id": "l50", "from": ["n45", 0], "to": ["n46", 1], "type": "AUTOMATION" },
+    { "id": "l51", "from": ["n8", 0], "to": ["n47", 0], "type": "AUTOMATION" },
+    { "id": "l52", "from": ["n45", 0], "to": ["n47", 1], "type": "AUTOMATION" },
+    { "id": "l53", "from": ["n23", 0], "to": ["n48", 0], "type": "AUDIO" },
+    { "id": "l54", "from": ["n1", 0], "to": ["n48", 1], "type": "AUTOMATION" },
+    { "id": "l55", "from": ["n3", 0], "to": ["n49", 0], "type": "AUDIO" },
+    { "id": "l56", "from": ["n49", 0], "to": ["n50", 0], "type": "AUDIO" },
+    { "id": "l57", "from": ["n1", 0], "to": ["n50", 1], "type": "AUTOMATION" },
+    { "id": "l58", "from": ["n55", 0], "to": ["n51", 0], "type": "AUDIO" },
+    { "id": "l59", "from": ["n53", 0], "to": ["n51", 1], "type": "AUDIO" },
+    { "id": "l60", "from": ["n42", 0], "to": ["n52", 0], "type": "AUDIO" },
+    { "id": "l61", "from": ["n21", 0], "to": ["n55", 0], "type": "AUDIO" },
+    { "id": "l62", "from": ["n52", 0], "to": ["n53", 0], "type": "AUDIO" }
   ],
   "groups": [],
   "view": {
-    "zoom": 0.48,
+    "zoom": 0.46,
     "pan": { "x": 0, "y": 0 }
   }
 }

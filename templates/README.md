@@ -17,7 +17,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | 2 / **featured** | `kokoro-82m` (+ Granulate cloud) |
 | Modular Generative Rack | [modular-generative-rack.groovy.json](modular-generative-rack.groovy.json) | 2 / **featured** | — (tension arc, poly XOR clash, probability bass; no models) |
 | Self-Playing Neural Rack | [self-playing-neural-rack.groovy.json](self-playing-neural-rack.groovy.json) | 2 | Catalog only (hidden from picker): `ace-step-1.5` + `rave-v1` (CC-BY-NC) + RawNet2 authenticity (object bus + FOA) |
-| Neural Modular Rack | [neural-modular-rack.groovy.json](neural-modular-rack.groovy.json) | 2 / **featured** | Mix-bus copy: dual clock, pentatonic pulse + probability saw, ACE-Step (MIT) → Granulate, no RAVE / no Ambisonics |
+| Neural Modular Rack | [neural-modular-rack.groovy.json](neural-modular-rack.groovy.json) | 2 / **featured** | 30s IDM: syncopated bass + sparkle reverb + light Granulate + ACE-Step, mix 50/50 |
 | RAVE Timbre Transfer | [rave-timbre-transfer.groovy.json](rave-timbre-transfer.groovy.json) | 2 / **featured** | `rave-v1` (TimbreTransfer; ACIDS sol_ordinario_fast TorchScript) |
 | Simple FM Synth | [simple-fm-synth.groovy.json](simple-fm-synth.groovy.json) | 2 | — (Osc + FloatMath + ControlCurves; hidden from default picker) |
 | Karaoke Stems | [karaoke-stems.groovy.json](karaoke-stems.groovy.json) | 1 | `demucs-v4` |
@@ -44,7 +44,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Script to VO Master | [script-to-vo-master.groovy.json](script-to-vo-master.groovy.json) | sprint / **featured** | kokoro + deepfilternet + fade |
 | Karaoke Guide Vocal | [karaoke-guide-vocal.groovy.json](karaoke-guide-vocal.groovy.json) | sprint / **featured** | demucs + kokoro guide over instrumental |
 | Instrumental TTS Dub | [instrumental-tts-dub.groovy.json](instrumental-tts-dub.groovy.json) | sprint / **featured** | demucs + whisper + kokoro → Mix |
-| Melody to Modular Synth | [melody-to-modular-synth.groovy.json](melody-to-modular-synth.groovy.json) | sprint / **featured** | basic-pitch → modular Osc/Filter |
+| Melody to Modular Synth | [melody-to-modular-synth.groovy.json](melody-to-modular-synth.groovy.json) | sprint | Catalog only (hidden from picker): basic-pitch → modular Osc/Filter |
 | Compare Stemmers | [compare-stemmers.groovy.json](compare-stemmers.groovy.json) | sprint / **featured** | demucs-v4 ∥ demucs-v4-ht |
 | Stem Lyrics to ACE | [stem-lyrics-to-ace.groovy.json](stem-lyrics-to-ace.groovy.json) | sprint / **featured** | demucs + whisper + ace-step-1.5-2b-turbo |
 

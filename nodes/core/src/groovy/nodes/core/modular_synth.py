@@ -10,6 +10,11 @@ from groovy.executor.control import AutomationBuffer
 from groovy.executor.audio_meta import inherit_format_meta
 from groovy.executor.midi import MidiBuffer
 from groovy.node import GroovyNode, register_node
+from groovy.nodes.core.beat_track import (
+    render_pulse_train,
+    rising_edge_samples,
+    track_beats_from_mono,
+)
 
 WAVEFORMS = ("sine", "saw", "square", "triangle")
 NOISE_COLORS = ("white", "pink", "brown")
@@ -34,6 +39,7 @@ def register_modular_synth() -> None:
         SampleAndHold,
         Quantizer,
         Clock,
+        BeatTrack,
         AutomationToMIDI,
     )
 
@@ -939,6 +945,77 @@ class Clock(GroovyNode):
             end = min(frame_count, start + pulse)
             values[start:end] = 1.0
         return (_write_automation(self._ctx, values, sample_rate, "Clock"),)
+
+
+@register_node
+class BeatTrack(GroovyNode):
+    """Analyze AUDIO for tempo/beats and emit a clock pulse train (plus half-time).
+
+    DSP analyzer (spectral flux + autocorrelation), not a downloaded model.
+    Wire a Clock into fallback_clock so drumless or stub audio keeps the patch in time.
+    """
+
+    CATEGORY = "GroovyUI/Modular"
+    PROVENANCE_CLASS = "human_edited"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    DURATION_LOCKED = True
+    RETURN_TYPES = ("AUTOMATION", "AUTOMATION")
+    OUTPUT_NAMES = ("beats", "half")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"audio": ("AUDIO",)},
+            "optional": {
+                "fallback_clock": ("AUTOMATION",),
+                "fallback_bpm": ("FLOAT", {"default": 120.0, "min": 1.0, "max": 480.0}),
+                "pulse_ms": ("FLOAT", {"default": 10.0, "min": 0.5, "max": 200.0}),
+                "min_bpm": ("FLOAT", {"default": 70.0, "min": 30.0, "max": 240.0}),
+                "max_bpm": ("FLOAT", {"default": 140.0, "min": 40.0, "max": 320.0}),
+                "tightness": ("FLOAT", {"default": 0.55, "min": 0.0, "max": 1.0}),
+            },
+        }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [{"name": name, "type": "AUTOMATION"} for name in cls.OUTPUT_NAMES]
+        return schema
+
+    def run(self, audio: AudioBuffer, **kwargs) -> tuple[AutomationBuffer, AutomationBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        mono = _load_mono(self._ctx, audio)
+        sample_rate = int(audio.sample_rate)
+        frame_count = int(mono.size)
+        pulse_ms = float(np.clip(float(kwargs.get("pulse_ms", 10.0)), 0.5, 200.0))
+        pulse = max(1, int(round(pulse_ms * 0.001 * sample_rate)))
+        fallback_clock = kwargs.get("fallback_clock")
+        fallback_starts = None
+        if fallback_clock is not None:
+            clock_values = np.asarray(fallback_clock.resample_to(frame_count), dtype=np.float64)
+            fallback_starts = rising_edge_samples(clock_values)
+        min_bpm = float(np.clip(float(kwargs.get("min_bpm", 70.0)), 30.0, 240.0))
+        max_bpm = float(np.clip(float(kwargs.get("max_bpm", 140.0)), 40.0, 320.0))
+        if max_bpm < min_bpm:
+            min_bpm, max_bpm = max_bpm, min_bpm
+        result = track_beats_from_mono(
+            mono,
+            sample_rate,
+            min_bpm=min_bpm,
+            max_bpm=max_bpm,
+            tightness=float(np.clip(float(kwargs.get("tightness", 0.55)), 0.0, 1.0)),
+            fallback_starts=fallback_starts,
+            fallback_bpm=float(np.clip(float(kwargs.get("fallback_bpm", 120.0)), 1.0, 480.0)),
+        )
+        beats = render_pulse_train(frame_count, result.beat_samples, pulse)
+        half_starts = result.beat_samples[::2]
+        half = render_pulse_train(frame_count, half_starts, pulse)
+        return (
+            _write_automation(self._ctx, beats, sample_rate, "BeatTrack"),
+            _write_automation(self._ctx, half, sample_rate, "BeatTrack"),
+        )
 
 
 @register_node

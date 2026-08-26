@@ -7,7 +7,6 @@
     "author": "groovy",
     "description": "Basic Pitch AudioToMIDI gates a modular Oscillator/Filter rack (MIDINoteGate \u2192 Amplifier). Melody\u2192music without MusicGen NC \u2014 AI pitch into modular ergo.",
     "tags": [
-      "featured",
       "ai",
       "midi",
       "modular",

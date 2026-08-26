@@ -46,6 +46,7 @@ import ComplianceDrawer from "./components/ComplianceDrawer";
 import FlowViewportBridge from "./components/FlowViewportBridge";
 import FitAllControl from "./components/FitAllControl";
 import SampleAccuracyBadge from "./components/SampleAccuracyBadge";
+import CanvasNodeFinder from "./components/CanvasNodeFinder";
 import CanvasNodePicker from "./components/CanvasNodePicker";
 import FpsMeter from "./components/FpsMeter";
 import GroovyFlowNode from "./components/GroovyFlowNode";
@@ -83,6 +84,7 @@ import {
   widgetsForDroppedModel,
 } from "./modelNodeWidgets";
 import { isAiNodeType } from "./nodeKinds";
+import { nodeStatusOnProgress, slowAiDownloadLabel } from "./renderActivity";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import { nextActiveEdgeIds, resolveEdgePlaybackTarget } from "./edgePlayback";
@@ -175,6 +177,7 @@ export default function App() {
   const [renderMessage, setRenderMessage] = useState<string | undefined>();
   const [renderStartedAt, setRenderStartedAt] = useState<number | undefined>();
   const [lastProgressAt, setLastProgressAt] = useState<number | undefined>();
+  const [renderTick, setRenderTick] = useState(() => Date.now());
   const activeExecutionRef = useRef<{ cancel: () => Promise<void> } | null>(null);
   const fastPathStopRef = useRef(false);
   const [modelBrowserOpen, setModelBrowserOpen] = useState(false);
@@ -195,6 +198,8 @@ export default function App() {
   const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboardingComplete());
   const [dropHint, setDropHint] = useState(false);
   const [nodePicker, setNodePicker] = useState<{ x: number; y: number } | null>(null);
+  const [nodeFinderOpen, setNodeFinderOpen] = useState(false);
+  const [foundNodeId, setFoundNodeId] = useState<string | null>(null);
   const [transportWaveform, setTransportWaveform] = useState<number[]>([]);
   const [transportWaveformDuration, setTransportWaveformDuration] = useState(0);
   const [transportMidiRoll, setTransportMidiRoll] = useState<{
@@ -210,6 +215,7 @@ export default function App() {
   const [auditionNonce, setAuditionNonce] = useState(0);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [canvasCrashed, setCanvasCrashed] = useState(false);
+  const [canvasCrashMessage, setCanvasCrashMessage] = useState<string | null>(null);
 
   const handleStudioSettingsChange = useCallback(
     (settings: import("./types").StudioSettings) => {
@@ -270,21 +276,53 @@ export default function App() {
 
   useLiveIo({ enabled: true, onOscWidget });
 
-  const flowNodes = useMemo(
-    () =>
-      workflow
-        ? workflowToFlowNodes(
-            workflow,
-            nodeStatus,
-            lastJob?.outputs,
-            nodeSchemas,
-            nodeIssues,
-            loadAudioChannels,
-            channelLayouts,
-          )
-        : [],
-    [workflow, nodeStatus, lastJob?.outputs, nodeSchemas, nodeIssues, loadAudioChannels, channelLayouts],
-  );
+  const downloadHint = useMemo(() => {
+    const node = workflow?.nodes.find((item) => item.id === currentNode);
+    const schema = node ? nodeSchemas[node.type] : undefined;
+    return slowAiDownloadLabel({
+      running,
+      nodeType: node?.type,
+      category: schema?.category,
+      staleMs: lastProgressAt ? renderTick - lastProgressAt : 0,
+    });
+  }, [workflow, currentNode, nodeSchemas, running, lastProgressAt, renderTick]);
+
+  const flowNodes = useMemo(() => {
+    if (!workflow) return [];
+    const nodes = workflowToFlowNodes(
+      workflow,
+      nodeStatus,
+      lastJob?.outputs,
+      nodeSchemas,
+      nodeIssues,
+      loadAudioChannels,
+      channelLayouts,
+    );
+    if (!currentNode) return nodes;
+    return nodes.map((node) => {
+      if (node.id !== currentNode || node.type !== "groovy") return node;
+      return {
+        ...node,
+        data: { ...node.data, activityLabel: downloadHint },
+      };
+    });
+  }, [
+    workflow,
+    nodeStatus,
+    lastJob?.outputs,
+    nodeSchemas,
+    nodeIssues,
+    loadAudioChannels,
+    channelLayouts,
+    currentNode,
+    downloadHint,
+  ]);
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setRenderTick(Date.now()), 500);
+    return () => window.clearInterval(timer);
+  }, [running]);
   const flowEdges = useMemo(
     () => (workflow ? workflowToFlowEdges(workflow, activeEdgeIds) : []),
     [workflow, activeEdgeIds],
@@ -324,8 +362,19 @@ export default function App() {
     if (pending) {
       merged = merged.map((node) => ({ ...node, selected: pending.has(node.id) }));
     }
+    if (foundNodeId) {
+      merged = merged.map((node) =>
+        node.id === foundNodeId
+          ? {
+              ...node,
+              selected: true,
+              data: { ...(node.data as object), found: true },
+            }
+          : node,
+      );
+    }
     return merged;
-  }, [nodes, flowNodes, flowNodeSyncKey]);
+  }, [nodes, flowNodes, flowNodeSyncKey, foundNodeId]);
 
   const loadTemplate = useCallback(
     async (templateId: string) => {
@@ -486,14 +535,13 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    let wasOnline: boolean | null = null;
     const ping = () => {
       fetch(`${API}/api/health`)
         .then(async (res) => {
           if (cancelled) return;
           const online = res.ok;
           setApiOnline(online);
-          if (online && wasOnline === false) {
+          if (online) {
             try {
               const schemas = await fetchAllNodeSchemas();
               if (!cancelled) setNodeSchemas(schemas);
@@ -501,13 +549,9 @@ export default function App() {
               /* keep prior schemas */
             }
           }
-          wasOnline = online;
         })
         .catch(() => {
-          if (!cancelled) {
-            setApiOnline(false);
-            wasOnline = false;
-          }
+          if (!cancelled) setApiOnline(false);
         });
     };
     ping();
@@ -585,6 +629,12 @@ export default function App() {
     [nodes],
   );
   const selectedNodeId = selectedNodeIds[0] ?? null;
+
+  useEffect(() => {
+    if (!foundNodeId) return;
+    const timer = window.setTimeout(() => setFoundNodeId(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [foundNodeId]);
 
   const openInspector = useCallback(() => {
     if (!focusMode) setHelperOpen(true);
@@ -726,12 +776,12 @@ export default function App() {
           (update) => {
             setLastProgressAt(Date.now());
             if (update.current_node) {
+              const previousRunning = lastRunningNode;
               lastRunningNode = update.current_node;
               setCurrentNode(update.current_node);
-              setNodeStatus((prev) => ({
-                ...prev,
-                [update.current_node!]: "running",
-              }));
+              setNodeStatus((prev) =>
+                nodeStatusOnProgress(prev, update.current_node!, previousRunning),
+              );
             }
             if (update.message) {
               setRenderMessage(update.message);
@@ -807,6 +857,11 @@ export default function App() {
           if (lastRunningNode) {
             setFailedNodeId(lastRunningNode);
             setNodeIssues((prev) => ({ ...prev, [lastRunningNode!]: message }));
+            setNodes((current) =>
+              current.map((node) => ({ ...node, selected: node.id === lastRunningNode })),
+            );
+            setSelectedEdgeId(null);
+            openInspector();
           }
         }
         return job.status === "completed";
@@ -824,7 +879,7 @@ export default function App() {
         setProgress(undefined);
       }
     },
-    [workflow, selectedNodeId, openModelBrowser, setNodes, forceRebuildNext],
+    [workflow, selectedNodeId, openModelBrowser, setNodes, forceRebuildNext, openInspector],
   );
 
   const cancelRender = useCallback(() => {
@@ -893,7 +948,28 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      const target = event.target;
+      const editing =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement ||
+        (target instanceof HTMLElement && target.isContentEditable);
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        if (nodeFinderOpen) return;
+        setNodePicker(null);
+        setNodeFinderOpen(true);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "c") {
+        if (editing) return;
+        event.preventDefault();
+        setComplianceOpen(true);
+        return;
+      }
+
+      if (editing) return;
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
@@ -922,7 +998,7 @@ export default function App() {
         setNodes((current) => current.map((node) => ({ ...node, selected: true })));
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "c") {
         if (!workflow || selectedNodeIds.length === 0) return;
         event.preventDefault();
         clipboardRef.current = extractSelection(workflow, selectedNodeIds);
@@ -967,7 +1043,7 @@ export default function App() {
           }
         }
       }
-      if (event.key === "f" || event.key === "\\") {
+      if ((event.key === "f" || event.key === "\\") && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
         setFocusMode((prev) => !prev);
         return;
@@ -987,9 +1063,9 @@ export default function App() {
         if (!running) void runRender(undefined, true);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [running, runRender, cancelRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode, openModelBrowser, setNodes]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [running, runRender, cancelRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode, openModelBrowser, setNodes, nodeFinderOpen]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -1522,11 +1598,51 @@ export default function App() {
     [setWorkflow],
   );
 
+  const inspectFailedNode = useCallback(
+    (nodeId: string | null) => {
+      if (!nodeId) return;
+      setNodes((current) => current.map((node) => ({ ...node, selected: node.id === nodeId })));
+      setSelectedEdgeId(null);
+      openInspector();
+    },
+    [setNodes, openInspector],
+  );
+
   const canvasIssueCount = Object.keys(nodeIssues).length;
   const statusLeds = useMemo<StatusLedSpec[]>(() => {
     const apiTone = apiLedTone(apiOnline);
     const rndTone = renderLedTone({ running, statusMessage: status });
     const cvsTone = canvasLedTone({ issueCount: canvasIssueCount, crashed: canvasCrashed });
+    const failedNode = workflow?.nodes.find((node) => node.id === failedNodeId);
+    const issueLines = Object.entries(nodeIssues)
+      .map(([id, message]) => {
+        const type = workflow?.nodes.find((node) => node.id === id)?.type ?? id;
+        return `• ${type} (${id})\n  ${message}`;
+      })
+      .join("\n\n");
+    const apiReport =
+      apiOnline === false
+        ? [
+            "API is offline.",
+            "Start the server in a terminal:",
+            "uv run --package groovy-server groovy-server",
+            "",
+            "Studio expects http://127.0.0.1:8188",
+          ].join("\n")
+        : undefined;
+    const rndReport = [
+      status || "Render idle",
+      failedNode ? `Node: ${failedNode.type} (${failedNode.id})` : "",
+      lastJob?.error && lastJob.error !== status ? lastJob.error : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    const cvsReport = [
+      canvasCrashed ? `Canvas crash: ${canvasCrashMessage || "unknown error"}` : "",
+      issueLines ? `Node issues:\n${issueLines}` : canvasCrashed ? "" : "No node issues.",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
     return [
       {
         id: "api",
@@ -1538,12 +1654,18 @@ export default function App() {
             : apiOnline
               ? "API online"
               : "API offline — start groovy-server",
+        report: apiReport,
       },
       {
         id: "rnd",
         label: "RND",
         tone: rndTone,
         title: running ? "Render in progress" : status || "Render idle",
+        report: rndTone === "fault" || rndTone === "warn" ? rndReport : undefined,
+        onInspect:
+          rndTone === "fault" || rndTone === "warn"
+            ? () => inspectFailedNode(failedNodeId)
+            : undefined,
       },
       {
         id: "cvs",
@@ -1554,12 +1676,30 @@ export default function App() {
           : canvasIssueCount > 0
             ? `${canvasIssueCount} node issue${canvasIssueCount === 1 ? "" : "s"}`
             : "Canvas OK",
+        report: cvsTone === "fault" || cvsTone === "warn" ? cvsReport : undefined,
+        onInspect:
+          cvsTone === "fault" || cvsTone === "warn"
+            ? () => inspectFailedNode(failedNodeId ?? Object.keys(nodeIssues)[0] ?? null)
+            : undefined,
       },
     ];
-  }, [apiOnline, running, status, canvasIssueCount, canvasCrashed]);
+  }, [
+    apiOnline,
+    running,
+    status,
+    canvasIssueCount,
+    canvasCrashed,
+    canvasCrashMessage,
+    failedNodeId,
+    lastJob?.error,
+    nodeIssues,
+    workflow,
+    inspectFailedNode,
+  ]);
 
   const resetCanvasAfterCrash = useCallback(() => {
     setCanvasCrashed(false);
+    setCanvasCrashMessage(null);
     setViewportFitKey((key) => key + 1);
     setStatus("Canvas reset");
   }, []);
@@ -1624,6 +1764,10 @@ export default function App() {
           {!focusMode ? (
             <SidePanel side="left" label="Nodes" open={paletteOpen} onToggle={() => setPaletteOpen((prev) => !prev)}>
               <NodePalette
+                catalog={Object.values(nodeSchemas).map((schema) => ({
+                  type: schema.type,
+                  category: schema.category ?? "",
+                }))}
                 onAddNode={(nodeType) => {
                   void defaultWidgetsForNode(nodeType).then((widgets) => {
                     const center = flowCenterRef.current();
@@ -1659,8 +1803,9 @@ export default function App() {
             ) : null}
             <CanvasErrorBoundary
               crashed={canvasCrashed}
-              onError={() => {
+              onError={(error) => {
                 setCanvasCrashed(true);
+                setCanvasCrashMessage(error.message || "Canvas crashed");
                 setStatus("Failed: canvas crash");
               }}
               onReset={resetCanvasAfterCrash}
@@ -1768,6 +1913,25 @@ export default function App() {
                     }}
                   />
                 ) : null}
+                {nodeFinderOpen ? (
+                  <CanvasNodeFinder
+                    hits={nodes.map((node) => ({
+                      id: node.id,
+                      name: String((node.data as { label?: string } | undefined)?.label ?? node.id),
+                    }))}
+                    onClose={() => setNodeFinderOpen(false)}
+                    onPick={(nodeId) => {
+                      pendingSelectionRef.current = new Set([nodeId]);
+                      setNodeFinderOpen(false);
+                      setFoundNodeId(nodeId);
+                      setNodes((current) =>
+                        current.map((node) => ({ ...node, selected: node.id === nodeId })),
+                      );
+                      setSelectedEdgeId(null);
+                      openInspector();
+                    }}
+                  />
+                ) : null}
               </ReactFlowProvider>
             </CanvasErrorBoundary>
           </div>
@@ -1827,10 +1991,11 @@ export default function App() {
         <RenderActivityBar
           running={running}
           nodeLabel={currentNodeLabel}
-          message={renderMessage}
+          message={downloadHint ?? renderMessage}
           progress={progress}
           startedAt={renderStartedAt}
           lastProgressAt={lastProgressAt}
+          downloadingModel={Boolean(downloadHint)}
           cancelling={cancelling}
           onCancel={cancelRender}
         />

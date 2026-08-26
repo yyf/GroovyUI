@@ -26,6 +26,7 @@ MODULAR_TYPES = [
     "SampleAndHold",
     "Quantizer",
     "Clock",
+    "BeatTrack",
     "AutomationToMIDI",
 ]
 

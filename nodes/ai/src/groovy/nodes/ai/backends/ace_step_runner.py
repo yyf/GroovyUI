@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 from pathlib import Path
+from typing import NoReturn
 
 import numpy as np
 import torch
@@ -16,6 +18,19 @@ HF_BY_MODEL_ID: dict[str, str] = {
     "ace-step-1.5-2b-turbo": "Runware/acestep-v15-turbo-diffusers",
 }
 NATIVE_SAMPLE_RATE = 48_000
+
+_HF_TOKEN_RE = re.compile(r"hf_[A-Za-z0-9]+")
+_ACCESS_NEEDLES = (
+    "401 client error",
+    "403 client error",
+    "401 unauthorized",
+    "403 forbidden",
+    "access to model",
+    "cannot access gated",
+    "gated repo",
+    "repository not found",
+    "access denied",
+)
 
 
 def _prefer_classic_hf_download() -> None:
@@ -36,6 +51,38 @@ def _resolve_hf_token() -> str | None:
         return StudioSettingsStore(Path(project)).hf_token()
     except Exception:
         return None
+
+
+def _hf_token_arg(token: str | None) -> str | bool:
+    """False = anonymous. None would inherit a broken huggingface-cli login."""
+    return token if token else False
+
+
+def _sanitize_hf_error(message: str) -> str:
+    cleaned = _HF_TOKEN_RE.sub("hf_[redacted]", message)
+    return " ".join(cleaned.split())[:400]
+
+
+def _http_status(exc: BaseException) -> int | None:
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return status
+    response = getattr(exc, "response", None)
+    response_status = getattr(response, "status_code", None)
+    return response_status if isinstance(response_status, int) else None
+
+
+def _is_hf_access_denied(exc: BaseException) -> bool:
+    if type(exc).__name__ in {"GatedRepoError", "RepositoryNotFoundError"}:
+        return True
+    if _http_status(exc) in {401, 403}:
+        return True
+    lowered = str(exc).lower()
+    return any(needle in lowered for needle in _ACCESS_NEEDLES)
+
+
+def _is_hf_xet_failure(message: str) -> bool:
+    return "Background writer channel closed" in message or "File reconstruction error" in message
 
 
 def _hf_model_id(model_id: str) -> str:
@@ -69,28 +116,50 @@ def _load_pipeline(hf_model_id: str):
         pipe = AceStepPipeline.from_pretrained(
             hf_model_id,
             torch_dtype=dtype,
-            token=token,
+            token=_hf_token_arg(token),
         )
-    except Exception as exc:
-        message = str(exc)
-        if "Background writer channel closed" in message or "File reconstruction error" in message:
-            raise RuntimeError(
-                f"Hugging Face download failed while fetching {hf_model_id} "
-                "(often HF Xet on macOS, disk full, or interrupted transfer). "
-                "Free disk space, set HF_HUB_DISABLE_XET=1, clear the partial HF cache, then retry."
-            ) from exc
-        if "restricted" in message.lower() or "401" in message or "403" in message:
-            raise RuntimeError(
-                f"Hugging Face denied access to {hf_model_id}. "
-                "Confirm the repo is visible and any required token is valid."
-            ) from exc
-        raise
+    except Exception as first_exc:
+        if _is_hf_access_denied(first_exc) and token:
+            try:
+                pipe = AceStepPipeline.from_pretrained(
+                    hf_model_id,
+                    torch_dtype=dtype,
+                    token=False,
+                )
+            except Exception as retry_exc:
+                _raise_hf_load_error(hf_model_id, retry_exc)
+            else:
+                pipe = pipe.to(device)
+                if hasattr(getattr(pipe, "vae", None), "enable_tiling"):
+                    pipe.vae.enable_tiling()
+                return pipe, device
+        _raise_hf_load_error(hf_model_id, first_exc)
 
     pipe = pipe.to(device)
     # Bound VAE decode memory for longer clips.
     if hasattr(getattr(pipe, "vae", None), "enable_tiling"):
         pipe.vae.enable_tiling()
     return pipe, device
+
+
+def _raise_hf_load_error(hf_model_id: str, exc: BaseException) -> NoReturn:
+    message = str(exc)
+    if _is_hf_xet_failure(message):
+        raise RuntimeError(
+            f"Hugging Face download failed while fetching {hf_model_id} "
+            "(often HF Xet on macOS, disk full, or interrupted transfer). "
+            "Free disk space, set HF_HUB_DISABLE_XET=1, clear the partial HF cache, then retry."
+        ) from exc
+    if _is_hf_access_denied(exc):
+        detail = _sanitize_hf_error(message)
+        raise RuntimeError(
+            f"Hugging Face denied access to {hf_model_id}. "
+            "This XL pack is public — a fine-grained or invalid token can still 401 it. "
+            f"Clear Settings → HF token (or use a classic Read token) and retry. Hub: {detail}"
+        ) from exc
+    raise RuntimeError(
+        f"Failed to load ACE-Step from {hf_model_id}. {_sanitize_hf_error(message)}"
+    ) from exc
 
 
 def generate_from_text(

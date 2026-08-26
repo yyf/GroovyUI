@@ -4,6 +4,10 @@
 
 ### Added
 
+- **`BeatTrack`** — AUDIO analyzer that rebuilds a Clock-style pulse train (plus half-time) from detected beats; optional fallback Clock when the groove is too weak. DSP (spectral flux), not a downloaded model.
+- **⌘F find node** — dialog to search by node name or id; Enter frames and pulses the match.
+- **Status LEDs** — click red/warn API / RND / CVS to open the fault log in a new window.
+- **⌘C Compliance** — opens the Compliance drawer. Canvas copy is **⌘⇧C** so it does not collide.
 - **`neural-modular-rack` featured** — Mix-bus copy of the self-playing rack (no Ambisonics / no RAVE): dual clock 88/44, intermittent pentatonic bass, probability-gated saw, articulating FM/bandpass drone, ACE-Step (MIT) into Granulate, very dry Mix/Reverb. Commercial-ok (ACE MIT + DSP).
 - **`self-playing-neural-rack`** — Clock/S&H/Quantizer rack with Osc as the DSP voice, ACE-Step as a MIDI-conditioned oscillator (`AutomationToMIDI`), RAVE as the filter, object-bus freeze through FOA. Catalog only (hidden from the studio picker; RAVE is CC-BY-NC). Use **`neural-modular-rack`** for the commercial-ok Modular menu entry.
 - **`AutomationToMIDI`** — convert stepwise Hz CV (Quantizer / S&H) to MIDI notes for AI oscillators. Offline sequencer read, not a live callback.
@@ -15,6 +19,11 @@
 
 ### Changed
 
+- **ACE-Step load errors** — do not treat every Hub message containing `401` as access-denied; skip a broken huggingface-cli login when Settings has no token; include the real Hub error on failure.
+- **`neural-modular-rack` mix** — IDM diptych at 136 BPM: syncopated deep sine vs on-grid ticks; ice/metallic sparkles through a long reverb plus light stereo Granulate; ACE-Step (Telefon Tel Aviv *TTV* / Kodomo *Deep Winter*); bus 50/50.
+- **Render canvas** — pulse-highlight the active node; after 5s of silence on an AI hop, show **Downloading model…** on the node and in the render bar.
+- **Status LEDs** — click red/warn **API / RND / CVS** to open the error in a new window; failed render hops pulse on the canvas with the error text.
+- **`melody-to-modular-synth`** — catalog only (hidden from the studio picker); Modular menu keeps **`neural-modular-rack`**.
 - **Authenticity sidecar lookup** — VerifyProvenance uses `{stem}.provenance.json` beside the audio, or that filename if it appears exactly once in the project
 - **Authenticity tab refresh** — always include AuthenticitySummary in the render job; prefer its merged report over a selected DeepfakeDetect; ignore stale fetches so sidecar status updates on the first completed render
 - **Upload keeps provenance sidecars** — dropping a wav that already exists next to `*.provenance.json` reuses that project path (instead of copying audio-only into `assets/uploads/`)
