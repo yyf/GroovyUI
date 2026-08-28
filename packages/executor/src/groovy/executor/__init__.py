@@ -12,6 +12,11 @@ from groovy.executor.signal_integrity import (
     load_template_workflow,
     prepare_template_project,
 )
+from groovy.executor.template_sample_accuracy import (
+    SampleHopRecord,
+    TemplateSampleAccuracyReport,
+    audit_sample_accuracy,
+)
 
 __all__ = [
     "AudioBuffer",
@@ -28,4 +33,7 @@ __all__ = [
     "load_manifest",
     "load_template_workflow",
     "prepare_template_project",
+    "SampleHopRecord",
+    "TemplateSampleAccuracyReport",
+    "audit_sample_accuracy",
 ]

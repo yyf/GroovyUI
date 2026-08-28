@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from groovy.executor.cache import CacheStore
+from groovy.schema.models import Workflow
 from groovy.executor.template_integrity_registry import (
     ALL_TEMPLATE_INTEGRITY_SPECS,
     SIGNAL_INTEGRITY_V1_TEMPLATES,
@@ -300,8 +301,6 @@ def audit_output_contract(
                             f"silent fold suspected: load layout {load_layout} → terminal {terminal_layout} "
                             "without ChannelConvert"
                         )
-
-from groovy.schema.models import Workflow
 
 __all__ = [
     "ALL_TEMPLATE_INTEGRITY_SPECS",
