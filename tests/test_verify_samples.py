@@ -39,6 +39,18 @@ def test_verify_samples_hash_match(tmp_path: Path) -> None:
     assert check["content_hash"] == pcm_content_hash(pcm)
 
 
+def test_verify_samples_hash_match_float32_input(tmp_path: Path) -> None:
+    """AI stubs often emit float32; cache stores float64 — hash must still match."""
+    cache = CacheStore(tmp_path)
+    pcm32 = np.sin(2 * np.pi * 220 * np.arange(4800) / 48000).astype(np.float32)
+    buffer = AudioBuffer.from_planar(pcm32, 48000, source_node_type="SpeechTranslate")
+    cache.write_audio(buffer, pcm32)
+
+    check = verify_samples_for_audio(cache, buffer.id)
+    assert check["hash_match"] is True
+    assert check["ok"] is True
+
+
 def test_verify_samples_node_via_executor(tmp_path: Path) -> None:
     from groovy.executor import Executor
     from groovy.executor.engine import JobContext

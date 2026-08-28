@@ -45,6 +45,7 @@ class AudioBuffer:
         source_node_type: str | None = None,
         channel_layout: str | None = None,
     ) -> AudioBuffer:
+        pcm = np.asarray(pcm, dtype=np.float64)
         if pcm.ndim == 1:
             pcm = pcm.reshape(1, -1)
         channels, frame_count = pcm.shape
