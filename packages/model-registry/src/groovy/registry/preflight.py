@@ -21,6 +21,8 @@ _SECONDS_PER_MINUTE: dict[str, tuple[int, int]] = {
     "VoiceConvert": (15, 120),
     "TimbreTransfer": (10, 90),
     "DeepfakeDetect": (5, 45),
+    "EmbedWatermark": (5, 45),
+    "DetectWatermark": (5, 45),
     "TTS": (5, 60),
     "MIDIToAudio": (30, 240),
     "GenerateAudio": (30, 240),

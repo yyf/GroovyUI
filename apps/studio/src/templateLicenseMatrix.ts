@@ -605,6 +605,18 @@ export const TEMPLATE_LICENSE_MATRIX: TemplateLicenseRow[] = [
     final: "Commercial Not safe · Conference Caution (license TBD)",
     tone: "caution",
   },
+  {
+    id: "watermark-embed-detect",
+    title: "Watermark Embed and Detect",
+    models: "audioseal-16bit",
+    licenses: "audioseal-16bit: MIT",
+    impact: "Med",
+    cluster: "Compliance",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe · Conference Safe",
+    tone: "safe",
+  },
 ];
 
 export function templateLicenseSummary(): {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -939,6 +940,126 @@ def run_deepfake_detect(cache: CacheStore, kwargs: dict) -> list[dict]:
         {"type": "AUTHENTICITY", "authenticity_id": report.id},
         {"type": "AUDIO", "cache_id": audio_id},
     ]
+
+
+def run_embed_watermark(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import float_param, int_param
+
+    audio_id = kwargs["audio_id"]
+    model_id = str(kwargs.get("model", "audioseal-16bit"))
+    message_id = int_param(kwargs, "message_id", 42)
+    strength = float_param(kwargs, "strength", 1.0)
+    buffer, pcm = cache.load_audio(audio_id)
+    out = embed_watermark_audio(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        message_id=message_id,
+        strength=strength,
+    )
+    out_buffer = AudioBuffer.from_planar(
+        out,
+        buffer.sample_rate,
+        source_node_type="EmbedWatermark",
+        channel_layout=buffer.channel_layout,
+    )
+    cache.write_audio(out_buffer, out)
+    return [{"type": "AUDIO", "cache_id": out_buffer.id}]
+
+
+def run_detect_watermark(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.model_params import float_param
+
+    audio_id = kwargs["audio_id"]
+    model_id = str(kwargs.get("model", "audioseal-16bit"))
+    threshold = float_param(kwargs, "threshold", 0.5)
+    buffer, pcm = cache.load_audio(audio_id)
+    report = detect_watermark_audio(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        threshold=threshold,
+    )
+    return [
+        {"type": "TEXT", "text": json.dumps(report, indent=2)},
+        {"type": "AUDIO", "cache_id": audio_id},
+    ]
+
+
+def embed_watermark_audio(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    message_id: int = 42,
+    strength: float = 1.0,
+) -> np.ndarray:
+    from groovy.nodes.ai.inference_env import audioseal_available, inference_stub_enabled
+
+    if model_id != "audioseal-16bit":
+        raise RuntimeError(f"Unsupported watermark model: {model_id}")
+
+    if audioseal_available() and not inference_stub_enabled():
+        from groovy.nodes.ai.backends.audioseal_runner import embed_watermark_pcm
+
+        return embed_watermark_pcm(
+            pcm,
+            sample_rate=sample_rate,
+            message_id=message_id,
+            strength=strength,
+        )
+    if inference_stub_enabled():
+        from groovy.nodes.ai.backends.audioseal_runner import embed_watermark_stub
+
+        return embed_watermark_stub(pcm, message_id=message_id, strength=strength, sample_rate=sample_rate)
+    raise RuntimeError(
+        "AudioSeal inference is not installed. Install audioseal-16bit from Model Browser (Cmd+K)."
+    )
+
+
+def detect_watermark_audio(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    threshold: float = 0.5,
+) -> dict[str, object]:
+    from groovy.nodes.ai.inference_env import audioseal_available, inference_stub_enabled
+
+    if model_id != "audioseal-16bit":
+        raise RuntimeError(f"Unsupported watermark model: {model_id}")
+
+    if audioseal_available() and not inference_stub_enabled():
+        from groovy.nodes.ai.backends.audioseal_runner import detect_watermark_pcm
+
+        probability, message_id, bits = detect_watermark_pcm(
+            pcm,
+            sample_rate=sample_rate,
+            threshold=threshold,
+        )
+        backend = "audioseal"
+    elif inference_stub_enabled():
+        from groovy.nodes.ai.backends.audioseal_runner import detect_watermark_stub
+
+        probability, message_id, bits = detect_watermark_stub(
+            pcm, threshold=threshold, sample_rate=sample_rate
+        )
+        backend = "stub"
+    else:
+        raise RuntimeError(
+            "AudioSeal inference is not installed. Install audioseal-16bit from Model Browser (Cmd+K)."
+        )
+
+    detected = probability >= threshold
+    return {
+        "model": model_id,
+        "backend": backend,
+        "watermark_detected": detected,
+        "detection_probability": round(probability, 4),
+        "threshold": threshold,
+        "message_id": message_id,
+        "message_bits": bits,
+    }
 
 
 def audio_to_midi(

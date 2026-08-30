@@ -19,6 +19,7 @@ TerminalOutputType = Literal["AUDIO", "MIDI", "TEXT", "AUTHENTICITY", "NONE"]
 TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "Preview": "AUDIO",
     "WhisperSTT": "TEXT",
+    "DetectWatermark": "TEXT",
     "DiarizeTranscribe": "TEXT",
     "AudioToMIDI": "MIDI",
     "AuthenticitySummary": "AUTHENTICITY",

@@ -1,6 +1,8 @@
 from groovy.nodes.ai.nodes import (
     AudioToMIDI,
     DeepfakeDetect,
+    DetectWatermark,
+    EmbedWatermark,
     Denoise,
     DiarizeTranscribe,
     GenerateAudio,
@@ -29,6 +31,8 @@ __all__ = [
     "TimbreTransfer",
     "AudioToMIDI",
     "DeepfakeDetect",
+    "DetectWatermark",
+    "EmbedWatermark",
     "MIDIToAudio",
     "GenerateAudio",
     "SingFromMIDI",

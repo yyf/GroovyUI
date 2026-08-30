@@ -75,7 +75,13 @@ const HIDDEN_FROM_PALETTE = new Set([
 
 const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix", "ChannelMerge", "Note"]);
 
-const AUTHENTICITY = new Set(["VerifyProvenance", "AuthenticitySummary", "DeepfakeDetect"]);
+const AUTHENTICITY = new Set([
+  "VerifyProvenance",
+  "AuthenticitySummary",
+  "DeepfakeDetect",
+  "EmbedWatermark",
+  "DetectWatermark",
+]);
 
 const CORE_DSP_EXTRA = new Set(["VerifySamples"]);
 
