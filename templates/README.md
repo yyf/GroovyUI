@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-48 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+49 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -28,6 +28,7 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Transcribe to MIDI | [transcribe-to-midi.groovy.json](transcribe-to-midi.groovy.json) | 1.1 | `basic-pitch` |
 | Transcribe and Regenerate | [transcribe-and-regenerate.groovy.json](transcribe-and-regenerate.groovy.json) | 1.1 / **featured** | `basic-pitch`, `musicgen-melody-small` |
 | Authenticity Check | [authenticity-check.groovy.json](authenticity-check.groovy.json) | 1.1 / **featured** | `rawnet2-asvspoof` (VerifyProvenance ∥ DeepfakeDetect → AuthenticitySummary) |
+| Watermark Embed and Detect | [watermark-embed-detect.groovy.json](watermark-embed-detect.groovy.json) | 1.1 / **featured** | `audioseal-16bit` (EmbedWatermark → DetectWatermark; Meta AudioSeal MIT) |
 | Stem to Remix | [stem-to-remix.groovy.json](stem-to-remix.groovy.json) | 2 | demucs, basic-pitch, musicgen |
 | Sing from MIDI | [sing-from-midi.groovy.json](sing-from-midi.groovy.json) | 2 | `diffsinger-opencpop` |
 | MIDI Automation Demo | [midi-automation-demo.groovy.json](midi-automation-demo.groovy.json) | 2 | `deepfilternet-v3` |

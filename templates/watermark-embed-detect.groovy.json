@@ -1,0 +1,116 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "d4e5f6a7-b8c9-4012-watermark01",
+  "metadata": {
+    "title": "Watermark Embed and Detect",
+    "author": "groovy",
+    "description": "Embed an imperceptible AudioSeal watermark, then detect and decode its 16-bit payload. Preview the JSON report and audition the watermarked audio.",
+    "tags": [
+      "featured",
+      "trust",
+      "watermark",
+      "audioseal",
+      "authenticity",
+      "perception"
+    ],
+    "created_at": "2026-08-30T02:30:00Z",
+    "modified_at": "2026-08-30T02:30:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": { "x": 0, "y": 0 },
+      "widgets": {
+        "text": "Watermark Embed and Detect — Load → EmbedWatermark (AudioSeal) → DetectWatermark.\nPreview the JSON detection report and audition the pass-through audio. Offline · Play = cached PCM."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": { "x": 0, "y": 120 },
+      "widgets": {
+        "path": "assets/samples/noisy_speech_1214.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "EmbedWatermark",
+      "pos": { "x": 260, "y": 120 },
+      "widgets": {
+        "model": "audioseal-16bit",
+        "message_id": 42,
+        "strength": 1.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "DetectWatermark",
+      "pos": { "x": 520, "y": 120 },
+      "widgets": {
+        "model": "audioseal-16bit",
+        "threshold": 0.5
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Preview",
+      "pos": { "x": 780, "y": 80 },
+      "widgets": {}
+    },
+    {
+      "id": "n5",
+      "type": "Preview",
+      "pos": { "x": 780, "y": 220 },
+      "widgets": {}
+    },
+    {
+      "id": "n6",
+      "type": "SaveAudio",
+      "pos": { "x": 520, "y": 260 },
+      "widgets": {
+        "path": "exports",
+        "filename": "watermarked-speech.wav",
+        "format": "wav"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n2", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": ["n2", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n3", 0],
+      "to": ["n4", 1],
+      "type": "TEXT"
+    },
+    {
+      "id": "l4",
+      "from": ["n3", 1],
+      "to": ["n5", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l5",
+      "from": ["n2", 0],
+      "to": ["n6", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 1.0,
+    "pan": { "x": 0, "y": 0 }
+  }
+}

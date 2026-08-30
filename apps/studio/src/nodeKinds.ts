@@ -12,6 +12,8 @@ const AI_NODE_TYPES = new Set([
   "TimbreTransfer",
   "AudioToMIDI",
   "DeepfakeDetect",
+  "EmbedWatermark",
+  "DetectWatermark",
   "MIDIToAudio",
   "GenerateAudio",
   "SingFromMIDI",

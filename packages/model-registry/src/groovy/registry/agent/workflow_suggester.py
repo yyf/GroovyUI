@@ -66,6 +66,7 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
         "RAVE Timbre Transfer",
     ),
     (re.compile(r"\b(authentic|deepfake|provenance.?verify)\b", re.I), "authenticity-check", "Authenticity analysis"),
+    (re.compile(r"\b(watermark|audioseal)\b", re.I), "watermark-embed-detect", "AudioSeal embed + detect"),
     (re.compile(r"\b(audio.?to.?midi|midi.?transcrib)\b", re.I), "transcribe-to-midi", "Audio to MIDI"),
     (re.compile(r"\b(regenerat|midi.?to.?audio|musicgen)\b", re.I), "transcribe-and-regenerate", "Transcribe and regenerate"),
     (

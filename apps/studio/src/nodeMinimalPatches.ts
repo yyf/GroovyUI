@@ -531,6 +531,38 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l3", "n2", "n4", "AUDIO", 1, 0),
     ],
   },
+  EmbedWatermark: {
+    title: "Embed Watermark",
+    description: "Embed an imperceptible AudioSeal watermark with a 16-bit payload.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      {
+        id: "n2",
+        type: "EmbedWatermark",
+        x: 260,
+        widgets: { model: "audioseal-16bit", message_id: 42, strength: 1.0 },
+      },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
+  },
+  DetectWatermark: {
+    title: "Detect Watermark",
+    description: "Detect AudioSeal watermark probability and decode payload.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      { id: "n2", type: "DetectWatermark", x: 260, widgets: { model: "audioseal-16bit", threshold: 0.5 } },
+      preview("n3", 520, -80),
+      preview("n4", 520, 80),
+    ],
+    links: [
+      link("l1", "n1", "n2", "AUDIO"),
+      link("l2", "n2", "n3", "AUDIO", 1, 0),
+      link("l3", "n2", "n4", "TEXT", 0, 1),
+    ],
+  },
   MIDIToAudio: {
     title: "MIDI to Audio",
     description: "Synthesize audio from MIDI melody.",

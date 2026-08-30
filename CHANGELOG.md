@@ -4,7 +4,8 @@
 
 ### Added
 
-- **`VerifySamples`** — SAMPLE_CHECK+AUDIO node that recomputes PCM content hash and reports sample count / rate / layout (Processing palette; not Authenticity/Compliance)
+- **`EmbedWatermark` / `DetectWatermark`** — Meta **AudioSeal** (MIT) nodes for localized audio watermark embed + detect with 16-bit payload decode; registry model `audioseal-16bit`.
+- **`watermark-embed-detect` template** — Trust domain: LoadAudio → EmbedWatermark → DetectWatermark; preview JSON report and save watermarked WAV.
 - **A/B sample check** — when two nodes are selected, Inspector Summary / Metrics show a horizontal sample table (Samples · Rate · Duration · Layout · Hash)
 - **`sample-verify` template** — Compare-domain demo: LoadAudio → Preview with VerifySamples on each hop
 - **`BeatTrack`** — AUDIO analyzer that rebuilds a Clock-style pulse train (plus half-time) from detected beats; optional fallback Clock when the groove is too weak. DSP (spectral flux), not a downloaded model.

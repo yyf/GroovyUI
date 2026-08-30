@@ -23,6 +23,8 @@ TASK_HF_QUERIES: dict[str, str] = {
     "music-generation": "music generation audio",
     "singing-synthesis": "singing voice synthesis",
     "deepfake-detection": "deepfake audio detection spoof",
+    "watermark-embed": "audio watermark embed audioseal",
+    "watermark-detect": "audio watermark detect audioseal",
     "audio-compare": "audio similarity embedding",
 }
 
@@ -49,6 +51,8 @@ TASK_COMPATIBLE_NODES: dict[str, list[str]] = {
     "music-generation": ["MIDIToAudio", "GenerateAudio"],
     "singing-synthesis": ["SingFromMIDI"],
     "deepfake-detection": ["DeepfakeDetect"],
+    "watermark-embed": ["EmbedWatermark"],
+    "watermark-detect": ["DetectWatermark"],
     "audio-compare": ["AbCompareAnalyze"],
 }
 
@@ -73,6 +77,8 @@ TAG_TASK_HINTS: list[tuple[str, str]] = [
     ("midi", "audio-to-midi"),
     ("musicgen", "music-generation"),
     ("deepfake", "deepfake-detection"),
+    ("watermark", "watermark-embed"),
+    ("audioseal", "watermark-detect"),
 ]
 
 

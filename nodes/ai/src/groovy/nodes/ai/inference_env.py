@@ -110,6 +110,16 @@ def f5_tts_available() -> bool:
         return False
 
 
+def audioseal_available() -> bool:
+    try:
+        import audioseal  # noqa: F401
+        import torch  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def rave_available() -> bool:
     try:
         import torch  # noqa: F401
@@ -143,6 +153,7 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "whisper-small-en": whisper_available,
     "kokoro-82m": kokoro_available,
     "f5-tts-base": f5_tts_available,
+    "audioseal-16bit": audioseal_available,
     "rave-v1": rave_available,
     "seamless-m4t-v2-large": seamless_available,
 }

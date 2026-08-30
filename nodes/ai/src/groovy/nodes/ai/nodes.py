@@ -16,6 +16,8 @@ def register_all() -> None:
         TimbreTransfer,
         AudioToMIDI,
         DeepfakeDetect,
+        EmbedWatermark,
+        DetectWatermark,
         MIDIToAudio,
         GenerateAudio,
         SingFromMIDI,
@@ -329,6 +331,72 @@ class DeepfakeDetect(GroovyNode):
 
     def run(self, **kwargs):
         raise RuntimeError("DeepfakeDetect must run in AI worker subprocess")
+
+
+@register_node
+class EmbedWatermark(GroovyNode):
+    """Embed an imperceptible AudioSeal watermark into audio (Meta, MIT)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = ["audioseal-16bit"]
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "model": ("MODEL_REF", {"default": "audioseal-16bit"}),
+            },
+            "optional": {
+                "message_id": ("INT", {"default": 42, "min": 0, "max": 65535}),
+                "strength": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 2.0}),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("EmbedWatermark must run in AI worker subprocess")
+
+
+@register_node
+class DetectWatermark(GroovyNode):
+    """Detect an AudioSeal watermark and decode its 16-bit payload (Meta, MIT)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "unknown"
+    COMPATIBLE_MODELS = ["audioseal-16bit"]
+    RETURN_TYPES = ("TEXT", "AUDIO")
+    OUTPUT_NAMES = ("report", "audio")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "model": ("MODEL_REF", {"default": "audioseal-16bit"}),
+            },
+            "optional": {
+                "threshold": ("FLOAT", {"default": 0.5, "min": 0.0, "max": 1.0}),
+            },
+        }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [{"name": name, "type": typ} for name, typ in zip(cls.OUTPUT_NAMES, cls.RETURN_TYPES)]
+        return schema
+
+    def run(self, **kwargs):
+        raise RuntimeError("DetectWatermark must run in AI worker subprocess")
 
 
 @register_node

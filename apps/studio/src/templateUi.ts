@@ -4,6 +4,7 @@ import type { TemplateListItem } from "./api";
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5",
   "authenticity-check",
+  "watermark-embed-detect",
   "compare-stemmers",
   "compare-whisper-sizes",
   "extract-lyrics-to-music-with-ace-step",
@@ -108,6 +109,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "simple-fm-synth": "modular",
 
   "authenticity-check": "trust",
+  "watermark-embed-detect": "trust",
 };
 
 const featuredBundledIds = new Set<string>(FEATURED_BUNDLED_TEMPLATE_IDS);
