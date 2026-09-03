@@ -45,7 +45,11 @@ export default function TemplateSelector({
     const selectedGroup = domainGroups.find((group) =>
       group.templates.some((template) => template.id === selectedId),
     );
-    setOpenDomainId(selectedGroup?.domain.id ?? domainGroups[0]?.domain.id ?? null);
+    // Expand the domain that holds the current selection — except Start, which
+    // stays collapsed so the menu opens as a category list rather than Hello Groovy.
+    const nextDomainId =
+      selectedGroup && selectedGroup.domain.id !== "start" ? selectedGroup.domain.id : null;
+    setOpenDomainId(nextDomainId);
   }, [open, domainGroups, selectedId]);
 
   useEffect(() => {
