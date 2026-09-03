@@ -154,6 +154,12 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("rawnet2-asvspoof",),
         "required_outputs": (("n4", "AUTHENTICITY"), ("n5", "AUDIO"), ("n6", "AUDIO")),
     },
+    "watermark-embed-detect": {
+        "models": ("audioseal-16bit",),
+        # n4 = JSON report Preview (TEXT); n5 = pass-through audio Preview.
+        "terminal_output_type": "TEXT",
+        "required_outputs": (("n4", "TEXT"), ("n5", "AUDIO")),
+    },
     "compare-whisper-sizes": {
         "sample_path": "assets/samples/noisy_speech_1214.wav",
         "terminal_output_type": "TEXT",
