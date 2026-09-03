@@ -1,9 +1,18 @@
+"""AudioSeal watermark embed/detect (Meta, MIT).
+
+Stub helpers are torch-free so CI with ``GROOVY_INFERENCE_STUB=1`` works without torch.
+Real inference imports torch lazily.
+"""
+
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 import numpy as np
-import torch
+
+if TYPE_CHECKING:
+    import torch
 
 
 @lru_cache(maxsize=1)
@@ -25,6 +34,8 @@ def _load_detector():
 
 
 def _pcm_to_tensor(pcm: np.ndarray) -> torch.Tensor:
+    import torch
+
     if pcm.ndim == 1:
         pcm = pcm.reshape(1, -1)
     return torch.from_numpy(pcm.astype(np.float32)).unsqueeze(0)
@@ -42,6 +53,8 @@ def _tensor_to_pcm(tensor: torch.Tensor, *, channels: int) -> np.ndarray:
 
 
 def message_id_to_bits(message_id: int, *, nbits: int = 16) -> torch.Tensor:
+    import torch
+
     message_id = int(message_id) & ((1 << nbits) - 1)
     bits = [(message_id >> bit) & 1 for bit in range(nbits - 1, -1, -1)]
     return torch.tensor([bits], dtype=torch.float32)
@@ -114,6 +127,8 @@ def embed_watermark_pcm(
     message_id: int = 0,
     strength: float = 1.0,
 ) -> np.ndarray:
+    import torch
+
     _ = sample_rate
     if pcm.ndim == 1:
         pcm = pcm.reshape(1, -1)
@@ -133,6 +148,8 @@ def detect_watermark_pcm(
     sample_rate: int,
     threshold: float = 0.5,
 ) -> tuple[float, int, list[int]]:
+    import torch
+
     _ = sample_rate
     if pcm.ndim == 1:
         pcm = pcm.reshape(1, -1)
