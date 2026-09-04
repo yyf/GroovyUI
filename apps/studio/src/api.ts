@@ -534,6 +534,25 @@ export async function createModelDraft(
   return res.json();
 }
 
+export async function planAgentRequest(
+  prompt: string,
+  filters?: {
+    commercial_ok?: boolean;
+    task_type?: string;
+    node_type?: string;
+  },
+): Promise<import("./types").AgentPlan> {
+  const res = await fetch(`${API}/api/agent/plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, ...filters }),
+  });
+  if (!res.ok) {
+    throw new Error(`Agent plan failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function recommendModels(
   prompt: string,
   filters?: {

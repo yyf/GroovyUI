@@ -977,7 +977,12 @@ export default function App() {
 
       if (editing) return;
 
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "l") {
+        event.preventDefault();
+        openModelBrowser({ mode: "plan" });
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
         openModelBrowser();
         return;
@@ -1746,6 +1751,7 @@ export default function App() {
           complianceWarnings={complianceWarnings}
           inferenceStubActive={inferenceStubActive}
           onModelBrowser={() => openModelBrowser()}
+          onAgentPlan={() => openModelBrowser({ mode: "plan" })}
           onCompliance={() => setComplianceOpen(true)}
           onShareWorkflow={() => void handleShareWorkflow()}
           workflowBarOpen={workflowBarOpen}
@@ -2036,6 +2042,7 @@ export default function App() {
           onSelectModel={handleModelSelect}
           onDropModel={handleDropModel}
           onApplyWorkflow={applyGeneratedWorkflow}
+          onOpenCompliance={() => setComplianceOpen(true)}
           launch={modelBrowserLaunch}
           filterNodeType={
             modelPickTarget

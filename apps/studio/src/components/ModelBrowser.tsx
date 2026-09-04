@@ -7,12 +7,21 @@ import {
   fetchModelCard,
   InstallCancelledError,
   installModelWithProgress,
+  planAgentRequest,
   recommendModels,
   removeModelInstall,
   searchModels,
   suggestWorkflows,
 } from "../api";
-import type { DiscoverModelResult, InstallRecovery, ModelCard, ModelInstallState, Workflow } from "../types";
+import type {
+  AgentPlan,
+  AgentPlanAction,
+  DiscoverModelResult,
+  InstallRecovery,
+  ModelCard,
+  ModelInstallState,
+  Workflow,
+} from "../types";
 
 type Props = {
   open: boolean;
@@ -20,7 +29,8 @@ type Props = {
   onSelectModel?: (modelId: string) => void;
   onDropModel?: (modelId: string, nodeType: string) => void;
   onApplyWorkflow?: (workflow: Workflow) => void;
-  initialMode?: "search" | "recommend" | "workflow" | "discover";
+  onOpenCompliance?: () => void;
+  initialMode?: "search" | "recommend" | "workflow" | "discover" | "plan";
   /** When browsing from a node's MODEL_REF widget, filter to compatible models. */
   filterNodeType?: string | null;
   /** Deep-link filters when opened from Compliance / Comfy import. */
@@ -116,13 +126,16 @@ export default function ModelBrowser({
   onSelectModel,
   onDropModel,
   onApplyWorkflow,
+  onOpenCompliance,
   initialMode,
   filterNodeType,
   launch,
 }: Props) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [mode, setMode] = useState<"search" | "recommend" | "workflow" | "discover">(initialMode ?? "search");
+  const [mode, setMode] = useState<"search" | "recommend" | "workflow" | "discover" | "plan">(
+    initialMode ?? "search",
+  );
   const [taskType, setTaskType] = useState("");
   const [commercialOnly, setCommercialOnly] = useState(false);
   const [models, setModels] = useState<ModelCard[]>([]);
@@ -130,6 +143,7 @@ export default function ModelBrowser({
   const [draftResult, setDraftResult] = useState<{ id: string; created: boolean } | null>(null);
   const [draftingId, setDraftingId] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Array<{ model: ModelCard; rationale: string }>>([]);
+  const [agentPlan, setAgentPlan] = useState<AgentPlan | null>(null);
   const [workflowSuggestions, setWorkflowSuggestions] = useState<
     Array<{
       template_id: string;
@@ -188,6 +202,29 @@ export default function ModelBrowser({
     setLoading(true);
     setError(null);
     try {
+      if (mode === "plan") {
+        if (!debouncedQuery.trim()) {
+          setAgentPlan(null);
+          setModels([]);
+          setRecommendations([]);
+          setWorkflowSuggestions([]);
+          setDiscoverResults([]);
+          return;
+        }
+        const data = await planAgentRequest(debouncedQuery, {
+          commercial_ok: commercialOnly ? true : undefined,
+          task_type: taskType || undefined,
+          node_type: effectiveNodeFilter || undefined,
+        });
+        setAgentPlan(data);
+        setModels([]);
+        setRecommendations([]);
+        setWorkflowSuggestions([]);
+        setDiscoverResults([]);
+        setWorkflowHandoffHint(null);
+        return;
+      }
+      setAgentPlan(null);
       if (mode === "workflow") {
         const data = await suggestWorkflows(debouncedQuery);
         setWorkflowSuggestions(data.results);
@@ -253,6 +290,7 @@ export default function ModelBrowser({
       setRecommendations([]);
       setWorkflowSuggestions([]);
       setDiscoverResults([]);
+      setAgentPlan(null);
       setWorkflowHandoffHint(null);
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
@@ -475,6 +513,27 @@ export default function ModelBrowser({
     setDetailModelId(draftId);
   };
 
+  const runPlanAction = (action: AgentPlanAction) => {
+    if (action.type === "install_model" && action.model_id) {
+      void handleInstall(action.model_id);
+      return;
+    }
+    if (action.type === "drop_node" && action.model_id && action.node_type) {
+      onDropModel?.(action.model_id, action.node_type);
+      onClose();
+      return;
+    }
+    if (action.type === "apply_template" && action.workflow) {
+      onApplyWorkflow?.(action.workflow);
+      onClose();
+      return;
+    }
+    if (action.type === "open_compliance") {
+      onClose();
+      onOpenCompliance?.();
+    }
+  };
+
   const cards = useMemo(
     () =>
       mode === "recommend"
@@ -491,7 +550,9 @@ export default function ModelBrowser({
   if (!open) return null;
 
   const catalogHint =
-    mode === "recommend"
+    mode === "plan"
+      ? "Plan orchestrates Find models + Suggest workflow (+ license peek). Actions stay click-to-run."
+      : mode === "recommend"
       ? "Find models searches the local published catalog only — not live Hugging Face."
       : mode === "search"
         ? "Verified catalog — safe to install from Model Browser."
@@ -625,6 +686,16 @@ export default function ModelBrowser({
               >
                 Discover
               </button>
+              <button
+                type="button"
+                className={mode === "plan" ? "active" : ""}
+                onClick={() => {
+                  setMode("plan");
+                  setError(null);
+                }}
+              >
+                Plan
+              </button>
               <button type="button" className={mode === "workflow" ? "active" : ""} onClick={() => setMode("workflow")}>
                 Suggest workflow
               </button>
@@ -681,7 +752,9 @@ export default function ModelBrowser({
             <input
               className="model-browser__search"
               placeholder={
-                mode === "workflow"
+                mode === "plan"
+                  ? "Describe the outcome — e.g. commercial podcast cleanup then share"
+                  : mode === "workflow"
                   ? "Describe your pipeline — e.g. denoise podcast then normalize"
                   : mode === "recommend"
                     ? "Describe your task — e.g. commercial-friendly podcast denoise"
@@ -694,7 +767,30 @@ export default function ModelBrowser({
               autoFocus
             />
             <div className="model-browser__filters">
-              {mode !== "workflow" ? (
+              {mode === "workflow" ? (
+                <p className="model-browser__hint">Suggestions are preview-only — click Apply to replace the canvas.</p>
+              ) : mode === "plan" ? (
+                <>
+                  <select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
+                    {TASK_FILTERS.map((filter) => (
+                      <option key={filter.value} value={filter.value}>
+                        {filter.label}
+                      </option>
+                    ))}
+                  </select>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={commercialOnly}
+                      onChange={(event) => setCommercialOnly(event.target.checked)}
+                    />
+                    Commercial OK
+                  </label>
+                  <p className="model-browser__hint">
+                    Deterministic orchestration (⌘L) — tools fan in; you still Install / Apply.
+                  </p>
+                </>
+              ) : (
                 <>
                   <select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
                     {TASK_FILTERS.map((filter) => (
@@ -715,8 +811,6 @@ export default function ModelBrowser({
                     </label>
                   )}
                 </>
-              ) : (
-                <p className="model-browser__hint">Suggestions are preview-only — click Apply to replace the canvas.</p>
               )}
             </div>
             {catalogHint ? <p className="model-browser__hint model-browser__hint--catalog">{catalogHint}</p> : null}
@@ -798,7 +892,43 @@ export default function ModelBrowser({
               {loading ? <p className="model-browser__hint">Searching…</p> : null}
               {error ? <p className="model-browser__error">{error}</p> : null}
               {notice ? <p className="model-browser__notice">{notice}</p> : null}
-              {mode === "workflow" ? (
+              {mode === "plan" ? (
+                <>
+                  {!loading && !error && (!agentPlan || agentPlan.actions.length === 0) ? (
+                    <p className="model-browser__hint">
+                      Describe a task to build a plan — models, template apply, and optional compliance review.
+                    </p>
+                  ) : null}
+                  {agentPlan?.notes ? <p className="model-browser__hint">{agentPlan.notes}</p> : null}
+                  {agentPlan?.tools_used?.length ? (
+                    <p className="model-browser__hint">
+                      Tools: {agentPlan.tools_used.join(" → ")}
+                      {agentPlan.inferred_task ? ` · task ${agentPlan.inferred_task}` : ""}
+                    </p>
+                  ) : null}
+                  {agentPlan?.actions.map((action) => (
+                    <article key={action.id} className="model-card">
+                      <div className="model-card__row">
+                        <strong>{action.title}</strong>
+                        <span className="pill">{action.type.replace("_", " ")}</span>
+                      </div>
+                      <p className="model-card__rationale">{action.rationale}</p>
+                      {action.description ? <p className="model-card__desc">{action.description}</p> : null}
+                      <div className="model-card__actions">
+                        <button type="button" onClick={() => runPlanAction(action)}>
+                          {action.type === "install_model"
+                            ? "Install"
+                            : action.type === "drop_node"
+                              ? "Drop node"
+                              : action.type === "apply_template"
+                                ? "Apply workflow"
+                                : "Open Compliance"}
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </>
+              ) : mode === "workflow" ? (
                 <>
                   {!loading && !error && workflowSuggestions.length === 0 ? (
                     <p className="model-browser__hint">No workflow suggestions yet — try describing your task.</p>
