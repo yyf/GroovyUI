@@ -1,4 +1,4 @@
-"""License scanner agent — commercial-use flags and model swap suggestions (Phase 2)."""
+"""License scanner agent — commercial-use flags and model swap suggestions."""
 
 from __future__ import annotations
 
@@ -29,6 +29,10 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
                     "severity": "warning",
                     "code": "UNKNOWN_MODEL",
                     "message": f"Unknown model reference: {model_id}",
+                    "explain": (
+                        f"Node {node.id} ({node.type}) points at `{model_id}`, which is not in the "
+                        "local registry. Install or pick a published model before commercial review."
+                    ),
                 }
             )
             continue
@@ -42,6 +46,10 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
                     "severity": "info",
                     "code": "ATTRIBUTION_REQUIRED",
                     "message": f"{manifest.name} requires attribution ({manifest.license.spdx}).",
+                    "explain": (
+                        f"Keep {manifest.name} if you can credit the author in deliverables. "
+                        "Apply a commercial-OK swap below only when you need attribution-free shipping."
+                    ),
                     "model_id": manifest.id,
                 }
             )
@@ -53,6 +61,10 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
                     "severity": "warning",
                     "code": "SHARE_ALIKE",
                     "message": f"{manifest.name} has share-alike obligations ({manifest.license.spdx}).",
+                    "explain": (
+                        f"{manifest.name} may require sharing derivatives under similar terms. "
+                        "Swap to a permissive commercial-OK model if that does not fit your release."
+                    ),
                     "model_id": manifest.id,
                 }
             )
@@ -66,6 +78,12 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
                     "message": (
                         f"{manifest.name} ({manifest.license.spdx}) is not cleared for commercial use."
                     ),
+                    "explain": (
+                        f"`{manifest.id}` on {node.type} is fine for exploration, but not for paid/"
+                        "client deliverables under the catalog license flag. Choose Apply on a "
+                        "socket-compatible alternative (install still required), or browse Find models "
+                        "with Commercial only."
+                    ),
                     "model_id": manifest.id,
                 }
             )
@@ -77,6 +95,7 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
         if not needs_permissive_alternative:
             continue
         alternatives = _commercial_alternatives(registry.catalog, manifest, node.type)
+        task = manifest.task_types[0] if manifest.task_types else node.type
         if alternatives:
             swap_suggestions.append(
                 {
@@ -86,13 +105,45 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
                     "current_model_id": manifest.id,
                     "current_license": manifest.license.spdx,
                     "alternatives": alternatives,
-                    "rationale": f"Commercial-friendly alternatives for {manifest.task_types[0]}",
+                    "rationale": f"Commercial-friendly alternatives for {task}",
+                    "explain": (
+                        f"These models list `{node.type}` in compatible_nodes and are marked "
+                        "commercial_ok. Apply only updates the widget — you still Install from "
+                        "Model Browser before Render."
+                    ),
+                }
+            )
+        else:
+            swap_suggestions.append(
+                {
+                    "node_id": node.id,
+                    "node_type": node.type,
+                    "widget": "model",
+                    "current_model_id": manifest.id,
+                    "current_license": manifest.license.spdx,
+                    "alternatives": [],
+                    "rationale": f"No socket-safe commercial peer for {node.type}",
+                    "explain": (
+                        f"No published commercial-OK model currently lists `{node.type}`. "
+                        "Open Find models with Commercial only to search the catalog, or keep "
+                        "this node for non-commercial exploration."
+                    ),
+                    "browse_hint": {
+                        "node_type": node.type,
+                        "commercial_only": True,
+                        "query": task,
+                        "mode": "recommend",
+                    },
                 }
             )
 
     optimization_swaps: list[dict[str, Any]] = []
-    optimized_nodes = {swap["node_id"] for swap in swap_suggestions}
+    optimized_nodes = {
+        swap["node_id"] for swap in swap_suggestions if swap.get("alternatives")
+    }
     for swap in swap_suggestions:
+        if not swap["alternatives"]:
+            continue
         preferred = swap["alternatives"][0]
         optimization_swaps.append(
             {
@@ -111,6 +162,10 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
             "node_type": flag["node_type"],
             "model_id": flag.get("model_id"),
             "message": flag["message"],
+            "explain": flag.get("explain"),
+            "next_step": (
+                "Open Model Browser → Find models with Commercial only, or keep for non-commercial use."
+            ),
         }
         for flag in flags
         if flag["code"] in {"NC_MODEL", "UNKNOWN_MODEL", "SHARE_ALIKE"}
@@ -177,7 +232,10 @@ def _commercial_alternatives(
             "vram_gb_estimate": model.vram_gb_estimate,
             "download_size_mb_estimate": model.download_size_mb_estimate,
             "task_types": model.task_types,
-            "rationale": f"{model.license.spdx} — commercial OK",
+            "rationale": (
+                f"{model.license.spdx} — commercial OK"
+                + (f" · ~{model.vram_gb_estimate:g} GB VRAM" if model.vram_gb_estimate else "")
+            ),
         }
         for _, model in ranked[:limit]
     ]

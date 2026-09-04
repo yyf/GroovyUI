@@ -147,6 +147,7 @@ export default function ModelBrowser({
   const [notice, setNotice] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<InstallRecovery | null>(null);
   const [failedModelId, setFailedModelId] = useState<string | null>(null);
+  const [workflowHandoffHint, setWorkflowHandoffHint] = useState<string | null>(null);
   const [detailModelId, setDetailModelId] = useState<string | null>(null);
   const [showInstallLogs, setShowInstallLogs] = useState(false);
   const [requiredModels, setRequiredModels] = useState<ModelCard[]>([]);
@@ -204,6 +205,7 @@ export default function ModelBrowser({
         setModels([]);
         setRecommendations([]);
         setWorkflowSuggestions([]);
+        setWorkflowHandoffHint(null);
         return;
       }
       const filters = {
@@ -216,10 +218,13 @@ export default function ModelBrowser({
           setRecommendations([]);
           setModels([]);
           setWorkflowSuggestions([]);
+          setWorkflowHandoffHint(null);
           return;
         }
         const data = await recommendModels(debouncedQuery, {
           commercial_ok: filters.commercial_ok,
+          task_type: filters.task_type,
+          node_type: filters.node_type,
         });
         const filtered = filterModelsForNode(
           data.results.map((entry) => entry.model),
@@ -234,18 +239,21 @@ export default function ModelBrowser({
         );
         setModels([]);
         setWorkflowSuggestions([]);
+        setWorkflowHandoffHint(data.workflow_handoff_hint ?? null);
       } else {
         const results = await searchModels(debouncedQuery, filters);
         setModels(filterModelsForNode(results, effectiveNodeFilter));
         setRecommendations([]);
         setWorkflowSuggestions([]);
         setDiscoverResults([]);
+        setWorkflowHandoffHint(null);
       }
     } catch (err) {
       setModels([]);
       setRecommendations([]);
       setWorkflowSuggestions([]);
       setDiscoverResults([]);
+      setWorkflowHandoffHint(null);
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
       setLoading(false);
@@ -314,6 +322,19 @@ export default function ModelBrowser({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose, detailModelId]);
 
+  const loadRecovery = async (modelId: string) => {
+    setFailedModelId(modelId);
+    setShowInstallLogs(false);
+    setError(null);
+    try {
+      const recoveryData = await fetchInstallRecovery(modelId);
+      setRecovery(recoveryData);
+    } catch (err) {
+      setRecovery(null);
+      setError(err instanceof Error ? err.message : "Recovery lookup failed");
+    }
+  };
+
   const handleInstall = async (modelId: string) => {
     setInstallingId(modelId);
     setRecovery(null);
@@ -337,13 +358,7 @@ export default function ModelBrowser({
         await refresh();
         return;
       }
-      setFailedModelId(modelId);
-      try {
-        const recoveryData = await fetchInstallRecovery(modelId);
-        setRecovery(recoveryData);
-      } catch {
-        setError(err instanceof Error ? err.message : "Install failed");
-      }
+      await loadRecovery(modelId);
     } finally {
       setInstallingId(null);
     }
@@ -556,6 +571,9 @@ export default function ModelBrowser({
           <button type="button" disabled={isInstalling} onClick={() => void handleInstall(model.id)}>
             Retry install
           </button>
+          <button type="button" onClick={() => void loadRecovery(model.id)}>
+            Explain failure
+          </button>
           {removeButton}
         </>
       );
@@ -727,6 +745,7 @@ export default function ModelBrowser({
                 <p>
                   <strong>Install failed:</strong> {recovery.summary}
                 </p>
+                {recovery.explain ? <p className="model-browser__hint">{recovery.explain}</p> : null}
                 {recovery.error ? (
                   <pre className={`model-browser__logs${showInstallLogs ? " model-browser__logs--open" : ""}`}>
                     {recovery.error}
@@ -746,15 +765,29 @@ export default function ModelBrowser({
                       {showInstallLogs ? "Hide logs" : "Open logs"}
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRecovery(null);
+                      setFailedModelId(null);
+                    }}
+                  >
+                    Dismiss
+                  </button>
                 </div>
                 {recovery.similar_models.length > 0 ? (
                   <>
-                    <p>Similar models:</p>
+                    <p>Similar models (install is your choice):</p>
                     <div className="model-browser__similar">
                       {recovery.similar_models.map((model) => (
-                        <button key={model.id} type="button" onClick={() => void handleInstall(model.id)}>
-                          Install {model.name}
-                        </button>
+                        <div key={model.id} className="model-browser__similar-item">
+                          <button type="button" onClick={() => void handleInstall(model.id)}>
+                            Install {model.name}
+                          </button>
+                          {model.similar_rationale ? (
+                            <span className="model-browser__hint">{model.similar_rationale}</span>
+                          ) : null}
+                        </div>
                       ))}
                     </div>
                   </>
@@ -856,6 +889,23 @@ export default function ModelBrowser({
                         : `No models found in the local catalog${effectiveNodeFilter ? ` for ${effectiveNodeFilter}` : ""}. Try another task filter or install from the required list above.`}
                     </p>
                   ) : null}
+                  {mode === "recommend" && !loading && cards.length > 0 ? (
+                    <div className="model-browser__handoff">
+                      <p className="model-browser__hint">
+                        {workflowHandoffHint ??
+                          "Suggestions only — Install / Drop node stay explicit. You can also preview a workflow template."}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode("workflow");
+                          setWorkflowHandoffHint(null);
+                        }}
+                      >
+                        Also suggest workflow
+                      </button>
+                    </div>
+                  ) : null}
                   {cards.map(({ model, rationale }) => {
                     const liveProgress = installProgress[model.id];
                     const status = modelCardStatus(model, liveProgress);
@@ -953,6 +1003,13 @@ export default function ModelBrowser({
               </p>
               {detailModel.install_error ? (
                 <pre className="model-browser__logs model-browser__logs--open">{detailModel.install_error}</pre>
+              ) : null}
+              {detailModel.install_status === "failed" || detailModel.install_status === "cancelled" ? (
+                <div className="model-card__actions">
+                  <button type="button" onClick={() => void loadRecovery(detailModel.id)}>
+                    Explain failure
+                  </button>
+                </div>
               ) : null}
               {detailModel.task_types?.length ? (
                 <p className="model-browser__detail-meta">Tasks: {detailModel.task_types.join(", ")}</p>

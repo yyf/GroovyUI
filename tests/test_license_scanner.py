@@ -35,12 +35,19 @@ def test_license_scan_flags_nc_model(tmp_path: Path) -> None:
     result = scan_workflow_licenses(workflow, registry)
     assert result["scan_ok"] is False
     assert any(flag["code"] == "NC_MODEL" for flag in result["flags"])
-    # MusicGen currently has no commercial GenerateAudio peer in the seed catalog.
-    # Prefer an empty suggestion list over an incompatible task-peer swap.
+    assert any(flag.get("explain") for flag in result["flags"] if flag["code"] == "NC_MODEL")
+    musicgen_swaps = [s for s in result["swap_suggestions"] if s["current_model_id"] == "musicgen-small"]
+    assert musicgen_swaps
+    # Prefer socket-safe commercial GenerateAudio peers (e.g. ACE-Step) — never DiffSinger.
     for swap in result["swap_suggestions"]:
         assert all(
             alt["model_id"] != "diffsinger-opencpop" for alt in swap["alternatives"]
         )
+        for alt in swap["alternatives"]:
+            manifest = registry.catalog.get(alt["model_id"])
+            assert manifest is not None
+            assert manifest.license.commercial_ok
+            assert "GenerateAudio" in manifest.compatible_nodes or swap["node_type"] != "GenerateAudio"
 
 
 def test_license_scan_swaps_require_node_compatibility(tmp_path: Path) -> None:

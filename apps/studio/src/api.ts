@@ -536,8 +536,17 @@ export async function createModelDraft(
 
 export async function recommendModels(
   prompt: string,
-  filters?: { commercial_ok?: boolean },
-): Promise<{ results: Array<{ model: ModelCard; rationale: string }>; inferred_task?: string }> {
+  filters?: {
+    commercial_ok?: boolean;
+    task_type?: string;
+    node_type?: string;
+    max_vram_gb?: number;
+  },
+): Promise<{
+  results: Array<{ model: ModelCard; rationale: string }>;
+  inferred_task?: string;
+  workflow_handoff_hint?: string | null;
+}> {
   const res = await fetch(`${API}/api/models/recommend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

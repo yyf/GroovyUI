@@ -44,7 +44,12 @@ type Props = {
   outputs?: Record<string, JobOutput>;
   targetNodeId?: string | null;
   onClose: () => void;
-  onBrowseModels?: (opts: { nodeType?: string; commercialOnly?: boolean; query?: string }) => void;
+  onBrowseModels?: (opts: {
+    nodeType?: string;
+    commercialOnly?: boolean;
+    query?: string;
+    mode?: "search" | "recommend";
+  }) => void;
   onApplyModelSwap?: (nodeId: string, modelId: string) => void;
   onApplyModelSwaps?: (swaps: Array<{ nodeId: string; modelId: string }>) => void;
   fastPath?: boolean;
@@ -447,6 +452,7 @@ export default function ComplianceDrawer({
                             ) : (
                               <span className="compliance-chain__no-alt">
                                 No cleared offline model for this node yet.
+                                {swap?.explain ? ` ${swap.explain}` : ""}
                               </span>
                             )}
                             {onBrowseModels ? (
@@ -456,9 +462,13 @@ export default function ComplianceDrawer({
                                 disabled={fastPathBusy}
                                 onClick={() =>
                                   onBrowseModels({
-                                    nodeType: node.type,
-                                    commercialOnly: true,
-                                    query: swap?.alternatives?.[0]?.task_types?.[0] ?? node.type,
+                                    nodeType: swap?.browse_hint?.node_type ?? node.type,
+                                    commercialOnly: swap?.browse_hint?.commercial_only ?? true,
+                                    query:
+                                      swap?.browse_hint?.query ??
+                                      swap?.alternatives?.[0]?.task_types?.[0] ??
+                                      node.type,
+                                    mode: swap?.browse_hint?.mode === "recommend" ? "recommend" : "search",
                                   })
                                 }
                               >
@@ -485,6 +495,7 @@ export default function ComplianceDrawer({
                 {license.flags.map((flag) => (
                   <li key={`${flag.node_id}-${flag.code}`}>
                     <strong>{flag.node_id}</strong> — {flag.message}
+                    {flag.explain ? <p className="compliance-hint">{flag.explain}</p> : null}
                   </li>
                 ))}
               </ul>
@@ -498,36 +509,42 @@ export default function ComplianceDrawer({
                       <strong>{swap.node_type}</strong> ({swap.node_id}) uses{" "}
                       <code>{swap.current_model_id}</code> ({swap.current_license})
                     </p>
-                    <ul className="node-helper__list">
-                      {swap.alternatives.map((alt) => (
-                        <li key={alt.model_id}>
-                          {alt.name} — {alt.license_spdx}
-                          <span className="node-helper__hint"> ({alt.model_id})</span>
-                          {onApplyModelSwap ? (
-                            <button
-                              type="button"
-                              className="compliance-swap__apply"
-                              onClick={() => onApplyModelSwap(swap.node_id, alt.model_id)}
-                            >
-                              Use
-                            </button>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
+                    {swap.explain ? <p className="compliance-hint">{swap.explain}</p> : null}
+                    {swap.alternatives.length > 0 ? (
+                      <ul className="node-helper__list">
+                        {swap.alternatives.map((alt) => (
+                          <li key={alt.model_id}>
+                            {alt.name} — {alt.rationale || alt.license_spdx}
+                            <span className="node-helper__hint"> ({alt.model_id})</span>
+                            {onApplyModelSwap ? (
+                              <button
+                                type="button"
+                                className="compliance-swap__apply"
+                                onClick={() => onApplyModelSwap(swap.node_id, alt.model_id)}
+                              >
+                                Use
+                              </button>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="compliance-hint">No socket-safe commercial peer in the catalog yet.</p>
+                    )}
                     {onBrowseModels ? (
                       <button
                         type="button"
                         className="compliance-swap__browse"
                         onClick={() =>
                           onBrowseModels({
-                            nodeType: swap.node_type,
-                            commercialOnly: true,
-                            query: swap.alternatives[0]?.task_types?.[0] ?? swap.node_type,
+                            nodeType: swap.browse_hint?.node_type ?? swap.node_type,
+                            commercialOnly: swap.browse_hint?.commercial_only ?? true,
+                            query: swap.browse_hint?.query ?? swap.alternatives[0]?.task_types?.[0] ?? swap.node_type,
+                            mode: swap.browse_hint?.mode === "recommend" ? "recommend" : "search",
                           })
                         }
                       >
-                        Browse in Model Browser
+                        {swap.alternatives.length > 0 ? "Browse in Model Browser" : "Find models (Commercial only)"}
                       </button>
                     ) : null}
                   </div>

@@ -133,11 +133,16 @@ class ModelInstaller:
         manifest = self.catalog.get(model_id)
         state = self.store.get(model_id)
         similar = self.catalog.similar(model_id) if manifest else []
+        similar_cards = []
+        for peer in similar[:4]:
+            card = _card(peer, self.store.get(peer.id))
+            card["similar_rationale"] = _similar_rationale(manifest, peer) if manifest else "Related catalog model"
+            similar_cards.append(card)
         return {
             "model_id": model_id,
             "error": state.error,
             "summary": _human_error(state.error or ""),
-            "similar_models": [_card(m, self.store.get(m.id)) for m in similar[:4]],
+            "similar_models": similar_cards,
         }
 
 
@@ -357,6 +362,23 @@ def _human_error(error: str) -> str:
     if "inference runtime not ready" in lowered or "not importable after install" in lowered:
         return "Python inference packages missing — reinstall from Model Browser (Cmd+K)."
     return error or "Install failed for an unknown reason."
+
+
+def _similar_rationale(source: ModelManifest, peer: ModelManifest) -> str:
+    parts: list[str] = []
+    shared_tasks = sorted(set(source.task_types) & set(peer.task_types))
+    if shared_tasks:
+        parts.append(f"same task ({shared_tasks[0]})")
+    shared_nodes = sorted(set(source.compatible_nodes) & set(peer.compatible_nodes))
+    if shared_nodes:
+        parts.append(f"fits {shared_nodes[0]}")
+    if peer.vram_gb_estimate <= source.vram_gb_estimate:
+        parts.append(f"≤{peer.vram_gb_estimate:g} GB VRAM")
+    if peer.license.commercial_ok:
+        parts.append("commercial OK")
+    if source.id in peer.similar_models or peer.id in source.similar_models:
+        parts.append("catalog peer")
+    return " · ".join(parts) if parts else "Related published model"
 
 
 def _card(manifest: ModelManifest, state: InstallState) -> dict:
