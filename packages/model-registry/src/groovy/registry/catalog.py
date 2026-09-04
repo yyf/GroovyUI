@@ -55,7 +55,8 @@ class ModelCatalog:
         results.sort(key=lambda item: (-item[0], item[1].name.lower()))
         return [m for _, m in results]
 
-    def similar(self, model_id: str, *, commercial_ok: bool | None = None) -> list[ModelManifest]:
+    def similar(self, model_id: str, *, commercial_ok: bool | None = None, limit: int = 4) -> list[ModelManifest]:
+        """Return seed ``similar_models`` first, then rank peers by task/tag/node/VRAM overlap."""
         model = self.get(model_id)
         if not model:
             return []
@@ -71,7 +72,45 @@ class ModelCatalog:
                 continue
             ranked.append(candidate)
             seen.add(similar_id)
+            if len(ranked) >= limit:
+                return ranked
+
+        scored: list[tuple[int, ModelManifest]] = []
+        for candidate in self.all():
+            if candidate.id in seen:
+                continue
+            score = self._similar_score(model, candidate)
+            # Require shared task or compatible node — avoid weak VRAM/author-only matches.
+            if score < 6:
+                continue
+            if commercial_ok is not None and candidate.license.commercial_ok != commercial_ok:
+                continue
+            scored.append((score, candidate))
+        scored.sort(key=lambda item: (-item[0], item[1].name.lower()))
+        for _, candidate in scored:
+            ranked.append(candidate)
+            if len(ranked) >= limit:
+                break
         return ranked
+
+    def _similar_score(self, source: ModelManifest, candidate: ModelManifest) -> int:
+        score = 0
+        shared_tasks = set(source.task_types) & set(candidate.task_types)
+        if shared_tasks:
+            score += 8 * len(shared_tasks)
+        shared_nodes = set(source.compatible_nodes) & set(candidate.compatible_nodes)
+        if shared_nodes:
+            score += 6 * len(shared_nodes)
+        shared_tags = set(source.tags) & set(candidate.tags)
+        if shared_tags:
+            score += 2 * min(len(shared_tags), 4)
+        if source.author and source.author == candidate.author:
+            score += 2
+        if candidate.vram_gb_estimate <= source.vram_gb_estimate:
+            score += 1
+        if abs(candidate.vram_gb_estimate - source.vram_gb_estimate) <= 2:
+            score += 1
+        return score
 
     def _score(self, model: ModelManifest, query: str) -> int:
         if not query:

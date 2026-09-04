@@ -1569,10 +1569,15 @@ export default function App() {
   }, []);
 
   const handleBrowseModelsFromCompliance = useCallback(
-    (opts: { nodeType?: string; commercialOnly?: boolean; query?: string }) => {
+    (opts: {
+      nodeType?: string;
+      commercialOnly?: boolean;
+      query?: string;
+      mode?: "search" | "recommend";
+    }) => {
       setComplianceOpen(false);
       openModelBrowser({
-        mode: "search",
+        mode: opts.mode ?? "search",
         commercialOnly: opts.commercialOnly ?? true,
         taskType: opts.query,
         query: opts.query,

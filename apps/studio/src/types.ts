@@ -268,6 +268,13 @@ export type LicenseSwapSuggestion = {
   current_model_id: string;
   current_license: string;
   rationale: string;
+  explain?: string;
+  browse_hint?: {
+    node_type: string;
+    commercial_only: boolean;
+    query: string;
+    mode?: string;
+  };
   alternatives: Array<{
     model_id: string;
     name: string;
@@ -288,6 +295,7 @@ export type LicenseScanSummary = ComplianceSummary & {
     severity: string;
     code: string;
     message: string;
+    explain?: string;
     model_id?: string;
   }>;
   swap_suggestions: LicenseSwapSuggestion[];
@@ -307,6 +315,8 @@ export type LicenseScanSummary = ComplianceSummary & {
       node_type: string;
       model_id?: string;
       message: string;
+      explain?: string;
+      next_step?: string;
     }>;
     can_optimize: boolean;
   };
@@ -400,7 +410,8 @@ export type InstallRecovery = {
   model_id: string;
   error: string | null;
   summary: string;
-  similar_models: ModelCard[];
+  explain?: string;
+  similar_models: Array<ModelCard & { similar_rationale?: string }>;
   suggested_fixes: string[];
 };
 

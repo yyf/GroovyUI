@@ -163,6 +163,9 @@ class ModelRecommendRequest(BaseModel):
     prompt: str
     commercial_ok: bool | None = None
     max_results: int = 5
+    task_type: str | None = None
+    node_type: str | None = None
+    max_vram_gb: float | None = None
 
 
 class ModelDraftRequest(BaseModel):
@@ -1126,6 +1129,9 @@ def recommend_models_endpoint(body: ModelRecommendRequest) -> dict[str, Any]:
         prompt=body.prompt,
         commercial_ok=body.commercial_ok,
         max_results=body.max_results,
+        task_type=body.task_type,
+        node_type=body.node_type,
+        max_vram_gb=body.max_vram_gb,
     )
 
 
