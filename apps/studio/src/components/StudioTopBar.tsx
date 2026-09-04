@@ -17,6 +17,7 @@ type Props = {
   complianceWarnings: number;
   inferenceStubActive?: boolean;
   onModelBrowser: () => void;
+  onAgentPlan?: () => void;
   onCompliance: () => void;
   onShareWorkflow: () => void;
   workflowBarOpen: boolean;
@@ -38,6 +39,7 @@ export default function StudioTopBar({
   complianceWarnings,
   inferenceStubActive = false,
   onModelBrowser,
+  onAgentPlan,
   onCompliance,
   onShareWorkflow,
   workflowBarOpen,
@@ -81,6 +83,18 @@ export default function StudioTopBar({
             Models
             <kbd className="workflow-generate__kbd">⌘K</kbd>
           </button>
+          {onAgentPlan ? (
+            <button
+              type="button"
+              className="top-bar__tool"
+              onClick={onAgentPlan}
+              title="Agent Plan — deterministic orchestration (⌘L / Ctrl+L)"
+              aria-keyshortcuts="Meta+L Control+L"
+            >
+              Plan
+              <kbd className="workflow-generate__kbd">⌘L</kbd>
+            </button>
+          ) : null}
         </div>
         <div className="top-bar__tools">
           {inferenceStubActive ? (

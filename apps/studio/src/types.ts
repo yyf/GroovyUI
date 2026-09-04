@@ -74,7 +74,7 @@ export type InferenceParamSpec = {
 };
 
 export type ModelBrowserLaunch = {
-  mode?: "search" | "recommend" | "workflow" | "discover";
+  mode?: "search" | "recommend" | "workflow" | "discover" | "plan";
   query?: string;
   taskType?: string;
   commercialOnly?: boolean;
@@ -404,6 +404,38 @@ export type ModelRecommendation = {
   model: ModelCard;
   rationale: string;
   score: number;
+};
+
+export type AgentPlanAction = {
+  type: "install_model" | "drop_node" | "apply_template" | "open_compliance";
+  id: string;
+  title: string;
+  rationale: string;
+  model_id?: string;
+  node_type?: string;
+  template_id?: string;
+  description?: string;
+  model?: ModelCard;
+  workflow?: Workflow;
+  priority?: number;
+  scan_ok?: boolean;
+};
+
+export type AgentPlan = {
+  prompt: string;
+  inferred_task?: string | null;
+  tools_used: string[];
+  actions: AgentPlanAction[];
+  notes: string;
+  agent: string;
+  mode: string;
+  recommend_count?: number;
+  workflow_count?: number;
+  license_preview?: {
+    scan_ok?: boolean;
+    flag_count?: number;
+    template_id?: string | null;
+  } | null;
 };
 
 export type InstallRecovery = {

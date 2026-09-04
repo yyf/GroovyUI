@@ -35,6 +35,7 @@ from groovy.registry.agent.install_recovery import install_recovery
 from groovy.registry.agent.license_scanner import scan_workflow_licenses
 from groovy.registry.agent.node_enricher import enrich_node_schema
 from groovy.registry.agent.recommender import recommend_models
+from groovy.registry.agent.planner import plan_agent_request
 from groovy.registry.agent.registry_freshness import scan_registry_freshness
 from groovy.registry.agent.template_generator import generate_template_from_workflow
 from groovy.registry.agent.workflow_suggester import suggest_workflows
@@ -166,6 +167,15 @@ class ModelRecommendRequest(BaseModel):
     task_type: str | None = None
     node_type: str | None = None
     max_vram_gb: float | None = None
+
+
+class AgentPlanRequest(BaseModel):
+    prompt: str
+    commercial_ok: bool | None = None
+    task_type: str | None = None
+    node_type: str | None = None
+    max_models: int = 3
+    max_workflows: int = 2
 
 
 class ModelDraftRequest(BaseModel):
@@ -1132,6 +1142,23 @@ def recommend_models_endpoint(body: ModelRecommendRequest) -> dict[str, Any]:
         task_type=body.task_type,
         node_type=body.node_type,
         max_vram_gb=body.max_vram_gb,
+    )
+
+
+@app.post("/api/agent/plan")
+def agent_plan_endpoint(body: AgentPlanRequest) -> dict[str, Any]:
+    """Deterministic orchestration: recommend + suggest workflow (+ license peek)."""
+    return plan_agent_request(
+        _registry.catalog,
+        _registry.store,
+        _registry,
+        prompt=body.prompt,
+        templates_dir=TEMPLATES_DIR,
+        commercial_ok=body.commercial_ok,
+        task_type=body.task_type,
+        node_type=body.node_type,
+        max_models=body.max_models,
+        max_workflows=body.max_workflows,
     )
 
 
