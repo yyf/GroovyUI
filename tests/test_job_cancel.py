@@ -33,7 +33,7 @@ def project_dir(tmp_path: Path) -> Path:
     sr = 48000
     t = np.linspace(0, 0.5, int(sr * 0.5), endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "noisy_speech_1214.wav", tone, sr)
+    sf.write(assets / "podcast_denoise_demo.wav", tone, sr)
     registry = ModelRegistry(tmp_path)
     registry.installer.install("basic-pitch")
     registry.installer.install("musicgen-melody-small")
@@ -44,7 +44,7 @@ def test_executor_cancel_at_start(project_dir: Path) -> None:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/noisy_speech_1214.wav"
+            node.widgets["path"] = "assets/samples/podcast_denoise_demo.wav"
 
     executor = Executor(project_dir)
     cancelled = executor.execute(workflow, target_nodes=["n5"], cancel_check=lambda: True)

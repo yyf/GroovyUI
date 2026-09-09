@@ -190,6 +190,8 @@ export default function App() {
   const [inferenceStubActive, setInferenceStubActive] = useState(false);
   const [forceRebuildNext, setForceRebuildNext] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  /** Template picker: false = ISMIR demo set; true (⌘D) = full featured list. */
+  const [studioDevMode, setStudioDevMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);
   const [inspectorWide, setInspectorWide] = useState(false);
@@ -829,6 +831,8 @@ export default function App() {
                 reason: "preview_not_listenable",
               });
             }
+          } else {
+            recordActivationMilestone("render_completed");
           }
           const savedOutput = targets
             .map((nodeId) => {
@@ -845,7 +849,7 @@ export default function App() {
                 ? `Saved to ${saved}`
                 : autoAudition && !auditionNodeId
                   ? "Render complete — Preview produced no listenable output"
-                  : "Complete",
+                  : "Render complete — click Play to audition",
           );
         } else if (job.status === "cancelled") {
           const outputs = job.outputs ?? {};
@@ -1030,7 +1034,7 @@ export default function App() {
         setStatus(`Pasted ${newNodeIds.length} node(s)`);
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "d") {
         if (!workflow || selectedNodeIds.length === 0) return;
         event.preventDefault();
         const { workflow: next, newNodeIds } = duplicateSelection(workflow, selectedNodeIds);
@@ -1038,6 +1042,13 @@ export default function App() {
         setWorkflow(next);
         setLastJob(null);
         setStatus(`Duplicated ${newNodeIds.length} node(s)`);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        const next = !studioDevMode;
+        setStudioDevMode(next);
+        setStatus(next ? "Dev mode — all templates" : "Standard mode — ISMIR templates");
         return;
       }
       if (event.key === "Tab" && selectedNodeIds.length === 1 && selectedNodeId && workflow) {
@@ -1076,7 +1087,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [running, runRender, cancelRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode, openModelBrowser, setNodes, nodeFinderOpen]);
+  }, [running, runRender, cancelRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode, openModelBrowser, setNodes, nodeFinderOpen, studioDevMode]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -1154,6 +1165,7 @@ export default function App() {
           return next;
         });
         setLastJob(null);
+        setViewportFitKey((key) => key + 1);
         setStatus(`Dropped ${nodeType} with ${modelId}`);
       });
       setModelBrowserOpen(false);
@@ -1457,6 +1469,7 @@ export default function App() {
       setLastJob(null);
       setNodeStatus({});
       setComplianceFastPath(false);
+      setViewportFitKey((key) => key + 1);
       setStatus("Workflow applied — ready to render");
       setLoadError(null);
     },
@@ -1479,7 +1492,6 @@ export default function App() {
         }
         applyWorkflow(next);
         setActiveTemplateId("");
-        setViewportFitKey((key) => key + 1);
         clipboardRef.current = null;
         pasteCountRef.current = 0;
         setStatus(`Imported ${file.name}`);
@@ -1551,7 +1563,8 @@ export default function App() {
           recordActivationMilestone("render_started", {
             preview_node_id: previewTarget,
           });
-          return runRender(previewTarget, false, true);
+          // Render only — Play remains explicit (patch-bay audition of cached PCM).
+          return runRender(previewTarget, false, false);
         },
       });
       if (result === "cancelled") {
@@ -1745,6 +1758,7 @@ export default function App() {
           selectedTemplateId={selectedTemplateId}
           onSelectTemplate={(id) => void loadTemplate(id)}
           onDeleteUserTemplate={(id) => void handleDeleteUserTemplate(id)}
+          studioDevMode={studioDevMode}
           onApplyWorkflow={applyGeneratedWorkflow}
           onGenerateTaskStart={beginGenerateTask}
           generateOpenNonce={generateOpenNonce}
@@ -1795,6 +1809,7 @@ export default function App() {
                       return next;
                     });
                     setLastJob(null);
+                    setViewportFitKey((key) => key + 1);
                   });
                 }}
               />
@@ -1925,6 +1940,7 @@ export default function App() {
                           return next;
                         });
                         setLastJob(null);
+                        setViewportFitKey((key) => key + 1);
                       });
                     }}
                   />

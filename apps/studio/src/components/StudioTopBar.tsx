@@ -11,6 +11,7 @@ type Props = {
   selectedTemplateId: string;
   onSelectTemplate: (templateId: string) => void;
   onDeleteUserTemplate?: (templateId: string) => void | Promise<void>;
+  studioDevMode?: boolean;
   onApplyWorkflow: (workflow: Workflow) => void;
   onGenerateTaskStart?: () => void;
   generateOpenNonce?: number;
@@ -33,6 +34,7 @@ export default function StudioTopBar({
   selectedTemplateId,
   onSelectTemplate,
   onDeleteUserTemplate,
+  studioDevMode = false,
   onApplyWorkflow,
   onGenerateTaskStart,
   generateOpenNonce = 0,
@@ -67,6 +69,7 @@ export default function StudioTopBar({
             selectedId={selectedTemplateId}
             onSelect={onSelectTemplate}
             onDeleteUserTemplate={onDeleteUserTemplate}
+            studioDevMode={studioDevMode}
           />
           <WorkflowGenerateButton
             onApply={onApplyWorkflow}

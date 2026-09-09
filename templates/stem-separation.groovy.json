@@ -5,7 +5,7 @@
   "metadata": {
     "title": "Stem Separation",
     "author": "groovy",
-    "description": "Demucs separates vocals, drums, bass, and other \u2014 preview all four stems; save vocals to exports. Loads Knockout_41k_mono.wav (swap LoadAudio to OpenSTEM .stem.mp4 + audio_stream 0 if you have ffmpeg). Requires demucs via Model Browser.",
+    "description": "Demucs separates vocals, drums, bass, and other \u2014 preview all four stems; save vocals to exports. Loads stem_separation_demo.wav (swap LoadAudio to OpenSTEM .stem.mp4 + audio_stream 0 if you have ffmpeg). Requires demucs via Model Browser.",
     "tags": [
       "featured",
       "ai",
@@ -36,7 +36,7 @@
         "y": 180.0
       },
       "widgets": {
-        "path": "assets/samples/Knockout_41k_mono.wav"
+        "path": "assets/samples/stem_separation_demo.wav"
       }
     },
     {

@@ -1,22 +1,3 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-dist/
-build/
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Node
-node_modules/
-dist/
-*.local
-
 # GroovyUI workspace
 workspace/
 .groovy/
@@ -26,17 +7,13 @@ workspace/
 *.m4a
 !tests/fixtures/*.wav
 !tests/golden/fixtures/*.wav
+# Bundled starter media for templates (copied into workspace on server start)
+!assets/samples/README.md
+!assets/samples/automation_cc7.mid
+!assets/samples/podcast_denoise_demo.wav
+!assets/samples/stem_separation_demo.wav
+# Local-only archive (not shipped)
+assets/samples/archived/
 !workspace/assets/samples/dialogue_48k.wav
-!workspace/assets/samples/noisy_speech_1214.wav
-
-# IDE / OS
-.DS_Store
-.idea/
-.vscode/
-.cursor/
-*.swp
-*.tsbuildinfo
-
-# Env
-.env
-.env.*
+!workspace/assets/samples/podcast_denoise_demo.wav
+!workspace/assets/samples/stem_separation_demo.wav

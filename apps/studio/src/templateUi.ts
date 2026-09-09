@@ -1,6 +1,17 @@
 import type { TemplateListItem } from "./api";
 
-/** Bundled templates shown in the workflow template picker (alphabetical by title in UI). */
+/**
+ * Bundled templates shown in standard (demo) mode — ISMIR 2026 LBD hero set.
+ * Toggle studio dev mode (⌘D) to reveal the full featured picker list.
+ */
+export const STANDARD_BUNDLED_TEMPLATE_IDS = [
+  "hello-groovy",
+  "isolate-vocals-to-transcribe",
+  "podcast-denoise",
+  "prompt-modular-synth",
+] as const;
+
+/** Bundled templates shown in the workflow template picker in studio dev mode. */
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5",
   "authenticity-check",
@@ -86,7 +97,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "localize-dialogue-a-to-b": "voice",
   "instrumental-tts-dub": "voice",
   "isolate-vocals-to-voice-convert": "voice",
-  "prompt-modular-synth": "voice",
+  "prompt-modular-synth": "modular",
 
   "stem-separation": "stems",
   "karaoke-stems": "stems",
@@ -112,6 +123,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "watermark-embed-detect": "trust",
 };
 
+const standardBundledIds = new Set<string>(STANDARD_BUNDLED_TEMPLATE_IDS);
 const featuredBundledIds = new Set<string>(FEATURED_BUNDLED_TEMPLATE_IDS);
 const pickerHiddenBundledIds = new Set<string>(PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS);
 
@@ -119,16 +131,21 @@ export function domainIdForTemplate(templateId: string): TemplateDomainId {
   return TEMPLATE_DOMAIN_BY_ID[templateId] ?? "other";
 }
 
-/** Hide non-featured bundled templates from the studio UI; user templates always show. */
+/**
+ * Hide non-featured bundled templates from the studio UI; user templates always show.
+ * Standard mode: ISMIR demo set only. Studio dev mode (⌘D): full featured picker list.
+ */
 export function templatesVisibleInUi(
   templates: TemplateListItem[],
   selectedId?: string,
+  studioDevMode = false,
 ): TemplateListItem[] {
+  const allowedIds = studioDevMode ? featuredBundledIds : standardBundledIds;
   return templates
     .filter((template) => {
       if (template.source === "user") return true;
       if (pickerHiddenBundledIds.has(template.id)) return false;
-      return featuredBundledIds.has(template.id) || template.id === selectedId;
+      return allowedIds.has(template.id) || template.id === selectedId;
     })
     .sort((a, b) => {
       if (a.source === "user" && b.source !== "user") return 1;

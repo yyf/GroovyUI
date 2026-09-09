@@ -27,7 +27,7 @@ def project_dir(tmp_path: Path) -> Path:
     duration = 1.0
     t = np.linspace(0, duration, int(sr * duration), endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "noisy_speech_1214.wav", tone, sr)
+    sf.write(assets / "podcast_denoise_demo.wav", tone, sr)
     registry = ModelRegistry(tmp_path)
     registry.installer.install("deepfilternet-v3")
     return tmp_path
@@ -37,7 +37,7 @@ def test_podcast_denoise_with_ai_node(project_dir: Path) -> None:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/noisy_speech_1214.wav"
+            node.widgets["path"] = "assets/samples/podcast_denoise_demo.wav"
 
     registry = ModelRegistry(project_dir)
     install = registry.store.get("deepfilternet-v3")
