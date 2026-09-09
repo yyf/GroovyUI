@@ -27,7 +27,7 @@ def project_dir(tmp_path: Path) -> Path:
     duration = 0.5
     t = np.linspace(0, duration, int(sr * duration), endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "noisy_speech_1214.wav", tone, sr)
+    sf.write(assets / "podcast_denoise_demo.wav", tone, sr)
     registry = ModelRegistry(tmp_path)
     registry.installer.install("basic-pitch")
     registry.installer.install("musicgen-melody-small")
@@ -38,7 +38,7 @@ def test_transcribe_and_regenerate(project_dir: Path) -> None:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     for node in workflow.nodes:
         if node.type == "LoadAudio":
-            node.widgets["path"] = "assets/samples/noisy_speech_1214.wav"
+            node.widgets["path"] = "assets/samples/podcast_denoise_demo.wav"
 
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=["n6"])

@@ -81,7 +81,7 @@ class LoadAudio(GroovyNode):
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "path": ("STRING", {"default": "assets/samples/noisy_speech_1214.wav"}),
+                "path": ("STRING", {"default": "assets/samples/podcast_denoise_demo.wav"}),
             },
             "optional": {
                 "start_frame": ("INT", {"default": 0}),

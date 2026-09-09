@@ -74,7 +74,7 @@ def project_dir(tmp_path: Path) -> Path:
     duration = 0.5
     t = np.linspace(0, duration, int(sr * duration), endpoint=False)
     tone = 0.25 * np.sin(2 * np.pi * 440 * t)
-    sf.write(assets / "noisy_speech_1214.wav", tone, sr)
+    sf.write(assets / "podcast_denoise_demo.wav", tone, sr)
     registry = ModelRegistry(tmp_path)
     registry.installer.install("audioseal-16bit")
     return tmp_path

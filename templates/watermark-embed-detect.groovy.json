@@ -31,7 +31,7 @@
       "type": "LoadAudio",
       "pos": { "x": 0, "y": 120 },
       "widgets": {
-        "path": "assets/samples/noisy_speech_1214.wav"
+        "path": "assets/samples/podcast_denoise_demo.wav"
       }
     },
     {

@@ -7,6 +7,8 @@ type Props = {
   selectedId: string;
   onSelect: (templateId: string) => void;
   onDeleteUserTemplate?: (templateId: string) => void | Promise<void>;
+  /** When true, picker shows the full featured list; otherwise ISMIR demo set only. */
+  studioDevMode?: boolean;
 };
 
 export default function TemplateSelector({
@@ -14,13 +16,14 @@ export default function TemplateSelector({
   selectedId,
   onSelect,
   onDeleteUserTemplate,
+  studioDevMode = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [openDomainId, setOpenDomainId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const visibleTemplates = useMemo(
-    () => templatesVisibleInUi(templates, selectedId),
-    [templates, selectedId],
+    () => templatesVisibleInUi(templates, selectedId, studioDevMode),
+    [templates, selectedId, studioDevMode],
   );
   const domainGroups = useMemo(
     () => groupBundledTemplatesByDomain(visibleTemplates),

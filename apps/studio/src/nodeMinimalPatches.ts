@@ -127,7 +127,7 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     description: "Combine LoadAudio L/R (or mono) outlets into one stereo buffer for SaveAudio.",
     focusNodeId: "n2",
     nodes: [
-      load("n1", 0, 0, "assets/samples/Knockout_41k.wav"),
+      load("n1", 0, 0, "assets/samples/stem_separation_demo.wav"),
       { id: "n2", type: "ChannelMerge", x: 280, widgets: { output_layout: "stereo" } },
       preview("n3", 540),
       {

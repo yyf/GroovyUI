@@ -50,8 +50,18 @@ describe("templatesVisibleInUi", () => {
     bundled("stem-lyrics-to-ace"),
   ];
 
-  it("shows featured bundled templates sorted by title", () => {
+  it("shows only ISMIR demo templates in standard mode", () => {
     const visible = templatesVisibleInUi(allBundled);
+    expect(visible.map((t) => t.id)).toEqual([
+      "hello-groovy",
+      "isolate-vocals-to-transcribe",
+      "podcast-denoise",
+      "prompt-modular-synth",
+    ]);
+  });
+
+  it("shows featured bundled templates in studio dev mode", () => {
+    const visible = templatesVisibleInUi(allBundled, undefined, true);
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
       "authenticity-check",
@@ -97,11 +107,7 @@ describe("templatesVisibleInUi", () => {
       { id: "ace-step-1.5", title: "Text to Music- ACE Step 1.5", description: "", source: "bundled" },
       { id: "podcast-denoise", title: "Podcast Denoise", description: "", source: "bundled" },
     ]);
-    expect(withTitles.map((t) => t.title)).toEqual([
-      "Hello GroovyUI",
-      "Podcast Denoise",
-      "Text to Music- ACE Step 1.5",
-    ]);
+    expect(withTitles.map((t) => t.title)).toEqual(["Hello GroovyUI", "Podcast Denoise"]);
   });
 
   it("hides simple-fm-synth unless it is the active selection", () => {
@@ -118,6 +124,9 @@ describe("templatesVisibleInUi", () => {
     expect(
       templatesVisibleInUi(allBundled, "self-playing-neural-rack").map((t) => t.id),
     ).not.toContain("self-playing-neural-rack");
+    expect(
+      templatesVisibleInUi(allBundled, "self-playing-neural-rack", true).map((t) => t.id),
+    ).not.toContain("self-playing-neural-rack");
   });
 
   it("hides melody-to-modular-synth even when it is the active selection", () => {
@@ -127,12 +136,16 @@ describe("templatesVisibleInUi", () => {
     expect(
       templatesVisibleInUi(allBundled, "melody-to-modular-synth").map((t) => t.id),
     ).not.toContain("melody-to-modular-synth");
+    expect(
+      templatesVisibleInUi(allBundled, "melody-to-modular-synth", true).map((t) => t.id),
+    ).not.toContain("melody-to-modular-synth");
   });
 
   it("always shows user templates", () => {
     const visible = templatesVisibleInUi([...allBundled, user("my-export")]);
     expect(visible.some((t) => t.id === "my-export")).toBe(true);
-    expect(visible.some((t) => t.id === "authenticity-check")).toBe(true);
+    expect(visible.some((t) => t.id === "hello-groovy")).toBe(true);
+    expect(visible.some((t) => t.id === "authenticity-check")).toBe(false);
     expect(visible.some((t) => t.id === "simple-fm-synth")).toBe(false);
   });
 
@@ -140,21 +153,31 @@ describe("templatesVisibleInUi", () => {
     const visible = templatesVisibleInUi(allBundled, "simple-fm-synth");
     expect(visible.map((t) => t.id)).toContain("simple-fm-synth");
   });
+
+  it("keeps a featured-but-non-ISMIR template visible when selected in standard mode", () => {
+    const visible = templatesVisibleInUi(allBundled, "stem-separation");
+    expect(visible.map((t) => t.id)).toContain("stem-separation");
+    expect(visible.map((t) => t.id)).toContain("hello-groovy");
+  });
 });
 
 describe("groupBundledTemplatesByDomain", () => {
   it("groups featured templates into domain submenus", () => {
-    const visible = templatesVisibleInUi([
-      bundled("hello-groovy", "Hello GroovyUI"),
-      bundled("podcast-denoise", "Podcast Denoise"),
-      bundled("stem-separation", "Stem Separation"),
-      bundled("text-to-music", "Text to Music"),
-      bundled("voice-cloning", "Voice Cloning"),
-      bundled("modular-generative-rack", "Modular Generative Rack"),
-      bundled("compare-stemmers", "Compare Stemmers"),
-      bundled("authenticity-check", "Authenticity Check"),
-      user("my-patch"),
-    ]);
+    const visible = templatesVisibleInUi(
+      [
+        bundled("hello-groovy", "Hello GroovyUI"),
+        bundled("podcast-denoise", "Podcast Denoise"),
+        bundled("stem-separation", "Stem Separation"),
+        bundled("text-to-music", "Text to Music"),
+        bundled("voice-cloning", "Voice Cloning"),
+        bundled("modular-generative-rack", "Modular Generative Rack"),
+        bundled("compare-stemmers", "Compare Stemmers"),
+        bundled("authenticity-check", "Authenticity Check"),
+        user("my-patch"),
+      ],
+      undefined,
+      true,
+    );
     const groups = groupBundledTemplatesByDomain(visible);
     expect(groups.map((g) => g.domain.id)).toEqual([
       "start",
@@ -200,5 +223,9 @@ describe("groupBundledTemplatesByDomain", () => {
 
   it("places neural-modular-rack in Modular", () => {
     expect(domainIdForTemplate("neural-modular-rack")).toBe("modular");
+  });
+
+  it("places prompt-modular-synth in Modular", () => {
+    expect(domainIdForTemplate("prompt-modular-synth")).toBe("modular");
   });
 });

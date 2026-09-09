@@ -41,7 +41,7 @@ def test_voice_cloning_template_schema_and_stub_render(tmp_path: Path, monkeypat
     result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
     assert result.valid, [e.message for e in result.errors]
 
-    sample = tmp_path / "assets" / "samples" / "noisy_speech_1214.wav"
+    sample = tmp_path / "assets" / "samples" / "podcast_denoise_demo.wav"
     sample.parent.mkdir(parents=True)
     sr = 48000
     t = np.linspace(0, 0.5, int(sr * 0.5), endpoint=False)

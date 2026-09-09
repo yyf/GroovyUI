@@ -50,4 +50,4 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Compare Stemmers | [compare-stemmers.groovy.json](compare-stemmers.groovy.json) | sprint / **featured** | demucs-v4 ∥ demucs-v4-ht |
 | Stem Lyrics to ACE | [stem-lyrics-to-ace.groovy.json](stem-lyrics-to-ace.groovy.json) | sprint / **featured** | demucs + whisper + ace-step-1.5-2b-turbo |
 
-Sample assets: `workspace/assets/samples/` (stem split: `Knockout_41k_mono.wav`; also `male-1.wav`, `dialogue_48k.wav`, etc.).
+Sample assets: `workspace/assets/samples/` (`podcast_denoise_demo.wav`, `stem_separation_demo.wav`, `automation_cc7.mid`).

@@ -578,8 +578,8 @@ export default function ComplianceDrawer({
                 ) : (
                   <p className="compliance-hint">
                     {missingModelCount > 0
-                      ? `${missingModelCount} model${missingModelCount === 1 ? "" : "s"} will be installed, then the Preview branch will render and audition.`
-                      : "Models are ready. The workflow will render only its Preview branch and audition it."}
+                      ? `${missingModelCount} model${missingModelCount === 1 ? "" : "s"} will be installed, then the Preview branch will render. Click Play to audition.`
+                      : "Models are ready. The workflow will render only its Preview branch — click Play to audition."}
                   </p>
                 )}
                 {fastPathError ? (
@@ -608,8 +608,8 @@ export default function ComplianceDrawer({
                     onClick={() => void runFastPath()}
                   >
                     {missingModelCount > 0
-                      ? "Install chain, render Preview & audition"
-                      : "Render Preview & audition"}
+                      ? "Install chain & render Preview"
+                      : "Render Preview"}
                   </button>
                 )}
               </section>

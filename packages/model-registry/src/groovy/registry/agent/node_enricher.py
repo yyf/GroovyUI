@@ -9,7 +9,7 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "inputs": {},
         "outputs": {"output_0": "Planar PCM audio buffer at native sample rate."},
         "widgets": {
-            "path": "Project-relative path to the audio file (e.g. assets/samples/noisy_speech_1214.wav).",
+            "path": "Project-relative path to the audio file (e.g. assets/samples/podcast_denoise_demo.wav).",
         },
     },
     "Denoise": {

@@ -4,6 +4,8 @@
 
 ### Added
 
+- **Studio template modes** — standard picker shows the ISMIR LBD demo set (`hello-groovy`, `podcast-denoise`, `prompt-modular-synth`, `isolate-vocals-to-transcribe`); **⌘D / Ctrl+D** toggles studio dev mode for the full featured list. Duplicate selection is **⌘⇧D / Ctrl+Shift+D**.
+- **Bundled sample media in git** — allowlisted `assets/samples/` demo files (including `podcast_denoise_demo.wav`, `stem_separation_demo.wav`) so cold clones and release builds seed the workspace without local uploads.
 - **`EmbedWatermark` / `DetectWatermark`** — Meta **AudioSeal** (MIT) nodes for localized audio watermark embed + detect with 16-bit payload decode; registry model `audioseal-16bit`.
 - **`watermark-embed-detect` template** — Trust domain: LoadAudio → EmbedWatermark → DetectWatermark; preview JSON report and save watermarked WAV.
 - **A/B sample check** — when two nodes are selected, Inspector Summary / Metrics show a horizontal sample table (Samples · Rate · Duration · Layout · Hash)
@@ -23,6 +25,8 @@
 
 ### Changed
 
+- **ISMIR demo LoadAudio paths** — `podcast-denoise` uses `assets/samples/podcast_denoise_demo.wav`; `isolate-vocals-to-transcribe` uses `assets/samples/stem_separation_demo.wav` (CI still injects a tone WAV fixture for the isolate template). Shipped samples are only those two demos plus `automation_cc7.mid`; older clips live under local `assets/samples/archived/`.
+- **Compliance fast path** — Install/render Preview no longer auto-auditions; Play remains the explicit cached-PCM audition (patch-bay, not a DAW).
 - **Marquee A/B select** — box-select prefers nodes over wires (`edgesSelectable={false}`) so two-node A/B compare works without only shift-click
 - **ACE-Step load errors** — do not treat every Hub message containing `401` as access-denied; skip a broken huggingface-cli login when Settings has no token; include the real Hub error on failure.
 - **`neural-modular-rack` mix** — IDM diptych at 136 BPM: syncopated deep sine vs on-grid ticks; ice/metallic sparkles through a long reverb plus light stereo Granulate; ACE-Step (Telefon Tel Aviv *TTV* / Kodomo *Deep Winter*); bus 50/50.
@@ -104,7 +108,7 @@
 - **Multi-select** — Shift/Cmd/Ctrl additive selection without conflicting with marquee select
 - **LoadAudio path input** — widget edits no longer clear selection or wipe text after one character
 - **Node sync** — preserve React Flow measured dimensions during workflow updates
-- Podcast template default sample: `noisy_speech_1214.wav`
+- Podcast template default sample: `podcast_denoise_demo.wav`
 
 ### Fixed (0.18.0 follow-up)
 

@@ -53,7 +53,7 @@ def resolve_project_media_path(cache: CacheStore, relative: str) -> tuple[Path, 
     Resolve a project-relative media path.
 
     Returns ``(absolute_path, canonical_project_relative_path)``.
-    Bare filenames (e.g. ``noisy_speech_1214.wav``) also match under ``assets/samples/`` and
+    Bare filenames (e.g. ``podcast_denoise_demo.wav``) also match under ``assets/samples/`` and
     ``assets/uploads/``. Hyphen/underscore spelling differences are tolerated when
     the match is unambiguous.
     """
