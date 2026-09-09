@@ -92,6 +92,7 @@ export default function SettingsDrawer({
   const [modelsBusy, setModelsBusy] = useState(false);
   const [removingModelId, setRemovingModelId] = useState<string | null>(null);
   const [hfTokenDraft, setHfTokenDraft] = useState("");
+  const [anthropicKeyDraft, setAnthropicKeyDraft] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -123,6 +124,7 @@ export default function SettingsDrawer({
       setCapabilities(caps);
       onSettingsChange?.(studio);
       setHfTokenDraft("");
+      setAnthropicKeyDraft("");
       setStatus("");
       await refreshInstalledModels();
     } catch {
@@ -152,6 +154,7 @@ export default function SettingsDrawer({
 
   const saveStudio = async (patch: {
     hf_token?: string | null;
+    anthropic_api_key?: string | null;
     inference_mode?: "real" | "stub";
     content_credentials_mode?: "off" | "sign_if_configured" | "required";
   }) => {
@@ -160,6 +163,7 @@ export default function SettingsDrawer({
       setStudioSettings(next);
       onSettingsChange?.(next);
       setHfTokenDraft("");
+      setAnthropicKeyDraft("");
       setStatus("Saved");
     } catch {
       setStatus("Could not save studio settings");
@@ -389,6 +393,52 @@ export default function SettingsDrawer({
                   {studioSettings.hf_token_set && studioSettings.hf_token_source !== "environment" ? (
                     <button type="button" onClick={() => void saveStudio({ hf_token: null })}>
                       Clear token
+                    </button>
+                  ) : null}
+                </div>
+
+                <h4 className="settings-subsection-title">Plan / Claude</h4>
+                <p className="compliance-hint">
+                  Anthropic API key for non-deterministic Plan (Claude). Environment variable{" "}
+                  <code>ANTHROPIC_API_KEY</code> takes precedence. Prefer env over saving in the project
+                  file. Keys never leave this machine except to api.anthropic.com.
+                </p>
+                {studioSettings.anthropic_api_key_source === "environment" ? (
+                  <p className="compliance-hint">Using ANTHROPIC_API_KEY from environment.</p>
+                ) : studioSettings.anthropic_api_key_set ? (
+                  <p className="compliance-hint">Key saved in project settings (.groovy/, gitignored).</p>
+                ) : (
+                  <p className="compliance-hint">
+                    No Claude key — Plan (non-deterministic) will ask for a key. Use Suggest workflow for
+                    deterministic template matches without an API key.
+                  </p>
+                )}
+                <label className="settings-field">
+                  Anthropic API key
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    placeholder={
+                      studioSettings.anthropic_api_key_set
+                        ? "••••••••  (leave blank to keep)"
+                        : "sk-ant-…"
+                    }
+                    value={anthropicKeyDraft}
+                    onChange={(event) => setAnthropicKeyDraft(event.target.value)}
+                  />
+                </label>
+                <div className="model-card__actions">
+                  <button
+                    type="button"
+                    disabled={!anthropicKeyDraft.trim()}
+                    onClick={() => void saveStudio({ anthropic_api_key: anthropicKeyDraft.trim() })}
+                  >
+                    Save Claude key
+                  </button>
+                  {studioSettings.anthropic_api_key_set &&
+                  studioSettings.anthropic_api_key_source !== "environment" ? (
+                    <button type="button" onClick={() => void saveStudio({ anthropic_api_key: null })}>
+                      Clear Claude key
                     </button>
                   ) : null}
                 </div>

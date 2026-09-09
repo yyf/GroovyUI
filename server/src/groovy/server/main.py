@@ -176,6 +176,8 @@ class AgentPlanRequest(BaseModel):
     node_type: str | None = None
     max_models: int = 3
     max_workflows: int = 2
+    planner: str = "deterministic"
+    llm_model: str | None = None
 
 
 class ModelDraftRequest(BaseModel):
@@ -243,6 +245,7 @@ class LiveIoSettingsRequest(BaseModel):
 
 class StudioSettingsRequest(BaseModel):
     hf_token: str | None = None
+    anthropic_api_key: str | None = None
     inference_mode: str | None = None
     content_credentials_mode: str | None = None
 
@@ -1147,7 +1150,28 @@ def recommend_models_endpoint(body: ModelRecommendRequest) -> dict[str, Any]:
 
 @app.post("/api/agent/plan")
 def agent_plan_endpoint(body: AgentPlanRequest) -> dict[str, Any]:
-    """Deterministic orchestration: recommend + suggest workflow (+ license peek)."""
+    """Plan orchestration: deterministic tools fan-in, or Claude (BYOK) suggestions."""
+    planner = (body.planner or "deterministic").strip().lower()
+    if planner not in ("deterministic", "llm"):
+        raise HTTPException(status_code=400, detail="planner must be 'deterministic' or 'llm'")
+    if planner == "llm":
+        from groovy.registry.agent.llm_planner import plan_agent_request_llm
+
+        return plan_agent_request_llm(
+            _registry.catalog,
+            _registry.store,
+            _registry,
+            prompt=body.prompt,
+            templates_dir=TEMPLATES_DIR,
+            api_key=_studio_settings.anthropic_api_key(),
+            commercial_ok=body.commercial_ok,
+            task_type=body.task_type,
+            node_type=body.node_type,
+            max_models=body.max_models,
+            max_workflows=body.max_workflows,
+            model=(body.llm_model or "").strip() or "claude-sonnet-5",
+            known_node_types=set(NODE_REGISTRY.keys()),
+        )
     return plan_agent_request(
         _registry.catalog,
         _registry.store,

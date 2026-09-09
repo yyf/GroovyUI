@@ -22,6 +22,7 @@ import type {
   ModelInstallState,
   Workflow,
 } from "../types";
+import WorkflowBlueprintPreview from "./WorkflowBlueprintPreview";
 
 type Props = {
   open: boolean;
@@ -49,6 +50,19 @@ const TASK_FILTERS = [
   { value: "singing-synthesis", label: "Singing synthesis" },
   { value: "deepfake-detection", label: "Deepfake detection" },
   { value: "audio-compare", label: "A/B compare" },
+];
+
+const PLAN_LLM_OPTIONS = [
+  {
+    id: "claude-sonnet-5",
+    label: "Claude Sonnet",
+    description: "Stronger multi-step graph drafts. Best default.",
+  },
+  {
+    id: "claude-haiku-4-5",
+    label: "Claude Haiku",
+    description: "Faster and cheaper. Better for short, single-goal drafts.",
+  },
 ];
 
 function isDraftModel(model: ModelCard): boolean {
@@ -144,6 +158,10 @@ export default function ModelBrowser({
   const [draftingId, setDraftingId] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<Array<{ model: ModelCard; rationale: string }>>([]);
   const [agentPlan, setAgentPlan] = useState<AgentPlan | null>(null);
+  const [planLlmModel, setPlanLlmModel] = useState(PLAN_LLM_OPTIONS[0].id);
+  const [selectedPlanWorkflowId, setSelectedPlanWorkflowId] = useState<string | null>(null);
+  /** Plan mode only submits to Claude after Enter — not while typing. */
+  const [planSubmittedQuery, setPlanSubmittedQuery] = useState<string | null>(null);
   const [workflowSuggestions, setWorkflowSuggestions] = useState<
     Array<{
       template_id: string;
@@ -194,27 +212,39 @@ export default function ModelBrowser({
 
   useEffect(() => {
     if (!open) return;
+    if (mode === "plan") return;
     const timer = window.setTimeout(() => setDebouncedQuery(query), 300);
     return () => window.clearTimeout(timer);
-  }, [query, open]);
+  }, [query, open, mode]);
+
+  useEffect(() => {
+    if (mode !== "plan") {
+      setPlanSubmittedQuery(null);
+    }
+  }, [mode]);
 
   const refresh = useCallback(async () => {
+    if (mode === "plan" && !(planSubmittedQuery ?? "").trim()) {
+      setAgentPlan(null);
+      setModels([]);
+      setRecommendations([]);
+      setWorkflowSuggestions([]);
+      setDiscoverResults([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       if (mode === "plan") {
-        if (!debouncedQuery.trim()) {
-          setAgentPlan(null);
-          setModels([]);
-          setRecommendations([]);
-          setWorkflowSuggestions([]);
-          setDiscoverResults([]);
-          return;
-        }
-        const data = await planAgentRequest(debouncedQuery, {
+        const prompt = (planSubmittedQuery ?? "").trim();
+        const data = await planAgentRequest(prompt, {
           commercial_ok: commercialOnly ? true : undefined,
           task_type: taskType || undefined,
           node_type: effectiveNodeFilter || undefined,
+          planner: "llm",
+          llm_model: planLlmModel,
         });
         setAgentPlan(data);
         setModels([]);
@@ -296,7 +326,7 @@ export default function ModelBrowser({
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, mode, taskType, commercialOnly, effectiveNodeFilter]);
+  }, [debouncedQuery, planSubmittedQuery, mode, taskType, commercialOnly, effectiveNodeFilter, planLlmModel]);
 
   useEffect(() => {
     if (!open) return;
@@ -523,7 +553,7 @@ export default function ModelBrowser({
       onClose();
       return;
     }
-    if (action.type === "apply_template" && action.workflow) {
+    if ((action.type === "apply_template" || action.type === "propose_workflow") && action.workflow) {
       onApplyWorkflow?.(action.workflow);
       onClose();
       return;
@@ -533,6 +563,32 @@ export default function ModelBrowser({
       onOpenCompliance?.();
     }
   };
+
+  const isPlanWorkflowAction = (action: AgentPlanAction) =>
+    (action.type === "propose_workflow" || action.type === "apply_template") && Boolean(action.workflow);
+
+  const planWorkflowActions = useMemo(
+    () => agentPlan?.actions.filter(isPlanWorkflowAction) ?? [],
+    [agentPlan],
+  );
+  const planSupportActions = useMemo(
+    () => agentPlan?.actions.filter((action) => !isPlanWorkflowAction(action)) ?? [],
+    [agentPlan],
+  );
+  const selectedPlanWorkflow = useMemo(
+    () => planWorkflowActions.find((action) => action.id === selectedPlanWorkflowId) ?? planWorkflowActions[0],
+    [planWorkflowActions, selectedPlanWorkflowId],
+  );
+
+  useEffect(() => {
+    if (!planWorkflowActions.length) {
+      setSelectedPlanWorkflowId(null);
+      return;
+    }
+    if (!selectedPlanWorkflowId || !planWorkflowActions.some((action) => action.id === selectedPlanWorkflowId)) {
+      setSelectedPlanWorkflowId(planWorkflowActions[0].id);
+    }
+  }, [planWorkflowActions, selectedPlanWorkflowId]);
 
   const cards = useMemo(
     () =>
@@ -551,7 +607,7 @@ export default function ModelBrowser({
 
   const catalogHint =
     mode === "plan"
-      ? "Plan orchestrates Find models + Suggest workflow (+ license peek). Actions stay click-to-run."
+      ? "Experimental — Claude prefers public AI models and simple hops (no private model/template/node-type catalog). Apply unlocks when every node exists. BYOK via Settings or ANTHROPIC_API_KEY."
       : mode === "recommend"
       ? "Find models searches the local published catalog only — not live Hugging Face."
       : mode === "search"
@@ -653,7 +709,7 @@ export default function ModelBrowser({
 
   return (
     <div className="model-browser-backdrop" onClick={onClose}>
-      <div className={`model-browser${detailModel ? " model-browser--with-detail" : ""}`} onClick={(event) => event.stopPropagation()}>
+      <div className={`model-browser${detailModel ? " model-browser--with-detail" : ""}${mode === "plan" ? " model-browser--plan" : ""}`} onClick={(event) => event.stopPropagation()}>
         <header className="model-browser__header">
           <h2>Model Browser</h2>
           <button type="button" className="model-browser__close" onClick={onClose}>
@@ -753,9 +809,9 @@ export default function ModelBrowser({
               className="model-browser__search"
               placeholder={
                 mode === "plan"
-                  ? "Describe the outcome — e.g. commercial podcast cleanup then share"
+                  ? "Describe the outcome, then press Enter — e.g. commercial podcast cleanup"
                   : mode === "workflow"
-                  ? "Describe your pipeline — e.g. denoise podcast then normalize"
+                  ? "Deterministic match — e.g. denoise podcast then normalize"
                   : mode === "recommend"
                     ? "Describe your task — e.g. commercial-friendly podcast denoise"
                     : mode === "discover"
@@ -764,52 +820,68 @@ export default function ModelBrowser({
               }
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (mode !== "plan") return;
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                const prompt = query.trim();
+                setPlanSubmittedQuery(prompt || null);
+                if (!prompt) {
+                  setAgentPlan(null);
+                }
+              }}
               autoFocus
             />
             <div className="model-browser__filters">
               {mode === "workflow" ? (
-                <p className="model-browser__hint">Suggestions are preview-only — click Apply to replace the canvas.</p>
-              ) : mode === "plan" ? (
+                <p className="model-browser__hint">
+                  Deterministic template match — same suggestions for the same prompt. Preview-only until you Apply.
+                </p>
+              ) : (
                 <>
-                  <select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
-                    {TASK_FILTERS.map((filter) => (
-                      <option key={filter.value} value={filter.value}>
-                        {filter.label}
-                      </option>
-                    ))}
-                  </select>
-                  <label>
+                  <label className="model-browser__filter-select">
+                    Task
+                    <select
+                      value={taskType}
+                      onChange={(event) => setTaskType(event.target.value)}
+                      aria-label="Task filter"
+                    >
+                      {TASK_FILTERS.map((filter) => (
+                        <option key={filter.value} value={filter.value}>
+                          {filter.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="model-browser__filter-check">
                     <input
                       type="checkbox"
                       checked={commercialOnly}
                       onChange={(event) => setCommercialOnly(event.target.checked)}
                     />
-                    Commercial OK
+                    {mode === "discover" ? "Commercial OK only" : "Commercial OK"}
                   </label>
-                  <p className="model-browser__hint">
-                    Deterministic orchestration (⌘L) — tools fan in; you still Install / Apply.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
-                    {TASK_FILTERS.map((filter) => (
-                      <option key={filter.value} value={filter.value}>
-                        {filter.label}
-                      </option>
-                    ))}
-                  </select>
-                  {mode !== "discover" ? (
-                    <label>
-                      <input type="checkbox" checked={commercialOnly} onChange={(event) => setCommercialOnly(event.target.checked)} />
-                      Commercial OK
-                    </label>
-                  ) : (
-                    <label>
-                      <input type="checkbox" checked={commercialOnly} onChange={(event) => setCommercialOnly(event.target.checked)} />
-                      Commercial OK only
-                    </label>
-                  )}
+                  {mode === "plan" ? (
+                    <div className="model-browser__llm-options" role="radiogroup" aria-label="LLM options">
+                      <p className="model-browser__llm-options-label">LLM options</p>
+                      {PLAN_LLM_OPTIONS.map((option) => {
+                        const selected = planLlmModel === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            className={`model-browser__llm-option${selected ? " model-browser__llm-option--active" : ""}`}
+                            onClick={() => setPlanLlmModel(option.id)}
+                          >
+                            <span className="model-browser__llm-option-title">{option.label}</span>
+                            <span className="model-browser__llm-option-desc">{option.description}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </>
               )}
             </div>
@@ -888,45 +960,142 @@ export default function ModelBrowser({
                 ) : null}
               </div>
             ) : null}
-            <div className="model-browser__list">
-              {loading ? <p className="model-browser__hint">Searching…</p> : null}
+            <div className={`model-browser__list${mode === "plan" ? " model-browser__list--plan" : ""}`}>
+              {loading ? (
+                <p className="model-browser__hint model-browser__hint--waiting">
+                  {mode === "plan"
+                    ? "Waiting for Claude to draft a blueprint…"
+                    : "Searching…"}
+                </p>
+              ) : null}
               {error ? <p className="model-browser__error">{error}</p> : null}
               {notice ? <p className="model-browser__notice">{notice}</p> : null}
               {mode === "plan" ? (
                 <>
-                  {!loading && !error && (!agentPlan || agentPlan.actions.length === 0) ? (
-                    <p className="model-browser__hint">
-                      Describe a task to build a plan — models, template apply, and optional compliance review.
-                    </p>
+                  {!loading && !error && !planSubmittedQuery ? (
+                    <div className="workflow-blueprint workflow-blueprint--empty">
+                      <p>
+                        Type an outcome and press <strong>Enter</strong> — Claude drafts an experimental{" "}
+                        <strong>blueprint</strong> (building blocks only, no render). Some nodes may not exist
+                        yet. Use Suggest workflow for deterministic template matches.
+                      </p>
+                    </div>
+                  ) : null}
+                  {loading && planSubmittedQuery ? (
+                    <div className="workflow-blueprint workflow-blueprint--empty workflow-blueprint--waiting" aria-live="polite">
+                      <p>
+                        Waiting for Claude to respond…
+                        <span className="model-browser__waiting-sub">
+                          Drafting a blueprint for “{planSubmittedQuery}”
+                        </span>
+                      </p>
+                    </div>
                   ) : null}
                   {agentPlan?.notes ? <p className="model-browser__hint">{agentPlan.notes}</p> : null}
+                  {agentPlan?.mode === "needs_api_key" ? (
+                    <p className="model-browser__hint">
+                      Open Settings → Plan / Claude to save a key, or export{" "}
+                      <code>ANTHROPIC_API_KEY</code> (preferred).
+                    </p>
+                  ) : null}
                   {agentPlan?.tools_used?.length ? (
                     <p className="model-browser__hint">
-                      Tools: {agentPlan.tools_used.join(" → ")}
+                      Non-deterministic · Tools: {agentPlan.tools_used.join(" → ")}
                       {agentPlan.inferred_task ? ` · task ${agentPlan.inferred_task}` : ""}
                     </p>
                   ) : null}
-                  {agentPlan?.actions.map((action) => (
-                    <article key={action.id} className="model-card">
-                      <div className="model-card__row">
-                        <strong>{action.title}</strong>
-                        <span className="pill">{action.type.replace("_", " ")}</span>
-                      </div>
-                      <p className="model-card__rationale">{action.rationale}</p>
-                      {action.description ? <p className="model-card__desc">{action.description}</p> : null}
-                      <div className="model-card__actions">
-                        <button type="button" onClick={() => runPlanAction(action)}>
-                          {action.type === "install_model"
-                            ? "Install"
-                            : action.type === "drop_node"
-                              ? "Drop node"
-                              : action.type === "apply_template"
-                                ? "Apply workflow"
-                                : "Open Compliance"}
-                        </button>
-                      </div>
-                    </article>
-                  ))}
+                  {planWorkflowActions.length > 1 ? (
+                    <div className="model-browser__plan-options" role="radiogroup" aria-label="Blueprint options">
+                      <p className="model-browser__llm-results-label">Blueprint options</p>
+                      {planWorkflowActions.map((action) => {
+                        const selected = (selectedPlanWorkflow?.id ?? null) === action.id;
+                        return (
+                          <button
+                            key={action.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            className={`model-browser__plan-option${selected ? " model-browser__plan-option--active" : ""}`}
+                            onClick={() => setSelectedPlanWorkflowId(action.id)}
+                          >
+                            <span className="model-browser__plan-option-title">
+                              {action.summary || action.title}
+                            </span>
+                            <span className="model-browser__plan-option-meta">
+                              {(action.unknown_node_types?.length ?? 0) > 0
+                                ? `${action.unknown_node_types?.length} unavailable`
+                                : "ready types"}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+                  {selectedPlanWorkflow?.workflow ? (
+                    <WorkflowBlueprintPreview
+                      workflow={selectedPlanWorkflow.workflow}
+                      title={selectedPlanWorkflow.summary || selectedPlanWorkflow.title}
+                      subtitle={selectedPlanWorkflow.rationale || selectedPlanWorkflow.description}
+                      unknownNodeTypes={selectedPlanWorkflow.unknown_node_types}
+                    />
+                  ) : !loading && agentPlan && agentPlan.mode !== "needs_api_key" && planWorkflowActions.length === 0 ? (
+                    <div className="workflow-blueprint workflow-blueprint--empty">
+                      <p>No graph in this plan — try another prompt, or use Suggest workflow.</p>
+                    </div>
+                  ) : null}
+                  {selectedPlanWorkflow ? (
+                    <div className="model-browser__plan-apply">
+                      <button
+                        type="button"
+                        className="model-browser__plan-apply-btn"
+                        disabled={(selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0}
+                        title={
+                          (selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0
+                            ? "Unavailable nodes — treat this blueprint as a brainstorming snapshot"
+                            : "Apply this blueprint to the canvas"
+                        }
+                        onClick={() => {
+                          if ((selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0) return;
+                          runPlanAction(selectedPlanWorkflow);
+                        }}
+                      >
+                        Apply workflow to canvas
+                      </button>
+                      <span
+                        className={`model-browser__hint${
+                          (selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0
+                            ? " model-browser__hint--warn"
+                            : ""
+                        }`}
+                      >
+                        {(selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0
+                          ? "Brainstorming snapshot — some nodes aren’t available yet. Apply unlocks when every node in the blueprint exists."
+                          : "All nodes available — Apply replaces the canvas with this blueprint."}
+                      </span>
+                    </div>
+                  ) : null}
+                  {planSupportActions.length > 0 ? (
+                    <div className="model-browser__plan-steps">
+                      <p className="model-browser__llm-results-label">Also suggested</p>
+                      <ul>
+                        {planSupportActions.map((action) => (
+                          <li key={action.id}>
+                            <span>
+                              <strong>{action.summary || action.title}</strong>
+                              {action.rationale ? ` — ${action.rationale}` : ""}
+                            </span>
+                            <button type="button" onClick={() => runPlanAction(action)}>
+                              {action.type === "install_model"
+                                ? "Install"
+                                : action.type === "drop_node"
+                                  ? "Drop node"
+                                  : "Open Compliance"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </>
               ) : mode === "workflow" ? (
                 <>

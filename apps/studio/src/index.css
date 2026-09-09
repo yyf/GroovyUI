@@ -4848,6 +4848,11 @@ body {
   width: min(1080px, 96vw);
 }
 
+.model-browser--plan {
+  width: min(960px, 96vw);
+  height: min(88vh, 860px);
+}
+
 .model-browser__body {
   display: flex;
   min-height: 0;
@@ -6114,9 +6119,336 @@ body {
 .model-browser__filters {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: flex-end;
   margin-bottom: 10px;
   font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.model-browser__filter-select {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.model-browser__filter-select select {
+  min-width: 180px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-silver);
+  background: var(--bg-recessed);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.model-browser__filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.model-browser__llm-options {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.model-browser__llm-options-label,
+.model-browser__llm-results-label {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.model-browser__llm-option {
+  appearance: none;
+  text-align: left;
+  border: 1px solid var(--border-silver);
+  background: var(--bg-recessed);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.model-browser__llm-option:hover {
+  border-color: var(--text-secondary);
+}
+
+.model-browser__llm-option--active {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--bg-elevated);
+}
+
+.model-browser__llm-option-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.model-browser__llm-option-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.model-browser__list--plan {
+  gap: 12px;
+}
+
+.model-browser__plan-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.model-browser__plan-option {
+  appearance: none;
+  text-align: left;
+  border: 1px solid var(--border-silver);
+  background: var(--bg-recessed);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.model-browser__plan-option--active {
+  border-color: #5b8def;
+  box-shadow: inset 3px 0 0 #5b8def;
+  background: color-mix(in srgb, #5b8def 10%, var(--bg-elevated));
+}
+
+.model-browser__plan-option-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.model-browser__plan-option-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+.model-browser__plan-apply {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.model-browser__plan-apply-btn {
+  appearance: none;
+  border: 1px solid #5b8def;
+  background: color-mix(in srgb, #5b8def 18%, var(--bg-elevated));
+  color: var(--text-primary);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.model-browser__plan-apply-btn:disabled {
+  border-color: var(--border-silver);
+  background: var(--bg-recessed);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.model-browser__plan-steps ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.model-browser__plan-steps li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-rule);
+  background: var(--bg-recessed);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.model-browser__plan-steps li strong {
+  color: var(--text-primary);
+}
+
+.model-browser__plan-steps button {
+  flex-shrink: 0;
+  appearance: none;
+  border: 1px solid var(--border-silver);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.workflow-blueprint {
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  border: 1px solid #1c3a66;
+  background:
+    linear-gradient(180deg, rgba(12, 28, 52, 0.92), rgba(8, 18, 36, 0.98));
+  overflow: hidden;
+}
+
+.workflow-blueprint--empty {
+  align-items: center;
+  justify-content: center;
+  padding: 28px 20px;
+  text-align: center;
+  color: #9eb6d8;
+  font-size: 13px;
+  line-height: 1.45;
+  border-style: dashed;
+}
+
+.workflow-blueprint--empty p {
+  margin: 0;
+  max-width: 36em;
+}
+
+.workflow-blueprint--waiting {
+  border-color: #5b8def;
+  border-style: solid;
+}
+
+.model-browser__waiting-sub {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8aa4c8;
+  font-weight: 400;
+}
+
+.model-browser__hint--waiting {
+  color: #9eb6d8;
+}
+
+.workflow-blueprint__chrome {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1c3a66;
+  background: rgba(8, 20, 40, 0.85);
+}
+
+.workflow-blueprint__badge {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5b8def;
+  border: 1px solid #5b8def;
+  padding: 2px 6px;
+}
+
+.workflow-blueprint__title {
+  font-size: 13px;
+  color: #d7e6ff;
+  font-weight: 600;
+}
+
+.workflow-blueprint__subtitle {
+  flex: 1 1 100%;
+  font-size: 12px;
+  color: #8aa4c8;
+  line-height: 1.35;
+}
+
+.workflow-blueprint__canvas {
+  flex: 1;
+  min-height: 240px;
+  height: 280px;
+}
+
+.workflow-blueprint__canvas .react-flow {
+  background: transparent;
+}
+
+.blueprint-node {
+  min-width: 108px;
+  padding: 8px 12px;
+  border: 1px solid #5b8def;
+  background: rgba(16, 40, 72, 0.92);
+  color: #cfe0ff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(91, 141, 239, 0.25);
+}
+
+.blueprint-node--missing {
+  border-color: #e0a04a;
+  border-style: dashed;
+  background: rgba(64, 36, 8, 0.9);
+  color: #ffd9a8;
+  box-shadow: inset 0 0 0 1px rgba(224, 160, 74, 0.35);
+}
+
+.blueprint-node__missing-tag {
+  display: block;
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #e0a04a;
+}
+
+.blueprint-node__label {
+  display: block;
+}
+
+.blueprint-node__handle {
+  width: 7px !important;
+  height: 7px !important;
+  background: #5b8def !important;
+  border: 1px solid #0a1628 !important;
+}
+
+.blueprint-node--missing .blueprint-node__handle {
+  background: #e0a04a !important;
+}
+
+.workflow-blueprint__missing-legend {
+  margin-left: auto;
+  font-size: 11px;
+  color: #e0a04a;
+}
+
+.model-browser__hint--warn {
+  color: #e0a04a;
+}
+
+.pill--llm {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--text-primary);
 }
 
 .model-browser__filters select {

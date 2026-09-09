@@ -102,6 +102,8 @@ export type DiscoverModelResult = {
 export type StudioSettings = {
   hf_token_set: boolean;
   hf_token_source: "environment" | "settings" | null;
+  anthropic_api_key_set: boolean;
+  anthropic_api_key_source: "environment" | "settings" | null;
   inference_mode: "real" | "stub";
   inference_effective: "real" | "stub";
   inference_effective_source: "environment" | "settings";
@@ -407,9 +409,11 @@ export type ModelRecommendation = {
 };
 
 export type AgentPlanAction = {
-  type: "install_model" | "drop_node" | "apply_template" | "open_compliance";
+  type: "install_model" | "drop_node" | "apply_template" | "propose_workflow" | "open_compliance";
   id: string;
   title: string;
+  /** High-level outcome blurb (LLM plans). */
+  summary?: string;
   rationale: string;
   model_id?: string;
   node_type?: string;
@@ -417,6 +421,8 @@ export type AgentPlanAction = {
   description?: string;
   model?: ModelCard;
   workflow?: Workflow;
+  /** Node types in the draft that are not registered in this build. */
+  unknown_node_types?: string[];
   priority?: number;
   scan_ok?: boolean;
 };
@@ -429,6 +435,9 @@ export type AgentPlan = {
   notes: string;
   agent: string;
   mode: string;
+  planner?: "deterministic" | "llm";
+  deterministic?: boolean;
+  experimental?: boolean;
   recommend_count?: number;
   workflow_count?: number;
   license_preview?: {
