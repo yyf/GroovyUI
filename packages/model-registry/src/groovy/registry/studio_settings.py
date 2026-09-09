@@ -94,12 +94,19 @@ class StudioSettingsStore:
             credentials_effective = credentials_mode
             credentials_effective_source = "settings"
         cache_dir = self.project_dir / ".groovy" / "cache"
+        anthropic = self.anthropic_api_key(raw)
         return {
             "hf_token_set": bool(token),
             "hf_token_source": (
                 "environment"
                 if os.environ.get("HF_TOKEN", "").strip()
                 else ("settings" if raw.get("hf_token") else None)
+            ),
+            "anthropic_api_key_set": bool(anthropic),
+            "anthropic_api_key_source": (
+                "environment"
+                if os.environ.get("ANTHROPIC_API_KEY", "").strip()
+                else ("settings" if raw.get("anthropic_api_key") else None)
             ),
             "inference_mode": mode,
             "inference_effective": effective,
@@ -120,4 +127,13 @@ class StudioSettingsStore:
             return env
         raw = data if data is not None else self.load()
         token = str(raw.get("hf_token", "")).strip()
+        return token or None
+
+    def anthropic_api_key(self, data: dict[str, Any] | None = None) -> str | None:
+        """Resolve Anthropic API key. Env ``ANTHROPIC_API_KEY`` wins over settings file."""
+        env = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        if env:
+            return env
+        raw = data if data is not None else self.load()
+        token = str(raw.get("anthropic_api_key", "")).strip()
         return token or None

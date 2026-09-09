@@ -37,6 +37,8 @@ def plan_agent_request(
             "notes": "Enter a task description to build a plan.",
             "agent": "plan_v1",
             "mode": "empty",
+            "planner": "deterministic",
+            "deterministic": True,
         }
 
     recommend = recommend_models(
@@ -154,4 +156,6 @@ def plan_agent_request(
         "notes": " ".join(notes_parts),
         "agent": "plan_v1",
         "mode": "plan",
+        "planner": "deterministic",
+        "deterministic": True,
     }

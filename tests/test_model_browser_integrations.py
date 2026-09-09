@@ -20,6 +20,24 @@ def test_studio_settings_hf_token_priority(monkeypatch, tmp_path: Path) -> None:
     view = store.public_view()
     assert view["hf_token_set"] is True
     assert view["hf_token_source"] == "environment"
+    assert "hf_token" not in view
+
+
+def test_studio_settings_anthropic_api_key_priority(monkeypatch, tmp_path: Path) -> None:
+    store = StudioSettingsStore(tmp_path)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    store.save({"anthropic_api_key": "sk-ant-from-settings"})
+    assert store.anthropic_api_key() == "sk-ant-from-settings"
+    view = store.public_view()
+    assert view["anthropic_api_key_set"] is True
+    assert view["anthropic_api_key_source"] == "settings"
+    assert "anthropic_api_key" not in view
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-from-env")
+    assert store.anthropic_api_key() == "sk-ant-from-env"
+    view = store.public_view()
+    assert view["anthropic_api_key_source"] == "environment"
+    assert "anthropic_api_key" not in view
 
 
 def test_studio_settings_inference_mode_default_real(monkeypatch, tmp_path: Path) -> None:

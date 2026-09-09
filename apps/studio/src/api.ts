@@ -186,6 +186,7 @@ export type { StudioSettings } from "./types";
 
 export async function updateStudioSettings(patch: {
   hf_token?: string | null;
+  anthropic_api_key?: string | null;
   inference_mode?: "real" | "stub";
   content_credentials_mode?: "off" | "sign_if_configured" | "required";
 }): Promise<import("./types").StudioSettings> {
@@ -540,6 +541,8 @@ export async function planAgentRequest(
     commercial_ok?: boolean;
     task_type?: string;
     node_type?: string;
+    planner?: "deterministic" | "llm";
+    llm_model?: string;
   },
 ): Promise<import("./types").AgentPlan> {
   const res = await fetch(`${API}/api/agent/plan`, {

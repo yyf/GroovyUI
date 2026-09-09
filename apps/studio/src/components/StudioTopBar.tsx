@@ -91,7 +91,7 @@ export default function StudioTopBar({
               type="button"
               className="top-bar__tool"
               onClick={onAgentPlan}
-              title="Agent Plan — deterministic orchestration (⌘L / Ctrl+L)"
+              title="Experimental Plan — Claude composes a blueprint from your prompt (⌘L / Ctrl+L)"
               aria-keyshortcuts="Meta+L Control+L"
             >
               Plan
