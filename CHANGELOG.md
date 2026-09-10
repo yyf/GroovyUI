@@ -4,7 +4,7 @@
 
 ### Added
 
-- **Plan mode LLM (Claude, BYOK)** — experimental: Claude composes a minimal blueprint preferring **public AI models** and simple hops. Private model/template/**node-type** catalogs are **not** sent; unknowns are flagged locally for the blueprint. Public `widgets.model` suggestions are **remapped** to published registry ids (or node defaults) before Apply. Apply unlocks only when all nodes exist; unavailable drafts can **Save JSON** / **Save image**. Suggest workflow stays deterministic template cards. Key via `ANTHROPIC_API_KEY` (preferred) or Settings → Plan / Claude (stored in `.groovy/studio_settings.json`, never returned by the API).
+- **Plan mode LLM (Claude, BYOK)** — Model Browser **Plan** picks which published models fit a task (Claude public-family suggestions remapped locally, or deterministic recommend without a key). It does **not** compose graphs — that is **Generate (⌘G)**. Private catalogs are not sent to Claude. Install / Drop stay explicit.
 - **Studio template modes** — standard picker shows the ISMIR LBD demo set (`hello-groovy`, `podcast-denoise`, `prompt-modular-synth`, `isolate-vocals-to-transcribe`); **⌘D / Ctrl+D** toggles studio dev mode for the full featured list. Duplicate selection is **⌘⇧D / Ctrl+Shift+D**.
 - **Bundled sample media in git** — allowlisted `assets/samples/` demo files (including `podcast_denoise_demo.wav`, `stem_separation_demo.wav`) so cold clones and release builds seed the workspace without local uploads.
 - **`EmbedWatermark` / `DetectWatermark`** — Meta **AudioSeal** (MIT) nodes for localized audio watermark embed + detect with 16-bit payload decode; registry model `audioseal-16bit`.
@@ -26,6 +26,10 @@
 
 ### Changed
 
+- **Model Browser Search** — Find models tab removed; Search ranks the local published catalog (keywords or natural-language task + rationales / workflow handoff). Empty query browses; Discover stays HF browse-only. Legacy `mode: "recommend"` launches map to Search.
+- **Plan vs Generate** — Plan lives under Model Browser only (no top-bar / ⌘L entry): recommends models for a task (Install / Drop). Generate (⌘G) drafts graphs (LLM or templates). Plan no longer returns workflow blueprints.
+- **Generate (⌘G)** palette — selection / path / model chips / focus / blueprint chrome use signal red (`--accent`) instead of the interim blue highlight set.
+- **Generate (⌘G)** — bottom-stage composer over the canvas with an explicit **With LLM** / **Without LLM** choice (defaults to LLM when a key is set, but never auto-swaps at submit). LLM: model chips + blueprint review + Save JSON/image; Apply unlocks when all nodes exist. Without LLM: deterministic bundled template match. Model Browser → Suggest workflow stays template-only.
 - **ISMIR demo LoadAudio paths** — `podcast-denoise` uses `assets/samples/podcast_denoise_demo.wav`; `isolate-vocals-to-transcribe` uses `assets/samples/stem_separation_demo.wav` (CI still injects a tone WAV fixture for the isolate template). Shipped samples are only those two demos plus `automation_cc7.mid`; older clips live under local `assets/samples/archived/`.
 - **Compliance fast path** — Install/render Preview no longer auto-auditions; Play remains the explicit cached-PCM audition (patch-bay, not a DAW).
 - **Marquee A/B select** — box-select prefers nodes over wires (`edgesSelectable={false}`) so two-node A/B compare works without only shift-click

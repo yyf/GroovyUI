@@ -106,11 +106,11 @@ function downloadBlueprintPng(
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   ctx.scale(scale, scale);
-  ctx.fillStyle = "#081224";
+  ctx.fillStyle = "#050505";
   ctx.fillRect(0, 0, width, height);
 
   // Grid
-  ctx.strokeStyle = "#1c3a66";
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
   ctx.lineWidth = 1;
   for (let x = 0; x < width; x += 22) {
     ctx.beginPath();
@@ -125,11 +125,11 @@ function downloadBlueprintPng(
     ctx.stroke();
   }
 
-  ctx.fillStyle = "#5b8def";
+  ctx.fillStyle = "#ff6b7f";
   ctx.font = "600 11px ui-sans-serif, system-ui, sans-serif";
   ctx.fillText("BLUEPRINT", pad, 28);
   if (title) {
-    ctx.fillStyle = "#d7e6ff";
+    ctx.fillStyle = "#ffffff";
     ctx.font = "600 14px ui-sans-serif, system-ui, sans-serif";
     ctx.fillText(title.slice(0, 64), pad + 88, 28);
   }
@@ -143,7 +143,7 @@ function downloadBlueprintPng(
 
   const byId = new Map(nodes.map((node) => [node.id, node]));
   ctx.setLineDash([4, 3]);
-  ctx.strokeStyle = "#5b8def";
+  ctx.strokeStyle = "#ff002b";
   ctx.lineWidth = 1.5;
   for (const edge of edges) {
     const source = byId.get(edge.source);
@@ -162,14 +162,14 @@ function downloadBlueprintPng(
     const x = node.position.x + ox;
     const y = node.position.y + oy;
     const missing = Boolean(node.data.missing);
-    ctx.fillStyle = missing ? "rgba(64, 36, 8, 0.95)" : "rgba(16, 40, 72, 0.95)";
-    ctx.strokeStyle = missing ? "#e0a04a" : "#5b8def";
+    ctx.fillStyle = missing ? "rgba(64, 36, 8, 0.95)" : "#0c0c0c";
+    ctx.strokeStyle = missing ? "#e0a04a" : "#ff002b";
     ctx.lineWidth = 1.5;
     if (missing) ctx.setLineDash([5, 3]);
     ctx.fillRect(x, y, NODE_W, NODE_H);
     ctx.strokeRect(x, y, NODE_W, NODE_H);
     ctx.setLineDash([]);
-    ctx.fillStyle = missing ? "#ffd9a8" : "#cfe0ff";
+    ctx.fillStyle = missing ? "#ffd9a8" : "#ffffff";
     ctx.font = "600 11px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(node.data.label.slice(0, 18), x + NODE_W / 2, y + (missing ? 18 : 26));
@@ -231,7 +231,7 @@ function BlueprintCanvas({
       selectable: false,
       focusable: false,
       style: {
-        stroke: "#5b8def",
+        stroke: "#ff002b",
         strokeWidth: 1.5,
         strokeDasharray: "4 3",
       },
@@ -289,7 +289,7 @@ function BlueprintCanvas({
           maxZoom={1.5}
           proOptions={{ hideAttribution: true }}
         >
-          <Background gap={22} color="#1c3a66" size={1} />
+          <Background gap={22} color="rgba(255, 255, 255, 0.12)" size={1} />
           <FitBlueprint nodeCount={nodes.length} />
         </ReactFlow>
       </div>

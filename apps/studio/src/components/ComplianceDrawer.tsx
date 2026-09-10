@@ -48,7 +48,7 @@ type Props = {
     nodeType?: string;
     commercialOnly?: boolean;
     query?: string;
-    mode?: "search" | "recommend";
+    mode?: "search" | "recommend"; // recommend → Search (merged)
   }) => void;
   onApplyModelSwap?: (nodeId: string, modelId: string) => void;
   onApplyModelSwaps?: (swaps: Array<{ nodeId: string; modelId: string }>) => void;
@@ -468,7 +468,7 @@ export default function ComplianceDrawer({
                                       swap?.browse_hint?.query ??
                                       swap?.alternatives?.[0]?.task_types?.[0] ??
                                       node.type,
-                                    mode: swap?.browse_hint?.mode === "recommend" ? "recommend" : "search",
+                                    mode: "search",
                                   })
                                 }
                               >
@@ -540,11 +540,13 @@ export default function ComplianceDrawer({
                             nodeType: swap.browse_hint?.node_type ?? swap.node_type,
                             commercialOnly: swap.browse_hint?.commercial_only ?? true,
                             query: swap.browse_hint?.query ?? swap.alternatives[0]?.task_types?.[0] ?? swap.node_type,
-                            mode: swap.browse_hint?.mode === "recommend" ? "recommend" : "search",
+                            mode: "search",
                           })
                         }
                       >
-                        {swap.alternatives.length > 0 ? "Browse in Model Browser" : "Find models (Commercial only)"}
+                        {swap.alternatives.length > 0
+                          ? "Browse in Model Browser"
+                          : "Search (Commercial only)"}
                       </button>
                     ) : null}
                   </div>

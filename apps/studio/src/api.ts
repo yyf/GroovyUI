@@ -1048,9 +1048,14 @@ export async function fetchProvenance(
 
 export async function suggestWorkflows(
   prompt: string,
+  options?: { prefer_llm?: boolean; llm_model?: string },
 ): Promise<{
   prompt: string;
   mode: string;
+  source?: string;
+  planner?: string;
+  notes?: string;
+  fallback_reason?: string;
   results: Array<{
     template_id: string;
     title: string;
@@ -1058,12 +1063,19 @@ export async function suggestWorkflows(
     rationale: string;
     score: number;
     workflow: Workflow;
+    source?: string;
+    unknown_node_types?: string[];
+    model_remaps?: Array<Record<string, string>>;
   }>;
 }> {
   const res = await fetch(`${API}/api/workflow/suggest`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({
+      prompt,
+      prefer_llm: options?.prefer_llm ?? true,
+      llm_model: options?.llm_model,
+    }),
   });
   if (!res.ok) {
     throw new Error("Workflow suggest failed");

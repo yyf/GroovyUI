@@ -216,6 +216,8 @@ class ValidateRequest(BaseModel):
 
 class WorkflowSuggestRequest(BaseModel):
     prompt: str
+    prefer_llm: bool = True
+    llm_model: str | None = None
 
 
 class ComfyImportRequest(BaseModel):
@@ -1150,39 +1152,24 @@ def recommend_models_endpoint(body: ModelRecommendRequest) -> dict[str, Any]:
 
 @app.post("/api/agent/plan")
 def agent_plan_endpoint(body: AgentPlanRequest) -> dict[str, Any]:
-    """Plan orchestration: deterministic tools fan-in, or Claude (BYOK) suggestions."""
+    """Model Plan: which published models fit a task (LLM remap or deterministic)."""
     planner = (body.planner or "deterministic").strip().lower()
     if planner not in ("deterministic", "llm"):
         raise HTTPException(status_code=400, detail="planner must be 'deterministic' or 'llm'")
     if planner == "llm":
-        from groovy.registry.agent.llm_planner import plan_agent_request_llm
+        from groovy.registry.agent.llm_planner import plan_models_for_task_llm
 
-        node_model_defaults: dict[str, str] = {}
-        for node_name, node_cls in NODE_REGISTRY.items():
-            try:
-                desc = node_cls.describe()
-            except Exception:
-                continue
-            for widget in desc.get("widgets") or []:
-                if widget.get("name") == "model" and widget.get("default"):
-                    node_model_defaults[node_name] = str(widget["default"])
-                    break
-
-        return plan_agent_request_llm(
+        return plan_models_for_task_llm(
             _registry.catalog,
             _registry.store,
             _registry,
             prompt=body.prompt,
-            templates_dir=TEMPLATES_DIR,
             api_key=_studio_settings.anthropic_api_key(),
             commercial_ok=body.commercial_ok,
             task_type=body.task_type,
             node_type=body.node_type,
             max_models=body.max_models,
-            max_workflows=body.max_workflows,
             model=(body.llm_model or "").strip() or "claude-sonnet-5",
-            known_node_types=set(NODE_REGISTRY.keys()),
-            node_model_defaults=node_model_defaults,
         )
     return plan_agent_request(
         _registry.catalog,
@@ -1451,7 +1438,31 @@ def workflow_missing_models(body: ValidateRequest) -> dict[str, Any]:
 
 @app.post("/api/workflow/suggest")
 def workflow_suggest(body: WorkflowSuggestRequest) -> dict[str, Any]:
-    return suggest_workflows(body.prompt, TEMPLATES_DIR)
+    """Suggest a workflow: Claude compose when BYOK key present, else template match."""
+    from groovy.registry.agent.llm_planner import suggest_workflows_llm_or_templates
+
+    templates = suggest_workflows(body.prompt, TEMPLATES_DIR)
+    node_model_defaults: dict[str, str] = {}
+    for node_name, node_cls in NODE_REGISTRY.items():
+        try:
+            desc = node_cls.describe()
+        except Exception:
+            continue
+        for widget in desc.get("widgets") or []:
+            if widget.get("name") == "model" and widget.get("default"):
+                node_model_defaults[node_name] = str(widget["default"])
+                break
+
+    return suggest_workflows_llm_or_templates(
+        prompt=body.prompt,
+        templates_fallback=templates,
+        api_key=_studio_settings.anthropic_api_key(),
+        catalog=_registry.catalog,
+        known_node_types=set(NODE_REGISTRY.keys()),
+        node_model_defaults=node_model_defaults,
+        llm_model=body.llm_model,
+        prefer_llm=body.prefer_llm,
+    )
 
 
 @app.post("/api/registry/ingest")
