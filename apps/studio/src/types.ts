@@ -74,6 +74,7 @@ export type InferenceParamSpec = {
 };
 
 export type ModelBrowserLaunch = {
+  /** Legacy `"recommend"` is accepted and mapped to Search (recommender merged into Search). */
   mode?: "search" | "recommend" | "workflow" | "discover" | "plan";
   query?: string;
   taskType?: string;
@@ -409,7 +410,13 @@ export type ModelRecommendation = {
 };
 
 export type AgentPlanAction = {
-  type: "install_model" | "drop_node" | "apply_template" | "propose_workflow" | "open_compliance";
+  type:
+    | "install_model"
+    | "drop_node"
+    | "apply_template"
+    | "propose_workflow"
+    | "open_compliance"
+    | "suggest_public_model";
   id: string;
   title: string;
   /** High-level outcome blurb (LLM plans). */
@@ -421,6 +428,9 @@ export type AgentPlanAction = {
   description?: string;
   model?: ModelCard;
   workflow?: Workflow;
+  /** Public model / family name from Claude (Model Plan). */
+  public_name?: string;
+  task_type?: string;
   /** Node types in the draft that are not registered in this build. */
   unknown_node_types?: string[];
   /** Public/Claude model strings remapped to local registry ids. */
@@ -447,6 +457,17 @@ export type AgentPlan = {
   deterministic?: boolean;
   experimental?: boolean;
   recommend_count?: number;
+  public_pick_count?: number;
+  public_picks?: Array<{
+    public_name: string;
+    task?: string | null;
+    node_type?: string | null;
+    role?: string;
+    rationale?: string;
+    local_model_id?: string | null;
+    remap_reason?: string | null;
+  }>;
+  unresolved_public_models?: string[];
   workflow_count?: number;
   license_preview?: {
     scan_ok?: boolean;

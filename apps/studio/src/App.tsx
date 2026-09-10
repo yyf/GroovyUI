@@ -982,11 +982,6 @@ export default function App() {
 
       if (editing) return;
 
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "l") {
-        event.preventDefault();
-        openModelBrowser({ mode: "plan" });
-        return;
-      }
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
         openModelBrowser();
@@ -1597,7 +1592,8 @@ export default function App() {
     }) => {
       setComplianceOpen(false);
       openModelBrowser({
-        mode: opts.mode ?? "search",
+        // Legacy recommend → Search (recommender is merged into Search).
+        mode: opts.mode === "recommend" ? "search" : (opts.mode ?? "search"),
         commercialOnly: opts.commercialOnly ?? true,
         taskType: opts.query,
         query: opts.query,
@@ -1767,7 +1763,6 @@ export default function App() {
           complianceWarnings={complianceWarnings}
           inferenceStubActive={inferenceStubActive}
           onModelBrowser={() => openModelBrowser()}
-          onAgentPlan={() => openModelBrowser({ mode: "plan" })}
           onCompliance={() => setComplianceOpen(true)}
           onShareWorkflow={() => void handleShareWorkflow()}
           workflowBarOpen={workflowBarOpen}

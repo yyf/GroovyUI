@@ -11,6 +11,45 @@ ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = ROOT / "templates"
 
 
+def _assert_no_private_catalogs_in_claude_payload(
+    system: str,
+    user: str,
+    *,
+    forbidden_template_ids: tuple[str, ...] = (),
+    forbidden_node_types: tuple[str, ...] = (),
+    forbidden_model_ids: tuple[str, ...] = (),
+) -> None:
+    """Claude must not receive GroovyUI node / model / template catalogs."""
+    payload = json.loads(user)
+    for banned in (
+        "models",
+        "templates",
+        "template_ids",
+        "allowed_node_types",
+        "known_node_types",
+        "node_types",
+        "node_catalog",
+        "model_catalog",
+        "registry",
+        "node_model_defaults",
+    ):
+        assert banned not in payload, f"Claude user payload must not include {banned!r}"
+    constraints = payload.get("constraints") or {}
+    assert constraints.get("no_model_catalog") is True
+    assert constraints.get("no_template_catalog") is True
+    assert constraints.get("no_node_type_catalog") is True
+    assert constraints.get("prefer_public_ai_models") is True
+    assert "patch-bay" in system.lower()
+    assert "not given" in system.lower() or "not" in system.lower()
+    blob = f"{system}\n{user}"
+    for template_id in forbidden_template_ids:
+        assert template_id not in blob, f"template id {template_id!r} leaked to Claude"
+    for node_type in forbidden_node_types:
+        assert node_type not in blob, f"node type {node_type!r} leaked to Claude"
+    for model_id in forbidden_model_ids:
+        assert model_id not in blob, f"model id {model_id!r} leaked to Claude"
+
+
 def test_plan_podcast_returns_actions(tmp_path: Path) -> None:
     registry = ModelRegistry(tmp_path)
     result = plan_agent_request(
@@ -21,20 +60,19 @@ def test_plan_podcast_returns_actions(tmp_path: Path) -> None:
         templates_dir=TEMPLATES,
         commercial_ok=True,
     )
-    assert result["agent"] == "plan_v1"
+    assert result["agent"] == "plan_models_v1"
     assert result["mode"] == "plan"
     assert result["planner"] == "deterministic"
     assert result["deterministic"] is True
+    assert result["scope"] == "models"
     assert "recommend_models" in result["tools_used"]
-    assert "suggest_workflows" in result["tools_used"]
+    assert "suggest_workflows" not in result["tools_used"]
     types = {action["type"] for action in result["actions"]}
     assert "install_model" in types
-    assert "apply_template" in types
-    assert all(
-        action["type"] in {"install_model", "drop_node", "apply_template", "open_compliance"}
-        for action in result["actions"]
-    )
-    assert "Deterministic" in result["notes"]
+    assert "apply_template" not in types
+    assert "propose_workflow" not in types
+    assert all(action["type"] in {"install_model", "drop_node"} for action in result["actions"])
+    assert "Model Plan" in result["notes"]
 
 
 def test_plan_empty_prompt(tmp_path: Path) -> None:
@@ -70,28 +108,76 @@ def test_plan_llm_needs_api_key(tmp_path: Path) -> None:
     assert result["experimental"] is True
 
 
+def test_plan_models_llm_keeps_unresolved_public_picks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from groovy.registry.agent import llm_planner
+
+    registry = ModelRegistry(tmp_path)
+
+    def fake_call(*, api_key: str, system: str, user: str, model: str) -> str:
+        return json.dumps(
+            {
+                "inferred_task": "denoise",
+                "notes": "public densoise families",
+                "models": [
+                    {
+                        "public_name": "DeepFilterNet",
+                        "task": "denoise",
+                        "node_type": "Denoise",
+                        "role": "primary",
+                        "rationale": "speech denoise",
+                    },
+                    {
+                        "public_name": "TotallyFakePublicDenoiser/v9",
+                        "task": "denoise",
+                        "node_type": "Denoise",
+                        "role": "alternative",
+                        "rationale": "not in registry",
+                    },
+                ],
+            }
+        )
+
+    monkeypatch.setattr(llm_planner, "_call_claude", fake_call)
+    result = llm_planner.plan_models_for_task_llm(
+        registry.catalog,
+        registry.store,
+        registry,
+        prompt="podcast denoise",
+        api_key="sk-ant-test-not-a-real-key",
+        max_models=5,
+    )
+    assert result["scope"] == "models"
+    assert result.get("public_pick_count", 0) >= 1
+    types = {a["type"] for a in result["actions"]}
+    # Empty local catalog → public picks stay as suggest_public_model (not drowned by ACE filler).
+    assert "suggest_public_model" in types or "install_model" in types
+    assert "propose_workflow" not in types
+    public_actions = [a for a in result["actions"] if a["type"] == "suggest_public_model"]
+    if public_actions:
+        assert any("Fake" in (a.get("public_name") or "") or "Fake" in a["title"] for a in public_actions)
+    assert not any(
+        (a.get("model_id") or "").startswith("ace-step") for a in result["actions"] if a["type"] == "install_model"
+    )
+
+
 def test_plan_llm_composes_workflow_without_catalog(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from groovy.registry.agent import llm_planner
 
     registry = ModelRegistry(tmp_path)
-    known = {"LoadAudio", "Denoise", "Preview", "SaveAudio"}
+    known = {"LoadAudio", "Denoise", "Preview", "SaveAudio", "SeparateStems", "WhisperSTT"}
 
     def fake_call(*, api_key: str, system: str, user: str, model: str) -> str:
         assert api_key == "sk-ant-test-not-a-real-key"
-        payload = json.loads(user)
-        assert "models" not in payload
-        assert "templates" not in payload
-        assert payload["constraints"]["no_model_catalog"] is True
-        assert payload["constraints"]["no_template_catalog"] is True
-        assert payload["constraints"]["no_node_type_catalog"] is True
-        assert payload["constraints"]["prefer_public_ai_models"] is True
-        assert "allowed_node_types" not in payload
-        assert "models" not in payload
-        assert "templates" not in payload
-        assert "patch-bay" in system.lower()
-        assert "public" in system.lower()
+        _assert_no_private_catalogs_in_claude_payload(
+            system,
+            user,
+            forbidden_template_ids=("podcast-denoise", "hello-groovy", "stem-split-vocals"),
+            forbidden_node_types=("SeparateStems", "WhisperSTT"),
+        )
         return json.dumps(
             {
                 "inferred_task": "denoise",
@@ -219,3 +305,147 @@ def test_hydrate_composed_workflow_rejects_empty() -> None:
     assert unknown == []
     assert remaps == []
     assert "no nodes" in reason
+
+
+def test_suggest_llm_fallback_without_key() -> None:
+    from groovy.registry.agent.llm_planner import suggest_workflows_llm_or_templates
+    from groovy.registry.agent.workflow_suggester import suggest_workflows
+
+    templates = suggest_workflows("podcast denoise", TEMPLATES)
+    result = suggest_workflows_llm_or_templates(
+        prompt="podcast denoise",
+        templates_fallback=templates,
+        api_key=None,
+    )
+    assert result["mode"] == "templates"
+    assert result["source"] == "templates"
+    assert result["results"]
+
+
+def test_suggest_llm_uses_claude_when_keyed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from groovy.registry.agent import llm_planner
+    from groovy.registry.agent.workflow_suggester import suggest_workflows
+
+    registry = ModelRegistry(tmp_path)
+    templates = suggest_workflows("podcast denoise", TEMPLATES)
+    # Distinctive private ids that must never appear in the Claude request.
+    secret_node = "MatrixMixer"
+    secret_model = "deepfilternet-v3-secret-test-only"
+
+    def fake_call(*, api_key: str, system: str, user: str, model: str) -> str:
+        _assert_no_private_catalogs_in_claude_payload(
+            system,
+            user,
+            forbidden_template_ids=("podcast-denoise", "hello-groovy", "cleanup-and-transcribe"),
+            forbidden_node_types=(secret_node, "SeparateStems", "WhisperSTT", "MIDIToAudio"),
+            forbidden_model_ids=(secret_model,),
+        )
+        # Template fallback content must not be inlined either.
+        assert "Podcast Denoise" not in system
+        assert "Podcast Denoise" not in user
+        return json.dumps(
+            {
+                "inferred_task": "denoise",
+                "notes": "llm draft",
+                "workflows": [
+                    {
+                        "summary": "Claude denoise graph",
+                        "rationale": "public DeepFilterNet idea",
+                        "nodes": [
+                            {"id": "n1", "type": "LoadAudio", "widgets": {}},
+                            {"id": "n2", "type": "Denoise", "widgets": {"model": "deepfilternet-v3"}},
+                            {"id": "n3", "type": "Preview", "widgets": {}},
+                        ],
+                        "links": [
+                            {"id": "e1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO"},
+                            {"id": "e2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO"},
+                        ],
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(llm_planner, "_call_claude", fake_call)
+    result = llm_planner.suggest_workflows_llm_or_templates(
+        prompt="podcast denoise",
+        templates_fallback=templates,
+        api_key="sk-ant-test-not-a-real-key",
+        catalog=registry.catalog,
+        known_node_types={"LoadAudio", "Denoise", "Preview", secret_node},
+        node_model_defaults={"Denoise": secret_model},
+    )
+    assert result["mode"] == "llm"
+    assert result["results"]
+    assert result["results"][0]["title"] == "Claude denoise graph"
+    assert result["results"][0]["workflow"]["nodes"][0]["widgets"]["path"]
+
+
+def test_suggest_llm_keeps_unknown_nodes_for_blueprint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from groovy.registry.agent import llm_planner
+    from groovy.registry.agent.workflow_suggester import suggest_workflows
+
+    registry = ModelRegistry(tmp_path)
+    templates = suggest_workflows("podcast denoise", TEMPLATES)
+
+    def fake_call(*, api_key: str, system: str, user: str, model: str) -> str:
+        return json.dumps(
+            {
+                "notes": "fantasy",
+                "workflows": [
+                    {
+                        "summary": "Impossible hop",
+                        "nodes": [
+                            {"id": "n1", "type": "LoadAudio", "widgets": {}},
+                            {"id": "n2", "type": "FantasyNode", "widgets": {}},
+                            {"id": "n3", "type": "Preview", "widgets": {}},
+                        ],
+                        "links": [
+                            {"id": "e1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO"},
+                            {"id": "e2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO"},
+                        ],
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(llm_planner, "_call_claude", fake_call)
+    result = llm_planner.suggest_workflows_llm_or_templates(
+        prompt="podcast denoise",
+        templates_fallback=templates,
+        api_key="sk-ant-test-not-a-real-key",
+        catalog=registry.catalog,
+        known_node_types={"LoadAudio", "Denoise", "Preview"},
+    )
+    assert result["mode"] == "llm"
+    assert result["source"] == "llm"
+    assert "fallback_reason" not in result
+    assert result["results"]
+    assert result["results"][0]["unknown_node_types"] == ["FantasyNode"]
+    assert result["results"][0]["title"] == "Impossible hop"
+
+
+def test_suggest_llm_falls_back_when_claude_returns_no_graphs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from groovy.registry.agent import llm_planner
+    from groovy.registry.agent.workflow_suggester import suggest_workflows
+
+    registry = ModelRegistry(tmp_path)
+    templates = suggest_workflows("podcast denoise", TEMPLATES)
+
+    def fake_call(*, api_key: str, system: str, user: str, model: str) -> str:
+        return json.dumps({"notes": "nothing", "workflows": []})
+
+    monkeypatch.setattr(llm_planner, "_call_claude", fake_call)
+    result = llm_planner.suggest_workflows_llm_or_templates(
+        prompt="podcast denoise",
+        templates_fallback=templates,
+        api_key="sk-ant-test-not-a-real-key",
+        catalog=registry.catalog,
+        known_node_types={"LoadAudio", "Denoise", "Preview"},
+    )
+    assert result["mode"] == "templates"
+    assert result.get("fallback_reason") == "llm_empty"
+    assert result["results"]

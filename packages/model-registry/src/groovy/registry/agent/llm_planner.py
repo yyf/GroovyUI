@@ -49,6 +49,7 @@ def resolve_local_model_id(
     catalog: Any,
     node_model_defaults: dict[str, str] | None = None,
     commercial_ok: bool | None = None,
+    min_score: int = 70,
 ) -> tuple[str | None, str]:
     """Map a Claude/public model string to a published local registry id."""
     suggested = (suggested or "").strip()
@@ -125,15 +126,10 @@ def resolve_local_model_id(
             score += 15
         if best is None or score > best[0]:
             best = (score, mid)
-    if best and best[0] >= 50:
+    if best and best[0] >= min_score:
         return best[1], "fuzzy_match"
 
-    default = defaults.get(node_type)
-    if default:
-        return default, "node_default"
-    for model in published:
-        if _ok(model):
-            return str(model.id), "compatible_fallback"
+    # Do not invent a local model when Claude named something specific.
     return None, "unresolved"
 
 
@@ -516,18 +512,23 @@ def plan_agent_request_llm(
     known = set(known_node_types) if known_node_types is not None else None
 
     system = (
-        "You are GroovyUI experimental Plan mode.\n"
+        "You are GroovyUI experimental compose mode (Plan / Generate by LLM).\n"
         "Product philosophy: a patch-bay for AI audio exploration — not a DAW. "
         "Users patch models, render offline with sample accuracy, and audition cached PCM. "
         "Agents suggest; the user Applies explicitly. Never claim to install or rewrite the canvas.\n"
+        "\n"
+        "Privacy / catalog policy (mandatory):\n"
+        "- You are NOT given GroovyUI's private node-type registry, model registry, or template gallery.\n"
+        "- Do not assume those catalogs exist in this message. Invent hops from public AI-audio knowledge only.\n"
+        "- After you reply, the studio remaps model refs and validates node types locally.\n"
         "\n"
         "How to build the graph (priority order):\n"
         "1. Mentally search well-known public AI audio models that fit the task "
         "(denoise, stems, STT, TTS, voice conversion, audio-to-MIDI, music gen, etc.). "
         "Mention those public names in rationale/notes.\n"
-        "2. Prefer simple offline patch-bay hops. Use PascalCase node types "
-        "(LoadAudio, Denoise, SeparateStems, WhisperSTT, TTS, Normalize, Preview, SaveAudio).\n"
-        "3. Keep graphs minimal: LoadAudio/Prompt → one or two AI hops → Preview/SaveAudio.\n"
+        "2. Prefer simple offline patch-bay hops. Name nodes in short PascalCase "
+        "(e.g. LoadAudio → Denoise → Preview). Unknown names are fine; the studio flags them.\n"
+        "3. Keep graphs minimal: load/prompt → one or two AI hops → preview/save.\n"
         "4. For widgets.model: omit it or use a short family token (e.g. denoise, tts, whisper). "
         "Do NOT put Hugging Face org/repo paths (like org/model-name) in widgets.model — "
         "the studio remaps to local registry ids after your reply.\n"
@@ -562,6 +563,20 @@ def plan_agent_request_llm(
             "remap_models_locally": True,
         },
     }
+    # Defense-in-depth: never attach private catalogs to the Claude user payload.
+    for banned in (
+        "models",
+        "templates",
+        "template_ids",
+        "allowed_node_types",
+        "known_node_types",
+        "node_types",
+        "node_catalog",
+        "model_catalog",
+        "registry",
+        "node_model_defaults",
+    ):
+        user_payload.pop(banned, None)
     user = json.dumps(user_payload, indent=2)
 
     try:
@@ -642,4 +657,430 @@ def plan_agent_request_llm(
         "notes": " ".join(part for part in note_parts if part),
         "mode": "plan",
         "skipped": skipped,
+        "scope": "compose",
+    }
+
+
+def plan_models_for_task_llm(
+    catalog: Any = None,
+    store: Any = None,
+    registry: Any = None,
+    *,
+    prompt: str,
+    api_key: str | None,
+    commercial_ok: bool | None = None,
+    node_type: str | None = None,
+    task_type: str | None = None,
+    max_models: int = 5,
+    model: str = DEFAULT_CLAUDE_MODEL,
+) -> dict[str, Any]:
+    """Plan which models achieve a task via Claude (BYOK), remapped to local registry.
+
+    Does **not** compose workflows (that is Generate). Does **not** send the private
+    model catalog to Claude — public family names are remapped locally after the reply.
+    Falls back to deterministic ``recommend_models`` when Claude yields nothing usable.
+    """
+    from groovy.registry.agent.planner import plan_agent_request
+
+    del registry
+    prompt = prompt.strip()
+    base = {
+        "prompt": prompt,
+        "planner": "llm",
+        "deterministic": False,
+        "agent": "plan_models_llm_v1",
+        "tools_used": ["claude_messages"],
+        "experimental": True,
+        "scope": "models",
+        "workflow_count": 0,
+        "license_preview": None,
+    }
+    if not prompt:
+        return {
+            **base,
+            "actions": [],
+            "notes": "Enter a task description to plan which models to use.",
+            "mode": "empty",
+        }
+    if not api_key:
+        fallback = plan_agent_request(
+            catalog,
+            store,
+            None,
+            prompt=prompt,
+            commercial_ok=commercial_ok,
+            task_type=task_type,
+            node_type=node_type,
+            max_models=max_models,
+        )
+        return {
+            **fallback,
+            "notes": (
+                "No Claude key — deterministic model recommendations. "
+                "Add ANTHROPIC_API_KEY or Settings → Plan / Claude for LLM picks. "
+                "For a full graph, use Generate (⌘G). "
+                + str(fallback.get("notes") or "")
+            ).strip(),
+            "fallback_reason": "needs_api_key",
+        }
+
+    system = (
+        "You are GroovyUI Model Plan inside the Model Browser.\n"
+        "Product philosophy: a patch-bay for AI audio — not a DAW. "
+        "You only choose which AI models fit a user task. You do NOT compose node graphs "
+        "(Generate handles graphs).\n"
+        "\n"
+        "Privacy: you are NOT given GroovyUI's private model registry. "
+        "Suggest well-known public AI audio models / families from world knowledge "
+        "(Hugging Face-style names like facebook/demucs or family names like DeepFilterNet, Whisper large-v3).\n"
+        "Always return concrete public_name values users would recognize outside GroovyUI.\n"
+        "After you reply, the studio remaps those names onto local published registry ids when possible; "
+        "unmapped public picks are still shown.\n"
+        "\n"
+        "Reply with ONLY a JSON object:\n"
+        '{"inferred_task": string|null, "notes": string, "models": [ ... ]}\n'
+        "Each models[] item:\n"
+        '{"public_name":"DeepFilterNet","task":"denoise","node_type":"Denoise",'
+        '"role":"primary|alternative","rationale":"why this model fits"}\n'
+        f"Return {max_models} models when possible, best first (mix primary + alternatives). "
+        "Prefer commercial-friendly picks when filters.commercial_ok is true."
+    )
+    user_payload: dict[str, Any] = {
+        "task": prompt,
+        "filters": {
+            "commercial_ok": commercial_ok,
+            "task_type": task_type,
+            "node_type": node_type,
+        },
+        "constraints": {
+            "max_models": max_models,
+            "models_only": True,
+            "no_workflows": True,
+            "no_model_catalog": True,
+            "no_template_catalog": True,
+            "no_node_type_catalog": True,
+            "prefer_public_ai_models": True,
+            "remap_models_locally": True,
+        },
+    }
+    for banned in (
+        "models",
+        "templates",
+        "template_ids",
+        "allowed_node_types",
+        "known_node_types",
+        "node_types",
+        "node_catalog",
+        "model_catalog",
+        "registry",
+        "node_model_defaults",
+    ):
+        user_payload.pop(banned, None)
+    user = json.dumps(user_payload, indent=2)
+
+    try:
+        raw_text = _call_claude(api_key=api_key, system=system, user=user, model=model)
+        parsed = _extract_json_object(raw_text)
+    except Exception as exc:
+        fallback = plan_agent_request(
+            catalog,
+            store,
+            None,
+            prompt=prompt,
+            commercial_ok=commercial_ok,
+            task_type=task_type,
+            node_type=node_type,
+            max_models=max_models,
+        )
+        return {
+            **fallback,
+            "fallback_reason": f"llm_error:{exc}",
+            "notes": f"Claude model plan failed — showing deterministic recommendations. ({exc}) "
+            + str(fallback.get("notes") or ""),
+        }
+
+    picks = parsed.get("models")
+    if not isinstance(picks, list):
+        picks = []
+
+    actions: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    seen_public: set[str] = set()
+    remaps: list[dict[str, str]] = []
+    unresolved: list[str] = []
+    public_picks: list[dict[str, Any]] = []
+
+    for index, raw in enumerate(picks[: max(1, max_models)]):
+        if not isinstance(raw, dict):
+            continue
+        public_name = str(raw.get("public_name") or raw.get("name") or raw.get("model") or "").strip()
+        pick_node = str(raw.get("node_type") or node_type or "").strip()
+        pick_task = str(raw.get("task") or task_type or "").strip()
+        rationale = str(raw.get("rationale") or raw.get("reason") or "").strip()
+        role = str(raw.get("role") or "primary").strip()
+        if not public_name:
+            continue
+        public_key = public_name.lower()
+        if public_key in seen_public:
+            continue
+        seen_public.add(public_key)
+
+        resolved, reason = resolve_local_model_id(
+            public_name,
+            node_type=pick_node,
+            catalog=catalog,
+            commercial_ok=commercial_ok,
+        )
+        # If commercial filter blocked a fuzzy hit, retry without it so we still surface the public pick.
+        if not resolved and commercial_ok:
+            resolved, reason = resolve_local_model_id(
+                public_name,
+                node_type=pick_node,
+                catalog=catalog,
+                commercial_ok=None,
+            )
+            if resolved:
+                reason = f"{reason}+commercial_relaxed"
+
+        priority = 10 - index
+        if role.lower().startswith("alt"):
+            priority -= 2
+
+        card = None
+        if resolved and catalog is not None:
+            try:
+                hit = catalog.get(resolved)
+            except Exception:
+                hit = None
+            if hit is not None and getattr(hit, "status", "") == "published":
+                from groovy.registry.agent.recommender import _card
+
+                state = store.get(resolved) if store is not None else None
+                card = _card(hit, state)
+
+        pick_row = {
+            "public_name": public_name,
+            "task": pick_task or None,
+            "node_type": pick_node or None,
+            "role": role,
+            "rationale": rationale,
+            "local_model_id": resolved if isinstance(card, dict) else None,
+            "remap_reason": reason if isinstance(card, dict) else None,
+        }
+        public_picks.append(pick_row)
+
+        if not isinstance(card, dict) or not resolved:
+            unresolved.append(public_name)
+            actions.append(
+                {
+                    "type": "suggest_public_model",
+                    "id": f"public:{index}:{public_name.lower().replace(' ', '-')[:48]}",
+                    "title": public_name,
+                    "summary": public_name,
+                    "rationale": rationale
+                    or f"Public model “{public_name}” — not in the local published registry yet.",
+                    "public_name": public_name,
+                    "task_type": pick_task or None,
+                    "node_type": pick_node or None,
+                    "priority": priority,
+                }
+            )
+            continue
+
+        if resolved in seen_ids:
+            continue
+        seen_ids.add(resolved)
+        remaps.append(
+            {
+                "from": public_name,
+                "to": resolved,
+                "reason": reason,
+                "role": role,
+            }
+        )
+        actions.append(
+            {
+                "type": "install_model",
+                "id": f"install:{resolved}",
+                "title": f"Install {card.get('name') or resolved}",
+                "summary": card.get("name") or resolved,
+                "rationale": rationale
+                or f"Claude suggested “{public_name}”; remapped to local `{resolved}`.",
+                "model_id": resolved,
+                "model": card,
+                "public_name": public_name,
+                "priority": priority,
+            }
+        )
+        if index == 0:
+            node = pick_node or (card.get("compatible_nodes") or [None])[0]
+            if node:
+                actions.append(
+                    {
+                        "type": "drop_node",
+                        "id": f"drop:{resolved}:{node}",
+                        "title": f"Drop {node} with {card.get('name') or resolved}",
+                        "summary": f"Drop {node}",
+                        "rationale": f"Use this model on a {node} hop (canvas change only on click).",
+                        "model_id": resolved,
+                        "node_type": node,
+                        "model": card,
+                        "public_name": public_name,
+                        "priority": priority - 1,
+                    }
+                )
+
+    # Only fall back to deterministic local recommend when Claude returned no usable picks at all.
+    if not public_picks:
+        fallback = plan_agent_request(
+            catalog,
+            store,
+            None,
+            prompt=prompt,
+            commercial_ok=commercial_ok,
+            task_type=task_type,
+            node_type=node_type,
+            max_models=max_models,
+        )
+        return {
+            **fallback,
+            "fallback_reason": "llm_empty_picks",
+            "notes": (
+                str(parsed.get("notes") or "").strip()
+                + " Claude returned no public model picks — showing deterministic recommendations. "
+                + str(fallback.get("notes") or "")
+            ).strip(),
+        }
+
+    actions.sort(key=lambda a: (-int(a.get("priority", 0)), str(a.get("title", ""))))
+    note_parts = [
+        "Model Plan (Claude) — public model suggestions first; local Install when remapped.",
+        "For a full patch graph, use Generate (⌘G).",
+        str(parsed.get("notes") or "").strip(),
+    ]
+    if remaps:
+        note_parts.append(f"Remapped {len(remaps)} to local registry.")
+    if unresolved:
+        note_parts.append(
+            f"{len(unresolved)} public pick(s) not in local registry (shown as browse-only)."
+        )
+
+    return {
+        **base,
+        "inferred_task": parsed.get("inferred_task") or task_type,
+        "commercial_ok": commercial_ok,
+        "node_type": node_type,
+        "actions": actions,
+        "recommend_count": len([a for a in actions if a["type"] == "install_model"]),
+        "public_pick_count": len(public_picks),
+        "notes": " ".join(part for part in note_parts if part),
+        "mode": "plan",
+        "model_remaps": remaps,
+        "public_picks": public_picks,
+        "unresolved_public_models": unresolved,
+    }
+
+
+def suggest_workflows_llm_or_templates(
+    *,
+    prompt: str,
+    templates_fallback: dict[str, Any],
+    api_key: str | None,
+    catalog: Any = None,
+    known_node_types: set[str] | frozenset[str] | None = None,
+    node_model_defaults: dict[str, str] | None = None,
+    llm_model: str | None = None,
+    max_workflows: int = 3,
+    prefer_llm: bool = True,
+) -> dict[str, Any]:
+    """Prefer Claude-composed graphs when an API key is present; else template match.
+
+    Claude never receives ``templates_fallback``, the model catalog, or ``known_node_types`` —
+    those are used only after the reply (remap / unknown-node flags) or as local fallback.
+
+    Drafts with unavailable node types are kept (Plan-style brainstorming). Template fallback
+    runs only when there is no key, Claude errors, or Claude returns no graph drafts.
+    """
+    prompt = prompt.strip()
+    templates = {
+        **templates_fallback,
+        "mode": "templates",
+        "source": "templates",
+        "planner": "deterministic",
+    }
+    if not prefer_llm or not api_key or not prompt:
+        return templates
+
+    try:
+        plan = plan_agent_request_llm(
+            catalog,
+            None,
+            None,
+            prompt=prompt,
+            api_key=api_key,
+            known_node_types=known_node_types,
+            node_model_defaults=node_model_defaults,
+            max_workflows=max_workflows,
+            model=(llm_model or "").strip() or DEFAULT_CLAUDE_MODEL,
+        )
+    except Exception as exc:
+        return {
+            **templates,
+            "fallback_reason": f"llm_error:{exc}",
+            "notes": f"Claude generate failed — showing template matches. ({exc})",
+        }
+
+    if plan.get("mode") == "needs_api_key":
+        return templates
+
+    if plan.get("mode") == "error":
+        return {
+            **templates,
+            "fallback_reason": "llm_error",
+            "notes": str(plan.get("notes") or "Claude generate failed — showing template matches."),
+        }
+
+    results: list[dict[str, Any]] = []
+    for action in plan.get("actions") or []:
+        if action.get("type") != "propose_workflow":
+            continue
+        workflow = action.get("workflow")
+        if not isinstance(workflow, dict):
+            continue
+        unknown = list(action.get("unknown_node_types") or [])
+        # Keep drafts with unavailable nodes — UI mirrors Plan (blueprint + snapshot export).
+        # Do not silently replace with template matches.
+        results.append(
+            {
+                "template_id": f"llm-{action.get('id') or len(results)}",
+                "title": action.get("summary") or action.get("title") or "Claude draft",
+                "description": action.get("description") or "",
+                "rationale": action.get("rationale") or "Composed by Claude from your prompt.",
+                "score": int(action.get("priority") or 0),
+                "workflow": workflow,
+                "source": "llm",
+                "unknown_node_types": unknown,
+                "model_remaps": action.get("model_remaps") or [],
+            }
+        )
+
+    if not results:
+        return {
+            **templates,
+            "fallback_reason": "llm_empty",
+            "notes": (
+                str(plan.get("notes") or "").strip()
+                + " Claude returned no graph drafts — showing template matches."
+            ).strip(),
+        }
+
+    return {
+        "prompt": prompt,
+        "mode": "llm",
+        "source": "llm",
+        "planner": "llm",
+        "deterministic": False,
+        "results": results,
+        "notes": plan.get("notes")
+        or "Generated by Claude — review unavailable nodes; Apply stays explicit.",
     }

@@ -81,7 +81,7 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
                     "explain": (
                         f"`{manifest.id}` on {node.type} is fine for exploration, but not for paid/"
                         "client deliverables under the catalog license flag. Choose Apply on a "
-                        "socket-compatible alternative (install still required), or browse Find models "
+                        "socket-compatible alternative (install still required), or browse Search "
                         "with Commercial only."
                     ),
                     "model_id": manifest.id,
@@ -125,14 +125,14 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
                     "rationale": f"No socket-safe commercial peer for {node.type}",
                     "explain": (
                         f"No published commercial-OK model currently lists `{node.type}`. "
-                        "Open Find models with Commercial only to search the catalog, or keep "
+                        "Open Search with Commercial only to search the catalog, or keep "
                         "this node for non-commercial exploration."
                     ),
                     "browse_hint": {
                         "node_type": node.type,
                         "commercial_only": True,
                         "query": task,
-                        "mode": "recommend",
+                        "mode": "search",
                     },
                 }
             )
@@ -164,7 +164,7 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
             "message": flag["message"],
             "explain": flag.get("explain"),
             "next_step": (
-                "Open Model Browser → Find models with Commercial only, or keep for non-commercial use."
+                "Open Model Browser → Search with Commercial only, or keep for non-commercial use."
             ),
         }
         for flag in flags

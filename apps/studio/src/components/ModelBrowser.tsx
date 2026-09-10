@@ -22,7 +22,7 @@ import type {
   ModelInstallState,
   Workflow,
 } from "../types";
-import WorkflowBlueprintPreview from "./WorkflowBlueprintPreview";
+import { PLAN_LLM_OPTIONS } from "../planLlmOptions";
 
 type Props = {
   open: boolean;
@@ -52,23 +52,15 @@ const TASK_FILTERS = [
   { value: "audio-compare", label: "A/B compare" },
 ];
 
-const PLAN_LLM_OPTIONS = [
-  {
-    id: "claude-sonnet-5",
-    label: "Claude Sonnet",
-    description: "Stronger multi-step graph drafts. Best default.",
-  },
-  {
-    id: "claude-fable-5",
-    label: "Claude Fable",
-    description: "Highest-capability drafting for complex multi-hop graphs. Slower and costlier.",
-  },
-  {
-    id: "claude-haiku-4-5",
-    label: "Claude Haiku",
-    description: "Faster and cheaper. Better for short, single-goal drafts.",
-  },
-];
+type BrowserMode = "search" | "workflow" | "discover" | "plan";
+
+function normalizeBrowserMode(
+  mode: string | null | undefined,
+): BrowserMode {
+  if (mode === "workflow" || mode === "discover" || mode === "plan") return mode;
+  // Legacy "recommend" launches land on Search (recommender is merged into Search).
+  return "search";
+}
 
 function isDraftModel(model: ModelCard): boolean {
   return model.status === "draft" || model.trust === "draft" || model.install_status === "draft";
@@ -152,21 +144,19 @@ export default function ModelBrowser({
 }: Props) {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [mode, setMode] = useState<"search" | "recommend" | "workflow" | "discover" | "plan">(
-    initialMode ?? "search",
-  );
+  const [mode, setMode] = useState<BrowserMode>(normalizeBrowserMode(initialMode ?? launch?.mode ?? "search"));
   const [taskType, setTaskType] = useState("");
   const [commercialOnly, setCommercialOnly] = useState(false);
-  const [models, setModels] = useState<ModelCard[]>([]);
   const [discoverResults, setDiscoverResults] = useState<DiscoverModelResult[]>([]);
   const [draftResult, setDraftResult] = useState<{ id: string; created: boolean } | null>(null);
   const [draftingId, setDraftingId] = useState<string | null>(null);
-  const [recommendations, setRecommendations] = useState<Array<{ model: ModelCard; rationale: string }>>([]);
+  const [searchHits, setSearchHits] = useState<Array<{ model: ModelCard; rationale?: string }>>([]);
   const [agentPlan, setAgentPlan] = useState<AgentPlan | null>(null);
   const [planLlmModel, setPlanLlmModel] = useState(PLAN_LLM_OPTIONS[0].id);
-  const [selectedPlanWorkflowId, setSelectedPlanWorkflowId] = useState<string | null>(null);
-  /** Plan mode only submits to Claude after Enter — not while typing. */
+  /** Plan mode only submits after Enter — not while typing. */
   const [planSubmittedQuery, setPlanSubmittedQuery] = useState<string | null>(null);
+  /** Bumps on each Enter so re-submitting the same prompt still refreshes. */
+  const [planSubmitNonce, setPlanSubmitNonce] = useState(0);
   const [workflowSuggestions, setWorkflowSuggestions] = useState<
     Array<{
       template_id: string;
@@ -197,9 +187,9 @@ export default function ModelBrowser({
   useEffect(() => {
     if (!open) return;
     if (launch?.mode) {
-      setMode(launch.mode);
+      setMode(normalizeBrowserMode(launch.mode));
     } else if (initialMode) {
-      setMode(initialMode);
+      setMode(normalizeBrowserMode(initialMode));
     }
     if (launch?.query != null) {
       setQuery(launch.query);
@@ -231,8 +221,7 @@ export default function ModelBrowser({
   const refresh = useCallback(async () => {
     if (mode === "plan" && !(planSubmittedQuery ?? "").trim()) {
       setAgentPlan(null);
-      setModels([]);
-      setRecommendations([]);
+      setSearchHits([]);
       setWorkflowSuggestions([]);
       setDiscoverResults([]);
       setLoading(false);
@@ -252,8 +241,7 @@ export default function ModelBrowser({
           llm_model: planLlmModel,
         });
         setAgentPlan(data);
-        setModels([]);
-        setRecommendations([]);
+        setSearchHits([]);
         setWorkflowSuggestions([]);
         setDiscoverResults([]);
         setWorkflowHandoffHint(null);
@@ -261,10 +249,10 @@ export default function ModelBrowser({
       }
       setAgentPlan(null);
       if (mode === "workflow") {
-        const data = await suggestWorkflows(debouncedQuery);
+        // Suggest workflow tab stays deterministic template match; ⌘G Generate uses LLM when keyed.
+        const data = await suggestWorkflows(debouncedQuery, { prefer_llm: false });
         setWorkflowSuggestions(data.results);
-        setModels([]);
-        setRecommendations([]);
+        setSearchHits([]);
         setDiscoverResults([]);
         return;
       }
@@ -274,55 +262,48 @@ export default function ModelBrowser({
           limit: 20,
         });
         setDiscoverResults(filterDiscoverResults(results, commercialOnly, effectiveNodeFilter));
-        setModels([]);
-        setRecommendations([]);
+        setSearchHits([]);
         setWorkflowSuggestions([]);
         setWorkflowHandoffHint(null);
         return;
       }
+      // Search: empty query browses catalog; non-empty uses recommender (ranked + rationale).
       const filters = {
         task_type: taskType || undefined,
         commercial_ok: commercialOnly ? true : undefined,
         node_type: effectiveNodeFilter || undefined,
       };
-      if (mode === "recommend") {
-        if (!debouncedQuery.trim()) {
-          setRecommendations([]);
-          setModels([]);
-          setWorkflowSuggestions([]);
-          setWorkflowHandoffHint(null);
-          return;
-        }
-        const data = await recommendModels(debouncedQuery, {
-          commercial_ok: filters.commercial_ok,
-          task_type: filters.task_type,
-          node_type: filters.node_type,
-        });
-        const filtered = filterModelsForNode(
-          data.results.map((entry) => entry.model),
-          effectiveNodeFilter,
+      if (!debouncedQuery.trim()) {
+        const results = await searchModels("", filters);
+        setSearchHits(
+          filterModelsForNode(results, effectiveNodeFilter).map((model) => ({ model })),
         );
-        const rationaleById = new Map(data.results.map((entry) => [entry.model.id, entry.rationale]));
-        setRecommendations(
-          filtered.map((model) => ({
-            model,
-            rationale: rationaleById.get(model.id) ?? "",
-          })),
-        );
-        setModels([]);
-        setWorkflowSuggestions([]);
-        setWorkflowHandoffHint(data.workflow_handoff_hint ?? null);
-      } else {
-        const results = await searchModels(debouncedQuery, filters);
-        setModels(filterModelsForNode(results, effectiveNodeFilter));
-        setRecommendations([]);
         setWorkflowSuggestions([]);
         setDiscoverResults([]);
         setWorkflowHandoffHint(null);
+        return;
       }
+      const data = await recommendModels(debouncedQuery, {
+        commercial_ok: filters.commercial_ok,
+        task_type: filters.task_type,
+        node_type: filters.node_type,
+      });
+      const filtered = filterModelsForNode(
+        data.results.map((entry) => entry.model),
+        effectiveNodeFilter,
+      );
+      const rationaleById = new Map(data.results.map((entry) => [entry.model.id, entry.rationale]));
+      setSearchHits(
+        filtered.map((model) => ({
+          model,
+          rationale: rationaleById.get(model.id) ?? "",
+        })),
+      );
+      setWorkflowSuggestions([]);
+      setDiscoverResults([]);
+      setWorkflowHandoffHint(data.workflow_handoff_hint ?? null);
     } catch (err) {
-      setModels([]);
-      setRecommendations([]);
+      setSearchHits([]);
       setWorkflowSuggestions([]);
       setDiscoverResults([]);
       setAgentPlan(null);
@@ -331,7 +312,7 @@ export default function ModelBrowser({
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, planSubmittedQuery, mode, taskType, commercialOnly, effectiveNodeFilter, planLlmModel]);
+  }, [debouncedQuery, planSubmittedQuery, planSubmitNonce, mode, taskType, commercialOnly, effectiveNodeFilter, planLlmModel]);
 
   useEffect(() => {
     if (!open) return;
@@ -361,7 +342,7 @@ export default function ModelBrowser({
   useEffect(() => {
     if (!open) return;
     if (initialMode && !launch?.mode) {
-      setMode(initialMode);
+      setMode(normalizeBrowserMode(initialMode));
     }
   }, [open, initialMode, launch?.mode]);
 
@@ -558,50 +539,32 @@ export default function ModelBrowser({
       onClose();
       return;
     }
-    if ((action.type === "apply_template" || action.type === "propose_workflow") && action.workflow) {
-      onApplyWorkflow?.(action.workflow);
-      onClose();
-      return;
-    }
     if (action.type === "open_compliance") {
       onClose();
       onOpenCompliance?.();
     }
   };
 
-  const isPlanWorkflowAction = (action: AgentPlanAction) =>
-    (action.type === "propose_workflow" || action.type === "apply_template") && Boolean(action.workflow);
-
-  const planWorkflowActions = useMemo(
-    () => agentPlan?.actions.filter(isPlanWorkflowAction) ?? [],
-    [agentPlan],
-  );
-  const planSupportActions = useMemo(
-    () => agentPlan?.actions.filter((action) => !isPlanWorkflowAction(action)) ?? [],
-    [agentPlan],
-  );
-  const selectedPlanWorkflow = useMemo(
-    () => planWorkflowActions.find((action) => action.id === selectedPlanWorkflowId) ?? planWorkflowActions[0],
-    [planWorkflowActions, selectedPlanWorkflowId],
-  );
-
-  useEffect(() => {
-    if (!planWorkflowActions.length) {
-      setSelectedPlanWorkflowId(null);
-      return;
-    }
-    if (!selectedPlanWorkflowId || !planWorkflowActions.some((action) => action.id === selectedPlanWorkflowId)) {
-      setSelectedPlanWorkflowId(planWorkflowActions[0].id);
-    }
-  }, [planWorkflowActions, selectedPlanWorkflowId]);
-
-  const cards = useMemo(
+  const planModelActions = useMemo(
     () =>
-      mode === "recommend"
-        ? recommendations.map((entry) => ({ model: entry.model, rationale: entry.rationale }))
-        : models.map((model) => ({ model, rationale: undefined as string | undefined })),
-    [mode, recommendations, models],
+      agentPlan?.actions.filter(
+        (action) =>
+          action.type === "install_model" ||
+          action.type === "drop_node" ||
+          action.type === "suggest_public_model",
+      ) ?? [],
+    [agentPlan],
   );
+  const planInstallActions = useMemo(
+    () => planModelActions.filter((action) => action.type === "install_model"),
+    [planModelActions],
+  );
+  const planPublicActions = useMemo(
+    () => planModelActions.filter((action) => action.type === "suggest_public_model"),
+    [planModelActions],
+  );
+
+  const cards = useMemo(() => searchHits, [searchHits]);
 
   const detailModel = useMemo(() => {
     if (!detailModelId) return null;
@@ -612,12 +575,10 @@ export default function ModelBrowser({
 
   const catalogHint =
     mode === "plan"
-      ? "Experimental — Claude prefers public AI models and simple hops (no private model/template/node-type catalog). Apply unlocks when every node exists. BYOK via Settings or ANTHROPIC_API_KEY."
-      : mode === "recommend"
-      ? "Find models searches the local published catalog only — not live Hugging Face."
+      ? "Model Plan — describe a task; Claude (or deterministic fallback) picks published registry models to install. For a full patch graph, use Generate (⌘G)."
       : mode === "search"
-        ? "Verified catalog — safe to install from Model Browser."
-        : mode === "discover"
+      ? "Search ranks the local published catalog (keywords or natural-language task). Not live Hugging Face — use Discover for that."
+      : mode === "discover"
           ? "Latest models from Hugging Face — browse only. Install after GroovyUI verifies the registry entry."
           : null;
 
@@ -729,16 +690,6 @@ export default function ModelBrowser({
               </button>
               <button
                 type="button"
-                className={mode === "recommend" ? "active" : ""}
-                onClick={() => {
-                  setMode("recommend");
-                  setError(null);
-                }}
-              >
-                Find models
-              </button>
-              <button
-                type="button"
                 className={mode === "discover" ? "active" : ""}
                 onClick={() => {
                   setMode("discover");
@@ -814,26 +765,30 @@ export default function ModelBrowser({
               className="model-browser__search"
               placeholder={
                 mode === "plan"
-                  ? "Describe the outcome, then press Enter — e.g. commercial podcast cleanup"
+                  ? "Describe the task, then press Enter — e.g. commercial podcast denoise"
                   : mode === "workflow"
                   ? "Deterministic match — e.g. denoise podcast then normalize"
-                  : mode === "recommend"
-                    ? "Describe your task — e.g. commercial-friendly podcast denoise"
-                    : mode === "discover"
+                  : mode === "discover"
                       ? "Search Hugging Face — e.g. denoise podcast whisper demucs"
-                      : "Search models — denoise, stems, voice clone…"
+                      : "Search or describe a task — e.g. denoise, stems, commercial podcast cleanup…"
               }
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
                 if (mode !== "plan") return;
-                if (event.key !== "Enter") return;
+                if (event.key !== "Enter" && event.code !== "Enter" && event.code !== "NumpadEnter") {
+                  return;
+                }
+                if (event.nativeEvent.isComposing || event.repeat) return;
                 event.preventDefault();
-                const prompt = query.trim();
+                event.stopPropagation();
+                const prompt = event.currentTarget.value.trim();
                 setPlanSubmittedQuery(prompt || null);
                 if (!prompt) {
                   setAgentPlan(null);
+                  return;
                 }
+                setPlanSubmitNonce((n) => n + 1);
               }}
               autoFocus
             />
@@ -868,7 +823,7 @@ export default function ModelBrowser({
                   </label>
                   {mode === "plan" ? (
                     <div className="model-browser__llm-options" role="radiogroup" aria-label="LLM options">
-                      <p className="model-browser__llm-options-label">LLM options</p>
+                      <p className="model-browser__llm-options-label">LLM for model picks</p>
                       {PLAN_LLM_OPTIONS.map((option) => {
                         const selected = planLlmModel === option.id;
                         return (
@@ -969,7 +924,7 @@ export default function ModelBrowser({
               {loading ? (
                 <p className="model-browser__hint model-browser__hint--waiting">
                   {mode === "plan"
-                    ? "Waiting for Claude to draft a blueprint…"
+                    ? "Planning models for this task…"
                     : "Searching…"}
                 </p>
               ) : null}
@@ -978,130 +933,108 @@ export default function ModelBrowser({
               {mode === "plan" ? (
                 <>
                   {!loading && !error && !planSubmittedQuery ? (
-                    <div className="workflow-blueprint workflow-blueprint--empty">
-                      <p>
-                        Type an outcome and press <strong>Enter</strong> — Claude drafts an experimental{" "}
-                        <strong>blueprint</strong> (building blocks only, no render). Some nodes may not exist
-                        yet. Use Suggest workflow for deterministic template matches.
-                      </p>
-                    </div>
+                    <p className="model-browser__hint">
+                      Type a task and press <strong>Enter</strong> — Plan recommends which published
+                      models to install (and optional Drop node). Graph drafting is{" "}
+                      <strong>Generate (⌘G)</strong>, not Plan.
+                    </p>
                   ) : null}
                   {loading && planSubmittedQuery ? (
-                    <div className="workflow-blueprint workflow-blueprint--empty workflow-blueprint--waiting" aria-live="polite">
-                      <p>
-                        Waiting for Claude to respond…
-                        <span className="model-browser__waiting-sub">
-                          Drafting a blueprint for “{planSubmittedQuery}”
-                        </span>
-                      </p>
-                    </div>
+                    <p className="model-browser__hint model-browser__hint--waiting" aria-live="polite">
+                      Planning models for “{planSubmittedQuery}”…
+                    </p>
                   ) : null}
                   {agentPlan?.notes ? <p className="model-browser__hint">{agentPlan.notes}</p> : null}
-                  {agentPlan?.mode === "needs_api_key" ? (
-                    <p className="model-browser__hint">
-                      Open Settings → Plan / Claude to save a key, or export{" "}
-                      <code>ANTHROPIC_API_KEY</code> (preferred).
-                    </p>
-                  ) : null}
                   {agentPlan?.tools_used?.length ? (
                     <p className="model-browser__hint">
-                      Non-deterministic · Tools: {agentPlan.tools_used.join(" → ")}
+                      {agentPlan.deterministic === false ? "LLM model plan" : "Deterministic model plan"}
                       {agentPlan.inferred_task ? ` · task ${agentPlan.inferred_task}` : ""}
+                      {agentPlan.public_pick_count != null
+                        ? ` · ${agentPlan.public_pick_count} public pick(s)`
+                        : agentPlan.recommend_count != null
+                          ? ` · ${agentPlan.recommend_count} model(s)`
+                          : ""}
                     </p>
                   ) : null}
-                  {planWorkflowActions.length > 1 ? (
-                    <div className="model-browser__plan-options" role="radiogroup" aria-label="Blueprint options">
-                      <p className="model-browser__llm-results-label">Blueprint options</p>
-                      {planWorkflowActions.map((action) => {
-                        const selected = (selectedPlanWorkflow?.id ?? null) === action.id;
-                        return (
-                          <button
-                            key={action.id}
-                            type="button"
-                            role="radio"
-                            aria-checked={selected}
-                            className={`model-browser__plan-option${selected ? " model-browser__plan-option--active" : ""}`}
-                            onClick={() => setSelectedPlanWorkflowId(action.id)}
-                          >
-                            <span className="model-browser__plan-option-title">
-                              {action.summary || action.title}
-                            </span>
-                            <span className="model-browser__plan-option-meta">
-                              {(action.unknown_node_types?.length ?? 0) > 0
-                                ? `${action.unknown_node_types?.length} unavailable`
-                                : "ready types"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                  {!loading &&
+                  planSubmittedQuery &&
+                  planInstallActions.length === 0 &&
+                  planPublicActions.length === 0 &&
+                  agentPlan ? (
+                    <p className="model-browser__hint">
+                      No models matched this task — try another description, relax Commercial OK, or use Find
+                      models / Search.
+                    </p>
                   ) : null}
-                  {selectedPlanWorkflow?.workflow ? (
-                    <WorkflowBlueprintPreview
-                      workflow={selectedPlanWorkflow.workflow}
-                      title={selectedPlanWorkflow.summary || selectedPlanWorkflow.title}
-                      subtitle={selectedPlanWorkflow.rationale || selectedPlanWorkflow.description}
-                      unknownNodeTypes={selectedPlanWorkflow.unknown_node_types}
-                      showSnapshotExport={(selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0}
-                    />
-                  ) : !loading && agentPlan && agentPlan.mode !== "needs_api_key" && planWorkflowActions.length === 0 ? (
-                    <div className="workflow-blueprint workflow-blueprint--empty">
-                      <p>No graph in this plan — try another prompt, or use Suggest workflow.</p>
-                    </div>
-                  ) : null}
-                  {selectedPlanWorkflow ? (
-                    <div className="model-browser__plan-apply">
-                      <button
-                        type="button"
-                        className="model-browser__plan-apply-btn"
-                        disabled={(selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0}
-                        title={
-                          (selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0
-                            ? "Unavailable nodes — treat this blueprint as a brainstorming snapshot"
-                            : "Apply this blueprint to the canvas"
-                        }
-                        onClick={() => {
-                          if ((selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0) return;
-                          runPlanAction(selectedPlanWorkflow);
-                        }}
-                      >
-                        Apply workflow to canvas
-                      </button>
-                      <span
-                        className={`model-browser__hint${
-                          (selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0
-                            ? " model-browser__hint--warn"
-                            : ""
-                        }`}
-                      >
-                        {(selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0
-                          ? "Brainstorming snapshot — Apply is locked. Save JSON or image from the blueprint chrome to keep the draft."
-                          : "All nodes available — Apply replaces the canvas with this blueprint."}
-                      </span>
-                    </div>
-                  ) : null}
-                  {planSupportActions.length > 0 ? (
-                    <div className="model-browser__plan-steps">
-                      <p className="model-browser__llm-results-label">Also suggested</p>
-                      <ul>
-                        {planSupportActions.map((action) => (
-                          <li key={action.id}>
-                            <span>
-                              <strong>{action.summary || action.title}</strong>
-                              {action.rationale ? ` — ${action.rationale}` : ""}
+                  {planInstallActions.map((action) => {
+                    const model = action.model;
+                    if (!model) return null;
+                    const drop = planModelActions.find(
+                      (entry) =>
+                        entry.type === "drop_node" &&
+                        entry.model_id === action.model_id &&
+                        entry.node_type,
+                    );
+                    const status = installProgress[model.id]?.status ?? model.install_status ?? "not_installed";
+                    const isInstalling = installingId === model.id;
+                    const nodeType = model.compatible_nodes?.[0];
+                    return (
+                      <article key={action.id} className="model-card">
+                        <div className="model-card__row">
+                          <strong>{action.public_name || model.name}</strong>
+                          <span className="pill">
+                            {action.public_name ? `${action.public_name} → ${model.id}` : model.id}
+                          </span>
+                        </div>
+                        <p className="model-card__desc">{model.description}</p>
+                        <p className="model-card__rationale">{action.rationale}</p>
+                        <div className="model-card__meta">
+                          <span className="pill">local registry</span>
+                          {(model.task_types || []).slice(0, 3).map((task) => (
+                            <span key={task} className="pill">
+                              {task}
                             </span>
-                            <button type="button" onClick={() => runPlanAction(action)}>
-                              {action.type === "install_model"
-                                ? "Install"
-                                : action.type === "drop_node"
-                                  ? "Drop node"
-                                  : "Open Compliance"}
+                          ))}
+                          {model.license?.spdx ? <span className="pill">{model.license.spdx}</span> : null}
+                        </div>
+                        <div className="model-card__actions">
+                          {renderModelActions(model, nodeType, isInstalling, status)}
+                          {drop?.node_type ? (
+                            <button type="button" onClick={() => runPlanAction(drop)}>
+                              Drop {drop.node_type}
                             </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
+                          ) : null}
+                        </div>
+                      </article>
+                    );
+                  })}
+                  {planPublicActions.map((action) => (
+                    <article key={action.id} className="model-card model-card--public-pick">
+                      <div className="model-card__row">
+                        <strong>{action.public_name || action.title}</strong>
+                        <span className="pill">public</span>
+                      </div>
+                      <p className="model-card__rationale">{action.rationale}</p>
+                      <div className="model-card__meta">
+                        <span className="pill">not in local registry</span>
+                        {action.task_type ? <span className="pill">{action.task_type}</span> : null}
+                        {action.node_type ? <span className="pill">{action.node_type}</span> : null}
+                      </div>
+                      <div className="model-card__actions">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode("discover");
+                            const q = action.public_name || action.title;
+                            setQuery(q);
+                            setDebouncedQuery(q);
+                          }}
+                        >
+                          Search Discover
+                        </button>
+                      </div>
+                    </article>
+                  ))}
                 </>
               ) : mode === "workflow" ? (
                 <>
@@ -1189,16 +1122,16 @@ export default function ModelBrowser({
                 <>
                   {!loading && !error && cards.length === 0 ? (
                     <p className="model-browser__hint">
-                      {mode === "recommend"
-                        ? "Describe your task above to get model recommendations from the local catalog."
-                        : `No models found in the local catalog${effectiveNodeFilter ? ` for ${effectiveNodeFilter}` : ""}. Try another task filter or install from the required list above.`}
+                      {debouncedQuery.trim()
+                        ? `No models found in the local catalog${effectiveNodeFilter ? ` for ${effectiveNodeFilter}` : ""}. Try another phrase, task filter, or Discover.`
+                        : "Type a keyword or task description to rank published models — or leave empty to browse the catalog."}
                     </p>
                   ) : null}
-                  {mode === "recommend" && !loading && cards.length > 0 ? (
+                  {!loading && cards.length > 0 && debouncedQuery.trim() ? (
                     <div className="model-browser__handoff">
                       <p className="model-browser__hint">
                         {workflowHandoffHint ??
-                          "Suggestions only — Install / Drop node stay explicit. You can also preview a workflow template."}
+                          "Ranked for your query — Install / Drop stay explicit. You can also preview a workflow template."}
                       </p>
                       <button
                         type="button"
