@@ -132,7 +132,7 @@ def test_plan_llm_composes_workflow_without_catalog(
         known_node_types=known,
     )
     assert result["mode"] == "plan"
-    assert result["agent"] == "plan_llm_v4"
+    assert result["agent"] == "plan_llm_v5"
     assert result["deterministic"] is False
     assert result["experimental"] is True
     assert len(result["actions"]) == 1
@@ -142,17 +142,80 @@ def test_plan_llm_composes_workflow_without_catalog(
     assert action["unknown_node_types"] == ["FantasyStemAI"]
     assert len(action["workflow"]["nodes"]) == 4
     assert len(action["workflow"]["links"]) == 3
+    denoise = next(n for n in action["workflow"]["nodes"] if n["type"] == "Denoise")
+    assert denoise["widgets"]["model"] == "deepfilternet-v3"
     assert "Highlighted nodes" in result["notes"]
+
+
+def test_remap_public_model_ref_to_local_registry(tmp_path: Path) -> None:
+    from groovy.registry.agent.llm_planner import hydrate_composed_workflow
+
+    registry = ModelRegistry(tmp_path)
+    workflow, unknown, remaps, reason = hydrate_composed_workflow(
+        {
+            "summary": "TTS draft",
+            "nodes": [
+                {"id": "n1", "type": "Prompt", "widgets": {"text": "hi"}},
+                {"id": "n3", "type": "TTS", "widgets": {"model": "coqui/XTTS-v2"}},
+                {"id": "n4", "type": "Preview", "widgets": {}},
+            ],
+            "links": [
+                {"id": "e1", "from": ["n1", 0], "to": ["n3", 0], "type": "TEXT"},
+                {"id": "e2", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO"},
+            ],
+        },
+        index=0,
+        known_node_types={"Prompt", "TTS", "Preview"},
+        catalog=registry.catalog,
+        node_model_defaults={"TTS": "kokoro-82m"},
+    )
+    assert reason == ""
+    assert workflow is not None
+    assert unknown == []
+    tts = next(n for n in workflow["nodes"] if n["id"] == "n3")
+    assert tts["widgets"]["model"] == "kokoro-82m"
+    assert remaps
+    assert remaps[0]["from"] == "coqui/XTTS-v2"
+    assert remaps[0]["to"] == "kokoro-82m"
+
+
+def test_fill_empty_load_audio_path(tmp_path: Path) -> None:
+    from groovy.registry.agent.llm_planner import (
+        DEFAULT_PLAN_LOAD_AUDIO_PATH,
+        hydrate_composed_workflow,
+    )
+
+    registry = ModelRegistry(tmp_path)
+    workflow, unknown, remaps, reason = hydrate_composed_workflow(
+        {
+            "summary": "Load draft",
+            "nodes": [
+                {"id": "n1", "type": "LoadAudio", "widgets": {}},
+                {"id": "n2", "type": "Preview", "widgets": {}},
+            ],
+            "links": [{"id": "e1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO"}],
+        },
+        index=0,
+        known_node_types={"LoadAudio", "Preview"},
+        catalog=registry.catalog,
+    )
+    assert reason == ""
+    assert workflow is not None
+    assert unknown == []
+    load = next(n for n in workflow["nodes"] if n["id"] == "n1")
+    assert load["widgets"]["path"] == DEFAULT_PLAN_LOAD_AUDIO_PATH
+    assert any(row.get("reason") == "default_demo_sample" for row in remaps)
 
 
 def test_hydrate_composed_workflow_rejects_empty() -> None:
     from groovy.registry.agent.llm_planner import hydrate_composed_workflow
 
-    workflow, unknown, reason = hydrate_composed_workflow(
+    workflow, unknown, remaps, reason = hydrate_composed_workflow(
         {"nodes": [], "links": []},
         index=0,
         known_node_types={"LoadAudio"},
     )
     assert workflow is None
     assert unknown == []
+    assert remaps == []
     assert "no nodes" in reason

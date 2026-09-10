@@ -48,6 +48,7 @@ import FitAllControl from "./components/FitAllControl";
 import SampleAccuracyBadge from "./components/SampleAccuracyBadge";
 import CanvasNodeFinder from "./components/CanvasNodeFinder";
 import CanvasNodePicker from "./components/CanvasNodePicker";
+import { sanitizePlanWorkflowModels } from "./planModelSanitize";
 import FpsMeter from "./components/FpsMeter";
 import GroovyFlowNode from "./components/GroovyFlowNode";
 import type { GroovyNodeData } from "./components/GroovyFlowNode";
@@ -1509,12 +1510,13 @@ export default function App() {
         startActivationSession({ source: "suggestion_apply" });
       }
       recordActivationMilestone("workflow_applied");
-      applyWorkflow(layoutWorkflowNodes(next));
+      const sanitized = sanitizePlanWorkflowModels(next, nodeSchemas);
+      applyWorkflow(layoutWorkflowNodes(sanitized));
       setComplianceFastPath(true);
       setComplianceOpen(true);
       setStatus("Review licenses before installing or rendering");
     },
-    [applyWorkflow],
+    [applyWorkflow, nodeSchemas],
   );
 
   const installRenderAndAudition = useCallback(async (): Promise<FastPathRunResult> => {

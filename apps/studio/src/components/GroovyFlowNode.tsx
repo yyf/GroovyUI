@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useAudition } from "../context/AuditionContext";
 import type { CanvasNodeKind } from "../nodeKinds";
+import { shortCanvasIssueLabel } from "../planModelSanitize";
 import { socketTypeColor } from "../socketTypes";
 import type { NodeRenderStatus } from "../types";
 
@@ -177,7 +178,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
         ) : null}
         {nodeData.issue ? (
           <p className="groovy-node__issue" title={nodeData.issue}>
-            {nodeData.issue}
+            {shortCanvasIssueLabel(nodeData.issue)}
           </p>
         ) : null}
         {nodeData.activityLabel ? (

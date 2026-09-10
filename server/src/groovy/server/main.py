@@ -1157,6 +1157,17 @@ def agent_plan_endpoint(body: AgentPlanRequest) -> dict[str, Any]:
     if planner == "llm":
         from groovy.registry.agent.llm_planner import plan_agent_request_llm
 
+        node_model_defaults: dict[str, str] = {}
+        for node_name, node_cls in NODE_REGISTRY.items():
+            try:
+                desc = node_cls.describe()
+            except Exception:
+                continue
+            for widget in desc.get("widgets") or []:
+                if widget.get("name") == "model" and widget.get("default"):
+                    node_model_defaults[node_name] = str(widget["default"])
+                    break
+
         return plan_agent_request_llm(
             _registry.catalog,
             _registry.store,
@@ -1171,6 +1182,7 @@ def agent_plan_endpoint(body: AgentPlanRequest) -> dict[str, Any]:
             max_workflows=body.max_workflows,
             model=(body.llm_model or "").strip() or "claude-sonnet-5",
             known_node_types=set(NODE_REGISTRY.keys()),
+            node_model_defaults=node_model_defaults,
         )
     return plan_agent_request(
         _registry.catalog,
