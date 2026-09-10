@@ -3716,14 +3716,13 @@ body {
 
 .groovy-node__issue {
   margin: 6px 0 0;
-  max-width: 180px;
+  max-width: 140px;
   font-size: 10px;
-  line-height: 1.35;
+  line-height: 1.2;
   color: #fca5a5;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .groovy-node--selected {

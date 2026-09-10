@@ -423,6 +423,14 @@ export type AgentPlanAction = {
   workflow?: Workflow;
   /** Node types in the draft that are not registered in this build. */
   unknown_node_types?: string[];
+  /** Public/Claude model strings remapped to local registry ids. */
+  model_remaps?: Array<{
+    node_id: string;
+    node_type: string;
+    from: string;
+    to: string;
+    reason: string;
+  }>;
   priority?: number;
   scan_ok?: boolean;
 };

@@ -19,6 +19,215 @@ from groovy.schema.models import Workflow
 DEFAULT_CLAUDE_MODEL = "claude-sonnet-5"
 ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 SOCKET_TYPES = frozenset({"AUDIO", "MIDI", "TEXT", "STRING", "FLOAT", "CONTROL", "OBA", "SAMPLE_CHECK", "AUTHENTICITY"})
+# Shipped demo clip — same default as studio LoadAudio / sampleDefaults.ts
+DEFAULT_PLAN_LOAD_AUDIO_PATH = "assets/samples/podcast_denoise_demo.wav"
+
+
+def _normalize_model_token(value: str) -> str:
+    text = value.strip().lower()
+    if "/" in text:
+        text = text.rsplit("/", 1)[-1]
+    if text.endswith(".git"):
+        text = text[:-4]
+    return re.sub(r"[^a-z0-9]+", "", text)
+
+
+def _catalog_published(catalog: Any) -> list[Any]:
+    if catalog is None:
+        return []
+    try:
+        models = list(catalog.all())
+    except Exception:
+        return []
+    return [m for m in models if getattr(m, "status", "") == "published"]
+
+
+def resolve_local_model_id(
+    suggested: str,
+    *,
+    node_type: str,
+    catalog: Any,
+    node_model_defaults: dict[str, str] | None = None,
+    commercial_ok: bool | None = None,
+) -> tuple[str | None, str]:
+    """Map a Claude/public model string to a published local registry id."""
+    suggested = (suggested or "").strip()
+    defaults = node_model_defaults or {}
+    published = _catalog_published(catalog)
+
+    def _ok(model: Any) -> bool:
+        if commercial_ok and not getattr(getattr(model, "license", None), "commercial_ok", False):
+            return False
+        nodes = list(getattr(model, "compatible_nodes", None) or [])
+        if node_type and nodes and node_type not in nodes:
+            return False
+        return True
+
+    if not suggested:
+        default = defaults.get(node_type)
+        if default:
+            return default, "node_default"
+        for model in published:
+            if _ok(model):
+                return str(model.id), "compatible_fallback"
+        return None, "unresolved"
+
+    if catalog is not None:
+        exact = catalog.get(suggested)
+        if exact is not None and getattr(exact, "status", "") == "published":
+            return str(exact.id), "exact_id"
+
+    basename = suggested.rsplit("/", 1)[-1].strip()
+    if basename and basename != suggested and catalog is not None:
+        by_base = catalog.get(basename)
+        if by_base is not None and getattr(by_base, "status", "") == "published":
+            return str(by_base.id), "basename_id"
+
+    needle = _normalize_model_token(suggested)
+    basename_needle = _normalize_model_token(basename) if basename else needle
+    best: tuple[int, str] | None = None
+    for model in published:
+        if not _ok(model):
+            continue
+        mid = str(model.id)
+        score = 0
+        mid_n = _normalize_model_token(mid)
+        name_n = _normalize_model_token(str(getattr(model, "name", "") or ""))
+        tags_n = _normalize_model_token(" ".join(getattr(model, "tags", None) or []))
+        if mid_n == needle or mid_n == basename_needle:
+            score = 100
+        elif needle and needle in mid_n:
+            score = 80
+        elif basename_needle and basename_needle in mid_n:
+            score = 75
+        elif needle and (needle in name_n or needle in tags_n):
+            score = 55
+        elif basename_needle and (basename_needle in name_n or basename_needle in tags_n):
+            score = 50
+        # Common family aliases (public name → local wedge)
+        aliases = {
+            "xtts": "kokoro",
+            "xttsv2": "kokoro",
+            "coqui": "kokoro",
+            "whisper": "whisper",
+            "demucs": "demucs",
+            "deepfilter": "deepfilter",
+            "rvc": "rvc",
+            "musicgen": "musicgen",
+            "basicpitch": "basicpitch",
+        }
+        for key, local_hint in aliases.items():
+            if key in needle and local_hint in mid_n:
+                score = max(score, 70)
+        if score <= 0:
+            continue
+        if node_type and node_type in list(getattr(model, "compatible_nodes", None) or []):
+            score += 15
+        if best is None or score > best[0]:
+            best = (score, mid)
+    if best and best[0] >= 50:
+        return best[1], "fuzzy_match"
+
+    default = defaults.get(node_type)
+    if default:
+        return default, "node_default"
+    for model in published:
+        if _ok(model):
+            return str(model.id), "compatible_fallback"
+    return None, "unresolved"
+
+
+def remap_workflow_model_refs(
+    workflow: dict[str, Any],
+    catalog: Any,
+    *,
+    node_model_defaults: dict[str, str] | None = None,
+    commercial_ok: bool | None = None,
+) -> list[dict[str, str]]:
+    """Rewrite widgets.model to local registry ids. Returns remap audit rows."""
+    remaps: list[dict[str, str]] = []
+    defaults = node_model_defaults or {}
+    nodes = workflow.get("nodes")
+    if not isinstance(nodes, list):
+        return remaps
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        node_type = str(node.get("type") or "")
+        widgets = node.get("widgets")
+        if not isinstance(widgets, dict):
+            widgets = {}
+            node["widgets"] = widgets
+        raw = widgets.get("model")
+        suggested = "" if raw is None else str(raw).strip()
+        # Only touch nodes that already have a model widget or declare a MODEL_REF default.
+        if not suggested and node_type not in defaults:
+            continue
+        resolved, reason = resolve_local_model_id(
+            suggested,
+            node_type=node_type,
+            catalog=catalog,
+            node_model_defaults=defaults,
+            commercial_ok=commercial_ok,
+        )
+        if not resolved:
+            if suggested:
+                # Drop unknown public refs so Compliance does not hard-block on HF paths.
+                widgets.pop("model", None)
+                remaps.append(
+                    {
+                        "node_id": str(node.get("id") or ""),
+                        "node_type": node_type,
+                        "from": suggested,
+                        "to": "",
+                        "reason": "cleared_unknown",
+                    }
+                )
+            continue
+        if suggested == resolved:
+            continue
+        widgets["model"] = resolved
+        remaps.append(
+            {
+                "node_id": str(node.get("id") or ""),
+                "node_type": node_type,
+                "from": suggested or "(empty)",
+                "to": resolved,
+                "reason": reason,
+            }
+        )
+    return remaps
+
+
+def fill_load_audio_paths(workflow: dict[str, Any]) -> list[dict[str, str]]:
+    """Ensure LoadAudio nodes have a project-relative demo path when Claude left path empty."""
+    fills: list[dict[str, str]] = []
+    nodes = workflow.get("nodes")
+    if not isinstance(nodes, list):
+        return fills
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        if str(node.get("type") or "") != "LoadAudio":
+            continue
+        widgets = node.get("widgets")
+        if not isinstance(widgets, dict):
+            widgets = {}
+            node["widgets"] = widgets
+        raw = widgets.get("path")
+        path = "" if raw is None else str(raw).strip()
+        if path:
+            continue
+        widgets["path"] = DEFAULT_PLAN_LOAD_AUDIO_PATH
+        fills.append(
+            {
+                "node_id": str(node.get("id") or ""),
+                "from": "(empty)",
+                "to": DEFAULT_PLAN_LOAD_AUDIO_PATH,
+                "reason": "default_demo_sample",
+            }
+        )
+    return fills
 
 
 def _extract_json_object(text: str) -> dict[str, Any]:
@@ -140,12 +349,18 @@ def hydrate_composed_workflow(
     *,
     index: int,
     known_node_types: set[str] | None,
-) -> tuple[dict[str, Any] | None, list[str], str]:
-    """Build a Workflow dict from Claude draft nodes/links. Returns (workflow, unknown_types, skip_reason)."""
+    catalog: Any = None,
+    node_model_defaults: dict[str, str] | None = None,
+    commercial_ok: bool | None = None,
+) -> tuple[dict[str, Any] | None, list[str], list[dict[str, str]], str]:
+    """Build a Workflow dict from Claude draft nodes/links.
+
+    Returns (workflow, unknown_types, model_remaps, skip_reason).
+    """
     raw_nodes = draft.get("nodes")
     raw_links = draft.get("links")
     if not isinstance(raw_nodes, list) or not raw_nodes:
-        return None, [], "workflow has no nodes"
+        return None, [], [], "workflow has no nodes"
 
     used_ids: set[str] = set()
     nodes: list[dict[str, Any]] = []
@@ -154,7 +369,7 @@ def hydrate_composed_workflow(
         if node:
             nodes.append(node)
     if not nodes:
-        return None, [], "no valid nodes"
+        return None, [], [], "no valid nodes"
 
     node_ids = {n["id"] for n in nodes}
     links: list[dict[str, Any]] = []
@@ -191,11 +406,28 @@ def hydrate_composed_workflow(
         "links": links,
         "groups": [],
     }
+    remaps = remap_workflow_model_refs(
+        workflow,
+        catalog,
+        node_model_defaults=node_model_defaults,
+        commercial_ok=commercial_ok,
+    )
+    path_fills = fill_load_audio_paths(workflow)
+    for row in path_fills:
+        remaps.append(
+            {
+                "node_id": row["node_id"],
+                "node_type": "LoadAudio",
+                "from": row["from"],
+                "to": row["to"],
+                "reason": row["reason"],
+            }
+        )
     try:
         Workflow.model_validate(workflow)
     except Exception as exc:
-        return None, unknown, f"invalid workflow shape: {exc}"
-    return workflow, unknown, ""
+        return None, unknown, remaps, f"invalid workflow shape: {exc}"
+    return workflow, unknown, remaps, ""
 
 
 def _collect_workflow_drafts(parsed: dict[str, Any], *, max_workflows: int) -> list[dict[str, Any]]:
@@ -245,15 +477,20 @@ def plan_agent_request_llm(
     max_workflows: int = 2,
     model: str = DEFAULT_CLAUDE_MODEL,
     known_node_types: set[str] | frozenset[str] | None = None,
+    node_model_defaults: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Compose blueprint workflow(s) from prompt via Claude. Catalog is not sent."""
-    del catalog, store, registry, templates_dir, max_models  # unused — keep call-site stable
+    """Compose blueprint workflow(s) from prompt via Claude.
+
+    Catalog / node types are **not** sent to Claude. After the reply, model widget
+    values are remapped onto the local published registry (or node defaults).
+    """
+    del store, registry, templates_dir, max_models  # keep call-site stable
     prompt = prompt.strip()
     base = {
         "prompt": prompt,
         "planner": "llm",
         "deterministic": False,
-        "agent": "plan_llm_v4",
+        "agent": "plan_llm_v5",
         "tools_used": ["claude_messages"],
         "experimental": True,
     }
@@ -285,17 +522,18 @@ def plan_agent_request_llm(
         "Agents suggest; the user Applies explicitly. Never claim to install or rewrite the canvas.\n"
         "\n"
         "How to build the graph (priority order):\n"
-        "1. Mentally search well-known public AI audio models (Hugging Face / widely documented OSS) "
-        "that fit the user's task (denoise, stems, STT, TTS, voice conversion, audio-to-MIDI, music gen, etc.).\n"
-        "2. Prefer those real public models when constructing the graph — put the model id or common "
-        "repo name in widgets (especially widgets.model) on AI hops.\n"
-        "3. Use ordinary patch-bay building-block names for nodes (PascalCase), matching common "
-        "offline audio-graph hops (e.g. LoadAudio, Denoise, SeparateStems, WhisperSTT, TTS, "
-        "Normalize, Preview, SaveAudio). Prefer widely used hop names over inventing exotic ones.\n"
-        "4. Keep graphs minimal: typically LoadAudio (or Prompt) → one or two AI hops → "
-        "optional Normalize/Mix → Preview and/or SaveAudio. Avoid overcomplicating.\n"
-        "5. Prefer commercial-friendly public models when filters.commercial_ok is true.\n"
-        "6. Do not send or assume a private inventory — rely on public model knowledge and simple hops.\n"
+        "1. Mentally search well-known public AI audio models that fit the task "
+        "(denoise, stems, STT, TTS, voice conversion, audio-to-MIDI, music gen, etc.). "
+        "Mention those public names in rationale/notes.\n"
+        "2. Prefer simple offline patch-bay hops. Use PascalCase node types "
+        "(LoadAudio, Denoise, SeparateStems, WhisperSTT, TTS, Normalize, Preview, SaveAudio).\n"
+        "3. Keep graphs minimal: LoadAudio/Prompt → one or two AI hops → Preview/SaveAudio.\n"
+        "4. For widgets.model: omit it or use a short family token (e.g. denoise, tts, whisper). "
+        "Do NOT put Hugging Face org/repo paths (like org/model-name) in widgets.model — "
+        "the studio remaps to local registry ids after your reply.\n"
+        "5. For LoadAudio: omit widgets.path or leave it empty — the studio assigns a demo sample. "
+        "Do not invent absolute paths.\n"
+        "6. Prefer commercial-friendly public models when filters.commercial_ok is true.\n"
         "\n"
         "Reply with ONLY a JSON object:\n"
         '{"inferred_task": string|null, "notes": string, "workflows": [ ... ]}\n'
@@ -321,6 +559,7 @@ def plan_agent_request_llm(
             "no_node_type_catalog": True,
             "prefer_public_ai_models": True,
             "keep_graphs_simple": True,
+            "remap_models_locally": True,
         },
     }
     user = json.dumps(user_payload, indent=2)
@@ -340,17 +579,28 @@ def plan_agent_request_llm(
     drafts = _collect_workflow_drafts(parsed, max_workflows=max_workflows)
     actions: list[dict[str, Any]] = []
     skipped: list[str] = []
+    all_remaps: list[dict[str, str]] = []
     for index, draft in enumerate(drafts):
-        workflow, unknown, reason = hydrate_composed_workflow(
+        workflow, unknown, remaps, reason = hydrate_composed_workflow(
             draft,
             index=index,
             known_node_types=known,
+            catalog=catalog,
+            node_model_defaults=node_model_defaults,
+            commercial_ok=commercial_ok,
         )
         if workflow is None:
             skipped.append(reason or f"workflow[{index}] rejected")
             continue
+        all_remaps.extend(remaps)
         summary = str(draft.get("summary") or workflow["metadata"]["title"]).strip()
         rationale = str(draft.get("rationale") or workflow["metadata"].get("description") or "").strip()
+        if remaps:
+            mapped = "; ".join(
+                f"{row['from']}→{row['to'] or '(cleared)'}" for row in remaps if row.get("from")
+            )
+            if mapped:
+                rationale = (rationale + f" Local model map: {mapped}.").strip()
         actions.append(
             {
                 "type": "propose_workflow",
@@ -361,6 +611,7 @@ def plan_agent_request_llm(
                 "description": rationale,
                 "workflow": workflow,
                 "unknown_node_types": unknown,
+                "model_remaps": remaps,
                 "priority": int(draft.get("priority") or (10 - index)),
             }
         )
@@ -369,9 +620,11 @@ def plan_agent_request_llm(
 
     notes = str(parsed.get("notes") or "").strip()
     note_parts = [
-        "Experimental Plan (Claude) — prefers public AI models and simple hops; no private catalogs sent; Apply stays explicit.",
+        "Experimental Plan (Claude) — public-model ideas remapped to local registry ids; Apply stays explicit.",
         notes,
     ]
+    if all_remaps:
+        note_parts.append(f"Remapped {len(all_remaps)} model reference(s) to published registry ids.")
     if any(a.get("unknown_node_types") for a in actions):
         note_parts.append("Highlighted nodes are not available in this build yet.")
     if skipped:
