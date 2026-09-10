@@ -1037,6 +1037,7 @@ export default function ModelBrowser({
                       title={selectedPlanWorkflow.summary || selectedPlanWorkflow.title}
                       subtitle={selectedPlanWorkflow.rationale || selectedPlanWorkflow.description}
                       unknownNodeTypes={selectedPlanWorkflow.unknown_node_types}
+                      showSnapshotExport={(selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0}
                     />
                   ) : !loading && agentPlan && agentPlan.mode !== "needs_api_key" && planWorkflowActions.length === 0 ? (
                     <div className="workflow-blueprint workflow-blueprint--empty">
@@ -1069,7 +1070,7 @@ export default function ModelBrowser({
                         }`}
                       >
                         {(selectedPlanWorkflow.unknown_node_types?.length ?? 0) > 0
-                          ? "Brainstorming snapshot — some nodes aren’t available yet. Apply unlocks when every node in the blueprint exists."
+                          ? "Brainstorming snapshot — Apply is locked. Save JSON or image from the blueprint chrome to keep the draft."
                           : "All nodes available — Apply replaces the canvas with this blueprint."}
                       </span>
                     </div>

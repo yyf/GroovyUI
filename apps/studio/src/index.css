@@ -6442,6 +6442,28 @@ body {
   color: #e0a04a;
 }
 
+.workflow-blueprint__exports {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workflow-blueprint__export-btn {
+  appearance: none;
+  border: 1px solid #5b8def;
+  background: rgba(16, 40, 72, 0.9);
+  color: #cfe0ff;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.workflow-blueprint__export-btn:hover {
+  border-color: #9eb6d8;
+  background: rgba(28, 58, 102, 0.95);
+}
+
 .model-browser__hint--warn {
   color: #e0a04a;
 }
