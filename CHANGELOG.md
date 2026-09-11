@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- **CI / studio lint** — Plan tab LLM chip state typed as `PlanLlmModelId` so `tsc --noEmit` accepts Sonnet / Fable / Haiku selections.
+
 ### Added
 
 - **Plan mode LLM (Claude, BYOK)** — Model Browser **Plan** picks which published models fit a task (Claude public-family suggestions remapped locally, or deterministic recommend without a key). It does **not** compose graphs — that is **Generate (⌘G)**. Private catalogs are not sent to Claude. Install / Drop stay explicit.
