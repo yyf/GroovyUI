@@ -22,7 +22,7 @@ import type {
   ModelInstallState,
   Workflow,
 } from "../types";
-import { PLAN_LLM_OPTIONS } from "../planLlmOptions";
+import { PLAN_LLM_OPTIONS, type PlanLlmModelId } from "../planLlmOptions";
 
 type Props = {
   open: boolean;
@@ -152,7 +152,7 @@ export default function ModelBrowser({
   const [draftingId, setDraftingId] = useState<string | null>(null);
   const [searchHits, setSearchHits] = useState<Array<{ model: ModelCard; rationale?: string }>>([]);
   const [agentPlan, setAgentPlan] = useState<AgentPlan | null>(null);
-  const [planLlmModel, setPlanLlmModel] = useState(PLAN_LLM_OPTIONS[0].id);
+  const [planLlmModel, setPlanLlmModel] = useState<PlanLlmModelId>(PLAN_LLM_OPTIONS[0].id);
   /** Plan mode only submits after Enter — not while typing. */
   const [planSubmittedQuery, setPlanSubmittedQuery] = useState<string | null>(null);
   /** Bumps on each Enter so re-submitting the same prompt still refreshes. */
