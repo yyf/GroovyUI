@@ -1,0 +1,94 @@
+# Model request form
+name: Model request
+description: Request that a Hugging Face (or other allowlisted) OSS audio model be verified for GroovyUI Install.
+title: "[model-request] "
+labels: ["model-request", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for requesting a model. **This is not one-click Install.**
+
+        - Anyone can file (your GitHub account).
+        - A maintainer triages first.
+        - Implementation uses a **local** Cursor agent (Privacy Mode Legacy — no Cloud Automations).
+        - Maintainer reviews the PR, verifies, and merges. **No auto-merge.**
+
+        Do **not** paste API keys, HF tokens, passwords, or absolute paths with credentials.
+
+  - type: input
+    id: hf_id
+    attributes:
+      label: Model id
+      description: Hugging Face repo id or proposed GroovyUI registry id (e.g. org/model-name).
+      placeholder: facebook/demucs
+    validations:
+      required: true
+
+  - type: input
+    id: source_url
+    attributes:
+      label: Source URL
+      description: Public model page (usually huggingface.co/…).
+      placeholder: https://huggingface.co/facebook/demucs
+    validations:
+      required: true
+
+  - type: dropdown
+    id: task_type
+    attributes:
+      label: Primary task
+      options:
+        - denoise
+        - stem-separation
+        - speech-to-text
+        - text-to-speech
+        - music-generation
+        - voice-conversion
+        - audio-to-midi
+        - speech-translation
+        - deepfake-detection
+        - watermark
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: suggested_nodes
+    attributes:
+      label: Suggested GroovyUI node(s)
+      description: Optional — e.g. Denoise, SeparateStems, WhisperSTT.
+      placeholder: SeparateStems
+
+  - type: input
+    id: license
+    attributes:
+      label: License (if known)
+      description: SPDX or short name from the model card (e.g. MIT, Apache-2.0, CC-BY-NC-4.0).
+      placeholder: MIT
+
+  - type: textarea
+    id: why_needed
+    attributes:
+      label: Why this model?
+      description: Job you want to run in a patch (podcast cleanup, stems, etc.). Public info only.
+      placeholder: Want to A/B this stemmer against demucs-v4 in SeparateStems.
+    validations:
+      required: true
+
+  - type: input
+    id: groovy_version
+    attributes:
+      label: GroovyUI version (optional)
+      description: From About / health if known.
+      placeholder: 0.20.0
+
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I did not include secrets (tokens, keys, private paths) in this issue.
+          required: true
+        - label: I understand Install stays off until a maintainer verifies and merges.
+          required: true

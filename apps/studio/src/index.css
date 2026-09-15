@@ -5649,6 +5649,13 @@ body {
   font-size: 12px;
 }
 
+.model-browser__required-list .model-browser__request-link {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
 .model-browser__install-all {
   width: 100%;
   padding: 8px 12px;
@@ -5705,9 +5712,12 @@ body {
   padding: 6px 10px;
   font-size: 12px;
   border-radius: 0;
+  border: 1px solid var(--stroke-secondary, #3a4660);
   background: var(--bg-elevated);
   color: var(--text-primary);
   text-decoration: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .model-card__link-btn:hover {

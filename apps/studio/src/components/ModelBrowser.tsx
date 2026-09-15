@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   cancelModelInstall,
-  createModelDraft,
   discoverModels,
   fetchInstallRecovery,
   fetchModelCard,
@@ -23,6 +22,19 @@ import type {
   Workflow,
 } from "../types";
 import { PLAN_LLM_OPTIONS, type PlanLlmModelId } from "../planLlmOptions";
+import {
+  buildModelRequestIssueUrl,
+  prefillFromDiscover,
+  prefillFromUnknownModelId,
+} from "../modelRequestIssue";
+
+function openModelRequestIssue(
+  prefill: Parameters<typeof buildModelRequestIssueUrl>[0],
+): void {
+  const repo = import.meta.env.VITE_GROOVY_GITHUB_REPO;
+  const url = buildModelRequestIssueUrl(prefill, { repo });
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 type Props = {
   open: boolean;
@@ -148,8 +160,6 @@ export default function ModelBrowser({
   const [taskType, setTaskType] = useState("");
   const [commercialOnly, setCommercialOnly] = useState(false);
   const [discoverResults, setDiscoverResults] = useState<DiscoverModelResult[]>([]);
-  const [draftResult, setDraftResult] = useState<{ id: string; created: boolean } | null>(null);
-  const [draftingId, setDraftingId] = useState<string | null>(null);
   const [searchHits, setSearchHits] = useState<Array<{ model: ModelCard; rationale?: string }>>([]);
   const [agentPlan, setAgentPlan] = useState<AgentPlan | null>(null);
   const [planLlmModel, setPlanLlmModel] = useState<PlanLlmModelId>(PLAN_LLM_OPTIONS[0].id);
@@ -178,6 +188,7 @@ export default function ModelBrowser({
   const [detailModelId, setDetailModelId] = useState<string | null>(null);
   const [showInstallLogs, setShowInstallLogs] = useState(false);
   const [requiredModels, setRequiredModels] = useState<ModelCard[]>([]);
+  const [unknownRequiredIds, setUnknownRequiredIds] = useState<string[]>([]);
   const [installingAllRequired, setInstallingAllRequired] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const installStopRef = useRef(false);
@@ -318,21 +329,25 @@ export default function ModelBrowser({
     if (!open) return;
     if (!requiredModelIds.length) {
       setRequiredModels([]);
+      setUnknownRequiredIds([]);
       return;
     }
     let cancelled = false;
     void Promise.all(
       requiredModelIds.map(async (modelId) => {
         try {
-          return await fetchModelCard(modelId);
+          const card = await fetchModelCard(modelId);
+          return { modelId, card };
         } catch {
-          return null;
+          return { modelId, card: null };
         }
       }),
-    ).then((cards) => {
-      if (!cancelled) {
-        setRequiredModels(cards.filter((card): card is ModelCard => card != null));
-      }
+    ).then((rows) => {
+      if (cancelled) return;
+      setRequiredModels(
+        rows.map((row) => row.card).filter((card): card is ModelCard => card != null),
+      );
+      setUnknownRequiredIds(rows.filter((row) => row.card == null).map((row) => row.modelId));
     });
     return () => {
       cancelled = true;
@@ -357,7 +372,6 @@ export default function ModelBrowser({
       setShowInstallLogs(false);
       setRecovery(null);
       setFailedModelId(null);
-      setDraftResult(null);
     }
   }, [open]);
 
@@ -505,30 +519,6 @@ export default function ModelBrowser({
     }
   };
 
-  const handleCreateDraft = async (entry: DiscoverModelResult) => {
-    setDraftingId(entry.external_id);
-    setDraftResult(null);
-    setError(null);
-    try {
-      const result = await createModelDraft(entry);
-      setDraftResult({ id: result.model.id, created: result.created });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save draft");
-    } finally {
-      setDraftingId(null);
-    }
-  };
-
-  const viewDraftInSearch = (draftId: string) => {
-    setMode("search");
-    setQuery(draftId);
-    setDebouncedQuery(draftId);
-    setTaskType("");
-    setCommercialOnly(false);
-    setError(null);
-    setDetailModelId(draftId);
-  };
-
   const runPlanAction = (action: AgentPlanAction) => {
     if (action.type === "install_model" && action.model_id) {
       void handleInstall(action.model_id);
@@ -579,7 +569,7 @@ export default function ModelBrowser({
       : mode === "search"
       ? "Search ranks the local published catalog (keywords or natural-language task). Not live Hugging Face — use Discover for that."
       : mode === "discover"
-          ? "Latest models from Hugging Face — browse only. Install after GroovyUI verifies the registry entry."
+          ? "Latest models from Hugging Face — browse only. Install only after a maintainer verifies. Use File GitHub request to ask (no secrets; no GroovyUI account)."
           : null;
 
   const requiredPending = requiredModels.filter((model) => !modelIsReady(model));
@@ -717,13 +707,15 @@ export default function ModelBrowser({
                 Showing models compatible with <strong>{effectiveNodeFilter}</strong>
               </p>
             ) : null}
-            {requiredModels.length > 0 ? (
+            {requiredModels.length > 0 || unknownRequiredIds.length > 0 ? (
               <div className="model-browser__required">
                 <p>
                   <strong>Required for this workflow</strong>
-                  {requiredPending.length === 0
-                    ? " — all models ready"
-                    : ` — ${requiredPending.length} need install`}
+                  {unknownRequiredIds.length > 0
+                    ? ` — ${unknownRequiredIds.length} not in catalog`
+                    : requiredPending.length === 0
+                      ? " — all models ready"
+                      : ` — ${requiredPending.length} need install`}
                 </p>
                 <ul className="model-browser__required-list">
                   {requiredModels.map((model) => {
@@ -748,6 +740,19 @@ export default function ModelBrowser({
                       </li>
                     );
                   })}
+                  {unknownRequiredIds.map((modelId) => (
+                    <li key={`unknown-${modelId}`}>
+                      <span>{modelId}</span>
+                      <span className="pill pill--warning">not in catalog</span>
+                      <button
+                        type="button"
+                        className="model-browser__request-link"
+                        onClick={() => openModelRequestIssue(prefillFromUnknownModelId(modelId))}
+                      >
+                        File GitHub request
+                      </button>
+                    </li>
+                  ))}
                 </ul>
                 {requiredPending.length > 0 ? (
                   <button
@@ -846,26 +851,6 @@ export default function ModelBrowser({
               )}
             </div>
             {catalogHint ? <p className="model-browser__hint model-browser__hint--catalog">{catalogHint}</p> : null}
-            {draftResult ? (
-              <div className="model-browser__draft-next">
-                <p>
-                  <strong>{draftResult.created ? "Draft saved" : "Draft already exists"}:</strong>{" "}
-                  <code>{draftResult.id}</code>
-                </p>
-                <p>
-                  Install stays off until a maintainer publishes it. Meanwhile, use a verified model from Search, or keep
-                  exploring in Discover.
-                </p>
-                <div className="model-card__actions">
-                  <button type="button" onClick={() => viewDraftInSearch(draftResult.id)}>
-                    View in Search
-                  </button>
-                  <button type="button" onClick={() => setDraftResult(null)}>
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            ) : null}
             {recovery && failedModelId ? (
               <div className="model-browser__recovery">
                 <p>
@@ -1077,7 +1062,6 @@ export default function ModelBrowser({
                       attribution_required: false,
                     });
                     const updated = formatDiscoverUpdated(entry.updated_at);
-                    const isDrafting = draftingId === entry.external_id;
                     return (
                       <article key={entry.external_id} className="model-card model-card--external">
                         <div className="model-card__row">
@@ -1108,10 +1092,10 @@ export default function ModelBrowser({
                           </a>
                           <button
                             type="button"
-                            disabled={isDrafting}
-                            onClick={() => void handleCreateDraft(entry)}
+                            className="model-card__link-btn"
+                            onClick={() => openModelRequestIssue(prefillFromDiscover(entry))}
                           >
-                            {isDrafting ? "Saving draft…" : "Draft registry entry"}
+                            File GitHub request
                           </button>
                         </div>
                       </article>

@@ -35,4 +35,8 @@ With [just](https://github.com/casey/just): `just install`, `just test`, `just v
 
 Apache 2.0 (planned for core packages). Third-party models and weights keep their own licenses.
 
+## Request a model
+
+In the studio Model Browser → **Discover**, use **File GitHub request** to open a prefilled public issue (no GroovyUI account; no secrets stored in the app). Maintainers triage first; Install stays off until a verified registry entry is merged. See [`.github/MODEL_REQUEST_PLAYBOOK.md`](.github/MODEL_REQUEST_PLAYBOOK.md).
+
 Release notes: [CHANGELOG.md](CHANGELOG.md)

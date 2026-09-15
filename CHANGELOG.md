@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- **Model request lane** — Discover (and unknown required-model ids) **File GitHub request** opens a browser deep link to the public issue template (no GitHub token in GroovyUI; no secrets in prefill). Discover cards no longer offer **Draft registry entry** (local draft API/CLI remains for maintainers). Maintainer playbook: `.github/MODEL_REQUEST_PLAYBOOK.md` (Privacy Mode Legacy — local agent only, no Cloud Automations). Labels: `model-request`, `needs-triage`, `agent-ok` (create in GitHub UI).
+
 ### Fixed
 
 - **CI / studio lint** — Plan tab LLM chip state typed as `PlanLlmModelId` so `tsc --noEmit` accepts Sonnet / Fable / Haiku selections.
