@@ -23,6 +23,19 @@ import type {
   Workflow,
 } from "../types";
 import { PLAN_LLM_OPTIONS, type PlanLlmModelId } from "../planLlmOptions";
+import {
+  buildModelRequestIssueUrl,
+  prefillFromDiscover,
+  prefillFromUnknownModelId,
+} from "../modelRequestIssue";
+
+function openModelRequestIssue(
+  prefill: Parameters<typeof buildModelRequestIssueUrl>[0],
+): void {
+  const repo = import.meta.env.VITE_GROOVY_GITHUB_REPO;
+  const url = buildModelRequestIssueUrl(prefill, { repo });
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 type Props = {
   open: boolean;
@@ -178,6 +191,7 @@ export default function ModelBrowser({
   const [detailModelId, setDetailModelId] = useState<string | null>(null);
   const [showInstallLogs, setShowInstallLogs] = useState(false);
   const [requiredModels, setRequiredModels] = useState<ModelCard[]>([]);
+  const [unknownRequiredIds, setUnknownRequiredIds] = useState<string[]>([]);
   const [installingAllRequired, setInstallingAllRequired] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const installStopRef = useRef(false);
@@ -318,21 +332,25 @@ export default function ModelBrowser({
     if (!open) return;
     if (!requiredModelIds.length) {
       setRequiredModels([]);
+      setUnknownRequiredIds([]);
       return;
     }
     let cancelled = false;
     void Promise.all(
       requiredModelIds.map(async (modelId) => {
         try {
-          return await fetchModelCard(modelId);
+          const card = await fetchModelCard(modelId);
+          return { modelId, card };
         } catch {
-          return null;
+          return { modelId, card: null };
         }
       }),
-    ).then((cards) => {
-      if (!cancelled) {
-        setRequiredModels(cards.filter((card): card is ModelCard => card != null));
-      }
+    ).then((rows) => {
+      if (cancelled) return;
+      setRequiredModels(
+        rows.map((row) => row.card).filter((card): card is ModelCard => card != null),
+      );
+      setUnknownRequiredIds(rows.filter((row) => row.card == null).map((row) => row.modelId));
     });
     return () => {
       cancelled = true;
@@ -579,7 +597,7 @@ export default function ModelBrowser({
       : mode === "search"
       ? "Search ranks the local published catalog (keywords or natural-language task). Not live Hugging Face — use Discover for that."
       : mode === "discover"
-          ? "Latest models from Hugging Face — browse only. Install after GroovyUI verifies the registry entry."
+          ? "Latest models from Hugging Face — browse only. Install only after a maintainer verifies. Use File GitHub request to ask (no secrets; no GroovyUI account)."
           : null;
 
   const requiredPending = requiredModels.filter((model) => !modelIsReady(model));
@@ -717,13 +735,15 @@ export default function ModelBrowser({
                 Showing models compatible with <strong>{effectiveNodeFilter}</strong>
               </p>
             ) : null}
-            {requiredModels.length > 0 ? (
+            {requiredModels.length > 0 || unknownRequiredIds.length > 0 ? (
               <div className="model-browser__required">
                 <p>
                   <strong>Required for this workflow</strong>
-                  {requiredPending.length === 0
-                    ? " — all models ready"
-                    : ` — ${requiredPending.length} need install`}
+                  {unknownRequiredIds.length > 0
+                    ? ` — ${unknownRequiredIds.length} not in catalog`
+                    : requiredPending.length === 0
+                      ? " — all models ready"
+                      : ` — ${requiredPending.length} need install`}
                 </p>
                 <ul className="model-browser__required-list">
                   {requiredModels.map((model) => {
@@ -748,6 +768,19 @@ export default function ModelBrowser({
                       </li>
                     );
                   })}
+                  {unknownRequiredIds.map((modelId) => (
+                    <li key={`unknown-${modelId}`}>
+                      <span>{modelId}</span>
+                      <span className="pill pill--warning">not in catalog</span>
+                      <button
+                        type="button"
+                        className="model-browser__request-link"
+                        onClick={() => openModelRequestIssue(prefillFromUnknownModelId(modelId))}
+                      >
+                        File GitHub request
+                      </button>
+                    </li>
+                  ))}
                 </ul>
                 {requiredPending.length > 0 ? (
                   <button
@@ -853,8 +886,8 @@ export default function ModelBrowser({
                   <code>{draftResult.id}</code>
                 </p>
                 <p>
-                  Install stays off until a maintainer publishes it. Meanwhile, use a verified model from Search, or keep
-                  exploring in Discover.
+                  Local draft only — Install stays off until a maintainer publishes. To ask maintainers, use{" "}
+                  <strong>File GitHub request</strong> from Discover (browser deep link; no secrets stored in GroovyUI).
                 </p>
                 <div className="model-card__actions">
                   <button type="button" onClick={() => viewDraftInSearch(draftResult.id)}>
@@ -1106,6 +1139,13 @@ export default function ModelBrowser({
                           >
                             Open on Hugging Face
                           </a>
+                          <button
+                            type="button"
+                            className="model-card__link-btn"
+                            onClick={() => openModelRequestIssue(prefillFromDiscover(entry))}
+                          >
+                            File GitHub request
+                          </button>
                           <button
                             type="button"
                             disabled={isDrafting}
