@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   cancelModelInstall,
-  createModelDraft,
   discoverModels,
   fetchInstallRecovery,
   fetchModelCard,
@@ -161,8 +160,6 @@ export default function ModelBrowser({
   const [taskType, setTaskType] = useState("");
   const [commercialOnly, setCommercialOnly] = useState(false);
   const [discoverResults, setDiscoverResults] = useState<DiscoverModelResult[]>([]);
-  const [draftResult, setDraftResult] = useState<{ id: string; created: boolean } | null>(null);
-  const [draftingId, setDraftingId] = useState<string | null>(null);
   const [searchHits, setSearchHits] = useState<Array<{ model: ModelCard; rationale?: string }>>([]);
   const [agentPlan, setAgentPlan] = useState<AgentPlan | null>(null);
   const [planLlmModel, setPlanLlmModel] = useState<PlanLlmModelId>(PLAN_LLM_OPTIONS[0].id);
@@ -375,7 +372,6 @@ export default function ModelBrowser({
       setShowInstallLogs(false);
       setRecovery(null);
       setFailedModelId(null);
-      setDraftResult(null);
     }
   }, [open]);
 
@@ -521,30 +517,6 @@ export default function ModelBrowser({
       setInstallingId(null);
       setInstallingAllRequired(false);
     }
-  };
-
-  const handleCreateDraft = async (entry: DiscoverModelResult) => {
-    setDraftingId(entry.external_id);
-    setDraftResult(null);
-    setError(null);
-    try {
-      const result = await createModelDraft(entry);
-      setDraftResult({ id: result.model.id, created: result.created });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save draft");
-    } finally {
-      setDraftingId(null);
-    }
-  };
-
-  const viewDraftInSearch = (draftId: string) => {
-    setMode("search");
-    setQuery(draftId);
-    setDebouncedQuery(draftId);
-    setTaskType("");
-    setCommercialOnly(false);
-    setError(null);
-    setDetailModelId(draftId);
   };
 
   const runPlanAction = (action: AgentPlanAction) => {
@@ -879,26 +851,6 @@ export default function ModelBrowser({
               )}
             </div>
             {catalogHint ? <p className="model-browser__hint model-browser__hint--catalog">{catalogHint}</p> : null}
-            {draftResult ? (
-              <div className="model-browser__draft-next">
-                <p>
-                  <strong>{draftResult.created ? "Draft saved" : "Draft already exists"}:</strong>{" "}
-                  <code>{draftResult.id}</code>
-                </p>
-                <p>
-                  Local draft only — Install stays off until a maintainer publishes. To ask maintainers, use{" "}
-                  <strong>File GitHub request</strong> from Discover (browser deep link; no secrets stored in GroovyUI).
-                </p>
-                <div className="model-card__actions">
-                  <button type="button" onClick={() => viewDraftInSearch(draftResult.id)}>
-                    View in Search
-                  </button>
-                  <button type="button" onClick={() => setDraftResult(null)}>
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            ) : null}
             {recovery && failedModelId ? (
               <div className="model-browser__recovery">
                 <p>
@@ -1110,7 +1062,6 @@ export default function ModelBrowser({
                       attribution_required: false,
                     });
                     const updated = formatDiscoverUpdated(entry.updated_at);
-                    const isDrafting = draftingId === entry.external_id;
                     return (
                       <article key={entry.external_id} className="model-card model-card--external">
                         <div className="model-card__row">
@@ -1145,13 +1096,6 @@ export default function ModelBrowser({
                             onClick={() => openModelRequestIssue(prefillFromDiscover(entry))}
                           >
                             File GitHub request
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isDrafting}
-                            onClick={() => void handleCreateDraft(entry)}
-                          >
-                            {isDrafting ? "Saving draft…" : "Draft registry entry"}
                           </button>
                         </div>
                       </article>
