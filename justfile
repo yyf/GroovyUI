@@ -36,3 +36,7 @@ server:
 
 studio:
     pnpm dev:studio
+
+# Experimental macOS arm64 portable folder + zip under dist/portable/
+package-portable:
+    bash scripts/package_portable_macos.sh

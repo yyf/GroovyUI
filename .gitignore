@@ -17,3 +17,5 @@ assets/samples/archived/
 !workspace/assets/samples/dialogue_48k.wav
 !workspace/assets/samples/podcast_denoise_demo.wav
 !workspace/assets/samples/stem_separation_demo.wav
+# Portable desktop packaging output (do not commit)
+dist/portable/
