@@ -103,3 +103,28 @@ def test_clear_render_cache(api_client: TestClient, tmp_path: Path) -> None:
     assert res.status_code == 200
     assert res.json()["removed"] == 2
     assert list(cache.iterdir()) == []
+
+
+def test_studio_settings_hf_token_api_roundtrip(
+    api_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    fake = "hf_test_not_a_real_token"
+
+    post = api_client.post("/api/settings/studio", json={"hf_token": fake})
+    assert post.status_code == 200
+    body = post.json()
+    assert body["hf_token_set"] is True
+    assert body["hf_token_source"] == "settings"
+    assert "hf_token" not in body
+
+    get_res = api_client.get("/api/settings/studio")
+    assert get_res.status_code == 200
+    assert get_res.json()["hf_token_set"] is True
+    assert get_res.json()["hf_token_source"] == "settings"
+    assert "hf_token" not in get_res.json()
+
+    cleared = api_client.post("/api/settings/studio", json={"hf_token": None})
+    assert cleared.status_code == 200
+    assert cleared.json()["hf_token_set"] is False
+    assert cleared.json()["hf_token_source"] is None

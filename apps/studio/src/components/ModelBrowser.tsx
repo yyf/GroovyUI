@@ -565,12 +565,14 @@ export default function ModelBrowser({
 
   const catalogHint =
     mode === "plan"
-      ? "Model Plan — describe a task; Claude (or deterministic fallback) picks published registry models to install. For a full patch graph, use Generate (⌘G)."
+      ? "Model Plan — describe a task; Claude (or deterministic fallback) picks published registry models to Install / Drop. Does not install from Discover or compose graphs — use Generate (⌘G) for a full patch."
       : mode === "search"
-      ? "Search ranks the local published catalog (keywords or natural-language task). Not live Hugging Face — use Discover for that."
-      : mode === "discover"
-          ? "Latest models from Hugging Face — browse only. Install only after a maintainer verifies. Use File GitHub request to ask (no secrets; no GroovyUI account)."
-          : null;
+        ? "Search ranks the local published catalog (keywords or natural-language task). Install only works for published entries — not live Hugging Face (use Discover to browse)."
+        : mode === "discover"
+          ? "Hugging Face browse only — no Install here. File a GitHub request; Install unlocks after a verified registry entry is merged (no secrets; no GroovyUI account)."
+          : mode === "workflow"
+            ? "Suggest a workflow template from your description (bundled templates only)."
+            : null;
 
   const requiredPending = requiredModels.filter((model) => !modelIsReady(model));
 

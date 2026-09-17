@@ -29,6 +29,22 @@ def test_hero_models_no_longer_dev_stub() -> None:
         assert manifest.install.dev_stub is False, model_id
 
 
+def test_model_install_complete_false_when_inference_not_ready(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    monkeypatch.delenv("GROOVY_INFERENCE_STUB", raising=False)
+    monkeypatch.setattr(
+        "groovy.nodes.ai.inference_env.model_inference_ready",
+        lambda model_id, *, dev_stub=False: False,
+    )
+    store = InstallStore(tmp_path)
+    manifest = ModelCatalog().get("demucs-v4")
+    assert manifest is not None
+    store.mark_ready("demucs-v4")
+    state = store.get("demucs-v4")
+    assert model_install_complete(manifest, state, project_dir=tmp_path) is False
+
+
 def test_model_inference_ready_respects_stub_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
     assert model_inference_ready("basic-pitch", dev_stub=False) is True

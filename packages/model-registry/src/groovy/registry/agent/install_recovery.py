@@ -57,7 +57,7 @@ def _suggested_fixes(error: str, manifest: ModelManifest | None) -> list[str]:
         fixes.append("Dev stub install should succeed — restart the API server and retry.")
     if "failed to install" in lowered or "pip install" in lowered:
         fixes.append("Retry install from Model Browser (Cmd+K).")
-    if "inference runtime not ready" in lowered or "not importable" in lowered:
+    if "inference runtime not ready" in lowered or "runtime not ready" in lowered or "not importable" in lowered:
         fixes.append("Reinstall from Model Browser (Cmd+K) to pull Python inference deps.")
     if not fixes:
         fixes.append("Retry install from Model Browser or run: groovy-model install <model-id>")
