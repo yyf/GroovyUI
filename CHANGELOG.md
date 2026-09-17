@@ -4,8 +4,15 @@
 
 ### Added
 
+- **HF token Settings tests** — API round-trip (set / clear `null`) and Bearer-only attachment for huggingface.co downloads + Discover (`tests/test_hf_token_bearer.py`).
+- **Seed catalog quality gates** — `tests/test_seed_catalog_quality.py` enforces published installable entries (heroes non-stub; required metadata). Model-request playbook gains copy/paste agent prompt + seed merge checklist.
 - **Portable desktop (macOS arm64, experimental)** — `just package-portable` / `scripts/package_portable_macos.sh` builds a zip with `.venv`, same-origin studio on `:8188`, `GroovyUI.command` + `groovy-desktop` launcher. Models stay on-demand; not codesigned yet.
 - **Model request lane** — Discover (and unknown required-model ids) **File GitHub request** opens a browser deep link to the public issue template (no GitHub token in GroovyUI; no secrets in prefill). Discover cards no longer offer **Draft registry entry** (local draft API/CLI remains for maintainers). Maintainer playbook: `.github/MODEL_REQUEST_PLAYBOOK.md` (Privacy Mode Legacy — local agent only, no Cloud Automations). Labels: `model-request`, `needs-triage`, `agent-ok` (create in GitHub UI).
+
+### Changed
+
+- **Model Browser copy** — Search / Plan / Discover hints state clearly that Install is published-catalog only (no Install-from-Discover).
+- **Install recovery** — clearer suggested fix when inference runtime is not ready; tests cover hero `inference_ready` / `model_install_complete` gate.
 
 ### Fixed
 

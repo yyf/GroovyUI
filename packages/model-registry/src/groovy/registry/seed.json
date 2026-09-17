@@ -1018,7 +1018,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Groovy Verify Weights",
-      "description": "Tiny bundled weights file for real install-path verification in CI.",
+      "description": "Tiny bundled weights file for real install-path verification in CI (not a user-facing AI model).",
       "task_types": ["verification"],
       "tags": ["verify", "bundle", "ci"],
       "author": "GroovyUI",
