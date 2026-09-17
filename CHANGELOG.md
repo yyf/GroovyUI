@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Portable desktop (macOS arm64, experimental)** — `just package-portable` / `scripts/package_portable_macos.sh` builds a zip with `.venv`, same-origin studio on `:8188`, `GroovyUI.command` + `groovy-desktop` launcher. Models stay on-demand; not codesigned yet.
 - **Model request lane** — Discover (and unknown required-model ids) **File GitHub request** opens a browser deep link to the public issue template (no GitHub token in GroovyUI; no secrets in prefill). Discover cards no longer offer **Draft registry entry** (local draft API/CLI remains for maintainers). Maintainer playbook: `.github/MODEL_REQUEST_PLAYBOOK.md` (Privacy Mode Legacy — local agent only, no Cloud Automations). Labels: `model-request`, `needs-triage`, `agent-ok` (create in GitHub UI).
 
 ### Fixed

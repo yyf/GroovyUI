@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  API,
   analyzeAbCompare,
   fetchAudioFileMeta,
   fetchAuthenticity,
@@ -172,7 +173,7 @@ export default function NodeHelper({
       setProvenance(null);
       return;
     }
-    fetch(`${import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188"}/api/cache/${primary.cache_id}/provenance`)
+    fetch(`${API}/api/cache/${primary.cache_id}/provenance`)
       .then((res) => (res.ok ? res.json() : null))
       .then(setProvenance)
       .catch(() => setProvenance(null));

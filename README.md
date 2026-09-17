@@ -21,6 +21,18 @@ Open http://127.0.0.1:5173. Keep Settings → Inference on **Real** (Stub is for
 
 First model install can take minutes and gigabytes of disk; later renders reuse the local cache. Play is audition of the last render — not live inference.
 
+## Portable (macOS arm64, experimental)
+
+Download/build a self-contained folder (Python `.venv` + built studio + templates). No separate Vite process; the API serves the UI at the same origin.
+
+```bash
+# From a clone on Apple Silicon:
+just package-portable
+# → dist/portable/GroovyUI-portable-<version>-macos-arm64.zip
+```
+
+Unzip → double-click `GroovyUI.command` (or run `./bin/groovy-desktop`) → browser opens http://127.0.0.1:8188/. Models are not in the zip; Install on demand. Not codesigned/notarized yet.
+
 ## Verify
 
 ```bash

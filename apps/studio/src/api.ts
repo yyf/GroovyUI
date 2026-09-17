@@ -14,7 +14,19 @@ import type {
 import { applyNodeSchemaFallbacks } from "./nodeSchemaFallbacks";
 import { normalizeLoadedWorkflow } from "./workflow";
 
-export const API = import.meta.env.VITE_GROOVY_API ?? "http://127.0.0.1:8188";
+function resolveApiBase(): string {
+  const env = import.meta.env.VITE_GROOVY_API;
+  if (typeof env === "string" && env.length > 0) {
+    return env;
+  }
+  // Dev: Vite on :5173 talks to API on :8188. Production/portable: same origin.
+  if (import.meta.env.DEV) {
+    return "http://127.0.0.1:8188";
+  }
+  return "";
+}
+
+export const API = resolveApiBase();
 
 export type LiveIoSettings = {
   midi_input_enabled: boolean;
@@ -171,6 +183,14 @@ export async function fetchRegistryFreshness(): Promise<Record<string, unknown>>
 }
 
 export function wsUrl(): string {
+  if (!API) {
+    const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host =
+      typeof window !== "undefined" && window.location.host
+        ? window.location.host
+        : "127.0.0.1:8188";
+    return `${proto}//${host}/api/ws`;
+  }
   const url = new URL(API);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return `${url.origin}/api/ws`;

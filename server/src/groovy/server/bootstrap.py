@@ -5,7 +5,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-BUNDLED_SAMPLES_DIR = Path(__file__).resolve().parents[4] / "assets" / "samples"
+from groovy.server.paths import resolve_samples_dir
 
 
 def ensure_project_samples(project_dir: Path, *, bundled_dir: Path | None = None) -> list[str]:
@@ -13,7 +13,7 @@ def ensure_project_samples(project_dir: Path, *, bundled_dir: Path | None = None
 
     Copies top-level files under ``assets/samples/`` only (not ``archived/``).
     """
-    source = bundled_dir or BUNDLED_SAMPLES_DIR
+    source = bundled_dir or resolve_samples_dir()
     if not source.is_dir():
         return []
 

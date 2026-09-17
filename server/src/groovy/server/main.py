@@ -55,19 +55,26 @@ from groovy.server.activation_diagnostics import ActivationDiagnosticsStore
 from groovy.server.bootstrap import ensure_project_samples
 from groovy.server.compare import analyze_ab_pair
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
+from groovy.server.paths import (
+    resolve_bundle_root,
+    resolve_default_project_dir,
+    resolve_samples_dir,
+    resolve_studio_dir,
+    resolve_templates_dir,
+)
 from groovy.server.project_assets import resolve_uploaded_audio
 from pydantic import BaseModel, Field
 
 register_core()
 register_ai()
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
-DEFAULT_WORKSPACE = REPO_ROOT / "workspace"
-TEMPLATES_DIR = REPO_ROOT / "templates"
-PROJECT_DIR = Path(os.environ.get("GROOVY_PROJECT_DIR", str(DEFAULT_WORKSPACE))).resolve()
+REPO_ROOT = resolve_bundle_root()
+TEMPLATES_DIR = resolve_templates_dir(REPO_ROOT)
+PROJECT_DIR = resolve_default_project_dir(REPO_ROOT)
 USER_TEMPLATES_DIR = PROJECT_DIR / "templates"
 HOST = os.environ.get("GROOVY_HOST", "127.0.0.1")
 PORT = int(os.environ.get("GROOVY_PORT", "8188"))
+_SAMPLES_DIR = resolve_samples_dir(REPO_ROOT)
 
 _live_io = LiveIoState(PROJECT_DIR)
 _activation_diagnostics = ActivationDiagnosticsStore(PROJECT_DIR)
@@ -84,7 +91,7 @@ async def lifespan(app: FastAPI):
         purge_conflicting_pypi_groovy()
     except Exception:
         pass
-    ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
+    ensure_project_samples(PROJECT_DIR, bundled_dir=_SAMPLES_DIR)
     _osc_transport = await start_osc_listener(PROJECT_DIR, _live_io, _midi_hub)
     yield
     if _osc_transport is not None:
@@ -92,9 +99,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="GroovyUI", version=GROOVY_VERSION, lifespan=lifespan)
+_cors_origins = [
+    os.environ.get("GROOVY_CORS_ORIGIN", "http://127.0.0.1:5173"),
+    f"http://{HOST}:{PORT}",
+    f"http://localhost:{PORT}",
+]
+_seen_origins: set[str] = set()
+_cors_unique: list[str] = []
+for _origin in _cors_origins:
+    if _origin and _origin not in _seen_origins:
+        _seen_origins.add(_origin)
+        _cors_unique.append(_origin)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.environ.get("GROOVY_CORS_ORIGIN", "http://127.0.0.1:5173")],
+    allow_origins=_cors_unique,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -430,7 +448,12 @@ def _unique_user_template_path(template_id: str) -> Path:
 
 
 @app.get("/")
-def root() -> dict[str, str]:
+def root() -> Any:
+    studio_dir = resolve_studio_dir(REPO_ROOT)
+    if studio_dir is not None:
+        from fastapi.responses import FileResponse
+
+        return FileResponse(studio_dir / "index.html")
     return {
         "name": "GroovyUI API",
         "groovy_version": GROOVY_VERSION,
@@ -880,7 +903,7 @@ def project_audio_meta(path: str) -> dict[str, Any]:
     from groovy.executor.project_paths import resolve_project_media_path
     from groovy.server.bootstrap import ensure_project_samples
 
-    ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
+    ensure_project_samples(PROJECT_DIR, bundled_dir=_SAMPLES_DIR)
     try:
         resolved, canonical_path = resolve_project_media_path(_executor.cache, path)
     except FileNotFoundError as exc:
@@ -1589,7 +1612,7 @@ def get_sample_check(report_id: str) -> JSONResponse:
 
 @app.post("/api/execute", status_code=202)
 async def execute(body: ExecuteRequest) -> dict[str, str]:
-    ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
+    ensure_project_samples(PROJECT_DIR, bundled_dir=_SAMPLES_DIR)
     workflow = _workflow_from_dict(body.workflow)
     job_id = str(uuid.uuid4())
     cancel_flag = threading.Event()
@@ -1863,11 +1886,44 @@ async def _broadcast(job_id: str, payload: dict[str, Any]) -> None:
         _ws_subscribers[job_id].discard(ws)
 
 
+def _mount_studio_static() -> Path | None:
+    """Serve built studio UI from the same origin as the API (portable desktop)."""
+    studio_dir = resolve_studio_dir(REPO_ROOT)
+    if studio_dir is None:
+        return None
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    assets_dir = studio_dir / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="studio-assets")
+
+    index_html = studio_dir / "index.html"
+
+    @app.get("/{full_path:path}")
+    async def studio_spa(full_path: str) -> FileResponse:
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = (studio_dir / full_path).resolve()
+        try:
+            candidate.relative_to(studio_dir.resolve())
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Not found") from exc
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(index_html)
+
+    return studio_dir
+
+
+_STUDIO_DIR = _mount_studio_static()
+
+
 def main() -> None:
     import uvicorn
 
     PROJECT_DIR.mkdir(parents=True, exist_ok=True)
-    ensure_project_samples(PROJECT_DIR, bundled_dir=REPO_ROOT / "assets" / "samples")
+    ensure_project_samples(PROJECT_DIR, bundled_dir=_SAMPLES_DIR)
     uvicorn.run("groovy.server.main:app", host=HOST, port=PORT, reload=False)
 
 
