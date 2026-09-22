@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a7m05bed-e5f6-7890-atmo-s71400000002",
+  "metadata": {
+    "title": "Stereo to Atmos Bed",
+    "author": "groovy",
+    "description": "Minimal Atmos bed path: Load stereo → SpatialUpmix (stereo-atmos-bed-v0 stub → 7.1.4) → ChannelConvert stereo for Preview. No applicable open neural models yet — stub uses mid/side height bleed.",
+    "tags": [
+      "atmos",
+      "7.1.4",
+      "upmix",
+      "immersive",
+      "spatial",
+      "featured"
+    ],
+    "created_at": "2026-09-20T18:00:00Z",
+    "modified_at": "2026-09-20T20:24:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": { "x": 0, "y": -60 },
+      "widgets": {
+        "text": "Stereo → Atmos 7.1.4 bed (12ch), then stereo fold for headphones. Currently there are no applicable open neural models for this path (stereo2spatial is Apache-2.0 with attribution). Using stereo-atmos-bed-v0 stub until a suitable MIT/BSD model lands. SaveAudio after SpatialUpmix keeps the bed."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": { "x": 0, "y": 120 },
+      "widgets": { "path": "assets/samples/podcast_denoise_demo.wav" }
+    },
+    {
+      "id": "n2",
+      "type": "SpatialUpmix",
+      "pos": { "x": 280, "y": 120 },
+      "widgets": { "model": "stereo-atmos-bed-v0", "layout": "7.1.4" }
+    },
+    {
+      "id": "n3",
+      "type": "ChannelConvert",
+      "pos": { "x": 560, "y": 120 },
+      "widgets": { "layout": "stereo" }
+    },
+    {
+      "id": "n4",
+      "type": "Preview",
+      "pos": { "x": 840, "y": 120 },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
+    { "id": "l3", "from": ["n3", 0], "to": ["n4", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

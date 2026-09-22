@@ -66,6 +66,12 @@ const HIDDEN_FROM_PALETTE = new Set([
   "RenderObjectScene",
   "ObjectPlacement",
   "SeparateToObjects",
+  "TrajectoryAuthor",
+  "TrajectoryMonitor",
+  "AmbisonicUpmix",
+  "AmbisonicTrajectoryExtract",
+  "BinauralRender",
+  "SpatialUpmix",
   "MIDIInDevice",
   "MIDIOutDevice",
   "OSCInLive",
@@ -83,13 +89,22 @@ const AUTHENTICITY = new Set([
   "DetectWatermark",
 ]);
 
-const CORE_DSP_EXTRA = new Set(["VerifySamples"]);
+const CORE_DSP_EXTRA = new Set(["VerifySamples", "Meter"]);
 
 /** Create audio from text / MIDI / prompts (sources). */
 const AI_GENERATE = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "SingFromMIDI"]);
 
 /** Shape or convert existing audio (processors). */
-const AI_TRANSFORM = new Set(["Denoise", "SeparateStems", "VoiceConvert", "TimbreTransfer"]);
+const AI_TRANSFORM = new Set([
+  "Denoise",
+  "SeparateStems",
+  "VoiceConvert",
+  "TimbreTransfer",
+  "AmbisonicUpmix",
+  "AmbisonicTrajectoryExtract",
+  "BinauralRender",
+  "SpatialUpmix",
+]);
 
 /** Read audio into text / MIDI (analysis — neither generate nor transform). */
 const AI_ANALYZE = new Set(["WhisperSTT", "DiarizeTranscribe", "AudioToMIDI"]);
@@ -119,7 +134,7 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
   },
   "core-dsp": {
     title: "Processing",
-    hint: "Level, trim, resample, oscillators, sample verify",
+    hint: "Level, trim, resample, meter, oscillators, sample verify",
     tiers: ["core", "modular", "all"],
   },
   "ai-generate": {

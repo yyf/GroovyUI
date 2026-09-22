@@ -182,12 +182,39 @@ export function previewMidiId(output?: JobOutput): string | null {
   return null;
 }
 
-/** Truncated TEXT payload for on-node display (Preview / STT / Prompt). */
+/** Pull TEXT from a job output or the first TEXT slot on MULTI. */
+export function textFromJobOutput(output?: JobOutput): string | null {
+  if (!output) return null;
+  if (output.type === "MULTI" && output.outputs?.length) {
+    for (const slot of output.outputs) {
+      const nested = textFromJobOutput(slot);
+      if (nested) return nested;
+    }
+    return null;
+  }
+  const raw = typeof output.text === "string" ? output.text.trim() : "";
+  return raw || null;
+}
+
+/** Strip §METER§ machine payload; keep human summary + head/tail lines. */
+export function meterDisplayText(raw: string): string {
+  const cut = raw.indexOf("§METER§");
+  return (cut >= 0 ? raw.slice(0, cut) : raw).trim();
+}
+
+/** Truncated TEXT payload for on-node display (Preview / STT / Prompt / Meter). */
 export function previewTextSnippet(output?: JobOutput, maxLen = 140): string | null {
   // Preview may return AUDIO with an attached `text` transcript field.
-  const raw = typeof output?.text === "string" ? output.text.trim() : "";
+  // Meter / MULTI TEXT slots are walked via textFromJobOutput.
+  const raw = textFromJobOutput(output);
   if (!raw) return null;
-  return truncatePreviewText(raw, maxLen);
+  const display = raw.includes("§METER§") ? meterDisplayText(raw) : raw;
+  // Preserve newlines for Meter head/tail lines on canvas.
+  if (display.includes("\n")) {
+    const clipped = display.length <= maxLen ? display : `${display.slice(0, Math.max(1, maxLen - 1))}…`;
+    return clipped.trim() || null;
+  }
+  return truncatePreviewText(display, maxLen);
 }
 
 /** Collapse whitespace and truncate for on-node Prompt / transcript chrome. */
@@ -287,6 +314,7 @@ const WIREABLE_INPUT_TYPES = new Set([
   "AMBISONICS",
   "OBA",
   "OSC",
+  "TRAJECTORY",
   "AUTHENTICITY",
   "SAMPLE_CHECK",
 ]);
@@ -372,6 +400,48 @@ function placeholderOutputSockets(count: number): NodeSocketSpec[] {
     type: "AUDIO",
     slot,
   }));
+}
+
+/** Hardcoded sockets so TRAJECTORY handles exist even before /api/nodes schemas load. */
+const TRAJECTORY_NODE_SOCKET_FALLBACKS: Record<
+  string,
+  { inputs: NodeSocketSpec[]; outputs: NodeSocketSpec[] }
+> = {
+  TrajectoryAuthor: {
+    inputs: [{ name: "audio", type: "AUDIO", optional: true, slot: 0 }],
+    outputs: [{ name: "trajectory", type: "TRAJECTORY", slot: 0 }],
+  },
+  TrajectoryMonitor: {
+    inputs: [{ name: "trajectory", type: "TRAJECTORY", slot: 0 }],
+    outputs: [{ name: "trajectory", type: "TRAJECTORY", slot: 0 }],
+  },
+  AmbisonicUpmix: {
+    inputs: [
+      { name: "audio", type: "AUDIO", slot: 0 },
+      { name: "trajectory", type: "TRAJECTORY", optional: true, slot: 1 },
+    ],
+    outputs: [{ name: "ambisonics", type: "AMBISONICS", slot: 0 }],
+  },
+  AmbisonicTrajectoryExtract: {
+    inputs: [{ name: "ambisonics", type: "AMBISONICS", slot: 0 }],
+    outputs: [{ name: "trajectory", type: "TRAJECTORY", slot: 0 }],
+  },
+  Meter: {
+    inputs: [
+      { name: "audio", type: "AUDIO", optional: true, slot: 0 },
+      { name: "ambisonics", type: "AMBISONICS", optional: true, slot: 1 },
+    ],
+    outputs: [
+      { name: "audio", type: "AUDIO", slot: 0 },
+      { name: "levels", type: "TEXT", slot: 1 },
+    ],
+  },
+};
+
+function fallbackSocketsForNode(
+  nodeType: string,
+): { inputs: NodeSocketSpec[]; outputs: NodeSocketSpec[] } | null {
+  return TRAJECTORY_NODE_SOCKET_FALLBACKS[nodeType] ?? null;
 }
 
 /** Preserve React Flow interaction state when syncing derived nodes from workflow. */
@@ -640,6 +710,132 @@ export function resolveIoChannelCount(
   return null;
 }
 
+/** Walk AUDIO inlets to find an upstream LoadAudio (for trajectory duration lock). */
+export function findUpstreamLoadAudio(
+  workflow: Workflow,
+  nodeId: string,
+): WorkflowNode | null {
+  const typeById = new Map(workflow.nodes.map((n) => [n.id, n]));
+  const visited = new Set<string>();
+  const queue = [nodeId];
+  while (queue.length) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    const node = typeById.get(current);
+    if (!node) continue;
+    if (node.type === "LoadAudio") return node;
+    for (const link of workflow.links) {
+      if (link.to[0] !== current) continue;
+      if (link.type !== "AUDIO" && link.type !== "STEMS") continue;
+      queue.push(link.from[0]);
+    }
+  }
+  return null;
+}
+
+/** Rescale authored trajectory points JSON to a new duration (keeps shape). */
+export function rescalePointsWidgetJson(
+  pointsRaw: unknown,
+  durationSec: number,
+): string | null {
+  if (typeof pointsRaw !== "string" || !pointsRaw.trim()) return null;
+  try {
+    const parsed = JSON.parse(pointsRaw) as unknown;
+    if (!Array.isArray(parsed) || parsed.length < 2) return null;
+    const points: Array<{ t_sec: number; x: number; y: number; z: number }> = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const x = Number(row.x);
+      const z = Number(row.z);
+      const y = Number(row.y ?? 0);
+      const t = Number(row.t_sec ?? row.t ?? NaN);
+      if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+      points.push({
+        t_sec: Number.isFinite(t) ? Math.max(0, t) : points.length,
+        x,
+        y: Number.isFinite(y) ? y : 0,
+        z,
+      });
+    }
+    if (points.length < 2) return null;
+    const span = Math.max(0.05, durationSec);
+    const tMax = Math.max(...points.map((p) => p.t_sec), 1e-9);
+    const scaled = points.map((p) => ({
+      ...p,
+      t_sec: (p.t_sec / tMax) * span,
+    }));
+    return JSON.stringify(scaled);
+  } catch {
+    return null;
+  }
+}
+
+/** Walk TRAJECTORY inlets to find an upstream TrajectoryAuthor (for canvas XYZ edit). */
+export function findUpstreamTrajectoryAuthor(
+  workflow: Workflow,
+  nodeId: string,
+): WorkflowNode | null {
+  const typeById = new Map(workflow.nodes.map((n) => [n.id, n]));
+  const visited = new Set<string>();
+  const queue = [nodeId];
+  while (queue.length) {
+    const current = queue.shift()!;
+    if (visited.has(current)) continue;
+    visited.add(current);
+    const node = typeById.get(current);
+    if (!node) continue;
+    if (node.type === "TrajectoryAuthor") return node;
+    for (const link of workflow.links) {
+      if (link.to[0] !== current) continue;
+      if (link.type !== "TRAJECTORY") continue;
+      queue.push(link.from[0]);
+    }
+  }
+  return null;
+}
+
+function trajectoryAuthorWidgets(node: WorkflowNode): Record<string, number | string> {
+  const pointsRaw = node.widgets.points;
+  const points =
+    typeof pointsRaw === "string"
+      ? pointsRaw
+      : pointsRaw == null
+        ? ""
+        : String(pointsRaw);
+  return {
+    start_x: Number(node.widgets.start_x ?? 0.707),
+    start_y: Number(node.widgets.start_y ?? 0),
+    start_z: Number(node.widgets.start_z ?? 0.707),
+    end_x: Number(node.widgets.end_x ?? -0.707),
+    end_y: Number(node.widgets.end_y ?? 0),
+    end_z: Number(node.widgets.end_z ?? 0.707),
+    duration_sec: Number(node.widgets.duration_sec ?? 1),
+    points,
+  };
+}
+
+/** TRAJECTORY cache id for a node — prefer its own output, else inbound TRAJECTORY wire. */
+export function resolveNodeTrajectoryId(
+  workflow: Workflow,
+  nodeId: string,
+  outputs?: Record<string, JobOutput>,
+): string | undefined {
+  if (!outputs) return undefined;
+  const direct = outputs[nodeId];
+  if (direct?.type === "TRAJECTORY" && direct.trajectory_id) return direct.trajectory_id;
+  for (const link of workflow.links) {
+    if (link.to[0] !== nodeId) continue;
+    if (link.type !== "TRAJECTORY") continue;
+    const upstream = outputs[link.from[0]];
+    if (upstream?.type === "TRAJECTORY" && upstream.trajectory_id) {
+      return upstream.trajectory_id;
+    }
+  }
+  return undefined;
+}
+
 export function workflowToFlowNodes(
   workflow: Workflow,
   nodeStatus: Record<string, NodeRenderStatus>,
@@ -673,11 +869,10 @@ export function workflowToFlowNodes(
           const labels = channelConvertSocketLabels(n.widgets.layout, resolvedUpstream);
           return [{ name: labels.input, type: "AUDIO", slot: 0 }];
         }
-        return schema
-          ? schemaInputSockets(schema)
-          : linkCounts.inputs > 0
-            ? placeholderInputSockets(linkCounts.inputs)
-            : [];
+        if (schema) return schemaInputSockets(schema);
+        const fallback = fallbackSocketsForNode(n.type);
+        if (fallback) return fallback.inputs;
+        return linkCounts.inputs > 0 ? placeholderInputSockets(linkCounts.inputs) : [];
       })();
       const jobOut = outputs?.[n.id];
       const outputSockets: NodeSocketSpec[] = (() => {
@@ -721,15 +916,19 @@ export function workflowToFlowNodes(
           // Always expose at least a mono outlet label before probe/render.
           return loadAudioChannelOutletSockets(1);
         }
-        if (!schema) return placeholderOutputSockets(linkCounts.outputs);
-        return schema.outputs.map((socket, slot) => ({
-          name: socket.name,
-          type:
-            n.type === "Prompt" || (slot === 0 && (jobOut?.type === "TEXT" || jobOut?.type === "STRING"))
-              ? "TEXT"
-              : socket.type,
-          slot,
-        }));
+        if (schema) {
+          return schema.outputs.map((socket, slot) => ({
+            name: socket.name,
+            type:
+              n.type === "Prompt" || (slot === 0 && (jobOut?.type === "TEXT" || jobOut?.type === "STRING"))
+                ? "TEXT"
+                : socket.type,
+            slot,
+          }));
+        }
+        const fallback = fallbackSocketsForNode(n.type);
+        if (fallback) return fallback.outputs;
+        return placeholderOutputSockets(linkCounts.outputs);
       })();
       const noteText =
         n.type === "Note"
@@ -742,6 +941,20 @@ export function workflowToFlowNodes(
         ? channelLayouts?.[n.id] ||
           (channelCount != null ? channelLayoutLabel(channelCount) : "—")
         : undefined;
+      const trajectoryRole: "input" | "output" | undefined =
+        n.type === "TrajectoryMonitor"
+          ? String(n.widgets.role ?? "input").toLowerCase() === "output"
+            ? "output"
+            : "input"
+          : n.type === "TrajectoryAuthor" || jobOut?.type === "TRAJECTORY"
+            ? "input"
+            : undefined;
+      const authorForEdit =
+        n.type === "TrajectoryAuthor"
+          ? n
+          : n.type === "TrajectoryMonitor" && trajectoryRole === "input"
+            ? findUpstreamTrajectoryAuthor(workflow, n.id)
+            : null;
       return {
         id: n.id,
         type: "groovy",
@@ -753,9 +966,17 @@ export function workflowToFlowNodes(
           nodeId: n.id,
           canAudition: nodeHasListenableOutput(workflow, n.id, outputs),
           issue: nodeIssues?.[n.id],
-          previewText: promptWidgetSnippet(n) ?? previewTextSnippet(jobOut) ?? undefined,
+          previewText:
+            // Meter levels live in Inspector only — keep canvas light.
+            n.type === "Meter"
+              ? undefined
+              : promptWidgetSnippet(n) ?? previewTextSnippet(jobOut, 140) ?? undefined,
           noteText,
           channelLabel,
+          trajectoryId: resolveNodeTrajectoryId(workflow, n.id, outputs),
+          trajectoryRole,
+          trajectoryAuthorId: authorForEdit?.id,
+          trajectoryWidgets: authorForEdit ? trajectoryAuthorWidgets(authorForEdit) : undefined,
           inputs,
           outputs: outputSockets,
         },
@@ -826,11 +1047,14 @@ export type WiredInputRow = {
 };
 
 /** When a socket is wired, these local widgets are ignored at render. */
-const WIRED_TEXT_SUPERSEDES_WIDGET: Record<string, Record<string, string>> = {
+const WIRED_TEXT_SUPERSEDES_WIDGET: Record<string, Record<string, string | string[]>> = {
   GenerateAudio: { text: "prompt" },
   MIDIToAudio: { text: "prompt" },
   SingFromMIDI: { lyrics: "text" },
   TTS: { transcript: "text" },
+  TrajectoryAuthor: {
+    audio: ["duration_sec", "sample_rate"],
+  },
   Granulate: {
     grain_ms_curve: "grain_ms",
     hop_ms_curve: "hop_ms",
@@ -849,7 +1073,8 @@ export function wiredInputSupersedesWidget(
   const map = WIRED_TEXT_SUPERSEDES_WIDGET[nodeType];
   if (!map) return null;
   for (const [inputName, supersededWidget] of Object.entries(map)) {
-    if (supersededWidget !== widgetName) continue;
+    const names = Array.isArray(supersededWidget) ? supersededWidget : [supersededWidget];
+    if (!names.includes(widgetName)) continue;
     const row = inputRows.find((entry) => entry.name === inputName && entry.connected);
     if (row) return row;
   }
@@ -1377,8 +1602,14 @@ export function connectNodes(
   const targetNode = workflow.nodes.find((node) => node.id === connection.target);
   const targetSchema = targetNode ? schemas[targetNode.type] : undefined;
   const sourceSchema = sourceNode ? schemas[sourceNode.type] : undefined;
+  const fallbackTarget = targetNode ? fallbackSocketsForNode(targetNode.type) : null;
+  const fallbackSource = sourceNode ? fallbackSocketsForNode(sourceNode.type) : null;
   const linkType =
-    targetSchema?.inputs[targetSlot]?.type ?? sourceSchema?.outputs[sourceSlot]?.type ?? "AUDIO";
+    targetSchema?.inputs[targetSlot]?.type ??
+    fallbackTarget?.inputs.find((socket) => socket.slot === targetSlot)?.type ??
+    sourceSchema?.outputs[sourceSlot]?.type ??
+    fallbackSource?.outputs.find((socket) => socket.slot === sourceSlot)?.type ??
+    "AUDIO";
 
   const links = workflow.links.filter(
     (link) => !(link.to[0] === connection.target && link.to[1] === targetSlot),
@@ -1511,12 +1742,20 @@ export function collectModelRefs(workflow: Workflow): string[] {
 }
 
 const DEFAULT_NODE_SIZE = { width: 200, height: 88 };
-const NODE_PLACEMENT_GAP = 36;
+/** Extra space between laid-out nodes (visual chrome + handles bleed past estimates). */
+const NODE_PLACEMENT_GAP = 72;
+/** Treat near-miss rectangles as overlapping so ensure/layout is more aggressive. */
+const OVERLAP_MARGIN = 40;
 
 type Rect = { x: number; y: number; w: number; h: number };
 
-function rectsOverlap(a: Rect, b: Rect): boolean {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+function rectsOverlap(a: Rect, b: Rect, margin = 0): boolean {
+  return (
+    a.x < b.x + b.w + margin &&
+    a.x + a.w + margin > b.x &&
+    a.y < b.y + b.h + margin &&
+    a.y + a.h + margin > b.y
+  );
 }
 
 /** Conservative canvas footprint for collision / auto-layout (visual node chrome). */
@@ -1525,8 +1764,28 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
   let height = DEFAULT_NODE_SIZE.height;
   switch (node.type) {
     case "Note":
+      width = 260;
+      height = 160;
+      break;
+    case "TrajectoryMonitor":
+      // Node chrome + ~160–200px XYZ pad + labels.
+      width = 260;
+      height = 320;
+      break;
+    case "TrajectoryAuthor":
+      width = 260;
+      height = 300;
+      break;
+    case "AmbisonicUpmix":
+    case "AmbisonicTrajectoryExtract":
+    case "AmbisonicEncode":
+    case "AmbisonicDecode":
+      width = 230;
+      height = 120;
+      break;
+    case "Meter":
       width = 220;
-      height = 130;
+      height = 110;
       break;
     case "SeparateStems":
       width = 220;
@@ -1578,7 +1837,7 @@ export function workflowHasOverlappingNodes(workflow: Workflow): boolean {
   const rects = workflow.nodes.map((node) => nodeRect(node));
   for (let i = 0; i < rects.length; i++) {
     for (let j = i + 1; j < rects.length; j++) {
-      if (rectsOverlap(rects[i], rects[j])) return true;
+      if (rectsOverlap(rects[i], rects[j], OVERLAP_MARGIN)) return true;
     }
   }
   return false;
@@ -1609,7 +1868,7 @@ export function findOpenNodePosition(
     const x = center.x - size.width / 2 + dx * stepX;
     const y = center.y - size.height / 2 + dy * stepY;
     const candidate = { x, y, w: size.width, h: size.height };
-    if (!obstacles.some((obstacle) => rectsOverlap(candidate, obstacle))) {
+    if (!obstacles.some((obstacle) => rectsOverlap(candidate, obstacle, OVERLAP_MARGIN))) {
       return { x, y };
     }
   }
@@ -1681,6 +1940,13 @@ export function layoutWorkflowNodes(workflow: Workflow): Workflow {
       pos: positions.get(node.id) ?? node.pos ?? { x: 0, y: 0 },
     })),
   };
+}
+
+/** Relayout when node rectangles already overlap (imports / applied graphs). */
+export function ensureNoOverlappingNodes(workflow: Workflow): Workflow {
+  if (workflow.nodes.length < 2) return workflow;
+  if (!workflowHasOverlappingNodes(workflow)) return workflow;
+  return layoutWorkflowNodes(workflow);
 }
 
 export function nextWorkflowNodeId(workflow: Workflow): string {

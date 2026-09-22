@@ -86,6 +86,7 @@ class GroovyNode:
                         "AMBISONICS",
                         "OBA",
                         "OSC",
+                        "TRAJECTORY",
                     }:
                         input_sockets.append(
                             {
@@ -122,7 +123,15 @@ class GroovyNode:
             "category": cls.CATEGORY,
             "inputs": input_sockets,
             "outputs": [
-                {"name": f"output_{i}", "type": t} for i, t in enumerate(cls.OUTPUT_TYPES())
+                {
+                    "name": (
+                        cls.OUTPUT_NAMES[i]
+                        if getattr(cls, "OUTPUT_NAMES", None) and i < len(cls.OUTPUT_NAMES)
+                        else f"output_{i}"
+                    ),
+                    "type": t,
+                }
+                for i, t in enumerate(cls.OUTPUT_TYPES())
             ],
             "widgets": widgets,
             "run_in_worker": cls.run_in_worker,

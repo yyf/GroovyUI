@@ -22,6 +22,10 @@ def register_all() -> None:
         GenerateAudio,
         SingFromMIDI,
         SeparateToObjects,
+        AmbisonicUpmix,
+        AmbisonicTrajectoryExtract,
+        BinauralRender,
+        SpatialUpmix,
     )
 
 
@@ -522,3 +526,117 @@ class SeparateToObjects(GroovyNode):
 
     def run(self, **kwargs):
         raise RuntimeError("SeparateToObjects must run in AI worker subprocess")
+
+
+@register_node
+class AmbisonicUpmix(GroovyNode):
+    """Neural mono/stereo → FOA Ambisonics (Helix stub / real)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = ["helix-v0.7"]
+    RETURN_TYPES = ("AMBISONICS",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "model": ("MODEL_REF", {"default": "helix-v0.7"}),
+            },
+            "optional": {
+                "trajectory": ("TRAJECTORY",),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("AmbisonicUpmix must run in AI worker subprocess")
+
+
+@register_node
+class AmbisonicTrajectoryExtract(GroovyNode):
+    """Extract XYZ DOA trajectory from FOA Ambisonics (SELD stub / real)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = ["dcase-seld-foa-multiaccdoa"]
+    RETURN_TYPES = ("TRAJECTORY",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "ambisonics": ("AMBISONICS",),
+                "model": ("MODEL_REF", {"default": "dcase-seld-foa-multiaccdoa"}),
+            },
+            "optional": {},
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("AmbisonicTrajectoryExtract must run in AI worker subprocess")
+
+
+@register_node
+class BinauralRender(GroovyNode):
+    """Stereo → binaural headphones (stereo2spatial-v2; stub = Bauer crossfeed)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = ["hrtf-binaural-v0", "stereo2spatial-v2-binaural"]
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "model": ("MODEL_REF", {"default": "hrtf-binaural-v0"}),
+            },
+            "optional": {
+                "strength": ("FLOAT", {"default": 0.45}),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("BinauralRender must run in AI worker subprocess")
+
+
+@register_node
+class SpatialUpmix(GroovyNode):
+    """Stereo → multichannel bed (stereo2spatial-v1 → 7.1.4; stub mid/side bleed)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = ["stereo-atmos-bed-v0", "stereo2spatial-v1"]
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "model": ("MODEL_REF", {"default": "stereo-atmos-bed-v0"}),
+            },
+            "optional": {
+                "layout": ("STRING", {"default": "7.1.4", "choices": ["7.1.4", "5.1", "7.1"]}),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("SpatialUpmix must run in AI worker subprocess")

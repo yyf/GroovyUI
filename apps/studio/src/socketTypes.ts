@@ -27,6 +27,7 @@ export const SOCKET_TYPE_COLORS: Record<string, string> = {
   AMBISONICS: "#9a9a9a",
   OBA: "#707070",
   OSC: "#555555",
+  TRAJECTORY: "#d4a84b",
 };
 
 export function socketTypeClass(type: string): string {

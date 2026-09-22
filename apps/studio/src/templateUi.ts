@@ -14,6 +14,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
 /** Bundled templates shown in the workflow template picker in studio dev mode. */
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5",
+  "ambisonic-trajectory-demo",
   "authenticity-check",
   "watermark-embed-detect",
   "compare-stemmers",
@@ -26,6 +27,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "karaoke-guide-vocal",
   "localize-dialogue-a-to-b",
   "modular-generative-rack",
+  "mono-to-stereo-pan",
   "podcast-denoise",
   "prompt-modular-synth",
   "rave-timbre-transfer",
@@ -34,6 +36,8 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "neural-modular-rack",
   "song-cover-remix",
   "stable-audio",
+  "stereo-to-atmos-bed",
+  "stereo-to-binaural",
   "stem-lyrics-to-ace",
   "stem-separation",
   "text-to-music",
@@ -56,6 +60,7 @@ export type TemplateDomainId =
   | "stems"
   | "generate"
   | "modular"
+  | "immersive"
   | "compare"
   | "trust"
   | "other";
@@ -73,6 +78,7 @@ export const TEMPLATE_DOMAINS: readonly TemplateDomain[] = [
   { id: "stems", label: "Stems & Remix" },
   { id: "generate", label: "Generate Music" },
   { id: "modular", label: "Modular" },
+  { id: "immersive", label: "Immersive" },
   { id: "compare", label: "Compare" },
   { id: "trust", label: "Trust" },
   { id: "other", label: "Other" },
@@ -118,9 +124,18 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "neural-modular-rack": "modular",
   "self-playing-neural-rack": "modular",
   "simple-fm-synth": "modular",
+  "mono-to-stereo-pan": "modular",
 
   "authenticity-check": "trust",
   "watermark-embed-detect": "trust",
+
+  "ambisonic-trajectory-demo": "immersive",
+  "ambisonic-vr-preview": "immersive",
+  "stereo-to-binaural": "immersive",
+  "stereo-to-atmos-bed": "immersive",
+  "stems-to-spatial": "immersive",
+  "object-spatial-demo": "immersive",
+  "surround-mix": "immersive",
 };
 
 const standardBundledIds = new Set<string>(STANDARD_BUNDLED_TEMPLATE_IDS);
@@ -133,7 +148,7 @@ export function domainIdForTemplate(templateId: string): TemplateDomainId {
 
 /**
  * Hide non-featured bundled templates from the studio UI; user templates always show.
- * Standard mode: ISMIR demo set only. Studio dev mode (⌘D): full featured picker list.
+ * Standard mode: ISMIR demo set only (Immersive not included). Studio dev mode (⌘D): full featured list.
  */
 export function templatesVisibleInUi(
   templates: TemplateListItem[],

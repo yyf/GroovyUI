@@ -176,6 +176,21 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "audio": "Passthrough of the verified AUDIO buffer.",
         },
     },
+    "Meter": {
+        "description": "Multi-channel peak/RMS meter. Auto-detects channel count and labels from AUDIO or AMBISONICS inlet metadata (FOA W/Y/Z/X, HOA ACN). Passthrough plus TEXT levels.",
+        "inputs": {
+            "audio": "AUDIO buffer to measure (optional if ambisonics is wired).",
+            "ambisonics": "AMBISONICS (FOA/HOA) buffer to measure (optional if audio is wired).",
+        },
+        "outputs": {
+            "audio": "Passthrough of the measured buffer (AUDIO or AMBISONICS at runtime).",
+            "levels": "TEXT summary + §METER§ JSON (peak/RMS full + head/tail).",
+        },
+        "widgets": {
+            "layout": "Channel labels: auto (default from inlet), stereo, mono, foa, hoa2, 5.1, …",
+            "edge_fraction": "Fraction of clip used for head/tail peak windows (L/R debug).",
+        },
+    },
     "Normalize": {
         "description": "Adjust loudness to a target LUFS and peak ceiling.",
         "widgets": {
@@ -211,6 +226,18 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
     "ChannelConvert": {
         "description": "Explicit upmix or downmix between channel layouts (ITU-R BS.775 for 5.1→stereo).",
         "widgets": {"layout": "Target layout: mono, stereo, 5.1, etc."},
+    },
+    "Pan": {
+        "description": "Layout-agnostic equal-power panner (−1 left … +1 right). Collapses to mono drive, then images into the target layout (auto promotes mono → stereo).",
+        "inputs": {
+            "audio": "Any AUDIO (mono / stereo / surround).",
+            "pan_curve": "Optional AUTOMATION pan (−1…+1) overriding the pan widget.",
+        },
+        "outputs": {"audio": "Panned AUDIO in output_layout."},
+        "widgets": {
+            "pan": "Static pan −1 (left) … +1 (right) when no curve is wired.",
+            "output_layout": "Target bed: auto (mono→stereo), stereo, 5.1, 7.1, 7.1.4, …",
+        },
     },
     "Transcode": {
         "description": "Export cached audio to FLAC or WAV while passing the buffer through.",
@@ -263,6 +290,55 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "gain_start_db": "Start gain in dB.",
             "gain_end_db": "End gain in dB.",
         },
+    },
+    "TrajectoryAuthor": {
+        "description": "Author a listener-relative XYZ path. Draw freehand on the pad or drag S/E (not live — Render to apply). Multi-ACCDOA: +X = left.",
+        "widgets": {
+            "start_x": "Start X (left+ / right−, Multi-ACCDOA).",
+            "start_y": "Start Y (up).",
+            "start_z": "Start Z (front).",
+            "end_x": "End X (left+ / right−).",
+            "end_y": "End Y.",
+            "end_z": "End Z.",
+            "duration_sec": "Path length in seconds. Locked to wired LoadAudio duration when audio is connected.",
+            "sample_rate": "Sample rate. Locked to wired LoadAudio when audio is connected.",
+            "points": "Drawn path as JSON [{t_sec,x,y,z},…] — overrides start/end when set (≥2 points). Times rescale to audio duration on render.",
+            "object_id": "Label for the authored object.",
+            "audio": "Optional audio — locks trajectory duration/sample_rate to the clip timebase.",
+        },
+    },
+    "TrajectoryMonitor": {
+        "description": "Passthrough XYZ monitor — wire authored trajectory (input) or extract (output) so both paths stay visible while Preview auditions stereo.",
+        "widgets": {
+            "role": "Monitor role: input (authored) or output (recovered).",
+            "label": "Optional label shown in the trajectory panel.",
+        },
+    },
+    "AmbisonicUpmix": {
+        "description": "Neural mono/stereo → FOA Ambisonics (Helix). Optional TRAJECTORY conditions spatialization; stub encodes along XYZ.",
+        "widgets": {"model": "Upmix model (helix-v0.7)."},
+    },
+    "BinauralRender": {
+        "description": "Stereo → binaural headphones. Default stub (hrtf-binaural-v0); no applicable open neural model yet.",
+        "inputs": {"audio": "Stereo (or mono) AUDIO to spatialize for headphones."},
+        "outputs": {"audio": "2ch AUDIO with channel_layout=binaural."},
+        "widgets": {
+            "model": "Binaural model (hrtf-binaural-v0 stub default).",
+            "strength": "Crossfeed amount (0–1) for the stub renderer.",
+        },
+    },
+    "SpatialUpmix": {
+        "description": "Stereo → multichannel bed (7.1.4). Default stub (stereo-atmos-bed-v0); no applicable open neural model yet.",
+        "inputs": {"audio": "Mono/stereo AUDIO to expand into a channel bed."},
+        "outputs": {"audio": "Multichannel AUDIO (7.1.4 / 7.1 / 5.1). Preview via ChannelConvert→stereo."},
+        "widgets": {
+            "model": "Upmix model (stereo-atmos-bed-v0 stub default).",
+            "layout": "Target bed: 7.1.4 (Atmos), 7.1, or 5.1.",
+        },
+    },
+    "AmbisonicTrajectoryExtract": {
+        "description": "Extract XYZ DOA trajectory from FOA Ambisonics (SELD / intensity stub).",
+        "widgets": {"model": "Trajectory extract model (dcase-seld-foa-multiaccdoa)."},
     },
     "MIDIInDevice": {
         "description": "Hardware or virtual MIDI input → control or performance MIDI stream.",

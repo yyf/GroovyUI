@@ -13,6 +13,7 @@ from groovy.executor.control import AutomationBuffer
 from groovy.executor.midi import MidiBuffer
 from groovy.executor.oba import ObjectScene
 from groovy.executor.osc_live import OscBuffer
+from groovy.executor.trajectory import TrajectoryBuffer
 
 
 class CacheStore:
@@ -390,6 +391,66 @@ class CacheStore:
         sr = self.read_meta(cache_id)["sample_rate"]
         return {"peaks": peaks, "duration": len(mono) / sr}
 
+    def meter_envelopes(self, cache_id: str, width: int = 256) -> dict:
+        """Per-channel peak envelopes for Inspector meter scrubbing (not live DSP).
+
+        Supports AUDIO and AMBISONICS cache ids; labels follow inlet metadata
+        (FOA W/Y/Z/X, HOA ACN, stereo L/R, …).
+        """
+        from groovy.executor.meter import channel_labels_for_layout, resolve_meter_layout
+
+        meta = self.read_meta(cache_id)
+        if meta.get("type") == "AMBISONICS":
+            _, pcm = self.load_ambisonics(cache_id)
+            layout_order = meta.get("layout_order")
+            channel_layout = meta.get("channel_layout") or "ambisonics"
+            spatial_meta = dict(meta.get("spatial_meta") or {})
+            spatial_meta.setdefault("channel_ordering", meta.get("channel_ordering"))
+            spatial_meta.setdefault("encoding_scheme", meta.get("encoding_scheme"))
+        else:
+            _, pcm = self.load_audio(cache_id)
+            layout_order = meta.get("layout_order")
+            channel_layout = meta.get("channel_layout")
+            spatial_meta = dict(meta.get("spatial_meta") or {})
+        if pcm.ndim == 1:
+            pcm = pcm.reshape(1, -1)
+        channels, frames = pcm.shape
+        width = max(16, min(int(width), 2048))
+        if frames <= 0 or channels <= 0:
+            return {
+                "channels": [],
+                "labels": [],
+                "duration": 0.0,
+                "width": 0,
+                "sample_rate": int(meta.get("sample_rate") or 48000),
+                "layout": "auto",
+            }
+        chunk = max(1, frames // width)
+        envelopes: list[list[float]] = []
+        for ch in range(channels):
+            peaks = [
+                float(np.max(np.abs(pcm[ch, i : i + chunk])))
+                for i in range(0, frames, chunk)
+            ]
+            envelopes.append(peaks[:width])
+        effective = resolve_meter_layout(
+            layout_widget="auto",
+            channel_count=channels,
+            channel_layout=channel_layout,
+            spatial_meta=spatial_meta,
+            layout_order=int(layout_order) if layout_order is not None else None,
+        )
+        labels = channel_labels_for_layout(effective, channels)
+        sr = int(meta.get("sample_rate") or 48000)
+        return {
+            "channels": envelopes,
+            "labels": labels,
+            "duration": frames / max(sr, 1),
+            "width": len(envelopes[0]) if envelopes else 0,
+            "sample_rate": sr,
+            "layout": effective,
+        }
+
     def spectrogram_tiles(
         self,
         cache_id: str,
@@ -473,6 +534,43 @@ class CacheStore:
             "sample_rate": sr,
             "max_freq_hz": sr / 2,
         }
+
+    def write_trajectory(self, trajectory: TrajectoryBuffer) -> TrajectoryBuffer:
+        points_path = self.cache_dir / f"{trajectory.id}.trajectory.json"
+        payload = {
+            "points": trajectory.points,
+            "source": trajectory.source,
+            "object_id": trajectory.object_id,
+            "spatial_meta": trajectory.spatial_meta,
+        }
+        points_path.write_text(json.dumps(payload, indent=2))
+        trajectory.path = str(points_path)
+        meta_path = self.cache_dir / f"{trajectory.id}.meta.json"
+        meta_path.write_text(json.dumps(trajectory.to_meta(), indent=2))
+        return trajectory
+
+    def load_trajectory(self, trajectory_id: str) -> TrajectoryBuffer:
+        meta_path = self.cache_dir / f"{trajectory_id}.meta.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Trajectory cache not found: {trajectory_id}")
+        meta = json.loads(meta_path.read_text())
+        if meta.get("type") != "TRAJECTORY":
+            raise ValueError(f"Cache entry is not a trajectory: {trajectory_id}")
+        points_path = self.cache_dir / f"{trajectory_id}.trajectory.json"
+        if not points_path.exists():
+            raise FileNotFoundError(f"Trajectory points not found: {trajectory_id}")
+        payload = json.loads(points_path.read_text())
+        return TrajectoryBuffer(
+            id=meta["id"],
+            sample_rate=int(meta["sample_rate"]),
+            frame_count=int(meta["frame_count"]),
+            points=list(payload.get("points") or []),
+            source=payload.get("source", meta.get("source", "authored")),
+            object_id=str(payload.get("object_id", meta.get("object_id", "obj_0"))),
+            path=str(points_path),
+            source_node_type=meta.get("source_node_type"),
+            spatial_meta=dict(payload.get("spatial_meta") or meta.get("spatial_meta") or {}),
+        )
 
     def write_ambisonics(self, buffer: AmbisonicBuffer, pcm: np.ndarray) -> AmbisonicBuffer:
         f64_path = self.cache_dir / f"{buffer.id}.ambi.f64"

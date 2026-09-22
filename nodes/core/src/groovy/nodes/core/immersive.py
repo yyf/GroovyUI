@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from groovy.executor.ambisonics import (
     AmbisonicBuffer,
     decode_foa_to_stereo,
@@ -14,6 +16,11 @@ from groovy.executor.oba import (
     object_scene_from_audio,
     render_object_scene,
 )
+from groovy.executor.trajectory import (
+    TrajectoryBuffer,
+    build_linear_trajectory,
+    rescale_trajectory_points,
+)
 from groovy.node import GroovyNode, register_node
 
 
@@ -27,6 +34,8 @@ def register_immersive() -> None:
         ObjectPlacement,
         ObjectMerge,
         ObjectAnimate,
+        TrajectoryAuthor,
+        TrajectoryMonitor,
     )
 
 
@@ -304,3 +313,153 @@ class ObjectAnimate(GroovyNode):
         )
         self._ctx.cache.write_object_scene(animated)
         return (animated,)
+
+
+@register_node
+class TrajectoryAuthor(GroovyNode):
+    """Author a listener-relative XYZ trajectory (input path for AmbisonicUpmix)."""
+
+    CATEGORY = "GroovyUI/Immersive"
+    RETURN_TYPES = ("TRAJECTORY",)
+    OUTPUT_NAMES = ("trajectory",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                # When wired, duration/sample_rate lock to the audio so input/output
+                # trajectories share the same timebase for the compare panel.
+                "audio": ("AUDIO",),
+                "start_x": ("FLOAT", {"default": 0.707}),
+                "start_y": ("FLOAT", {"default": 0.0}),
+                "start_z": ("FLOAT", {"default": 0.707}),
+                "end_x": ("FLOAT", {"default": -0.707}),
+                "end_y": ("FLOAT", {"default": 0.0}),
+                "end_z": ("FLOAT", {"default": 0.707}),
+                "duration_sec": (
+                    "FLOAT",
+                    {
+                        "default": 1.0,
+                        "description": "Path duration in seconds. Locked to wired LoadAudio length when audio is connected.",
+                    },
+                ),
+                "sample_rate": (
+                    "INT",
+                    {
+                        "default": 48000,
+                        "description": "Sample rate. Locked to wired LoadAudio when audio is connected.",
+                    },
+                ),
+                # JSON list of {t_sec,x,y,z}; when provided (≥2 points) overrides start/end.
+                "points": ("STRING", {"default": ""}),
+                "object_id": ("STRING", {"default": "obj_0"}),
+            },
+        }
+
+    def run(
+        self,
+        audio: AudioBuffer | None = None,
+        start_x: float = 0.707,
+        start_y: float = 0.0,
+        start_z: float = 0.707,
+        end_x: float = -0.707,
+        end_y: float = 0.0,
+        end_z: float = 0.707,
+        duration_sec: float = 1.0,
+        sample_rate: int = 48000,
+        points: str = "",
+        object_id: str = "obj_0",
+        **kwargs,
+    ) -> tuple[TrajectoryBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        audio = kwargs.get("audio", audio)
+        sample_rate = int(kwargs.get("sample_rate", sample_rate))
+        duration_sec = float(kwargs.get("duration_sec", duration_sec))
+        if audio is not None:
+            sample_rate = int(audio.sample_rate)
+            duration_sec = max(0.05, float(audio.frame_count) / max(sample_rate, 1))
+        object_id = str(kwargs.get("object_id", object_id) or "obj_0")
+        points_raw = kwargs.get("points", points)
+        if str(points_raw or "").strip():
+            scaled_points = rescale_trajectory_points(points_raw, duration_sec)
+            trajectory = TrajectoryBuffer.from_points(
+                scaled_points,
+                sample_rate=sample_rate,
+                frame_count=max(2, int(round(duration_sec * sample_rate))),
+                source="authored",
+                object_id=object_id,
+                source_node_type="TrajectoryAuthor",
+            )
+        else:
+            trajectory = build_linear_trajectory(
+                start_xyz=(
+                    float(kwargs.get("start_x", start_x)),
+                    float(kwargs.get("start_y", start_y)),
+                    float(kwargs.get("start_z", start_z)),
+                ),
+                end_xyz=(
+                    float(kwargs.get("end_x", end_x)),
+                    float(kwargs.get("end_y", end_y)),
+                    float(kwargs.get("end_z", end_z)),
+                ),
+                duration_sec=duration_sec,
+                sample_rate=sample_rate,
+            )
+            trajectory.object_id = object_id
+        self._ctx.cache.write_trajectory(trajectory)
+        return (trajectory,)
+
+
+@register_node
+class TrajectoryMonitor(GroovyNode):
+    """Passthrough TRAJECTORY sink for on-canvas / overlay XYZ monitoring."""
+
+    CATEGORY = "GroovyUI/Immersive"
+    RETURN_TYPES = ("TRAJECTORY",)
+    OUTPUT_NAMES = ("trajectory",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"trajectory": ("TRAJECTORY",)},
+            "optional": {
+                # "input" = authored / source side; "output" = recovered / extract side.
+                "role": ("STRING", {"default": "input"}),
+                "label": ("STRING", {"default": ""}),
+            },
+        }
+
+    def run(
+        self,
+        trajectory: TrajectoryBuffer,
+        role: str = "input",
+        label: str = "",
+        **kwargs,
+    ) -> tuple[TrajectoryBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        role = str(kwargs.get("role", role) or "input").strip().lower()
+        if role not in {"input", "output"}:
+            role = "input"
+        label = str(kwargs.get("label", label) or "").strip()
+        loaded = self._ctx.cache.load_trajectory(trajectory.id)
+        # Re-write with monitor metadata so the studio can find input vs output monitors.
+        monitored = TrajectoryBuffer(
+            id=str(uuid.uuid4()),
+            sample_rate=loaded.sample_rate,
+            frame_count=loaded.frame_count,
+            points=list(loaded.points),
+            source=loaded.source,
+            object_id=loaded.object_id,
+            source_node_type="TrajectoryMonitor",
+            spatial_meta={
+                **dict(loaded.spatial_meta or {}),
+                "monitor_role": role,
+                "monitor_label": label or role,
+                "upstream_trajectory_id": loaded.id,
+            },
+        )
+        self._ctx.cache.write_trajectory(monitored)
+        return (monitored,)

@@ -28,6 +28,7 @@ describe("templatesVisibleInUi", () => {
     bundled("prompt-modular-synth"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
+    bundled("ambisonic-trajectory-demo"),
     bundled("extract-lyrics-to-music-with-ace-step"),
     bundled("stable-audio"),
     bundled("text-to-music"),
@@ -60,10 +61,40 @@ describe("templatesVisibleInUi", () => {
     ]);
   });
 
+  it("keeps Immersive templates off the standard picker (⌘D only)", () => {
+    const withImmersive = [
+      ...allBundled,
+      bundled("stereo-to-binaural"),
+      bundled("stereo-to-atmos-bed"),
+    ];
+    const standard = templatesVisibleInUi(withImmersive);
+    expect(standard.map((t) => t.id)).not.toContain("ambisonic-trajectory-demo");
+    expect(standard.map((t) => t.id)).not.toContain("stereo-to-binaural");
+    expect(standard.map((t) => t.id)).not.toContain("stereo-to-atmos-bed");
+    expect(groupBundledTemplatesByDomain(standard).map((g) => g.domain.id)).not.toContain(
+      "immersive",
+    );
+
+    // Same as other featured-only templates: active selection stays visible in standard mode.
+    const withSelection = templatesVisibleInUi(
+      withImmersive,
+      "ambisonic-trajectory-demo",
+      false,
+    );
+    expect(withSelection.map((t) => t.id)).toContain("ambisonic-trajectory-demo");
+
+    const featured = templatesVisibleInUi(withImmersive, undefined, true);
+    expect(featured.map((t) => t.id)).toContain("ambisonic-trajectory-demo");
+    expect(featured.map((t) => t.id)).toContain("stereo-to-binaural");
+    expect(featured.map((t) => t.id)).toContain("stereo-to-atmos-bed");
+    expect(groupBundledTemplatesByDomain(featured).map((g) => g.domain.id)).toContain("immersive");
+  });
+
   it("shows featured bundled templates in studio dev mode", () => {
     const visible = templatesVisibleInUi(allBundled, undefined, true);
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
+      "ambisonic-trajectory-demo",
       "authenticity-check",
       "compare-stemmers",
       "compare-whisper-sizes",

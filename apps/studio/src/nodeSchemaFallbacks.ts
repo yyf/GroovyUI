@@ -31,6 +31,20 @@ const NODE_WIDGET_FALLBACKS: Record<string, NodeWidgetSpec[]> = {
     { name: "format", type: "STRING", default: "wav" },
     { name: "bit_depth", type: "STRING", default: "float" },
   ],
+  Meter: [
+    {
+      name: "layout",
+      type: "STRING",
+      default: "stereo",
+      description: "Channel labels: stereo (default), mono, 5.1, 7.1, auto",
+    },
+    {
+      name: "edge_fraction",
+      type: "FLOAT",
+      default: 0.05,
+      description: "Fraction of clip for head/tail peak windows",
+    },
+  ],
 };
 
 /** Output sockets when the API is on an older build (e.g. SeparateStems before four AUDIO outputs). */
@@ -40,6 +54,10 @@ const NODE_OUTPUT_FALLBACKS: Record<string, OutputSocket[]> = {
     { name: "drums", type: "AUDIO" },
     { name: "bass", type: "AUDIO" },
     { name: "other", type: "AUDIO" },
+  ],
+  Meter: [
+    { name: "audio", type: "AUDIO" },
+    { name: "levels", type: "TEXT" },
   ],
 };
 
@@ -64,8 +82,12 @@ export function applyNodeSchemaFallbacks(schema: NodeSchema): NodeSchema {
     }
   }
   const outputFallback = NODE_OUTPUT_FALLBACKS[schema.type];
-  if (outputFallback?.length && hasLegacySeparateStemsOutputs(next.outputs)) {
-    next = { ...next, outputs: outputFallback };
+  if (outputFallback?.length) {
+    if (schema.type === "SeparateStems" && hasLegacySeparateStemsOutputs(next.outputs)) {
+      next = { ...next, outputs: outputFallback };
+    } else if (schema.type === "Meter" && (next.outputs?.length ?? 0) < 2) {
+      next = { ...next, outputs: outputFallback };
+    }
   }
   return next;
 }

@@ -131,12 +131,18 @@ export default function TransportBar({
       playheadRatioRef.current = clamped;
       const dur = timelineDuration();
       setPlaybackProgress(clamped);
+      const playheadSec = dur > 0 ? clamped * dur : 0;
       if (dur > 0) {
-        setPlaybackTime(clamped * dur);
+        setPlaybackTime(playheadSec);
         setDuration(dur);
       }
-      if (!commitAudio) return;
       const audio = audioRef.current;
+      // Expose intended playhead for Inspector meters / XYZ pads (updates on scrub
+      // even before media seek settles).
+      if (audio) {
+        audio.dataset.playheadSec = String(playheadSec);
+      }
+      if (!commitAudio) return;
       if (!audio || !dur) return;
       if (!(audio.readyState >= HTMLMediaElement.HAVE_METADATA && Number.isFinite(audio.duration) && audio.duration > 0)) {
         return;
@@ -146,6 +152,7 @@ export default function TransportBar({
       const mediaDur = audio.duration;
       const seekSec = Math.min(clamped * dur, Math.max(0, mediaDur - 0.001));
       audio.currentTime = seekSec;
+      audio.dataset.playheadSec = String(seekSec);
     },
     [timelineDuration],
   );
@@ -172,6 +179,7 @@ export default function TransportBar({
         setPlaybackProgress(ratio);
         setPlaybackTime(audio.currentTime);
         setDuration(dur);
+        audio.dataset.playheadSec = String(audio.currentTime);
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -362,6 +370,7 @@ export default function TransportBar({
         playheadRatioRef.current = ratio;
         setPlaybackProgress(ratio);
         setPlaybackTime(audio.currentTime);
+        audio.dataset.playheadSec = String(audio.currentTime);
       }
     };
     const onEnded = () => {
