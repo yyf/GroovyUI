@@ -1,10 +1,12 @@
 import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { useAudition } from "../context/AuditionContext";
+import { useTrajectoryEdit } from "../context/TrajectoryEditContext";
 import type { CanvasNodeKind } from "../nodeKinds";
 import { shortCanvasIssueLabel } from "../planModelSanitize";
 import { socketTypeColor } from "../socketTypes";
 import type { NodeRenderStatus } from "../types";
+import { TrajectoryAuthorPad } from "./TrajectoryPanel";
 
 export type NodeSocketSpec = {
   name: string;
@@ -30,6 +32,14 @@ export type GroovyNodeData = {
   noteText?: string;
   /** Channel layout / count chip (LoadAudio, Preview, SaveAudio). */
   channelLabel?: string;
+  /** TRAJECTORY cache id for on-node XYZ mini plot. */
+  trajectoryId?: string;
+  /** Monitor role when this is a TrajectoryMonitor (input | output). */
+  trajectoryRole?: "input" | "output";
+  /** Upstream / self TrajectoryAuthor id for canvas XYZ drag edits. */
+  trajectoryAuthorId?: string;
+  /** Live author widgets mirrored onto canvas pads (includes optional drawn `points` JSON). */
+  trajectoryWidgets?: Record<string, number | string>;
   /** Brief ⌘F locate pulse. */
   found?: boolean;
   inputs?: NodeSocketSpec[];
@@ -75,12 +85,15 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
   const nodeData = data as GroovyNodeData;
   const badge = statusLabel(nodeData.status);
   const audition = useAudition();
+  const { patchAuthor } = useTrajectoryEdit();
   const inputs =
     nodeData.inputs !== undefined ? nodeData.inputs : [{ name: "in", type: "AUDIO", slot: 0 }];
   const outputs =
     nodeData.outputs !== undefined ? nodeData.outputs : [{ name: "out", type: "AUDIO", slot: 0 }];
+  const showAuthorPad = Boolean(nodeData.trajectoryAuthorId && nodeData.trajectoryWidgets);
   const minHeight = Math.max(
     nodeData.noteText != null ? 72 : 52,
+    showAuthorPad ? 200 : nodeData.trajectoryId ? 160 : 0,
     Math.max(inputs.length, outputs.length) * 24 + 20,
   );
   const isNote = nodeData.label === "Note";
@@ -190,6 +203,33 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
           <p className="groovy-node__preview-text" title={nodeData.previewText}>
             {nodeData.previewText}
           </p>
+        ) : null}
+        {showAuthorPad && nodeData.trajectoryAuthorId && nodeData.trajectoryWidgets ? (
+          <div
+            className="groovy-node__trajectory groovy-node__trajectory--editable nodrag nopan"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <TrajectoryAuthorPad
+              widgets={nodeData.trajectoryWidgets}
+              size={128}
+              compact
+              role={nodeData.trajectoryRole ?? "input"}
+              trajectoryId={nodeData.trajectoryId}
+              onChange={(patch) => patchAuthor(nodeData.trajectoryAuthorId!, patch)}
+            />
+          </div>
+        ) : nodeData.trajectoryId ? (
+          <div className="groovy-node__trajectory" onPointerDown={(event) => event.stopPropagation()}>
+            <TrajectoryAuthorPad
+              widgets={{}}
+              size={128}
+              compact
+              role={nodeData.trajectoryRole ?? "output"}
+              trajectoryId={nodeData.trajectoryId}
+            />
+          </div>
+        ) : nodeData.label === "TrajectoryMonitor" || nodeData.label === "TrajectoryAuthor" ? (
+          <p className="groovy-node__trajectory-hint">Wire TRAJECTORY · Render · Play</p>
         ) : null}
       </div>
       {outputs.map((socket, index) => (

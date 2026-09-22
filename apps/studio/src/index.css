@@ -1562,8 +1562,22 @@ body {
 .canvas {
   flex: 1;
   min-width: 0;
-  background: var(--bg-canvas);
+  background-color: var(--bg-canvas);
   position: relative;
+}
+
+/* Pan/zoom-synced dots — circle at cell origin so top-left snap lands on a dot. */
+.react-flow .canvas-zoom-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: radial-gradient(
+    circle at 0 0,
+    rgba(255, 255, 255, 0.4) 1.25px,
+    transparent 1.5px
+  );
+  background-repeat: repeat;
 }
 
 .canvas__fps {
@@ -4231,8 +4245,8 @@ body {
 .groovy-node__preview-text {
   margin: 6px 0 0;
   padding: 4px 6px;
-  max-width: 200px;
-  max-height: 4.5em;
+  max-width: 220px;
+  max-height: 6.5em;
   overflow: hidden;
   font-family: var(--font-mono);
   font-size: 9px;
@@ -4832,6 +4846,10 @@ body {
 
 .groovy-edge--type-osc {
   --edge-stroke: #555555;
+}
+
+.groovy-edge--type-trajectory {
+  --edge-stroke: #d4a84b;
 }
 
 /* Keep our palette stroke when RF applies its selected-edge color.
@@ -7179,6 +7197,70 @@ body {
   color: var(--text-primary);
 }
 
+.node-helper__meter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-helper__meter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.node-helper__meter-summary {
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.node-helper__meter-channels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.node-helper__meter-channel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.node-helper__meter-bar {
+  height: 8px;
+  margin: 4px 0;
+  background: var(--bg-recessed);
+  border: 1px solid var(--border-dim);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.node-helper__meter-bar--live {
+  height: 14px;
+}
+
+.node-helper__meter-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.node-helper__meter-live-db {
+  font-variant-numeric: tabular-nums;
+  min-width: 5.5em;
+  text-align: right;
+}
+
+.node-helper__meter-channels--live {
+  gap: 12px;
+}
+
 .node-helper__transcript-panel {
   margin-top: 12px;
   padding: 10px 12px;
@@ -7308,4 +7390,253 @@ body {
   border: 1px solid var(--border-silver);
   background: var(--bg-elevated);
   color: var(--text-primary);
+}
+
+/* Trajectory XYZ overlay (input vs recovered DOA during transport audition) */
+.trajectory-panel-overlay {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.trajectory-panel {
+  background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+  border: 1px solid var(--border-silver);
+  padding: 10px 12px 12px;
+  min-width: 200px;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.trajectory-panel--helper {
+  margin-bottom: 12px;
+}
+
+.trajectory-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trajectory-panel__title {
+  font-weight: 600;
+}
+
+.trajectory-panel__time {
+  color: var(--text-muted, #888);
+  font-variant-numeric: tabular-nums;
+}
+
+.trajectory-panel__svg {
+  display: block;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-silver);
+}
+
+.trajectory-panel__ring,
+.trajectory-panel__axis {
+  fill: none;
+  stroke: #444;
+  stroke-width: 1;
+}
+
+.trajectory-panel__label {
+  fill: #777;
+  font-size: 9px;
+}
+
+.trajectory-panel__path {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.trajectory-panel__path--input {
+  stroke: #ffffff;
+  opacity: 0.85;
+}
+
+.trajectory-panel__path--output {
+  stroke: #ff002b;
+  opacity: 0.95;
+  stroke-width: 2;
+}
+
+.trajectory-panel__dot--input {
+  fill: #ffffff;
+  stroke: #111;
+  stroke-width: 1;
+}
+
+.trajectory-panel__dot--output {
+  fill: #ff002b;
+  stroke: #111;
+  stroke-width: 1;
+}
+
+.trajectory-panel__legend {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-muted, #aaa);
+  font-variant-numeric: tabular-nums;
+}
+
+.trajectory-panel__swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.trajectory-panel__swatch--input {
+  background: #ffffff;
+}
+
+.trajectory-panel__swatch--output {
+  background: #ff002b;
+}
+
+.trajectory-panel--split .trajectory-panel__plots {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.groovy-node__trajectory {
+  margin-top: 6px;
+  pointer-events: none;
+}
+
+.groovy-node__trajectory--editable {
+  pointer-events: auto;
+}
+
+.trajectory-author-pad--compact {
+  margin-bottom: 0;
+  gap: 2px;
+}
+
+.groovy-node__trajectory-hint {
+  margin: 6px 0 0;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.trajectory-panel__dot--playhead {
+  stroke: var(--bg-elevated);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+
+
+.groovy-node__trajectory .trajectory-plot {
+  min-width: 0;
+}
+
+.groovy-node__trajectory .trajectory-plot__header {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.groovy-node__trajectory .trajectory-plot__coords {
+  margin: 2px 0 0;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.groovy-node__trajectory .trajectory-panel__svg {
+  display: block;
+  background: color-mix(in srgb, var(--bg-base) 70%, transparent);
+}
+
+.trajectory-author-pad {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.trajectory-author-pad__hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.trajectory-author-pad__svg {
+  cursor: crosshair;
+  touch-action: none;
+  background: color-mix(in srgb, var(--bg-base) 70%, transparent);
+}
+
+.trajectory-author-pad__handle {
+  fill: var(--accent, #c4a35a);
+  stroke: var(--bg-elevated);
+  stroke-width: 2;
+  cursor: grab;
+}
+
+.trajectory-author-pad__handle--end {
+  fill: color-mix(in srgb, var(--accent, #c4a35a) 55%, #6af);
+}
+
+.trajectory-author-pad__handle:active {
+  cursor: grabbing;
+}
+
+
+
+.trajectory-panel__hint {
+  color: var(--text-muted, #888);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.trajectory-plot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trajectory-plot__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.trajectory-plot--input .trajectory-plot__label {
+  color: #ffffff;
+}
+
+.trajectory-plot--output .trajectory-plot__label {
+  color: #ff002b;
+}
+
+.trajectory-plot__time,
+.trajectory-plot__coords {
+  color: var(--text-muted, #888);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  margin: 0;
 }

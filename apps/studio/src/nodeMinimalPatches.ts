@@ -122,6 +122,22 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l3", "n3", "n4", "AUDIO"),
     ],
   },
+  Pan: {
+    title: "Pan",
+    description: "Mono → stereo equal-power pan (−1 left … +1 right). Layout-agnostic — also targets surround beds.",
+    focusNodeId: "n3",
+    nodes: [
+      load("n1", 0),
+      { id: "n2", type: "ChannelConvert", x: 260, widgets: { layout: "mono" } },
+      { id: "n3", type: "Pan", x: 520, widgets: { pan: 0.55, output_layout: "stereo" } },
+      preview("n4", 780),
+    ],
+    links: [
+      link("l1", "n1", "n2", "AUDIO"),
+      link("l2", "n2", "n3", "AUDIO"),
+      link("l3", "n3", "n4", "AUDIO"),
+    ],
+  },
   ChannelMerge: {
     title: "Channel Merge",
     description: "Combine LoadAudio L/R (or mono) outlets into one stereo buffer for SaveAudio.",
@@ -636,6 +652,18 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     ],
     links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO", 1, 0)],
   },
+  Meter: {
+    title: "Meter",
+    description:
+      "Multi-channel peak/RMS levels (auto from inlet + FOA/HOA meta) with AUDIO or AMBISONICS passthrough.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      { id: "n2", type: "Meter", x: 260, widgets: { layout: "auto", edge_fraction: 0.05 } },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO", 0, 0)],
+  },
   AuthenticitySummary: {
     title: "Authenticity Summary",
     description: "Combine provenance and spoof checks.",
@@ -661,6 +689,159 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     focusNodeId: "n2",
     nodes: [load("n1", 0), { id: "n2", type: "AmbisonicEncode", x: 260, widgets: { order: 1 } }, { id: "n3", type: "AmbisonicDecode", x: 520, widgets: { layout: "stereo" } }, preview("n4", 780)],
     links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AMBISONICS"), link("l3", "n3", "n4", "AUDIO")],
+  },
+  TrajectoryAuthor: {
+    title: "Trajectory Author",
+    description: "Author XYZ trajectory locked to audio, upmix to FOA, extract DOA, decode.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      {
+        id: "n2",
+        type: "TrajectoryAuthor",
+        x: 260,
+        y: 140,
+        widgets: {
+          start_x: 0.707,
+          start_y: 0,
+          start_z: 0.707,
+          end_x: -0.707,
+          end_y: 0,
+          end_z: 0.707,
+        },
+      },
+      { id: "n7", type: "TrajectoryMonitor", x: 520, y: 140, widgets: { role: "input", label: "Input XYZ" } },
+      { id: "n3", type: "AmbisonicUpmix", x: 780, widgets: { model: "helix-v0.7" } },
+      { id: "n4", type: "AmbisonicTrajectoryExtract", x: 1040, y: 140, widgets: { model: "dcase-seld-foa-multiaccdoa" } },
+      { id: "n8", type: "TrajectoryMonitor", x: 1300, y: 140, widgets: { role: "output", label: "Output XYZ" } },
+      { id: "n5", type: "AmbisonicDecode", x: 1040, widgets: { layout: "stereo" } },
+      preview("n6", 1300),
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUDIO"),
+      link("l1b", "n1", "n2", "AUDIO"),
+      link("l2", "n2", "n7", "TRAJECTORY"),
+      link("l2c", "n7", "n3", "TRAJECTORY", 0, 1),
+      link("l3", "n3", "n4", "AMBISONICS"),
+      link("l4", "n3", "n5", "AMBISONICS"),
+      link("l5", "n5", "n6", "AUDIO"),
+      link("l6", "n4", "n8", "TRAJECTORY"),
+    ],
+  },
+  TrajectoryMonitor: {
+    title: "Trajectory Monitor",
+    description: "Monitor an XYZ trajectory on canvas (input or output role).",
+    focusNodeId: "n7",
+    nodes: [
+      load("n1", 0),
+      {
+        id: "n2",
+        type: "TrajectoryAuthor",
+        x: 260,
+        y: 140,
+        widgets: {
+          start_x: 0.707,
+          start_y: 0,
+          start_z: 0.707,
+          end_x: -0.707,
+          end_y: 0,
+          end_z: 0.707,
+        },
+      },
+      { id: "n7", type: "TrajectoryMonitor", x: 520, y: 140, widgets: { role: "input", label: "Input XYZ" } },
+      { id: "n3", type: "AmbisonicUpmix", x: 780, widgets: { model: "helix-v0.7" } },
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUDIO"),
+      link("l1b", "n1", "n2", "AUDIO"),
+      link("l2", "n2", "n7", "TRAJECTORY"),
+      link("l2c", "n7", "n3", "TRAJECTORY", 0, 1),
+    ],
+  },
+  AmbisonicUpmix: {
+    title: "Ambisonic Upmix",
+    description: "Neural mono/stereo to FOA with optional trajectory conditioning.",
+    focusNodeId: "n3",
+    nodes: [
+      load("n1", 0),
+      {
+        id: "n2",
+        type: "TrajectoryAuthor",
+        x: 260,
+        y: 140,
+        widgets: { start_x: 0.707, start_z: 0.707, end_x: -0.707, end_z: 0.707 },
+      },
+      { id: "n7", type: "TrajectoryMonitor", x: 520, y: 140, widgets: { role: "input", label: "Input XYZ" } },
+      { id: "n3", type: "AmbisonicUpmix", x: 780, widgets: { model: "helix-v0.7" } },
+      { id: "n4", type: "AmbisonicDecode", x: 1040, widgets: { layout: "stereo" } },
+      preview("n5", 1300),
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUDIO"),
+      link("l1b", "n1", "n2", "AUDIO"),
+      link("l2", "n2", "n7", "TRAJECTORY"),
+      link("l2c", "n7", "n3", "TRAJECTORY", 0, 1),
+      link("l3", "n3", "n4", "AMBISONICS"),
+      link("l4", "n4", "n5", "AUDIO"),
+    ],
+  },
+  BinauralRender: {
+    title: "Binaural Render",
+    description: "Stereo → binaural headphones (hrtf-binaural-v0 stub; no applicable open neural model yet).",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      { id: "n2", type: "BinauralRender", x: 260, widgets: { model: "hrtf-binaural-v0", strength: 0.45 } },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
+  },
+  SpatialUpmix: {
+    title: "Spatial Upmix",
+    description: "Stereo → Atmos 7.1.4 bed (stereo-atmos-bed-v0 stub; no applicable open neural model yet).",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      { id: "n2", type: "SpatialUpmix", x: 260, widgets: { model: "stereo-atmos-bed-v0", layout: "7.1.4" } },
+      { id: "n3", type: "ChannelConvert", x: 520, widgets: { layout: "stereo" } },
+      preview("n4", 780),
+    ],
+    links: [
+      link("l1", "n1", "n2", "AUDIO"),
+      link("l2", "n2", "n3", "AUDIO"),
+      link("l3", "n3", "n4", "AUDIO"),
+    ],
+  },
+  AmbisonicTrajectoryExtract: {
+    title: "Ambisonic Trajectory Extract",
+    description: "Recover XYZ DOA trajectory from FOA Ambisonics.",
+    focusNodeId: "n4",
+    nodes: [
+      load("n1", 0),
+      {
+        id: "n2",
+        type: "TrajectoryAuthor",
+        x: 260,
+        y: 140,
+        widgets: { start_x: 0.707, start_z: 0.707, end_x: -0.707, end_z: 0.707 },
+      },
+      { id: "n7", type: "TrajectoryMonitor", x: 520, y: 140, widgets: { role: "input", label: "Input XYZ" } },
+      { id: "n3", type: "AmbisonicUpmix", x: 780, widgets: { model: "helix-v0.7" } },
+      { id: "n4", type: "AmbisonicTrajectoryExtract", x: 1040, widgets: { model: "dcase-seld-foa-multiaccdoa" } },
+      { id: "n8", type: "TrajectoryMonitor", x: 1300, y: 140, widgets: { role: "output", label: "Output XYZ" } },
+      { id: "n5", type: "AmbisonicDecode", x: 1040, y: 280, widgets: { layout: "stereo" } },
+      preview("n6", 1300),
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUDIO"),
+      link("l1b", "n1", "n2", "AUDIO"),
+      link("l2", "n2", "n7", "TRAJECTORY"),
+      link("l2c", "n7", "n3", "TRAJECTORY", 0, 1),
+      link("l3", "n3", "n4", "AMBISONICS"),
+      link("l4", "n3", "n5", "AMBISONICS"),
+      link("l5", "n5", "n6", "AUDIO"),
+      link("l6", "n4", "n8", "TRAJECTORY"),
+    ],
   },
   AmbisonicDecode: {
     title: "Ambisonic Decode",
@@ -933,6 +1114,26 @@ function appendSourceForInput(
     patchNodes.push({ id: encId, type: "AmbisonicEncode", x: sourceX, y: sourceY, widgets: { order: 1 } });
     links.push(link(`l${linkIndex.value++}`, loadId, encId, "AUDIO"));
     links.push(link(`l${linkIndex.value++}`, encId, focusNodeId, "AMBISONICS", 0, input.slot));
+    return;
+  }
+  if (input.type === "TRAJECTORY") {
+    const trajId = nextAugmentPatchNodeId(patchNodes, reservedIds);
+    patchNodes.push({
+      id: trajId,
+      type: "TrajectoryAuthor",
+      x: sourceX,
+      y: sourceY,
+      widgets: {
+        start_x: 0.707,
+        start_y: 0,
+        start_z: 0.707,
+        end_x: -0.707,
+        end_y: 0,
+        end_z: 0.707,
+        duration_sec: 1,
+      },
+    });
+    links.push(link(`l${linkIndex.value++}`, trajId, focusNodeId, "TRAJECTORY", 0, input.slot));
     return;
   }
   if (input.type === "OBA") {

@@ -7,7 +7,13 @@ import numpy as np
 import pytest
 import soundfile as sf
 from groovy.executor import Executor
-from groovy.executor.ambisonics import decode_foa_to_stereo, encode_foa_from_audio, rotate_foa_yaw
+from groovy.executor.ambisonics import (
+    decode_foa_to_stereo,
+    encode_foa_from_audio,
+    encode_foa_from_trajectory,
+    foa_direction_xyz,
+    rotate_foa_yaw,
+)
 from groovy.executor.engine import JobContext
 from groovy.nodes.core import register_all
 from groovy.node import NODE_REGISTRY
@@ -40,6 +46,31 @@ def test_foa_rotate_changes_stereo() -> None:
     rotated = rotate_foa_yaw(foa, 90.0)
     after = decode_foa_to_stereo(rotated)
     assert not np.allclose(before, after)
+
+
+def test_trajectory_encode_decode_lr_matches_accdoa_x() -> None:
+    """Multi-ACCDOA left (+X) must decode louder in the left ear (AmbiY = +X)."""
+    frames = 512
+    mono = np.ones(frames) * 0.5
+    # Multi-ACCDOA: x=left, y=up, z=front — hard left = +X.
+    xyz = np.vstack(
+        [
+            np.ones(frames),
+            np.zeros(frames),
+            np.zeros(frames),
+        ]
+    )
+    foa = encode_foa_from_trajectory(mono.reshape(1, -1), xyz=xyz)
+    recovered = foa_direction_xyz(foa)
+    assert recovered[0, frames // 2] == pytest.approx(1.0, abs=0.05)
+    stereo = decode_foa_to_stereo(foa)
+    assert float(np.mean(stereo[0] ** 2)) > float(np.mean(stereo[1] ** 2))
+
+    # Hard right (−X) → right ear louder.
+    xyz_r = np.vstack([-np.ones(frames), np.zeros(frames), np.zeros(frames)])
+    foa_r = encode_foa_from_trajectory(mono.reshape(1, -1), xyz=xyz_r)
+    stereo_r = decode_foa_to_stereo(foa_r)
+    assert float(np.mean(stereo_r[1] ** 2)) > float(np.mean(stereo_r[0] ** 2))
 
 
 @pytest.fixture

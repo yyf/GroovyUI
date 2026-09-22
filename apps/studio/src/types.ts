@@ -246,6 +246,9 @@ export type JobOutput = {
   authenticity_id?: string;
   sample_check_id?: string;
   automation_id?: string;
+  ambisonics_id?: string;
+  oba_id?: string;
+  trajectory_id?: string;
   outputs?: JobOutput[];
 };
 

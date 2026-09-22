@@ -27,6 +27,7 @@ from groovy.executor.midi import MidiBuffer
 from groovy.executor.node_cache import compute_node_signature
 from groovy.executor.oba import ObjectScene
 from groovy.executor.osc_live import OscBuffer
+from groovy.executor.trajectory import TrajectoryBuffer
 from groovy.executor.provenance import build_record, parent_refs, read_provenance
 from groovy.executor.signal_integrity import attach_signal_metadata
 from groovy.node import NODE_REGISTRY, get_node_class
@@ -363,6 +364,8 @@ class Executor:
                 result.append(buffer)
             elif item.get("type") == "OBA" and item.get("oba_id"):
                 result.append(self.cache.load_object_scene(item["oba_id"]))
+            elif item.get("type") == "TRAJECTORY" and item.get("trajectory_id"):
+                result.append(self.cache.load_trajectory(item["trajectory_id"]))
             elif item.get("type") == "OSC" and item.get("osc_id"):
                 result.append(self.cache.load_osc(item["osc_id"]))
             elif item.get("type") == "TEXT":
@@ -414,6 +417,8 @@ class Executor:
             meta = {"type": "AMBISONICS", "ambisonics_id": item.id}
         elif isinstance(item, ObjectScene):
             meta = {"type": "OBA", "oba_id": item.id}
+        elif isinstance(item, TrajectoryBuffer):
+            meta = {"type": "TRAJECTORY", "trajectory_id": item.id}
         elif isinstance(item, OscBuffer):
             meta = {"type": "OSC", "osc_id": item.id}
         elif isinstance(item, AudioBuffer):
@@ -515,6 +520,7 @@ def _input_name(node_cls: type, index: int) -> str:
                 "AMBISONICS",
                 "OBA",
                 "OSC",
+                "TRAJECTORY",
             }:
                 names.append(name)
             elif socket_type == "FLOAT" and name in {"gain_a", "gain_b", "value"}:

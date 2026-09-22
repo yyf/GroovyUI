@@ -139,6 +139,16 @@ def seamless_available() -> bool:
         return False
 
 
+def stereo2spatial_available() -> bool:
+    try:
+        import stereo2spatial  # noqa: F401
+        import torch  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "deepfilternet-v3": deepfilternet_available,
     "basic-pitch": basic_pitch_available,
@@ -156,6 +166,8 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "audioseal-16bit": audioseal_available,
     "rave-v1": rave_available,
     "seamless-m4t-v2-large": seamless_available,
+    "stereo2spatial-v2-binaural": stereo2spatial_available,
+    "stereo2spatial-v1": stereo2spatial_available,
 }
 
 

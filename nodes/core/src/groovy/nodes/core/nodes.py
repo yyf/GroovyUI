@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+from groovy.executor.ambisonics import AmbisonicBuffer
 from groovy.executor.audio import AudioBuffer
 from groovy.executor.audio_meta import (
     apply_file_probe,
@@ -43,6 +44,7 @@ def register_all() -> None:
         Resample,
         Trim,
         Mix,
+        Pan,
         Normalize,
         Preview,
         Note,
@@ -64,6 +66,7 @@ def register_all() -> None:
         FloatMath,
         FloatRoute,
         Granulate,
+        Meter,
     )
     register_immersive()
     register_modular_io()
@@ -486,6 +489,98 @@ class Mix(GroovyNode):
 
 
 @register_node
+class Pan(GroovyNode):
+    """Layout-agnostic equal-power panner (−1 left … +1 right).
+
+    Collapses the input to a mono drive (LFE omitted), then images into
+    ``output_layout`` (``auto`` promotes mono → stereo). Optional AUTOMATION
+    overrides the pan widget per frame.
+    """
+
+    CATEGORY = "GroovyUI/Core"
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"audio": ("AUDIO",)},
+            "optional": {
+                "pan": ("FLOAT", {"default": 0.0, "min": -1.0, "max": 1.0}),
+                "pan_curve": ("AUTOMATION",),
+                "output_layout": (
+                    "STRING",
+                    {
+                        "default": "auto",
+                        "choices": [
+                            "auto",
+                            "mono",
+                            "stereo",
+                            "LRC",
+                            "quad",
+                            "5.1",
+                            "7.1",
+                            "7.1.4",
+                        ],
+                    },
+                ),
+            },
+        }
+
+    def run(
+        self,
+        audio: AudioBuffer,
+        pan: float = 0.0,
+        pan_curve: AutomationBuffer | None = None,
+        output_layout: str = "auto",
+        **kwargs,
+    ) -> tuple[AudioBuffer]:
+        from groovy.nodes.core.pan import pan_pcm, resolve_output_layout
+
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        pan = float(kwargs.get("pan", pan))
+        pan_curve = kwargs.get("pan_curve", pan_curve)
+        output_layout = str(kwargs.get("output_layout", output_layout))
+        _, pcm = self._ctx.cache.load_audio(audio.id)
+        target_layout = resolve_output_layout(
+            input_layout=str(audio.channel_layout or "mono"),
+            input_channels=int(pcm.shape[0]),
+            output_layout=output_layout,
+        )
+        if pan_curve is not None:
+            pan_values = pan_curve.resample_to(pcm.shape[1])
+        else:
+            pan_values = pan
+        out = pan_pcm(
+            pcm,
+            pan=pan_values,
+            input_layout=str(audio.channel_layout or channel_layout_for_channels(pcm.shape[0])),
+            output_layout=target_layout,
+        )
+        buffer = AudioBuffer.from_planar(
+            out,
+            audio.sample_rate,
+            source_node_type="Pan",
+            channel_layout=target_layout,
+        )
+        inherit_format_meta(
+            buffer,
+            audio,
+            channel_map=channel_map_for_layout(target_layout, out.shape[0]),
+            encoding_scheme=f"Equal-power pan → {target_layout}",
+            layout_order=None,
+            spatial_meta={
+                **dict(getattr(audio, "spatial_meta", None) or {}),
+                "pan": pan if pan_curve is None else "automation",
+                "output_layout": target_layout,
+            },
+        )
+        self._ctx.cache.write_audio(buffer, out)
+        return (buffer,)
+
+
+@register_node
 class Normalize(GroovyNode):
     RETURN_TYPES = ("AUDIO",)
 
@@ -585,6 +680,142 @@ class MultichannelNormalize(GroovyNode):
         )
         self._ctx.cache.write_audio(buffer, out)
         return (buffer,)
+
+
+@register_node
+class Meter(GroovyNode):
+    """Multi-channel peak/RMS meter with AUDIO or AMBISONICS passthrough.
+
+    Channel count and labels default to **auto** from the inlet (channel count +
+    layout / ambisonic-order metadata). FOA uses W/Y/Z/X; HOA uses ACN names.
+    Head/tail windows help debug L/R pans vs XYZ trajectory monitors.
+    """
+
+    CATEGORY = "GroovyUI/Core"
+    PROVENANCE_PASSTHROUGH = True
+    # Schema default is AUDIO; AMBISONICS passthrough is tagged at runtime by buffer type.
+    RETURN_TYPES = ("AUDIO", "TEXT")
+    OUTPUT_NAMES = ("audio", "levels")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "audio": ("AUDIO",),
+                "ambisonics": ("AMBISONICS",),
+                "layout": (
+                    "STRING",
+                    {
+                        "default": "auto",
+                        "choices": [
+                            "auto",
+                            "mono",
+                            "stereo",
+                            "lrc",
+                            "quad",
+                            "5.1",
+                            "7.1",
+                            "7.1.4",
+                            "foa",
+                            "hoa2",
+                            "hoa3",
+                        ],
+                    },
+                ),
+                "edge_fraction": ("FLOAT", {"default": 0.05}),
+            },
+        }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [
+            {"name": "audio", "type": "AUDIO"},
+            {"name": "levels", "type": "TEXT"},
+        ]
+        return schema
+
+    def run(self, **kwargs) -> tuple[AudioBuffer | AmbisonicBuffer, str]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        from groovy.executor.meter import (
+            format_meter_debug_lines,
+            format_meter_summary,
+            measure_channel_levels,
+            _json_safe_meter,
+        )
+
+        audio = kwargs.get("audio")
+        ambi = kwargs.get("ambisonics")
+        if audio is None and ambi is None:
+            raise ValueError("Meter needs a wired audio or ambisonics input")
+        if audio is not None and ambi is not None:
+            raise ValueError("Meter accepts one inlet — wire audio or ambisonics, not both")
+
+        layout = str(kwargs.get("layout", "auto") or "auto")
+        edge_fraction = float(kwargs.get("edge_fraction", 0.05))
+
+        if ambi is not None:
+            _, pcm = self._ctx.cache.load_ambisonics(ambi.id)
+            meter = measure_channel_levels(
+                pcm,
+                layout=layout,
+                edge_fraction=edge_fraction,
+                channel_layout="ambisonics",
+                spatial_meta=dict(getattr(ambi, "spatial_meta", None) or {}),
+                layout_order=int(getattr(ambi, "layout_order", 1) or 1),
+            )
+            summary = format_meter_summary(meter)
+            debug = "\n".join(format_meter_debug_lines(meter))
+            levels_text = (
+                f"{summary}\n{debug}\n§METER§{json.dumps(_json_safe_meter(meter), allow_nan=False)}"
+            )
+            out_pcm = np.asarray(pcm, dtype=np.float64)
+            buffer = AmbisonicBuffer.from_pcm(
+                out_pcm,
+                ambi.sample_rate,
+                layout_order=int(getattr(ambi, "layout_order", 1) or 1),
+                source_node_type="Meter",
+                spatial_meta={
+                    **dict(getattr(ambi, "spatial_meta", None) or {}),
+                    "channel_ordering": getattr(ambi, "channel_ordering", "ACN"),
+                    "normalization": getattr(ambi, "normalization", "SN3D"),
+                    "meter": meter,
+                },
+            )
+            self._ctx.cache.write_ambisonics(buffer, out_pcm)
+            return (buffer, levels_text)
+
+        _, pcm = self._ctx.cache.load_audio(audio.id)
+        meter = measure_channel_levels(
+            pcm,
+            layout=layout,
+            edge_fraction=edge_fraction,
+            channel_layout=getattr(audio, "channel_layout", None),
+            spatial_meta=dict(getattr(audio, "spatial_meta", None) or {}),
+            layout_order=getattr(audio, "layout_order", None),
+        )
+        summary = format_meter_summary(meter)
+        debug = "\n".join(format_meter_debug_lines(meter))
+        levels_text = (
+            f"{summary}\n{debug}\n§METER§{json.dumps(_json_safe_meter(meter), allow_nan=False)}"
+        )
+
+        out_pcm = np.asarray(pcm, dtype=np.float64)
+        buffer = AudioBuffer.from_planar(
+            out_pcm,
+            audio.sample_rate,
+            source_node_type="Meter",
+            channel_layout=audio.channel_layout,
+        )
+        inherit_format_meta(buffer, audio)
+        buffer.spatial_meta = {
+            **dict(getattr(audio, "spatial_meta", None) or {}),
+            "meter": meter,
+        }
+        self._ctx.cache.write_audio(buffer, out_pcm)
+        return (buffer, levels_text)
 
 
 @register_node
@@ -938,7 +1169,27 @@ class ChannelConvert(GroovyNode):
             fl, fr, fc, _lfe, bl, br = pcm
             scale = 0.70710678
             pcm = np.vstack([fl + scale * fc + scale * bl, fr + scale * fc + scale * br])
-        elif layout == "stereo" and pcm.shape[0] == 8 and source_layout in {"7.1", "7.1.4", "custom"}:
+        elif layout == "stereo" and pcm.shape[0] == 12 and source_layout in {"7.1.4", "custom"}:
+            fl, fr, fc, _lfe, bl, br, sl, sr, tfl, tfr, tbl, tbr = pcm
+            scale = 0.70710678
+            height = 0.45
+            pcm = np.vstack(
+                [
+                    fl + scale * fc + scale * bl + scale * sl + height * (tfl + tbl),
+                    fr + scale * fc + scale * br + scale * sr + height * (tfr + tbr),
+                ]
+            )
+        elif layout == "stereo" and pcm.shape[0] == 8 and source_layout in {"7.1", "custom"}:
+            fl, fr, fc, _lfe, bl, br, sl, sr = pcm
+            scale = 0.70710678
+            pcm = np.vstack(
+                [
+                    fl + scale * fc + scale * bl + scale * sl,
+                    fr + scale * fc + scale * br + scale * sr,
+                ]
+            )
+        elif layout == "stereo" and pcm.shape[0] == 8 and source_layout in {"7.1.4", "custom"}:
+            # Legacy 8ch tagged 7.1.4 — fold without heights.
             fl, fr, fc, _lfe, bl, br, sl, sr = pcm
             scale = 0.70710678
             pcm = np.vstack(

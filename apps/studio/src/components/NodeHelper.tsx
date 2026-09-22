@@ -7,6 +7,7 @@ import {
   fetchCacheMeta,
   fetchCacheMetrics,
   fetchCompareModels,
+  fetchMeterEnvelope,
   fetchModelCard,
   fetchNodeSchema,
   fetchSampleCheck,
@@ -15,12 +16,14 @@ import {
   uploadProjectAudio,
   type AbCompareResult,
   type CacheSignalMetrics,
+  type MeterEnvelopePayload,
 } from "../api";
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowLink, WorkflowNode } from "../types";
 import type { CompareHop } from "../workflow";
 import {
   joinSaveAudioPath,
   jobOutputAtSlot,
+  meterDisplayText,
   resolveIoChannelLabel,
   wiredInputSupersedesWidget,
   wiredInputsForNode,
@@ -38,6 +41,7 @@ import {
 } from "../modelNodeWidgets";
 import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
+import TrajectoryPanel, { TrajectoryAuthorPad } from "./TrajectoryPanel";
 import CompareSampleIntegrity, { SampleCheckFromReport } from "./CompareSampleIntegrity";
 import ControlCurvePreview, { syncPointsFromStartEnd } from "./ControlCurvePreview";
 import MatrixMixerPanel from "./MatrixMixerPanel";
@@ -142,8 +146,13 @@ export default function NodeHelper({
   }, [node, schema?.widgets]);
 
   useEffect(() => {
-    setTab("config");
-  }, [node?.id]);
+    // Meter / VerifySamples: jump to Outputs so levels / checks are visible immediately.
+    if (node?.type === "Meter" || node?.type === "VerifySamples") {
+      setTab("outputs");
+    } else {
+      setTab("config");
+    }
+  }, [node?.id, node?.type]);
 
   const subgraphWide =
     Boolean(node) &&
@@ -497,6 +506,19 @@ export default function NodeHelper({
                 />
               </section>
             ) : null}
+            {node.type === "TrajectoryAuthor" ? (
+              <section className="node-helper__trajectory-author">
+                <h4 className="node-helper__compare-subtitle">Object path</h4>
+                <TrajectoryAuthorPad
+                  widgets={node.widgets}
+                  onChange={(patch) => {
+                    for (const [name, value] of Object.entries(patch)) {
+                      onWidgetChange(node.id, name, value);
+                    }
+                  }}
+                />
+              </section>
+            ) : null}
             {node.type === "MatrixMixer" ? (
               <section className="node-helper__matrix-panel">
                 <h4 className="node-helper__compare-subtitle">Matrix</h4>
@@ -510,6 +532,11 @@ export default function NodeHelper({
               const widgetsForForm =
                 node.type === "ControlCurve"
                   ? schema.widgets.filter((widget) => widget.name !== "points")
+                  : node.type === "TrajectoryAuthor"
+                    ? schema.widgets.filter(
+                        (widget) =>
+                          !["start_x", "start_z", "end_x", "end_z", "points"].includes(widget.name),
+                      )
                   : node.type === "MatrixMixer"
                     ? schema.widgets.filter((widget) => !widget.name.startsWith("gain_"))
                     : schema.widgets;
@@ -533,14 +560,29 @@ export default function NodeHelper({
                     {mergedWidget.description ? <small className="node-helper__hint">{mergedWidget.description}</small> : null}
                     {supersededBy ? (
                       <small className="node-helper__hint node-helper__hint--wired">
-                        Wired from {supersededBy.sourceNode?.type ?? "upstream"}
-                        {supersededBy.sourceNode?.id ? (
+                        {node.type === "TrajectoryAuthor" &&
+                        (mergedWidget.name === "duration_sec" || mergedWidget.name === "sample_rate") ? (
                           <>
-                            {" "}
-                            <span className="node-helper__mono">({supersededBy.sourceNode.id})</span>
+                            Locked to wired LoadAudio
+                            {mergedWidget.name === "duration_sec" && node.widgets.duration_sec != null
+                              ? ` · ${Number(node.widgets.duration_sec).toFixed(3)} s`
+                              : null}
+                            {mergedWidget.name === "sample_rate" && node.widgets.sample_rate != null
+                              ? ` · ${Number(node.widgets.sample_rate)} Hz`
+                              : null}
                           </>
-                        ) : null}
-                        — edit on the source node.
+                        ) : (
+                          <>
+                            Wired from {supersededBy.sourceNode?.type ?? "upstream"}
+                            {supersededBy.sourceNode?.id ? (
+                              <>
+                                {" "}
+                                <span className="node-helper__mono">({supersededBy.sourceNode.id})</span>
+                              </>
+                            ) : null}
+                            — edit on the source node.
+                          </>
+                        )}
                       </small>
                     ) : null}
                     {wiredPreview ? (
@@ -696,6 +738,11 @@ export default function NodeHelper({
                   const widgetsForForm =
                     node.type === "ControlCurve"
                       ? schema.widgets.filter((widget) => widget.name !== "points")
+                      : node.type === "TrajectoryAuthor"
+                        ? schema.widgets.filter(
+                            (widget) =>
+                              !["start_x", "start_z", "end_x", "end_z", "points"].includes(widget.name),
+                          )
                       : node.type === "MatrixMixer"
                         ? schema.widgets.filter((widget) => !widget.name.startsWith("gain_"))
                         : schema.widgets;
@@ -787,8 +834,30 @@ export default function NodeHelper({
           <div className="node-helper__outputs">
             {node?.type === "VerifySamples" ? (
               <VerifySamplesOutputsPanel output={output} onAudition={previewUrl ? onAudition : undefined} />
+            ) : node?.type === "Meter" ? (
+              <MeterOutputsPanel output={output} onAudition={previewUrl ? onAudition : undefined} />
             ) : (
               <>
+                {(() => {
+                  const pair = resolveTrajectoryPair(workflow, selectionOutputs ?? null);
+                  if (!pair.inputId && !pair.outputId) return null;
+                  if (
+                    node?.type !== "TrajectoryAuthor" &&
+                    node?.type !== "TrajectoryMonitor" &&
+                    node?.type !== "AmbisonicTrajectoryExtract" &&
+                    node?.type !== "AmbisonicUpmix"
+                  ) {
+                    return null;
+                  }
+                  return (
+                    <TrajectoryPanel
+                      inputId={pair.inputId}
+                      outputId={pair.outputId}
+                      compact
+                      className="trajectory-panel--helper"
+                    />
+                  );
+                })()}
                 <ul className="node-helper__socket-detail-list">
                   {schema.outputs.map((socket, index) => {
                     const slotOutput = jobOutputAtSlot(output, index);
@@ -1378,6 +1447,67 @@ function formatPeakDb(peak: number): string {
   return `${(20 * Math.log10(peak)).toFixed(1)} dBFS`;
 }
 
+/** Meter Outputs tab — channel bars + head/tail first (Inspector-only; not on canvas). */
+function MeterOutputsPanel({
+  output,
+  onAudition,
+}: {
+  output?: JobOutput;
+  onAudition?: () => void;
+}) {
+  const levelsSlot =
+    jobOutputAtSlot(output, 1)?.type === "TEXT"
+      ? jobOutputAtSlot(output, 1)
+      : output?.type === "MULTI"
+        ? output.outputs?.find((slot) => slot.type === "TEXT" && typeof slot.text === "string")
+        : output?.type === "TEXT"
+          ? output
+          : undefined;
+  const thruSlot =
+    jobOutputAtSlot(output, 0)?.type === "AUDIO" || jobOutputAtSlot(output, 0)?.type === "AMBISONICS"
+      ? jobOutputAtSlot(output, 0)
+      : output?.type === "MULTI"
+        ? output.outputs?.find(
+            (slot) =>
+              (slot.type === "AUDIO" || slot.type === "AMBISONICS") && Boolean(slot.cache_id),
+          )
+        : output?.type === "AUDIO" || output?.type === "AMBISONICS"
+          ? output
+          : undefined;
+  const levelsText = typeof levelsSlot?.text === "string" ? levelsSlot.text : "";
+  const parsed = levelsText ? parseMeterPayload(levelsText) : null;
+  const thruCacheId = thruSlot?.cache_id ?? null;
+  const thruType = thruSlot?.type === "AMBISONICS" ? "AMBISONICS" : "AUDIO";
+
+  return (
+    <div className="node-helper__meter-panel">
+      <p className="node-helper__hint">
+        Channel meters scrub with Preview play (cached envelope — not a live graph meter). Head/tail
+        stats are whole-clip. Auto labels follow inlet layout / FOA·HOA metadata.
+      </p>
+      {parsed ? (
+        <MeterLevelsPanel text={levelsText} cacheId={thruCacheId} />
+      ) : levelsText ? (
+        <p className="node-helper__text" style={{ whiteSpace: "pre-wrap" }}>
+          {meterDisplayText(levelsText)}
+        </p>
+      ) : (
+        <p className="node-helper__hint">Render this Meter node to populate channel levels.</p>
+      )}
+      {thruCacheId ? (
+        <OutputSnapshot output={thruSlot!} socketType={thruType} />
+      ) : (
+        <p className="node-helper__hint">AUDIO / AMBISONICS passthrough appears here after render.</p>
+      )}
+      {onAudition ? (
+        <button type="button" className="node-helper__audition" onClick={onAudition}>
+          ▶ Audition node
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /** VerifySamples Outputs tab — sample check first, no socket boilerplate. */
 function VerifySamplesOutputsPanel({
   output,
@@ -1468,6 +1598,34 @@ function VerifySamplesOutputsPanel({
   );
 }
 
+function resolveTrajectoryPair(
+  workflow: Workflow,
+  outputs: Record<string, JobOutput> | null,
+): { inputId: string | null; outputId: string | null } {
+  let inputId: string | null = null;
+  let outputId: string | null = null;
+  let authorId: string | null = null;
+  let extractId: string | null = null;
+  if (!outputs) return { inputId, outputId };
+  const typeById = new Map(workflow.nodes.map((n) => [n.id, n.type]));
+  const roleById = new Map(
+    workflow.nodes.map((n) => [n.id, String(n.widgets.role ?? "").toLowerCase()]),
+  );
+  for (const [nodeId, out] of Object.entries(outputs)) {
+    if (out?.type !== "TRAJECTORY" || !out.trajectory_id) continue;
+    const nodeType = typeById.get(nodeId);
+    if (nodeType === "TrajectoryMonitor") {
+      if (roleById.get(nodeId) === "output") outputId = out.trajectory_id;
+      else inputId = out.trajectory_id;
+    } else if (nodeType === "TrajectoryAuthor") {
+      authorId = out.trajectory_id;
+    } else if (nodeType === "AmbisonicTrajectoryExtract") {
+      extractId = out.trajectory_id;
+    }
+  }
+  return { inputId: inputId ?? authorId, outputId: outputId ?? extractId };
+}
+
 function OutputSnapshot({
   output,
   socketType,
@@ -1555,6 +1713,8 @@ function OutputSnapshot({
       // VerifyProvenance / DeepfakeDetect / AuthenticitySummary
     } else if (socketType === "SAMPLE_CHECK" && output.type === "SAMPLE_CHECK") {
       // VerifySamples
+    } else if (socketType === "TRAJECTORY" && output.type === "TRAJECTORY") {
+      // TrajectoryAuthor / AmbisonicTrajectoryExtract
     } else {
       return <p className="node-helper__hint">No render for this socket yet.</p>;
     }
@@ -1567,6 +1727,13 @@ function OutputSnapshot({
       <p className="node-helper__socket-wire">
         <SocketTypeBadge type={socketType} /> {output.type === "STRING" ? "written" : "cached"}
       </p>
+      {output.type === "TRAJECTORY" && output.trajectory_id ? (
+        <TrajectoryPanel
+          inputId={output.trajectory_id}
+          compact
+          className="trajectory-panel--helper"
+        />
+      ) : null}
       {output.type === "SAMPLE_CHECK" || socketType === "SAMPLE_CHECK" ? (
         sampleCheck ? (
           <SampleCheckFromReport sampleCheck={sampleCheck} />
@@ -1601,7 +1768,13 @@ function OutputSnapshot({
           MIDI cache <code>{output.midi_id.slice(0, 8)}…</code>
         </p>
       ) : null}
-      {output.type === "TEXT" && output.text ? <p className="node-helper__text">{output.text}</p> : null}
+      {output.type === "TEXT" && output.text ? (
+        parseMeterPayload(output.text) ? (
+          <MeterLevelsPanel text={output.text} cacheId={output.cache_id ?? null} />
+        ) : (
+          <p className="node-helper__text">{output.text}</p>
+        )
+      ) : null}
       {output.type === "AUDIO" && output.text ? (
         <p className="node-helper__text node-helper__text--transcript">{output.text}</p>
       ) : null}
@@ -1650,6 +1823,198 @@ function OutputSnapshot({
       ) : null}
       {!meta && output.type === "AUDIO" ? (
         <p className="node-helper__hint">Render to populate output metadata.</p>
+      ) : null}
+    </div>
+  );
+}
+
+function parseMeterPayload(text: string): {
+  summary: string;
+  meter: {
+    layout?: string;
+    channel_count?: number;
+    channels?: Array<{
+      name?: string;
+      peak_db?: number | null;
+      rms_db?: number | null;
+      peak_db_head?: number | null;
+      peak_db_tail?: number | null;
+    }>;
+  };
+} | null {
+  const marker = "§METER§";
+  const idx = text.indexOf(marker);
+  if (idx < 0) return null;
+  const summary = meterDisplayText(text);
+  try {
+    const meter = JSON.parse(text.slice(idx + marker.length)) as {
+      layout?: string;
+      channel_count?: number;
+      channels?: Array<{
+        name?: string;
+        peak_db?: number | null;
+        rms_db?: number | null;
+        peak_db_head?: number | null;
+        peak_db_tail?: number | null;
+      }>;
+    };
+    if (!meter || !Array.isArray(meter.channels)) return null;
+    return { summary, meter };
+  } catch {
+    return null;
+  }
+}
+
+function formatDb(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "−∞";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}`;
+}
+
+function linearToDb(peak: number): number | null {
+  if (!(peak > 0)) return null;
+  return 20 * Math.log10(peak);
+}
+
+function dbToBarWidth(value: number | null | undefined): number {
+  if (value == null || !Number.isFinite(value)) return 0;
+  // Map −60…0 dBFS → 0…100%
+  const clamped = Math.max(-60, Math.min(0, value));
+  return ((clamped + 60) / 60) * 100;
+}
+
+function useTransportPlayhead(): { tSec: number; playing: boolean } {
+  const [tSec, setTSec] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const transport = document.querySelector<HTMLAudioElement>(".transport__audio");
+      if (transport) {
+        const fromUi = Number(transport.dataset.playheadSec);
+        const t =
+          Number.isFinite(fromUi) && fromUi >= 0
+            ? fromUi
+            : !Number.isNaN(transport.currentTime)
+              ? transport.currentTime
+              : 0;
+        setTSec(t);
+        setPlaying(!transport.paused && !transport.ended);
+      } else {
+        setPlaying(false);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return { tSec, playing };
+}
+
+function MeterLevelsPanel({ text, cacheId }: { text: string; cacheId?: string | null }) {
+  const parsed = parseMeterPayload(text);
+  const { tSec, playing } = useTransportPlayhead();
+  const [envelope, setEnvelope] = useState<MeterEnvelopePayload | null>(null);
+  const [liveDb, setLiveDb] = useState<number[]>([]);
+  const holdRef = useRef<number[]>([]);
+  const lastTSecRef = useRef(0);
+
+  useEffect(() => {
+    if (!cacheId) {
+      setEnvelope(null);
+      return;
+    }
+    let cancelled = false;
+    fetchMeterEnvelope(cacheId, 512)
+      .then((data) => {
+        if (!cancelled) setEnvelope(data);
+      })
+      .catch(() => {
+        if (!cancelled) setEnvelope(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cacheId]);
+
+  useEffect(() => {
+    if (!envelope?.channels.length || envelope.duration <= 0) {
+      setLiveDb([]);
+      return;
+    }
+    const width = envelope.width || envelope.channels[0]?.length || 0;
+    if (width <= 0) return;
+
+    const ratio = Math.min(1, Math.max(0, tSec / envelope.duration));
+    const idx = Math.min(width - 1, Math.floor(ratio * width));
+    const instant = envelope.channels.map((ch) => linearToDb(ch[idx] ?? 0) ?? -60);
+
+    // Scrub / seek: snap like XYZ monitors. Soft release only during continuous play.
+    const seekJump = Math.abs(tSec - lastTSecRef.current) > 0.05;
+    lastTSecRef.current = tSec;
+    if (!playing || seekJump) {
+      holdRef.current = instant;
+      setLiveDb(instant);
+      return;
+    }
+
+    const prev = holdRef.current;
+    const releaseDbPerSec = 24;
+    const next = instant.map((target, i) => {
+      const held = prev[i] ?? -60;
+      if (target >= held) return target;
+      // ~1 frame at 60fps
+      return Math.max(target, held - releaseDbPerSec * (1 / 60));
+    });
+    holdRef.current = next;
+    setLiveDb(next);
+  }, [envelope, tSec, playing]);
+
+  if (!parsed) {
+    return <p className="node-helper__text">{text}</p>;
+  }
+  const { summary, meter } = parsed;
+  const channelCount = meter.channels?.length ?? 0;
+  const labels =
+    envelope?.labels?.length === channelCount
+      ? envelope.labels
+      : (meter.channels ?? []).map((ch, i) => ch.name ?? `ch${i}`);
+
+  return (
+    <div className="node-helper__meter">
+      <p className="node-helper__hint">
+        {meter.layout ?? envelope?.layout ?? "auto"} · {channelCount} ch
+        {envelope ? ` · ${playing ? "playing" : "scrub"} @ ${tSec.toFixed(2)}s` : null}
+      </p>
+      <ul className="node-helper__meter-channels node-helper__meter-channels--live">
+        {(meter.channels ?? []).map((ch, i) => {
+          const live = liveDb[i];
+          const fallback = ch.peak_db;
+          const displayDb = live != null && Number.isFinite(live) ? live : fallback;
+          return (
+            <li key={`${labels[i] ?? "ch"}-${i}`} className="node-helper__meter-channel">
+              <div className="node-helper__meter-channel-head">
+                <strong>{labels[i] ?? ch.name ?? `ch${i}`}</strong>
+                <span className="node-helper__meter-live-db">{formatDb(displayDb)} dBFS</span>
+              </div>
+              <div className="node-helper__meter-bar node-helper__meter-bar--live" aria-hidden>
+                <span
+                  className="node-helper__meter-bar-fill"
+                  style={{ width: `${dbToBarWidth(displayDb)}%` }}
+                />
+              </div>
+              <p className="node-helper__hint">
+                clip peak {formatDb(ch.peak_db)} · rms {formatDb(ch.rms_db)} · head{" "}
+                {formatDb(ch.peak_db_head)} · tail {formatDb(ch.peak_db_tail)}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="node-helper__text node-helper__meter-summary">{summary}</p>
+      {!cacheId ? (
+        <p className="node-helper__hint">Wire / render AUDIO passthrough to animate meters on play.</p>
+      ) : !envelope ? (
+        <p className="node-helper__hint">Loading channel envelopes…</p>
       ) : null}
     </div>
   );

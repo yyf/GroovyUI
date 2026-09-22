@@ -1,6 +1,6 @@
 # GroovyUI Template Workflows
 
-49 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
+52 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
 Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
 
@@ -35,6 +35,10 @@ Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLAT
 | Surround Downmix | [surround-downmix.groovy.json](surround-downmix.groovy.json) | 2 | — |
 | Surround Mix | [surround-mix.groovy.json](surround-mix.groovy.json) | 2.1 | — |
 | Ambisonic VR Preview | [ambisonic-vr-preview.groovy.json](ambisonic-vr-preview.groovy.json) | 2 | — |
+| Ambisonic Trajectory Demo | [ambisonic-trajectory-demo.groovy.json](ambisonic-trajectory-demo.groovy.json) | 2.1 / **featured** | `helix-v0.7`, `dcase-seld-foa-multiaccdoa`; dual `TrajectoryMonitor` (input/output XYZ) + stereo `Meter` + Preview |
+| Stereo to Binaural | [stereo-to-binaural.groovy.json](stereo-to-binaural.groovy.json) | 2.1 / **featured** | `hrtf-binaural-v0` stub (no applicable open neural model yet) |
+| Stereo to Atmos Bed | [stereo-to-atmos-bed.groovy.json](stereo-to-atmos-bed.groovy.json) | 2.1 / **featured** | `stereo-atmos-bed-v0` stub (no applicable open neural model yet) |
+| Mono to Stereo Pan | [mono-to-stereo-pan.groovy.json](mono-to-stereo-pan.groovy.json) | 2.1 / **featured** | — (`Pan` equal-power mono→stereo; optional ControlCurve) |
 | Object Spatial Demo | [object-spatial-demo.groovy.json](object-spatial-demo.groovy.json) | 2 | — |
 | Stems to Spatial | [stems-to-spatial.groovy.json](stems-to-spatial.groovy.json) | 2.1 | `demucs-v4-objects` |
 | Keyboard to Music | [keyboard-to-music.groovy.json](keyboard-to-music.groovy.json) | 2.5 | `musicgen-melody-small` |

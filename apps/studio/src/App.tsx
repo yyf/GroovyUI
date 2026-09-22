@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Background,
   Controls,
   ReactFlow,
   ReactFlowProvider,
@@ -45,6 +44,8 @@ import { CANVAS_MAX_ZOOM, CANVAS_MIN_ZOOM, FIT_ALL_OPTIONS } from "./canvasViewp
 import ComplianceDrawer from "./components/ComplianceDrawer";
 import FlowViewportBridge from "./components/FlowViewportBridge";
 import FitAllControl from "./components/FitAllControl";
+import GridControl from "./components/GridControl";
+import CanvasZoomGrid, { CANVAS_GRID_GAP, snapFlowPosition } from "./components/CanvasZoomGrid";
 import SampleAccuracyBadge from "./components/SampleAccuracyBadge";
 import CanvasNodeFinder from "./components/CanvasNodeFinder";
 import CanvasNodePicker from "./components/CanvasNodePicker";
@@ -70,6 +71,7 @@ import {
 } from "./components/StatusLeds";
 import RenderActivityBar from "./components/RenderActivityBar";
 import { AuditionContext } from "./context/AuditionContext";
+import { TrajectoryEditContext } from "./context/TrajectoryEditContext";
 import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
 import { useLiveIo } from "./hooks/useLiveIo";
 import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
@@ -97,6 +99,7 @@ import {
   groupForSelection,
   formatJobError,
   layoutWorkflowNodes,
+  ensureNoOverlappingNodes,
   flowNodesSyncKey,
   listDistinctChainHops,
   mergeFlowNodes,
@@ -119,6 +122,8 @@ import {
   resolveRenderAllTargets,
   resolveTargetNode,
   withAuthenticityRenderTargets,
+  findUpstreamLoadAudio,
+  rescalePointsWidgetJson,
   setLinkColor,
   syncPositions,
   toggleGroupCollapsed,
@@ -157,6 +162,10 @@ export default function App() {
   const [nodeSchemas, setNodeSchemas] = useState<Record<string, NodeSchema>>({});
   /** LoadAudio node id → probed channel count (drives per-channel canvas outlets). */
   const [loadAudioChannels, setLoadAudioChannels] = useState<Record<string, number>>({});
+  /** LoadAudio node id → probed duration / sample rate for TrajectoryAuthor lock. */
+  const [loadAudioTiming, setLoadAudioTiming] = useState<
+    Record<string, { durationSec: number; sampleRate: number }>
+  >({});
   /** Preview / SaveAudio node id → layout label from cache metrics (post-render). */
   const [channelLayouts, setChannelLayouts] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -191,6 +200,14 @@ export default function App() {
   const [inferenceStubActive, setInferenceStubActive] = useState(false);
   const [forceRebuildNext, setForceRebuildNext] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
+  /** Lightweight React Flow dots grid — off by default; toggle with `g` (or `'`). */
+  const [canvasGrid, setCanvasGrid] = useState(() => {
+    try {
+      return localStorage.getItem("groovy-canvas-grid") === "1";
+    } catch {
+      return false;
+    }
+  });
   /** Template picker: false = ISMIR demo set; true (⌘D) = full featured list. */
   const [studioDevMode, setStudioDevMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -387,6 +404,8 @@ export default function App() {
       setComplianceFastPath(false);
       clipboardRef.current = null;
       pasteCountRef.current = 0;
+      // Always DAG-layout templates — authored positions often look fine with
+      // underestimated footprints but TrajectoryMonitor / Note chrome overlaps.
       const data = layoutWorkflowNodes(await fetchTemplate(templateId));
       resetHistory(normalizeLoadedWorkflow(data));
       setActiveTemplateId(templateId);
@@ -429,14 +448,29 @@ export default function App() {
       .join("|");
   }, [workflow]);
 
+  const trajectoryAudioLockKey = useMemo(() => {
+    if (!workflow) return "";
+    return workflow.nodes
+      .filter((node) => node.type === "TrajectoryAuthor")
+      .map((node) => {
+        const load = findUpstreamLoadAudio(workflow, node.id);
+        const timing = load ? loadAudioTiming[load.id] : undefined;
+        return `${node.id}:${load?.id ?? ""}:${timing?.durationSec ?? 0}:${timing?.sampleRate ?? 0}`;
+      })
+      .sort()
+      .join("|");
+  }, [workflow, loadAudioTiming]);
+
   useEffect(() => {
     if (!workflow) {
       setLoadAudioChannels({});
+      setLoadAudioTiming({});
       return;
     }
     const loadNodes = workflow.nodes.filter((node) => node.type === "LoadAudio");
     if (loadNodes.length === 0) {
       setLoadAudioChannels({});
+      setLoadAudioTiming({});
       return;
     }
 
@@ -448,26 +482,82 @@ export default function App() {
 
     Promise.all(
       targets.map(async ({ id, path }) => {
-        if (!path) return [id, 1] as const;
+        if (!path) {
+          return [id, { channels: 1, durationSec: 0, sampleRate: 48000 }] as const;
+        }
         const { meta } = await fetchAudioFileMeta(path);
         const channels = Number(meta?.channels);
-        return [id, Number.isFinite(channels) && channels > 0 ? channels : 1] as const;
+        const durationSec = Number(meta?.duration_seconds);
+        const sampleRate = Number(meta?.sample_rate);
+        return [
+          id,
+          {
+            channels: Number.isFinite(channels) && channels > 0 ? channels : 1,
+            durationSec: Number.isFinite(durationSec) && durationSec > 0 ? durationSec : 0,
+            sampleRate: Number.isFinite(sampleRate) && sampleRate > 0 ? sampleRate : 48000,
+          },
+        ] as const;
       }),
     )
       .then((entries) => {
         if (cancelled) return;
-        const next: Record<string, number> = {};
-        for (const [id, channels] of entries) next[id] = channels;
-        setLoadAudioChannels(next);
+        const nextChannels: Record<string, number> = {};
+        const nextTiming: Record<string, { durationSec: number; sampleRate: number }> = {};
+        for (const [id, probe] of entries) {
+          nextChannels[id] = probe.channels;
+          if (probe.durationSec > 0) {
+            nextTiming[id] = { durationSec: probe.durationSec, sampleRate: probe.sampleRate };
+          }
+        }
+        setLoadAudioChannels(nextChannels);
+        setLoadAudioTiming(nextTiming);
       })
       .catch(() => {
-        if (!cancelled) setLoadAudioChannels({});
+        if (!cancelled) {
+          setLoadAudioChannels({});
+          setLoadAudioTiming({});
+        }
       });
 
     return () => {
       cancelled = true;
     };
   }, [workflow, loadAudioPathKey]);
+
+  /** Lock TrajectoryAuthor duration_sec / sample_rate to wired LoadAudio length. */
+  useEffect(() => {
+    if (!workflow || Object.keys(loadAudioTiming).length === 0) return;
+    setWorkflow((prev) => {
+      if (!prev) return prev;
+      let changed = false;
+      const nodes = prev.nodes.map((node) => {
+        if (node.type !== "TrajectoryAuthor") return node;
+        const hasAudioWire = prev.links.some(
+          (link) => link.to[0] === node.id && (link.type === "AUDIO" || link.type === "STEMS"),
+        );
+        if (!hasAudioWire) return node;
+        const load = findUpstreamLoadAudio(prev, node.id);
+        if (!load) return node;
+        const timing = loadAudioTiming[load.id];
+        if (!timing || timing.durationSec <= 0) return node;
+        const curDur = Number(node.widgets.duration_sec ?? 0);
+        const curSr = Number(node.widgets.sample_rate ?? 0);
+        const durClose = Math.abs(curDur - timing.durationSec) < 1e-3;
+        const srClose = Math.abs(curSr - timing.sampleRate) < 0.5;
+        if (durClose && srClose) return node;
+        changed = true;
+        const nextWidgets: Record<string, unknown> = {
+          ...node.widgets,
+          duration_sec: timing.durationSec,
+          sample_rate: timing.sampleRate,
+        };
+        const scaled = rescalePointsWidgetJson(node.widgets.points, timing.durationSec);
+        if (scaled) nextWidgets.points = scaled;
+        return { ...node, widgets: nextWidgets };
+      });
+      return changed ? { ...prev, nodes } : prev;
+    });
+  }, [loadAudioTiming, trajectoryAudioLockKey, setWorkflow]);
 
   useEffect(() => {
     if (!workflow || !lastJob?.outputs) {
@@ -688,6 +778,33 @@ export default function App() {
     [setWorkflow],
   );
 
+  const patchTrajectoryAuthor = useCallback(
+    (authorNodeId: string, patch: Record<string, number | string>) => {
+      setWorkflow((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          nodes: prev.nodes.map((node) =>
+            node.id === authorNodeId
+              ? { ...node, widgets: { ...node.widgets, ...patch } }
+              : node,
+          ),
+        };
+      });
+      setNodeStatus((prev) => {
+        const next = { ...prev, [authorNodeId]: "stale" as const };
+        // Mark TRAJECTORY consumers stale so canvas shows dirty until re-render.
+        return next;
+      });
+    },
+    [setWorkflow],
+  );
+
+  const trajectoryEditApi = useMemo(
+    () => ({ patchAuthor: patchTrajectoryAuthor }),
+    [patchTrajectoryAuthor],
+  );
+
   const disconnectPortCb = useCallback(
     (nodeId: string, direction: "in" | "out", slot: number) => {
       setWorkflow((prev) => (prev ? disconnectPort(prev, nodeId, direction, slot) : prev));
@@ -707,12 +824,21 @@ export default function App() {
 
   const onNodeDragStop = useCallback(
     (_: unknown, node: Node) => {
+      const position = canvasGrid ? snapFlowPosition(node.position) : node.position;
+      const snapped = position.x === node.position.x && position.y === node.position.y
+        ? node
+        : { ...node, position };
+      if (snapped !== node) {
+        setNodes((current) =>
+          current.map((entry) => (entry.id === snapped.id ? { ...entry, position } : entry)),
+        );
+      }
       setWorkflow((prev) => {
         if (!prev) return prev;
-        return syncPositions(prev, [node]);
+        return syncPositions(prev, [snapped]);
       });
     },
-    [setWorkflow],
+    [setWorkflow, setNodes, canvasGrid],
   );
 
   const onConnect = useCallback(
@@ -1064,6 +1190,30 @@ export default function App() {
       if ((event.key === "f" || event.key === "\\") && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
         setFocusMode((prev) => !prev);
+        return;
+      }
+      // Grid: plain `g` or Quote key (`'` / `"`) — Cmd+G stays Generate.
+      const gridKey =
+        (!event.metaKey &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          (event.key.toLowerCase() === "g" ||
+            event.key === "'" ||
+            event.key === '"' ||
+            event.code === "Quote")) ||
+        false;
+      if (gridKey) {
+        event.preventDefault();
+        setCanvasGrid((prev) => {
+          const next = !prev;
+          try {
+            localStorage.setItem("groovy-canvas-grid", next ? "1" : "0");
+          } catch {
+            /* ignore quota / private mode */
+          }
+          queueMicrotask(() => setStatus(next ? "Canvas grid + snap on (g)" : "Canvas grid off (g)"));
+          return next;
+        });
         return;
       }
       if (event.key === "Escape" && running && activeExecutionRef.current) {
@@ -1461,7 +1611,7 @@ export default function App() {
 
   const applyWorkflow = useCallback(
     (next: Workflow) => {
-      resetHistory(normalizeLoadedWorkflow(next));
+      resetHistory(normalizeLoadedWorkflow(ensureNoOverlappingNodes(next)));
       setLastJob(null);
       setNodeStatus({});
       setComplianceFastPath(false);
@@ -1750,6 +1900,7 @@ export default function App() {
 
   return (
     <AuditionContext.Provider value={auditionNode}>
+      <TrajectoryEditContext.Provider value={trajectoryEditApi}>
       <div className={`app ${focusMode ? "app--focus" : ""}`}>
         <StudioTopBar
           templates={templates}
@@ -1844,6 +1995,9 @@ export default function App() {
                   nodes={displayNodes}
                   edges={displayEdges}
                   nodeTypes={nodeTypes}
+                  snapToGrid={canvasGrid}
+                  snapGrid={[CANVAS_GRID_GAP, CANVAS_GRID_GAP]}
+                  nodeOrigin={[0, 0]}
                   onNodesChange={onNodesChange}
                   onEdgesChange={onEdgesChange}
                   onConnect={onConnect}
@@ -1901,13 +2055,13 @@ export default function App() {
                   fitViewOptions={FIT_ALL_OPTIONS}
                   proOptions={{ hideAttribution: true }}
                 >
+                  {canvasGrid ? <CanvasZoomGrid /> : null}
                   <FlowViewportBridge
                     canvasSelector=".canvas"
                     onCenterReady={registerFlowCenter}
                     nodeSyncKey={flowNodeSyncKey}
                     fitViewKey={viewportFitKey}
                   />
-                  <Background gap={28} color="#222222" size={1} />
                   <Controls
                     className="flow-controls"
                     showInteractive={false}
@@ -1915,6 +2069,23 @@ export default function App() {
                     fitViewOptions={FIT_ALL_OPTIONS}
                   >
                     <FitAllControl />
+                    <GridControl
+                      enabled={canvasGrid}
+                      onToggle={() => {
+                        setCanvasGrid((prev) => {
+                          const next = !prev;
+                          try {
+                            localStorage.setItem("groovy-canvas-grid", next ? "1" : "0");
+                          } catch {
+                            /* ignore */
+                          }
+                          queueMicrotask(() =>
+                            setStatus(next ? "Canvas grid + snap on (g)" : "Canvas grid off (g)"),
+                          );
+                          return next;
+                        });
+                      }}
+                    />
                   </Controls>
                 </ReactFlow>
                 {nodePicker ? (
@@ -2088,6 +2259,7 @@ export default function App() {
           onStartHello={() => void loadTemplate("podcast-denoise")}
         />
       </div>
+      </TrajectoryEditContext.Provider>
     </AuditionContext.Provider>
   );
 }

@@ -10,6 +10,7 @@ import {
   formatJobError,
   layoutWorkflowNodes,
   workflowHasOverlappingNodes,
+  ensureNoOverlappingNodes,
   estimateNodeSize,
   mergeFlowEdges,
   mergeFlowNodes,
@@ -54,8 +55,8 @@ function sampleWorkflow(): Workflow {
     metadata: { title: "Test" },
     nodes: [
       { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
-      { id: "n2", type: "Normalize", pos: { x: 200, y: 0 }, widgets: {} },
-      { id: "n3", type: "Preview", pos: { x: 400, y: 0 }, widgets: {} },
+      { id: "n2", type: "Normalize", pos: { x: 280, y: 0 }, widgets: {} },
+      { id: "n3", type: "Preview", pos: { x: 560, y: 0 }, widgets: {} },
     ],
     links: [
       { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -151,6 +152,25 @@ describe("previewTextSnippet", () => {
     expect(
       previewTextSnippet({ type: "AUDIO", cache_id: "abc", text: "Heard on canvas" }),
     ).toBe("Heard on canvas");
+  });
+
+  it("pulls Meter TEXT from MULTI and strips §METER§ payload", () => {
+    const snippet = previewTextSnippet(
+      {
+        type: "MULTI",
+        outputs: [
+          { type: "AUDIO", cache_id: "m1" },
+          {
+            type: "TEXT",
+            text: "L −6.0 · R −12.0 dBFS peak\nL head −6.0 · tail −∞\n§METER§{\"channels\":[]}",
+          },
+        ],
+      },
+      280,
+    );
+    expect(snippet).toContain("L −6.0");
+    expect(snippet).toContain("head");
+    expect(snippet).not.toContain("§METER§");
   });
 
   it("keeps Preview transcript when merging listen + direct outputs", () => {
@@ -412,6 +432,34 @@ describe("channelConvertSocketLabels", () => {
 });
 
 describe("workflowToFlowNodes", () => {
+  it("exposes TRAJECTORY handles without schemas so monitors can be wired", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n2", type: "TrajectoryAuthor", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "n7", type: "TrajectoryMonitor", pos: { x: 200, y: 0 }, widgets: { role: "input" } },
+        { id: "n3", type: "AmbisonicUpmix", pos: { x: 400, y: 0 }, widgets: {} },
+      ],
+      links: [
+        { id: "l2", from: ["n2", 0], to: ["n7", 0], type: "TRAJECTORY" },
+        { id: "l2c", from: ["n7", 0], to: ["n3", 1], type: "TRAJECTORY" },
+      ],
+    };
+    const nodes = workflowToFlowNodes(workflow, {});
+    const author = nodes.find((node) => node.id === "n2");
+    const monitor = nodes.find((node) => node.id === "n7");
+    const upmix = nodes.find((node) => node.id === "n3");
+    expect(author?.data.outputs?.[0]).toMatchObject({ type: "TRAJECTORY", slot: 0 });
+    expect(monitor?.data.inputs?.[0]).toMatchObject({ type: "TRAJECTORY", slot: 0 });
+    expect(monitor?.data.outputs?.[0]).toMatchObject({ type: "TRAJECTORY", slot: 0 });
+    expect(upmix?.data.inputs?.[1]).toMatchObject({ type: "TRAJECTORY", slot: 1 });
+    const edges = workflowToFlowEdges(workflow);
+    expect(edges.map((e) => `${e.source}:${e.sourceHandle}->${e.target}:${e.targetHandle}`)).toEqual([
+      "n2:0->n7:0",
+      "n7:0->n3:1",
+    ]);
+  });
+
   it("labels ChannelConvert sockets from layout widget", () => {
     const workflow: Workflow = {
       ...sampleWorkflow(),
@@ -765,6 +813,32 @@ describe("layoutWorkflowNodes", () => {
     const laid = layoutWorkflowNodes(stems);
     expect(workflowHasOverlappingNodes(laid)).toBe(false);
     expect(estimateNodeSize({ id: "n2", type: "SeparateStems", widgets: {} }).height).toBeGreaterThan(88);
+  });
+});
+
+describe("ensureNoOverlappingNodes", () => {
+  it("leaves well-spaced graphs untouched", () => {
+    const spaced = sampleWorkflow();
+    expect(workflowHasOverlappingNodes(spaced)).toBe(false);
+    expect(ensureNoOverlappingNodes(spaced)).toBe(spaced);
+  });
+
+  it("relayouts only when nodes overlap", () => {
+    const crowded: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "n2", type: "Normalize", pos: { x: 10, y: 5 }, widgets: {} },
+        { id: "n3", type: "Preview", pos: { x: 20, y: 8 }, widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+        { id: "l2", from: ["n2", 0], to: ["n3", 0], type: "AUDIO" },
+      ],
+    };
+    const fixed = ensureNoOverlappingNodes(crowded);
+    expect(workflowHasOverlappingNodes(fixed)).toBe(false);
+    expect(fixed).not.toBe(crowded);
   });
 });
 

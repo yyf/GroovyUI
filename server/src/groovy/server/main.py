@@ -1790,6 +1790,17 @@ def cache_waveform(cache_id: str, width: int = 512) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="Cache not found") from exc
 
 
+@app.get("/api/cache/{cache_id}/meter-envelope")
+def cache_meter_envelope(cache_id: str, width: int = 256) -> dict[str, Any]:
+    """Per-channel peak envelopes for Inspector meter animation (scrubbed, not live)."""
+    try:
+        return _executor.cache.meter_envelopes(cache_id, width=width)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Cache not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.get("/api/cache/{cache_id}/spectrogram")
 def cache_spectrogram(cache_id: str, width: int = 512, height: int = 48) -> dict[str, Any]:
     try:
@@ -1798,6 +1809,17 @@ def cache_spectrogram(cache_id: str, width: int = 512, height: int = 48) -> dict
         raise HTTPException(status_code=404, detail="Cache not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/cache/{cache_id}/trajectory")
+def cache_trajectory(cache_id: str) -> dict[str, Any]:
+    try:
+        trajectory = _executor.cache.load_trajectory(cache_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Trajectory not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return trajectory.to_api()
 
 
 @app.get("/api/cache/{cache_id}/midi-roll")

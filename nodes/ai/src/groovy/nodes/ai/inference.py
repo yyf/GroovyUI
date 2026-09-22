@@ -1346,3 +1346,148 @@ def sing_from_midi_waveform(
     vibrato = 0.03 * np.sin(2 * np.pi * 5.5 * t)
     tone = tone * (1.0 + vibrato)
     return tone.reshape(1, -1)
+
+
+def run_ambisonic_upmix(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.executor.ambisonics import AmbisonicBuffer
+    from groovy.executor.trajectory import TrajectoryBuffer, azimuth_elevation_to_xyz
+    from groovy.nodes.ai.backends.helix_runner import ambisonic_upmix_pcm
+
+    audio_id = kwargs.get("audio_id") or (kwargs.get("audio") or {}).get("cache_id")
+    if not audio_id:
+        raise RuntimeError("AmbisonicUpmix requires audio input")
+    model_id = str(kwargs.get("model", "helix-v0.7"))
+    buffer, pcm = cache.load_audio(str(audio_id))
+
+    trajectory: TrajectoryBuffer | None = None
+    traj_id = kwargs.get("trajectory_id")
+    if not traj_id and isinstance(kwargs.get("trajectory"), dict):
+        traj_id = kwargs["trajectory"].get("trajectory_id")
+    if traj_id:
+        trajectory = cache.load_trajectory(str(traj_id))
+
+    if trajectory is not None:
+        xyz = trajectory.resample_xyz(pcm.shape[-1] if pcm.ndim > 1 else len(pcm))
+    else:
+        # Default front-left → front-right sweep when no authored trajectory.
+        x0, y0, z0 = azimuth_elevation_to_xyz(45.0, 0.0)
+        x1, y1, z1 = azimuth_elevation_to_xyz(-45.0, 0.0)
+        frames = pcm.shape[-1] if pcm.ndim > 1 else len(pcm)
+        alpha = np.linspace(0.0, 1.0, frames)
+        xyz = np.vstack(
+            [
+                x0 + alpha * (x1 - x0),
+                y0 + alpha * (y1 - y0),
+                z0 + alpha * (z1 - z0),
+            ]
+        )
+
+    foa = ambisonic_upmix_pcm(
+        pcm,
+        xyz=xyz,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        project_dir=cache.project_dir,
+    )
+    out = AmbisonicBuffer.from_pcm(
+        foa,
+        buffer.sample_rate,
+        layout_order=1,
+        source_node_type="AmbisonicUpmix",
+        spatial_meta={
+            "channel_ordering": "ACN",
+            "normalization": "SN3D",
+            "model": model_id,
+            "trajectory_id": trajectory.id if trajectory else None,
+        },
+    )
+    cache.write_ambisonics(out, foa)
+    return [{"type": "AMBISONICS", "ambisonics_id": out.id}]
+
+
+def run_ambisonic_trajectory_extract(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.backends.seld_runner import extract_trajectory_from_foa
+
+    ambi_id = kwargs.get("ambisonics_id")
+    if not ambi_id and isinstance(kwargs.get("ambisonics"), dict):
+        ambi_id = kwargs["ambisonics"].get("ambisonics_id")
+    if not ambi_id:
+        raise RuntimeError("AmbisonicTrajectoryExtract requires ambisonics input")
+    model_id = str(kwargs.get("model", "dcase-seld-foa-multiaccdoa"))
+    buffer, pcm = cache.load_ambisonics(str(ambi_id))
+    trajectory = extract_trajectory_from_foa(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        frame_count=buffer.frame_count,
+        model_id=model_id,
+        project_dir=cache.project_dir,
+        spatial_meta={"source_ambisonics_id": buffer.id, "model": model_id},
+    )
+    cache.write_trajectory(trajectory)
+    return [{"type": "TRAJECTORY", "trajectory_id": trajectory.id}]
+
+
+def run_binaural_render(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.backends.spatial_upmix_runner import binaural_render_pcm
+
+    audio_id = kwargs.get("audio_id") or (kwargs.get("audio") or {}).get("cache_id")
+    if not audio_id:
+        raise RuntimeError("BinauralRender requires audio input")
+    model_id = str(kwargs.get("model", "hrtf-binaural-v0"))
+    strength = float(kwargs.get("strength", 0.45))
+    buffer, pcm = cache.load_audio(str(audio_id))
+    out, renderer = binaural_render_pcm(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        project_dir=cache.project_dir,
+        strength=strength,
+    )
+    out_buffer = AudioBuffer.from_planar(
+        out,
+        buffer.sample_rate,
+        source_node_type="BinauralRender",
+        channel_layout="binaural",
+    )
+    out_buffer.encoding_scheme = f"Binaural render ({model_id})"
+    out_buffer.spatial_meta = {
+        **dict(getattr(buffer, "spatial_meta", None) or {}),
+        "model": model_id,
+        "binaural_strength": strength,
+        "renderer": renderer,
+    }
+    cache.write_audio(out_buffer, out)
+    return [{"type": "AUDIO", "cache_id": out_buffer.id}]
+
+
+def run_spatial_upmix(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from groovy.nodes.ai.backends.spatial_upmix_runner import spatial_upmix_pcm
+
+    audio_id = kwargs.get("audio_id") or (kwargs.get("audio") or {}).get("cache_id")
+    if not audio_id:
+        raise RuntimeError("SpatialUpmix requires audio input")
+    model_id = str(kwargs.get("model", "stereo-atmos-bed-v0"))
+    layout = str(kwargs.get("layout", "7.1.4") or "7.1.4").strip().lower()
+    buffer, pcm = cache.load_audio(str(audio_id))
+    out, upmix = spatial_upmix_pcm(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        project_dir=cache.project_dir,
+        layout=layout,
+    )
+    out_buffer = AudioBuffer.from_planar(
+        out,
+        buffer.sample_rate,
+        source_node_type="SpatialUpmix",
+        channel_layout=layout,
+    )
+    out_buffer.encoding_scheme = f"Spatial upmix ({layout}, {model_id})"
+    out_buffer.spatial_meta = {
+        **dict(getattr(buffer, "spatial_meta", None) or {}),
+        "model": model_id,
+        "target_layout": layout,
+        "upmix": upmix,
+    }
+    cache.write_audio(out_buffer, out)
+    return [{"type": "AUDIO", "cache_id": out_buffer.id}]

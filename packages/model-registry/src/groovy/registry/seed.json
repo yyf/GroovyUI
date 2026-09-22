@@ -1014,6 +1014,188 @@
       "similar_models": []
     },
     {
+      "id": "helix-v0.7",
+      "status": "published",
+      "trust": "verified",
+      "name": "Helix v0.7 FOA Upmix",
+      "description": "Neural mono/stereo → first-order Ambisonics (FOA WXYZ SN3D) with trajectory conditioning. Public weights: huggingface.co/soundsol/helix-v0.7 (CC BY 4.0). Stub path uses DSP FOA encode along authored XYZ.",
+      "task_types": ["object-upmix", "ambisonic-upmix"],
+      "tags": ["helix", "ambisonics", "foa", "upmix", "spatial"],
+      "author": "SoundSol",
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.9
+      },
+      "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 10,
+      "compatible_nodes": ["AmbisonicUpmix"],
+      "install": { "dev_stub": true },
+      "similar_models": [],
+      "architecture_notes": "UNet1D + FiLM position conditioning → 4ch FOA. Studio stub encodes mono along the TRAJECTORY XYZ path."
+    },
+    {
+      "id": "dcase-seld-foa-multiaccdoa",
+      "status": "published",
+      "trust": "community",
+      "name": "DCASE FOA Multi-ACCDOA SELD",
+      "description": "Extract listener-relative XYZ DOA trajectories from FOA Ambisonics (Multi-ACCDOA). Based on DCASE SELD baselines (github.com/partha2409/DCASE2024_seld_baseline). Stub path uses FOA active-intensity DOA.",
+      "task_types": ["object-placement", "trajectory-extract"],
+      "tags": ["seld", "doa", "ambisonics", "foa", "trajectory", "spatial"],
+      "author": "DCASE / Tampere",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 0.8
+      },
+      "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 50,
+      "compatible_nodes": ["AmbisonicTrajectoryExtract"],
+      "install": { "dev_stub": true },
+      "similar_models": ["object-placement-heuristic"],
+      "architecture_notes": "CRNN + MHSA Multi-ACCDOA head → per-frame Cartesian XYZ. Stub uses intensity-vector DOA from W/X/Y/Z."
+    },
+    {
+      "id": "stereo2spatial-v2-binaural",
+      "status": "published",
+      "trust": "verified",
+      "name": "Stereo2Spatial v2 Binaural",
+      "description": "Neural stereo/mono → binaural headphones at 48 kHz (francislabounty/stereo2spatial-v2-binaural, Apache-2.0). SpatialDiT waveform flow (~1.1GB). Stub path (Inference=Stub or missing weights) uses Bauer crossfeed.",
+      "task_types": ["binaural-render", "object-render"],
+      "tags": ["binaural", "hrtf", "headphones", "spatial", "immersive", "stereo2spatial"],
+      "author": "Francis Labounty",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.95
+      },
+      "vram_gb_estimate": 6,
+      "download_size_mb_estimate": 1100,
+      "compatible_nodes": ["BinauralRender"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "stereo2spatial[legacy-vae] @ git+https://github.com/francislabountyjr/stereo2spatial.git"
+          },
+          { "package": "torch", "version": ">=2.1.0" },
+          { "package": "torchaudio", "version": ">=2.1.0" },
+          { "package": "safetensors", "version": ">=0.4.0" }
+        ],
+        "verify_imports": ["stereo2spatial", "torch", "safetensors"],
+        "weights": [
+          {
+            "url": "https://huggingface.co/francislabounty/stereo2spatial-v2-binaural/resolve/main/config.json",
+            "filename": "config.json"
+          },
+          {
+            "url": "https://huggingface.co/francislabounty/stereo2spatial-v2-binaural/resolve/main/model.safetensors",
+            "filename": "model.safetensors"
+          }
+        ]
+      },
+      "similar_models": ["hrtf-binaural-v0"],
+      "architecture_notes": "SpatialDiT waveform → 2ch binaural FL/FR. Install pulls HF bundle; Inference=Stub keeps CI on crossfeed."
+    },
+    {
+      "id": "hrtf-binaural-v0",
+      "status": "published",
+      "trust": "verified",
+      "name": "HRTF Binaural v0 (stub)",
+      "description": "Deterministic Bauer crossfeed binaural stand-in. No applicable open neural model without attribution yet; stereo2spatial-v2 remains optional (Apache-2.0).",
+      "task_types": ["binaural-render", "object-render"],
+      "tags": ["binaural", "hrtf", "headphones", "spatial", "immersive", "stub"],
+      "author": "GroovyUI",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 0,
+      "download_size_mb_estimate": 0,
+      "compatible_nodes": ["BinauralRender"],
+      "install": { "dev_stub": true },
+      "similar_models": ["stereo2spatial-v2-binaural"],
+      "architecture_notes": "CI stub: crossfeed + contralateral HF shelf."
+    },
+    {
+      "id": "stereo2spatial-v1",
+      "status": "published",
+      "trust": "verified",
+      "name": "Stereo2Spatial v1 (7.1.4)",
+      "description": "Neural stereo/mono → Dolby Atmos 7.1.4 bed (12ch) at 48 kHz (francislabounty/stereo2spatial-v1, Apache-2.0). SpatialDiT + EAR-VAE (~2.1GB). Stub path uses mid/side height bleed.",
+      "task_types": ["object-upmix", "channel-upmix"],
+      "tags": ["atmos", "7.1.4", "upmix", "immersive", "spatial", "bed", "stereo2spatial"],
+      "author": "Francis Labounty",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.95
+      },
+      "vram_gb_estimate": 8,
+      "download_size_mb_estimate": 2100,
+      "compatible_nodes": ["SpatialUpmix"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "stereo2spatial[legacy-vae] @ git+https://github.com/francislabountyjr/stereo2spatial.git"
+          },
+          { "package": "torch", "version": ">=2.1.0" },
+          { "package": "torchaudio", "version": ">=2.1.0" },
+          { "package": "safetensors", "version": ">=0.4.0" }
+        ],
+        "verify_imports": ["stereo2spatial", "torch", "safetensors"],
+        "weights": [
+          {
+            "url": "https://huggingface.co/francislabounty/stereo2spatial-v1/resolve/main/config.json",
+            "filename": "config.json"
+          },
+          {
+            "url": "https://huggingface.co/francislabounty/stereo2spatial-v1/resolve/main/model.safetensors",
+            "filename": "model.safetensors"
+          },
+          {
+            "url": "https://huggingface.co/francislabounty/stereo2spatial-v1/resolve/main/vae/ear_vae_v2.json",
+            "filename": "vae/ear_vae_v2.json"
+          },
+          {
+            "url": "https://huggingface.co/francislabounty/stereo2spatial-v1/resolve/main/vae/ear_vae_v2_48k.pyt",
+            "filename": "vae/ear_vae_v2_48k.pyt"
+          }
+        ]
+      },
+      "similar_models": ["stereo-atmos-bed-v0", "helix-v0.7"],
+      "architecture_notes": "Legacy SpatialDiT + EAR-VAE → FL FR FC LFE BL BR SL SR TFL TFR TBL TBR. Preview via ChannelConvert→stereo."
+    },
+    {
+      "id": "stereo-atmos-bed-v0",
+      "status": "published",
+      "trust": "verified",
+      "name": "Stereo → Atmos Bed v0 (stub)",
+      "description": "Deterministic mid/side + height bleed → 7.1.4. No applicable open neural model without attribution yet; stereo2spatial-v1 remains optional (Apache-2.0).",
+      "task_types": ["object-upmix", "channel-upmix"],
+      "tags": ["atmos", "7.1.4", "upmix", "immersive", "spatial", "bed", "stub"],
+      "author": "GroovyUI",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 0,
+      "download_size_mb_estimate": 0,
+      "compatible_nodes": ["SpatialUpmix"],
+      "install": { "dev_stub": true },
+      "similar_models": ["stereo2spatial-v1", "helix-v0.7"],
+      "architecture_notes": "CI stub: spreads L/R into bed channels."
+    },
+    {
       "id": "groovy-verify-weights",
       "status": "published",
       "trust": "verified",

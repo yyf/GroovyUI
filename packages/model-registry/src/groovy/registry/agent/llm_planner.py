@@ -18,7 +18,7 @@ from groovy.schema.models import Workflow
 
 DEFAULT_CLAUDE_MODEL = "claude-sonnet-5"
 ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
-SOCKET_TYPES = frozenset({"AUDIO", "MIDI", "TEXT", "STRING", "FLOAT", "CONTROL", "OBA", "SAMPLE_CHECK", "AUTHENTICITY"})
+SOCKET_TYPES = frozenset({"AUDIO", "MIDI", "TEXT", "STRING", "FLOAT", "CONTROL", "OBA", "SAMPLE_CHECK", "AUTHENTICITY", "AMBISONICS", "TRAJECTORY", "AUTOMATION"})
 # Shipped demo clip — same default as studio LoadAudio / sampleDefaults.ts
 DEFAULT_PLAN_LOAD_AUDIO_PATH = "assets/samples/podcast_denoise_demo.wav"
 

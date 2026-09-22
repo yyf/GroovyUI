@@ -383,6 +383,47 @@ export async function fetchWaveform(cacheId: string, width = 128): Promise<{ pea
   return res.json();
 }
 
+export type MeterEnvelopePayload = {
+  channels: number[][];
+  labels: string[];
+  duration: number;
+  width: number;
+  sample_rate: number;
+  layout?: string;
+};
+
+/** Per-channel peak envelopes for Inspector meter scrubbing during Preview play. */
+export async function fetchMeterEnvelope(
+  cacheId: string,
+  width = 256,
+): Promise<MeterEnvelopePayload> {
+  const res = await fetch(`${API}/api/cache/${cacheId}/meter-envelope?width=${width}`);
+  if (!res.ok) {
+    throw new Error(`Meter envelope not found: ${cacheId}`);
+  }
+  return res.json();
+}
+
+export type TrajectoryPayload = {
+  id: string;
+  type: string;
+  sample_rate: number;
+  frame_count: number;
+  point_count: number;
+  source: string;
+  object_id: string;
+  duration: number;
+  points: Array<{ t_sec: number; x: number; y: number; z: number }>;
+};
+
+export async function fetchTrajectory(cacheId: string): Promise<TrajectoryPayload> {
+  const res = await fetch(`${API}/api/cache/${cacheId}/trajectory`);
+  if (!res.ok) {
+    throw new Error(`Trajectory not found: ${cacheId}`);
+  }
+  return res.json();
+}
+
 export type SpectrogramData = {
   width: number;
   height: number;
