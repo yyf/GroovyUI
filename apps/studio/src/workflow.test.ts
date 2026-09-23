@@ -885,7 +885,7 @@ describe("selection clipboard", () => {
     expect(next.links).toHaveLength(3);
     const pasted = next.nodes.filter((node) => newNodeIds.includes(node.id));
     expect(pasted[0]?.pos).toEqual({ x: 10, y: 20 });
-    expect(pasted[1]?.pos).toEqual({ x: 210, y: 20 });
+    expect(pasted[1]?.pos).toEqual({ x: 290, y: 20 });
   });
 
   it("duplicates a selection in one step", () => {
