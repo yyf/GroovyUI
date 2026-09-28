@@ -29,8 +29,21 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 1
 fi
 if [[ ! -d .venv ]]; then
-  echo "Missing .venv. First run: uv sync --all-packages --group dev" >&2
+  echo "Missing .venv. First run:" >&2
+  echo "  uv venv --python 3.11 && uv sync --all-packages --group dev" >&2
+  echo "  cd apps/studio && npm install" >&2
   exit 1
+fi
+
+PY_VER="$("$ROOT/.venv/bin/python" -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")' 2>/dev/null || true)"
+if [[ -n "${PY_VER}" ]]; then
+  MAJOR="${PY_VER%%.*}"
+  MINOR="${PY_VER#*.}"
+  if [[ "${MAJOR}" -gt 3 ]] || { [[ "${MAJOR}" -eq 3 ]] && [[ "${MINOR}" -ge 12 ]]; }; then
+    echo "Warning: .venv is Python ${PY_VER}. Podcast denoise (DeepFilterNet) needs 3.11" >&2
+    echo "  (deepfilterlib has no 3.12+ wheel). Recreate with:" >&2
+    echo "  rm -rf .venv && uv venv --python 3.11 && uv sync --all-packages --group dev" >&2
+  fi
 fi
 if [[ ! -d apps/studio/node_modules ]] && ! command -v pnpm >/dev/null 2>&1; then
   echo "Studio deps missing. First run: cd apps/studio && npm install" >&2

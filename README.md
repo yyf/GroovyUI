@@ -10,10 +10,12 @@ Experimental. APIs and UI will change. Expect rough edges on clean machines and 
 
 ## Quick start
 
-Requires **Python 3.11 or 3.12** (3.13+ often breaks model wheels like DeepFilterNet), [uv](https://docs.astral.sh/uv/), and Node 20+.
+Requires **Python 3.11** ([uv](https://docs.astral.sh/uv/), Node 20+).  
+Podcast denoise / DeepFilterNet needs 3.11 — `deepfilterlib` has no binary wheel for 3.12+.
 
 ```bash
 # One-time install
+uv venv --python 3.11
 uv sync --all-packages --group dev
 cd apps/studio && npm install && cd ../..
 

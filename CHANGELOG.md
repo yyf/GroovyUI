@@ -18,6 +18,7 @@
 
 ### Fixed
 
+- **DeepFilterNet cold install** — `deepfilterlib==0.5.6` only has wheels through Python 3.11; on 3.12+ the installer now fails fast (no Rust/cargo source build) and README/`dev.sh` recommend `uv venv --python 3.11`.
 - **CI / studio lint** — Plan tab LLM chip state typed as `PlanLlmModelId` so `tsc --noEmit` accepts Sonnet / Fable / Haiku selections.
 
 ### Added
