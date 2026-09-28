@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Apache 2.0 root `LICENSE`** — open-source alpha grant for the in-repo core (schema, SDK, executor, studio, nodes). Model weights remain under their own SPDX licenses.
 - **HF token Settings tests** — API round-trip (set / clear `null`) and Bearer-only attachment for huggingface.co downloads + Discover (`tests/test_hf_token_bearer.py`).
 - **Seed catalog quality gates** — `tests/test_seed_catalog_quality.py` enforces published installable entries (heroes non-stub; required metadata). Model-request playbook gains copy/paste agent prompt + seed merge checklist.
 - **Portable desktop (macOS arm64, experimental)** — `just package-portable` / `scripts/package_portable_macos.sh` builds a zip with `.venv`, same-origin studio on `:8188`, `GroovyUI.command` + `groovy-desktop` launcher. Models stay on-demand; not codesigned yet.
@@ -11,6 +12,7 @@
 
 ### Changed
 
+- **Settings → Template licenses** — commercial clearance matrix is studio **dev mode (⌘D)** only; hidden in the default OSS-alpha Settings menu.
 - **Model Browser copy** — Search / Plan / Discover hints state clearly that Install is published-catalog only (no Install-from-Discover).
 - **Install recovery** — clearer suggested fix when inference runtime is not ready; tests cover hero `inference_ready` / `model_install_complete` gate.
 
@@ -46,7 +48,7 @@
 - **Plan vs Generate** — Plan lives under Model Browser only (no top-bar / ⌘L entry): recommends models for a task (Install / Drop). Generate (⌘G) drafts graphs (LLM or templates). Plan no longer returns workflow blueprints.
 - **Generate (⌘G)** palette — selection / path / model chips / focus / blueprint chrome use signal red (`--accent`) instead of the interim blue highlight set.
 - **Generate (⌘G)** — bottom-stage composer over the canvas with an explicit **With LLM** / **Without LLM** choice (defaults to LLM when a key is set, but never auto-swaps at submit). LLM: model chips + blueprint review + Save JSON/image; Apply unlocks when all nodes exist. Without LLM: deterministic bundled template match. Model Browser → Suggest workflow stays template-only.
-- **ISMIR demo LoadAudio paths** — `podcast-denoise` uses `assets/samples/podcast_denoise_demo.wav`; `isolate-vocals-to-transcribe` uses `assets/samples/stem_separation_demo.wav` (CI still injects a tone WAV fixture for the isolate template). Shipped samples are only those two demos plus `automation_cc7.mid`; older clips live under local `assets/samples/archived/`.
+- **ISMIR demo LoadAudio paths** — `podcast-denoise` uses `assets/samples/podcast_denoise_demo.wav`; `isolate-vocals-to-transcribe` uses `assets/samples/stem_separation_demo.wav` (CI still injects a tone WAV fixture for the isolate template). Shipped samples are those two demos; older clips live under local `assets/samples/archived/`.
 - **Compliance fast path** — Install/render Preview no longer auto-auditions; Play remains the explicit cached-PCM audition (patch-bay, not a DAW).
 - **Marquee A/B select** — box-select prefers nodes over wires (`edgesSelectable={false}`) so two-node A/B compare works without only shift-click
 - **ACE-Step load errors** — do not treat every Hub message containing `401` as access-denied; skip a broken huggingface-cli login when Settings has no token; include the real Hub error on failure.

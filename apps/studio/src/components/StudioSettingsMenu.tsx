@@ -10,6 +10,8 @@ export type StudioSettingsMenuProps = {
   paletteOpen: boolean;
   helperOpen: boolean;
   workflowBarOpen: boolean;
+  /** ⌘D studio dev mode — reveals template license matrix (not for OSS alpha UX). */
+  studioDevMode?: boolean;
   onImportWorkflow: (file: File) => void;
   onSaveAsTemplate: () => void;
   onToggleGroupCollapse: () => void;
@@ -24,6 +26,7 @@ export default function StudioSettingsMenu({
   paletteOpen,
   helperOpen,
   workflowBarOpen,
+  studioDevMode = false,
   onImportWorkflow,
   onSaveAsTemplate,
   onToggleGroupCollapse,
@@ -127,7 +130,9 @@ export default function StudioSettingsMenu({
           </div>
           <div className="studio-menu__section studio-menu__section--tail">
             {item("Studio settings…", onOpenStudioSettings)}
-            {item("Template licenses…", () => openTemplateLicenseWindow())}
+            {studioDevMode
+              ? item("Template licenses…", () => openTemplateLicenseWindow())
+              : null}
             {item("About GroovyUI", () => openAboutWindow())}
             {item("API status", () => void openApiStatusWindow())}
           </div>

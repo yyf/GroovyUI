@@ -10,9 +10,7 @@ install:
     pnpm install
 
 dev:
-    @echo "Starting API server (127.0.0.1:8188) and studio (5173)..."
-    uv run --package groovy-server groovy-server &
-    pnpm dev:studio
+    bash scripts/dev.sh
 
 test:
     uv run pytest tests/ -q

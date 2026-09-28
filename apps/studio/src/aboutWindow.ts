@@ -142,7 +142,7 @@ function toneClass(tone: TemplateLicenseTone): string {
   return "tone-caution";
 }
 
-/** Settings → Template licenses — commercial clearance overview for bundled templates. */
+/** Settings → Template licenses (⌘D / studio dev mode) — commercial clearance overview. */
 export function openTemplateLicenseWindow(): void {
   const summary = templateLicenseSummary();
   const rows = TEMPLATE_LICENSE_MATRIX.map(
