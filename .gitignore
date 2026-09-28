@@ -1,6 +1,8 @@
 # GroovyUI workspace
 workspace/
 .groovy/
+.secrets/
+docs/internal/
 *.wav
 *.mp3
 *.mp4

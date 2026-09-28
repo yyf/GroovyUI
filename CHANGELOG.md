@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Apache 2.0 root `LICENSE`** — open-source alpha grant for the in-repo core (schema, SDK, executor, studio, nodes). Model weights remain under their own SPDX licenses.
 - **HF token Settings tests** — API round-trip (set / clear `null`) and Bearer-only attachment for huggingface.co downloads + Discover (`tests/test_hf_token_bearer.py`).
 - **Seed catalog quality gates** — `tests/test_seed_catalog_quality.py` enforces published installable entries (heroes non-stub; required metadata). Model-request playbook gains copy/paste agent prompt + seed merge checklist.
 - **Portable desktop (macOS arm64, experimental)** — `just package-portable` / `scripts/package_portable_macos.sh` builds a zip with `.venv`, same-origin studio on `:8188`, `GroovyUI.command` + `groovy-desktop` launcher. Models stay on-demand; not codesigned yet.
@@ -11,6 +12,7 @@
 
 ### Changed
 
+- **Settings → Template licenses** — commercial clearance matrix is studio **dev mode (⌘D)** only; hidden in the default OSS-alpha Settings menu.
 - **Model Browser copy** — Search / Plan / Discover hints state clearly that Install is published-catalog only (no Install-from-Discover).
 - **Install recovery** — clearer suggested fix when inference runtime is not ready; tests cover hero `inference_ready` / `model_install_complete` gate.
 

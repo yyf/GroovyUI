@@ -1,6 +1,6 @@
 /**
  * Curated template × model license overview for demo / commercial clearance.
- * Source of truth for Settings → Template licenses popup.
+ * Source of truth for Settings → Template licenses popup (studio dev mode / ⌘D only).
  * Keep in sync with registry seed licenses when models change.
  */
 

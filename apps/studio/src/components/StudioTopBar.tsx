@@ -129,6 +129,7 @@ export default function StudioTopBar({
 
       <StudioSettingsMenu
         {...settings}
+        studioDevMode={studioDevMode}
         workflowBarOpen={workflowBarOpen}
         onToggleWorkflowBar={onToggleWorkflowBar}
       />
