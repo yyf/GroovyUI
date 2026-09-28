@@ -50,6 +50,16 @@ def test_install_python_deps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert calls == [("DeepFilterNet-py312>=0.5.7", False)]
 
 
+def test_deepfilterlib_rejects_python_312_plus(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Ver:
+        major = 3
+        minor = 12
+
+    monkeypatch.setattr(installer_mod.sys, "version_info", _Ver())
+    with pytest.raises(RuntimeError, match="Python 3.11"):
+        installer_mod._run_pip_install("deepfilterlib==0.5.6")
+
+
 def test_run_pip_install_prefers_uv(monkeypatch: pytest.MonkeyPatch) -> None:
     from groovy.registry import installer as installer_mod
 

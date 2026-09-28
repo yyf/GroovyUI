@@ -286,6 +286,20 @@ def _run_pip_install(
     no_deps: bool = False,
     cancel_check: Callable[[], bool] | None = None,
 ) -> None:
+    package_name = requirement.split("=", 1)[0].split(">", 1)[0].split("<", 1)[0].strip().lower()
+    # deepfilterlib 0.5.6 only publishes cp38–cp311 wheels. On 3.12+ uv falls back to an
+    # sdist that needs Rust/cargo — fail fast with a cold-machine-friendly message.
+    py_major = int(getattr(sys.version_info, "major", 0))
+    py_minor = int(getattr(sys.version_info, "minor", 0))
+    if package_name == "deepfilterlib" and (py_major > 3 or (py_major == 3 and py_minor >= 12)):
+        raise RuntimeError(
+            "deepfilterlib (DeepFilterNet / podcast-denoise) has no wheel for "
+            f"Python {py_major}.{py_minor}. "
+            "Use Python 3.11: rm -rf .venv && uv venv --python 3.11 && "
+            "uv sync --all-packages --group dev. "
+            "Source builds need Rust/cargo and are not supported for cold installs."
+        )
+
     if shutil.which("uv"):
         # uv-managed venvs do not ship pip; uv pip targets the active interpreter.
         command = ["uv", "pip", "install", "--python", sys.executable]
@@ -293,6 +307,9 @@ def _run_pip_install(
         command = [sys.executable, "-m", "pip", "install"]
     if no_deps:
         command.append("--no-deps")
+    if package_name == "deepfilterlib":
+        # Never compile the Rust extension on a guest Mac without cargo.
+        command.append("--only-binary=:all:")
     command.append(requirement)
     proc = subprocess.Popen(
         command,
@@ -314,6 +331,15 @@ def _run_pip_install(
         stdout, stderr = proc.communicate()
         if proc.returncode != 0:
             detail = (stderr or stdout or "package install failed").strip()
+            if package_name == "deepfilterlib" or "cargo" in detail.lower() or "maturin" in detail.lower():
+                raise RuntimeError(
+                    f"Failed to install {requirement}: no usable binary wheel "
+                    f"(Python {py_major}.{py_minor}). "
+                    "Podcast denoise needs Python 3.11 for deepfilterlib wheels. "
+                    "Recreate: rm -rf .venv && uv venv --python 3.11 && "
+                    "uv sync --all-packages --group dev. "
+                    f"Detail: {detail[:300]}"
+                )
             raise RuntimeError(f"Failed to install {requirement}: {detail[:500]}")
     finally:
         if proc.poll() is None:
@@ -358,6 +384,11 @@ def _human_error(error: str) -> str:
     if "cuda" in lowered or "gpu" in lowered:
         return "GPU/CUDA requirement not met for this model."
     if "failed to install" in lowered or "pip install" in lowered:
+        if "deepfilterlib" in lowered or "python 3.11" in lowered:
+            return (
+                "DeepFilterNet needs Python 3.11 (deepfilterlib has no 3.12+ wheel). "
+                "Recreate the venv with: uv venv --python 3.11 && uv sync --all-packages --group dev"
+            )
         return "Python dependency install failed — retry from Model Browser (Cmd+K)."
     if "inference runtime not ready" in lowered or "not importable after install" in lowered:
         return "Python inference packages missing — reinstall from Model Browser (Cmd+K)."
