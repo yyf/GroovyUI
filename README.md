@@ -1,8 +1,15 @@
 # GroovyUI
 
+<!-- Placeholder — swap for the official ISMIR 2026 badge when available. -->
+[![ISMIR 2026](https://img.shields.io/badge/ISMIR-2026-111111?style=flat-square&labelColor=ff002b&color=111111)](https://ismir.net/)
+
 **Open-source alpha.** Patch-bay for AI audio — wire models in a graph, render sample-accurate offline previews (cached PCM), share workflows as JSON.
 
 Not a DAW: no timeline, no live low-latency engine. **Play** auditions the last render from cache; **Render** is explicit.
+
+<p align="center">
+  <img src="assets/media/groovy-demos-2x2.gif" alt="GroovyUI demos: Model Browser, Generate, isolate-to-transcribe, prompt modular synth" width="960" />
+</p>
 
 ## Status
 
