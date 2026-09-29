@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "e0a1b2c3-d4e5-6789-abcd-ef0123456789",
+  "metadata": {
+    "title": "Empty canvas",
+    "author": "groovy",
+    "description": "Start from a blank patch-bay. Add nodes from the palette, drop audio onto the canvas, or import a workflow JSON.",
+    "tags": [
+      "starter",
+      "featured",
+      "blank",
+      "empty"
+    ],
+    "created_at": "2026-09-29T12:00:00Z",
+    "modified_at": "2026-09-29T12:00:00Z"
+  },
+  "nodes": [],
+  "links": [],
+  "groups": [],
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
+}

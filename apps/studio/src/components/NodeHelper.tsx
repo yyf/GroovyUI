@@ -17,6 +17,7 @@ import {
   type AbCompareResult,
   type CacheSignalMetrics,
   type MeterEnvelopePayload,
+  type StudioSettings,
 } from "../api";
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowLink, WorkflowNode } from "../types";
 import type { CompareHop } from "../workflow";
@@ -40,6 +41,8 @@ import {
   resolveInferenceParams,
 } from "../modelNodeWidgets";
 import AboutPanel from "./AboutPanel";
+import ApiStatusPanel from "./ApiStatusPanel";
+import SettingsDrawer from "./SettingsDrawer";
 import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
 import TrajectoryPanel, { TrajectoryAuthorPad } from "./TrajectoryPanel";
@@ -98,6 +101,12 @@ type Props = {
   renderIssueDetail?: string | null;
   /** When true, show About in the Inspector instead of node/empty state. */
   showAbout?: boolean;
+  /** When true, show API status in the Inspector instead of node/empty state. */
+  showApiStatus?: boolean;
+  /** When true, show Studio settings in the Inspector instead of node/empty state. */
+  showStudioSettings?: boolean;
+  onSettingsChange?: (settings: StudioSettings) => void;
+  onForceRebuildNext?: () => void;
 };
 
 export default function NodeHelper({
@@ -128,6 +137,10 @@ export default function NodeHelper({
   renderIssue,
   renderIssueDetail,
   showAbout = false,
+  showApiStatus = false,
+  showStudioSettings = false,
+  onSettingsChange,
+  onForceRebuildNext,
 }: Props) {
   const [tab, setTab] = useState<Tab>("config");
   const [schema, setSchema] = useState<NodeSchema | null>(null);
@@ -159,11 +172,12 @@ export default function NodeHelper({
   }, [node?.id, node?.type]);
 
   const subgraphWide =
-    Boolean(node) &&
-    !showCompare &&
-    !selectedLink &&
-    selectedNodes.length <= 1 &&
-    tab === "subgraph";
+    showStudioSettings ||
+    (Boolean(node) &&
+      !showCompare &&
+      !selectedLink &&
+      selectedNodes.length <= 1 &&
+      tab === "subgraph");
 
   useEffect(() => {
     onSubgraphActiveChange?.(subgraphWide);
@@ -268,6 +282,19 @@ export default function NodeHelper({
 
   if (showAbout) {
     return <AboutPanel />;
+  }
+
+  if (showApiStatus) {
+    return <ApiStatusPanel />;
+  }
+
+  if (showStudioSettings) {
+    return (
+      <SettingsDrawer
+        onSettingsChange={onSettingsChange}
+        onForceRebuildNext={onForceRebuildNext}
+      />
+    );
   }
 
   if (showCompare) {

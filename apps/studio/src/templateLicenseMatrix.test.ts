@@ -8,7 +8,7 @@ import {
 describe("templateLicenseMatrix", () => {
   it("covers all curated bundled templates without duplicate ids", () => {
     const ids = TEMPLATE_LICENSE_MATRIX.map((row) => row.id);
-    expect(ids.length).toBe(53);
+    expect(ids.length).toBe(54);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -23,6 +23,7 @@ describe("templateLicenseMatrix", () => {
   });
 
   it("marks MIT/Apache heroes as commercially cleared", () => {
+    expect(isCommerciallyCleared("empty-canvas")).toBe(true);
     expect(isCommerciallyCleared("hello-groovy")).toBe(true);
     expect(isCommerciallyCleared("podcast-denoise")).toBe(true);
     expect(isCommerciallyCleared("ace-step-1.5")).toBe(true);
@@ -35,8 +36,8 @@ describe("templateLicenseMatrix", () => {
 
   it("summarizes clearance counts", () => {
     const summary = templateLicenseSummary();
-    expect(summary.total).toBe(53);
-    expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(53);
+    expect(summary.total).toBe(54);
+    expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(54);
     expect(summary.commercialSafe).toBeGreaterThan(20);
   });
 });

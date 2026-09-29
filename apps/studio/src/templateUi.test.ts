@@ -54,8 +54,12 @@ describe("templatesVisibleInUi", () => {
   ];
 
   it("shows only ISMIR demo templates in standard mode", () => {
-    const visible = templatesVisibleInUi(allBundled);
+    const visible = templatesVisibleInUi([
+      ...allBundled,
+      bundled("empty-canvas", "Empty canvas"),
+    ]);
     expect(visible.map((t) => t.id)).toEqual([
+      "empty-canvas",
       "hello-groovy",
       "isolate-vocals-to-transcribe",
       "podcast-denoise",
@@ -198,6 +202,7 @@ describe("groupBundledTemplatesByDomain", () => {
   it("groups featured templates into domain submenus", () => {
     const visible = templatesVisibleInUi(
       [
+        bundled("empty-canvas", "Empty canvas"),
         bundled("hello-groovy", "Hello GroovyUI"),
         bundled("podcast-denoise", "Podcast Denoise"),
         bundled("stem-separation", "Stem Separation"),
@@ -222,10 +227,19 @@ describe("groupBundledTemplatesByDomain", () => {
       "compare",
       "trust",
     ]);
+    expect(groups.find((g) => g.domain.id === "start")?.templates.map((t) => t.id)).toEqual([
+      "empty-canvas",
+      "hello-groovy",
+    ]);
     expect(groups.find((g) => g.domain.id === "speech")?.templates.map((t) => t.id)).toEqual([
       "podcast-denoise",
     ]);
     expect(groups.every((g) => g.templates.every((t) => t.source !== "user"))).toBe(true);
+  });
+
+  it("places empty-canvas and hello-groovy in Start", () => {
+    expect(domainIdForTemplate("empty-canvas")).toBe("start");
+    expect(domainIdForTemplate("hello-groovy")).toBe("start");
   });
 
   it("puts unknown bundled ids in Other", () => {

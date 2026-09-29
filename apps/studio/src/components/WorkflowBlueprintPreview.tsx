@@ -195,6 +195,10 @@ type Props = {
   unknownNodeTypes?: string[];
   /** When true, offer Save JSON / Save image for brainstorming snapshots. */
   showSnapshotExport?: boolean;
+  /** Opens GitHub blueprint-request issue (prefilled structured JSON). */
+  onFileBlueprintRequest?: () => void;
+  /** Opens GitHub node-request when types are missing from the palette. */
+  onFileNodeRequest?: () => void;
 };
 
 function BlueprintCanvas({
@@ -203,6 +207,8 @@ function BlueprintCanvas({
   subtitle,
   unknownNodeTypes,
   showSnapshotExport,
+  onFileBlueprintRequest,
+  onFileNodeRequest,
 }: Props) {
   const missingTypes = useMemo(() => new Set(unknownNodeTypes ?? []), [unknownNodeTypes]);
   const prepared = useMemo(() => layoutWorkflowNodes(workflow), [workflow]);
@@ -253,22 +259,44 @@ function BlueprintCanvas({
             {missingCount} node{missingCount === 1 ? "" : "s"} not available yet
           </span>
         ) : null}
-        {showSnapshotExport ? (
+        {showSnapshotExport || onFileBlueprintRequest || onFileNodeRequest ? (
           <div className="workflow-blueprint__exports">
-            <button
-              type="button"
-              className="workflow-blueprint__export-btn"
-              onClick={() => downloadBlueprintJson(workflow, basename)}
-            >
-              Save JSON
-            </button>
-            <button
-              type="button"
-              className="workflow-blueprint__export-btn"
-              onClick={() => downloadBlueprintPng(nodes, edges, basename, title)}
-            >
-              Save image
-            </button>
+            {showSnapshotExport ? (
+              <>
+                <button
+                  type="button"
+                  className="workflow-blueprint__export-btn"
+                  onClick={() => downloadBlueprintJson(workflow, basename)}
+                >
+                  Save JSON
+                </button>
+                <button
+                  type="button"
+                  className="workflow-blueprint__export-btn"
+                  onClick={() => downloadBlueprintPng(nodes, edges, basename, title)}
+                >
+                  Save image
+                </button>
+              </>
+            ) : null}
+            {onFileBlueprintRequest ? (
+              <button
+                type="button"
+                className="workflow-blueprint__export-btn workflow-blueprint__export-btn--github"
+                onClick={onFileBlueprintRequest}
+              >
+                Blueprint request
+              </button>
+            ) : null}
+            {onFileNodeRequest ? (
+              <button
+                type="button"
+                className="workflow-blueprint__export-btn workflow-blueprint__export-btn--github"
+                onClick={onFileNodeRequest}
+              >
+                Node request
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

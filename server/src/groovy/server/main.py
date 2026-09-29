@@ -220,6 +220,8 @@ class ComplianceReportRequest(BaseModel):
     workflow: dict[str, Any]
     outputs: dict[str, Any] = {}
     target_node_id: str | None = None
+    # Match Compliance drawer: Authenticity tab is studio-dev-mode only.
+    include_authenticity: bool = False
 
 
 class ExecuteRequest(BaseModel):
@@ -571,14 +573,19 @@ def update_studio_settings(body: StudioSettingsRequest) -> dict[str, Any]:
 
 @app.post("/api/cache/clear")
 def clear_render_cache() -> dict[str, Any]:
-    """Delete render cache files under ``.groovy/cache`` (not models or settings)."""
+    """Delete render cache under ``.groovy/cache`` (artifacts + node_state; not models/settings)."""
+    import shutil
+
     cache_dir = PROJECT_DIR / ".groovy" / "cache"
     removed = 0
     if cache_dir.is_dir():
-        for path in cache_dir.iterdir():
+        for path in list(cache_dir.iterdir()):
             if path.is_file():
                 path.unlink()
                 removed += 1
+            elif path.is_dir():
+                removed += sum(1 for child in path.rglob("*") if child.is_file())
+                shutil.rmtree(path)
     return {"status": "ok", "removed": removed, "cache_dir": str(cache_dir)}
 
 
@@ -1537,15 +1544,18 @@ def workflow_compliance_report(body: ComplianceReportRequest) -> Response:
             body.outputs,
             target_node_id=body.target_node_id,
         )
-    authenticity_id = _authenticity_id_from_outputs(
-        body.outputs, body.target_node_id, workflow=workflow
-    )
-    authenticity = _load_authenticity_record(authenticity_id) if authenticity_id else None
+    authenticity = None
+    if body.include_authenticity:
+        authenticity_id = _authenticity_id_from_outputs(
+            body.outputs, body.target_node_id, workflow=workflow
+        )
+        authenticity = _load_authenticity_record(authenticity_id) if authenticity_id else None
     report = build_compliance_report(
         workflow,
         _registry,
         provenance=provenance,
         authenticity=authenticity,
+        include_authenticity=body.include_authenticity,
     )
     pdf_bytes = render_compliance_pdf(report)
     filename = _compliance_report_filename(str(report.get("workflow_title") or workflow.id))

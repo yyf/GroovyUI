@@ -6,12 +6,9 @@ Not a DAW: no timeline, no live low-latency engine. **Play** auditions the last 
 
 ## Status
 
-Experimental. APIs and UI will change. Expect rough edges on clean machines and first model installs. Hub, managed export, and notarized installers are out of scope for this alpha.
+Experimental. APIs and UI will change. Expect rough edges on clean machines and first model installs.
 
 ## Quick start
-
-Requires **Python 3.11** ([uv](https://docs.astral.sh/uv/), Node 20+).  
-Podcast denoise / DeepFilterNet needs 3.11 — `deepfilterlib` has no binary wheel for 3.12+.
 
 ```bash
 # One-time install
@@ -45,4 +42,4 @@ Or with [just](https://github.com/casey/just): `just install`, `just test`, `jus
 
 [Apache License 2.0](LICENSE). Third-party models and weights keep their own SPDX licenses — the app license is not a grant to those weights.
 
-Model requests: Model Browser → Discover → **File GitHub request**. See [`.github/MODEL_REQUEST_PLAYBOOK.md`](.github/MODEL_REQUEST_PLAYBOOK.md). Release notes: [CHANGELOG.md](CHANGELOG.md).
+Catalog requests from Studio (browser deep link, no GitHub token in the app): Model Browser → **File GitHub request**; Generate → **Blueprint request** / **Node request**. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Release notes: [CHANGELOG.md](CHANGELOG.md).

@@ -99,9 +99,12 @@ def test_clear_render_cache(api_client: TestClient, tmp_path: Path) -> None:
     cache.mkdir(parents=True, exist_ok=True)
     (cache / "deadbeef.f64").write_bytes(b"x")
     (cache / "deadbeef.meta.json").write_text("{}")
+    state = cache / "node_state" / "wf"
+    state.mkdir(parents=True)
+    (state / "n1.json").write_text("{}")
     res = api_client.post("/api/cache/clear")
     assert res.status_code == 200
-    assert res.json()["removed"] == 2
+    assert res.json()["removed"] == 3
     assert list(cache.iterdir()) == []
 
 

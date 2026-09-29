@@ -2,7 +2,7 @@
 
 52 curated `.groovy.json` starter graphs. Validated in CI via `groovy-verify` and `tests/test_all_templates.py`.
 
-Featured picker order (studio): see `apps/studio/src/templateUi.ts` and [TEMPLATE_PORTFOLIO_PRIORITY.md](../docs/internal/TEMPLATE_PORTFOLIO_PRIORITY.md).
+Featured picker order (studio): see `apps/studio/src/templateUi.ts` (`FEATURED_TEMPLATE_IDS`, dev-mode full list).
 
 | Template | File | Phase | Models |
 |----------|------|-------|--------|

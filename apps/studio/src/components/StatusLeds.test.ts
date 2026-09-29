@@ -30,10 +30,11 @@ describe("status LED tones", () => {
     expect(apiLedTone(false)).toBe("fault");
   });
 
-  it("only warn/fault LEDs are inspectable", () => {
+  it("warn/fault LEDs are inspectable; ok needs an inspect handler", () => {
     expect(ledIsInspectable("fault")).toBe(true);
     expect(ledIsInspectable("warn")).toBe(true);
     expect(ledIsInspectable("ok")).toBe(false);
+    expect(ledIsInspectable("ok", true)).toBe(true);
     expect(ledIsInspectable("busy")).toBe(false);
   });
 

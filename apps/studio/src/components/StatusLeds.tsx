@@ -15,8 +15,8 @@ type Props = {
   leds: StatusLedSpec[];
 };
 
-export function ledIsInspectable(tone: LedTone): boolean {
-  return tone === "fault" || tone === "warn";
+export function ledIsInspectable(tone: LedTone, hasInspectHandler = false): boolean {
+  return tone === "fault" || tone === "warn" || hasInspectHandler;
 }
 
 export function escapeReportHtml(text: string): string {
@@ -69,10 +69,15 @@ export default function StatusLeds({ leds }: Props) {
   return (
     <ul className="status-leds" aria-label="Studio status">
       {leds.map((led) => {
-        const inspectable = ledIsInspectable(led.tone);
+        const inspectable = ledIsInspectable(led.tone, Boolean(led.onInspect));
         const openReport = () => {
           led.onInspect?.();
-          openStatusReportWindow(led.label, led.report ?? led.title);
+          // Inspector handlers (e.g. API status) skip the popup when no report body.
+          if (led.report != null) {
+            openStatusReportWindow(led.label, led.report);
+          } else if (!led.onInspect) {
+            openStatusReportWindow(led.label, led.title);
+          }
         };
         const lamp = (
           <>

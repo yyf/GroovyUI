@@ -1,0 +1,89 @@
+# Node type request
+name: Node request
+description: Request a new GroovyUI node type (or family) — often from Generate when the LLM names a type that is not in the palette yet.
+title: "[node-request] "
+labels: ["node-request", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for requesting a **node type**. This helps maintainers prioritize the palette and verified templates.
+
+        - Filed from Studio **Generate** when types are missing, or via this template manually.
+        - **`node_payload`** is structured JSON (`groovy.node_request.v1`) for triage.
+        - Prefer one issue per distinct node **family**; list related type names in **node types**.
+
+        Do **not** paste API keys, HF tokens, passwords, or absolute paths with credentials.
+
+  - type: input
+    id: node_types
+    attributes:
+      label: Requested node type name(s)
+      description: PascalCase GroovyUI type names (comma-separated if several).
+      placeholder: FantasyStemAI, GranularCloudV2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - ai-inference
+        - audio-dsp
+        - control-modular
+        - io-load-save
+        - trust-compliance
+        - utility
+        - other
+    validations:
+      required: true
+
+  - type: input
+    id: similar_nodes
+    attributes:
+      label: Similar existing node(s)
+      description: Optional — closest nodes today (helps scope).
+      placeholder: SeparateStems, Granulate
+
+  - type: textarea
+    id: generate_context
+    attributes:
+      label: Generate context (optional)
+      description: User prompt and blueprint title if this came from Generate.
+      placeholder: Prompt: granular drone cleanup. Blueprint: Granular drone chain.
+
+  - type: textarea
+    id: node_payload
+    attributes:
+      label: Structured payload (JSON)
+      description: From Studio prefill — schema `groovy.node_request.v1`.
+      placeholder: |
+        {"schema":"groovy.node_request.v1","node_types":["FantasyStemAI"]}
+    validations:
+      required: true
+
+  - type: textarea
+    id: why_needed
+    attributes:
+      label: Why this node?
+      description: Job in a patch (inputs/outputs, rate, offline vs control). Public info only.
+      placeholder: Need a stem-aware granularizer that accepts AUDIO + MIDI sidechain.
+    validations:
+      required: true
+
+  - type: input
+    id: groovy_version
+    attributes:
+      label: GroovyUI version (optional)
+      placeholder: 0.18.0
+
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I did not include secrets (tokens, keys, private paths) in this issue.
+          required: true
+        - label: I understand new nodes ship only after maintainer triage and merge — not auto-added to my Studio build.
+          required: true

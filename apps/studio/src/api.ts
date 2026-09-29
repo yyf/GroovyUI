@@ -906,6 +906,8 @@ export async function downloadComplianceReport(
   options?: {
     outputs?: Record<string, JobOutput>;
     targetNodeId?: string | null;
+    /** When true, PDF includes Authenticity (Compliance drawer tab visible in ⌘⇧D). */
+    includeAuthenticity?: boolean;
   },
 ): Promise<Blob> {
   const res = await fetch(`${API}/api/workflow/compliance-report`, {
@@ -915,6 +917,7 @@ export async function downloadComplianceReport(
       workflow,
       outputs: options?.outputs ?? {},
       target_node_id: options?.targetNodeId ?? null,
+      include_authenticity: options?.includeAuthenticity ?? false,
     }),
   });
   if (!res.ok) {

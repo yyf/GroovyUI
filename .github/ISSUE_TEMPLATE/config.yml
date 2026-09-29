@@ -2,4 +2,4 @@ blank_issues_enabled: true
 contact_links:
   - name: GroovyUI discussions / questions
     url: https://github.com/yyf/GroovyUI/issues/new
-    about: Prefer the Model request template when asking for a new verified catalog model.
+    about: Prefer Model, Blueprint, or Node request templates for verified catalog work (see CONTRIBUTING.md).

@@ -1,4 +1,4 @@
-# GroovyUI development tasks — see docs/internal/ENGINEERING.md
+# GroovyUI development tasks — see CONTRIBUTING.md
 
 set shell := ["bash", "-cu"]
 
