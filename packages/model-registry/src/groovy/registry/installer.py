@@ -269,6 +269,14 @@ def _verify_imports(manifest: ModelManifest, *, project_dir: Path | None = None)
     missing: list[str] = []
     for module in manifest.install.verify_imports:
         try:
+            if module == "df.enhance" or str(module).startswith("df."):
+                # DeepFilterNet needs torchaudio shims before df.io imports.
+                try:
+                    from groovy.nodes.ai.deepfilter_compat import ensure_deepfilter_importable
+
+                    ensure_deepfilter_importable()
+                except ImportError:
+                    pass
             __import__(module)
         except ImportError:
             missing.append(module)
