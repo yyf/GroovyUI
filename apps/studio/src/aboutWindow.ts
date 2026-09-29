@@ -5,8 +5,6 @@ import {
   type TemplateLicenseTone,
 } from "./templateLicenseMatrix";
 
-const STUDIO_VERSION = "0.18.0";
-
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -93,20 +91,6 @@ ${body}
   setTimeout(fit, 50);
 }
 
-export function openAboutWindow(): void {
-  const body = `
-  <h1>GroovyUI Studio</h1>
-  <p class="sub">Patch-bay for AI audio. Version ${STUDIO_VERSION}</p>
-  <p class="sub">A node-graph studio purpose-built for AI audio — patch models and operators, render with sample accuracy, and stay in the graph while you explore, compare, and share.</p>
-  <p class="sub">General-purpose graph tools spread audio across scattered custom nodes. GroovyUI fills that gap with an audio-native registry, typed signal flow, provenance, and modular-synth ergonomics in one workflow.</p>
-  <table>
-    <tr><td>Rendering</td><td>Sample-accurate offline · cached audition</td></tr>
-    <tr><td>Signals</td><td>Audio, MIDI, stems, and control</td></tr>
-    <tr><td>License</td><td>Apache 2.0 (core packages)</td></tr>
-  </table>`;
-  popupShell("GroovyUI — About", body, 520);
-}
-
 export async function openApiStatusWindow(): Promise<void> {
   let health: Record<string, unknown> = { status: "offline" };
   try {
@@ -142,7 +126,7 @@ function toneClass(tone: TemplateLicenseTone): string {
   return "tone-caution";
 }
 
-/** Settings → Template licenses (⌘D / studio dev mode) — commercial clearance overview. */
+/** Settings → Template licenses (⌘⇧D / studio dev mode) — commercial clearance overview. */
 export function openTemplateLicenseWindow(): void {
   const summary = templateLicenseSummary();
   const rows = TEMPLATE_LICENSE_MATRIX.map(

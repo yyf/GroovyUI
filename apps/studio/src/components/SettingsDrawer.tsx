@@ -409,8 +409,8 @@ export default function SettingsDrawer({
                   <p className="compliance-hint">Key saved in project settings (.groovy/, gitignored).</p>
                 ) : (
                   <p className="compliance-hint">
-                    No Claude key — Model Plan falls back to deterministic recommendations; Generate → With
-                    LLM stays locked until a key is set.
+                    No Claude key — Model Plan falls back to deterministic recommendations; Generate (⌘G)
+                    stays locked until a key is set. Bundled templates: Model Browser → Suggest workflow.
                   </p>
                 )}
                 <label className="settings-field">

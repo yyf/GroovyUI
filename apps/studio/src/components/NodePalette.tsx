@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { API, fetchNodeSchema } from "../api";
 import { DEFAULT_LOAD_AUDIO_PATH } from "../sampleDefaults";
+import { isNodeVisibleInStudio } from "../templateUi";
 
 type NodeTypeInfo = { type: string; category: string };
 
@@ -20,6 +21,8 @@ type Props = {
   onAddNode: (nodeType: string) => void;
   /** Live /api/nodes catalog from App — keeps BeatTrack etc. in sync after server restart. */
   catalog?: NodeTypeInfo[];
+  /** ⌘⇧D — show full palette; otherwise only nodes used by ISMIR demo templates. */
+  studioDevMode?: boolean;
 };
 
 const MODULAR_NODES = new Set([
@@ -169,9 +172,10 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
   },
 };
 
-export function isPaletteVisible(node: NodeTypeInfo): boolean {
+export function isPaletteVisible(node: NodeTypeInfo, studioDevMode = false): boolean {
   if (HIDDEN_FROM_PALETTE.has(node.type)) return false;
   if (node.category.includes("Immersive") || node.category.includes("Live")) return false;
+  if (!isNodeVisibleInStudio(node.type, studioDevMode)) return false;
   return true;
 }
 
@@ -232,7 +236,7 @@ function paletteGroup(node: NodeTypeInfo): GroupId {
   return "core-dsp";
 }
 
-export default function NodePalette({ onAddNode, catalog }: Props) {
+export default function NodePalette({ onAddNode, catalog, studioDevMode = false }: Props) {
   const [fetched, setFetched] = useState<NodeTypeInfo[]>([]);
   const [tier, setTier] = useState<PaletteTier>("core");
 
@@ -245,12 +249,15 @@ export default function NodePalette({ onAddNode, catalog }: Props) {
           type: n.type,
           category: n.category,
         }));
-        setFetched(list.filter(isPaletteVisible));
+        setFetched(list.filter((node) => isPaletteVisible(node, studioDevMode)));
       })
       .catch(() => setFetched([]));
-  }, [catalog]);
+  }, [catalog, studioDevMode]);
 
-  const nodes = catalog && catalog.length > 0 ? catalog.filter(isPaletteVisible) : fetched;
+  const nodes =
+    catalog && catalog.length > 0
+      ? catalog.filter((node) => isPaletteVisible(node, studioDevMode))
+      : fetched;
 
   const tierMeta = TIERS.find((item) => item.id === tier) ?? TIERS[0];
 

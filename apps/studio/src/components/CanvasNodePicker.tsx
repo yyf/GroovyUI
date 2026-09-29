@@ -8,10 +8,18 @@ type Props = {
   clientY: number;
   onClose: () => void;
   onPick: (nodeType: string, flowPos: { x: number; y: number }) => void;
+  /** ⌘⇧D — full node list; otherwise ISMIR-demo nodes only. */
+  studioDevMode?: boolean;
 };
 
 /** Right-click canvas typeahead: filter node types, Enter to drop at click. */
-export default function CanvasNodePicker({ clientX, clientY, onClose, onPick }: Props) {
+export default function CanvasNodePicker({
+  clientX,
+  clientY,
+  onClose,
+  onPick,
+  studioDevMode = false,
+}: Props) {
   const { screenToFlowPosition } = useReactFlow();
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -24,13 +32,13 @@ export default function CanvasNodePicker({ clientX, clientY, onClose, onPick }: 
       .then((r) => r.json())
       .then((d) => {
         const list = (d.nodes as Array<{ type: string; category: string }>)
-          .filter(isPaletteVisible)
+          .filter((n) => isPaletteVisible(n, studioDevMode))
           .map((n) => n.type)
           .sort((a, b) => a.localeCompare(b));
         setTypes(list);
       })
       .catch(() => setTypes([]));
-  }, []);
+  }, [studioDevMode]);
 
   useEffect(() => {
     inputRef.current?.focus();

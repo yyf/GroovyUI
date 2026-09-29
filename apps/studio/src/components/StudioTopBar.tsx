@@ -1,5 +1,4 @@
 import type { Workflow } from "../types";
-import { openAboutWindow } from "../aboutWindow";
 import StudioSettingsMenu, { type StudioSettingsMenuProps } from "./StudioSettingsMenu";
 import TemplateSelector from "./TemplateSelector";
 import WorkflowGenerateButton from "./WorkflowGenerateButton";
@@ -20,11 +19,17 @@ type Props = {
   onModelBrowser: () => void;
   onCompliance: () => void;
   onShareWorkflow: () => void;
+  onAbout: () => void;
   workflowBarOpen: boolean;
   onToggleWorkflowBar: () => void;
   settings: Omit<
     StudioSettingsMenuProps,
-    "onModelBrowser" | "onCompliance" | "complianceWarnings" | "workflowBarOpen" | "onToggleWorkflowBar"
+    | "onModelBrowser"
+    | "onCompliance"
+    | "complianceWarnings"
+    | "workflowBarOpen"
+    | "onToggleWorkflowBar"
+    | "onAbout"
   >;
 };
 
@@ -42,6 +47,7 @@ export default function StudioTopBar({
   onModelBrowser,
   onCompliance,
   onShareWorkflow,
+  onAbout,
   workflowBarOpen,
   onToggleWorkflowBar,
   settings,
@@ -53,7 +59,7 @@ export default function StudioTopBar({
       <button
         type="button"
         className="top-bar__brand"
-        onClick={() => openAboutWindow()}
+        onClick={onAbout}
         title="About GroovyUI"
         aria-label="About GroovyUI"
       >
@@ -132,6 +138,7 @@ export default function StudioTopBar({
         studioDevMode={studioDevMode}
         workflowBarOpen={workflowBarOpen}
         onToggleWorkflowBar={onToggleWorkflowBar}
+        onAbout={onAbout}
       />
     </header>
   );

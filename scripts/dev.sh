@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-shot local launch: API (:8188) + Vite studio (:5173) + open browser.
+# One-shot local launch: API (:8188) + Vite studio (:5173) + one browser tab.
 # Usage (from repo root, after install): ./scripts/dev.sh
 set -euo pipefail
 
@@ -23,6 +23,28 @@ cleanup() {
   wait 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
+
+port_busy() {
+  local port="$1"
+  command -v lsof >/dev/null 2>&1 || return 1
+  lsof -nP -iTCP:"${port}" -sTCP:LISTEN >/dev/null 2>&1
+}
+
+open_studio_once() {
+  # Exactly one browser open for this process.
+  if [[ "${GROOVY_NO_BROWSER:-}" == "1" ]]; then
+    echo "Browser open skipped (GROOVY_NO_BROWSER=1). Go to ${STUDIO_URL}"
+    return
+  fi
+  if command -v open >/dev/null 2>&1; then
+    # macOS: open the URL once (do not also let Vite/npm open).
+    open "${STUDIO_URL}"
+  elif command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "${STUDIO_URL}" >/dev/null 2>&1 || true
+  else
+    echo "Open ${STUDIO_URL} in your browser."
+  fi
+}
 
 if ! command -v uv >/dev/null 2>&1; then
   echo "uv not found. Install: https://docs.astral.sh/uv/" >&2
@@ -50,12 +72,15 @@ if [[ ! -d apps/studio/node_modules ]] && ! command -v pnpm >/dev/null 2>&1; the
   exit 1
 fi
 
-if command -v lsof >/dev/null 2>&1; then
-  if lsof -nP -iTCP:"${API_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "Port ${API_PORT} is already in use." >&2
-    echo "Quit the other GroovyUI/API process (lsof -nP -iTCP:${API_PORT} -sTCP:LISTEN), then retry." >&2
-    exit 1
-  fi
+if port_busy "${API_PORT}"; then
+  echo "Port ${API_PORT} is already in use." >&2
+  echo "Quit the other GroovyUI/API process (lsof -nP -iTCP:${API_PORT} -sTCP:LISTEN), then retry." >&2
+  exit 1
+fi
+if port_busy 5173; then
+  echo "Port 5173 is already in use (studio)." >&2
+  echo "Quit the other Vite/studio process (lsof -nP -iTCP:5173 -sTCP:LISTEN), then retry." >&2
+  exit 1
 fi
 
 echo "Starting API  http://${API_HOST}:${API_PORT}"
@@ -63,11 +88,13 @@ uv run --package groovy-server groovy-server &
 API_PID=$!
 
 echo "Starting studio ${STUDIO_URL}"
+# BROWSER=none stops Vite's open helper; never pass CLI --open (even "--open false" opens a tab).
+# server.open is false in apps/studio/vite.config.ts.
 if [[ -d apps/studio/node_modules ]]; then
-  (cd apps/studio && npm run dev -- --host 127.0.0.1 --port 5173) &
+  (cd apps/studio && BROWSER=none npm run dev -- --host 127.0.0.1 --port 5173 --strictPort) &
   STUDIO_PID=$!
 else
-  pnpm dev:studio &
+  (cd apps/studio && BROWSER=none pnpm exec vite --host 127.0.0.1 --port 5173 --strictPort) &
   STUDIO_PID=$!
 fi
 
@@ -97,18 +124,22 @@ for _ in $(seq 1 80); do
     echo " — ready"
     break
   fi
+  if ! kill -0 "${STUDIO_PID}" 2>/dev/null; then
+    echo
+    echo "Studio exited early. Check the log above." >&2
+    exit 1
+  fi
   echo -n "."
   sleep 0.25
 done
+if ! curl -sf "${STUDIO_URL}" >/dev/null 2>&1; then
+  echo
+  echo "Studio did not become ready at ${STUDIO_URL}" >&2
+  exit 1
+fi
 
 echo "Opening ${STUDIO_URL}"
-if [[ "${GROOVY_NO_BROWSER:-}" != "1" ]]; then
-  if command -v open >/dev/null 2>&1; then
-    open "${STUDIO_URL}"
-  elif command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "${STUDIO_URL}" >/dev/null 2>&1 || true
-  fi
-fi
+open_studio_once
 
 echo "GroovyUI running. Ctrl+C stops API + studio."
 wait

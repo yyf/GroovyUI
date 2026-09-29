@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   domainIdForTemplate,
   groupBundledTemplatesByDomain,
+  isNodeVisibleInStudio,
+  STANDARD_MODE_NODE_TYPES,
   templatesVisibleInUi,
 } from "./templateUi";
 import type { TemplateListItem } from "./api";
@@ -61,7 +63,7 @@ describe("templatesVisibleInUi", () => {
     ]);
   });
 
-  it("keeps Immersive templates off the standard picker (⌘D only)", () => {
+  it("keeps Immersive templates off the standard picker (⌘⇧D only)", () => {
     const withImmersive = [
       ...allBundled,
       bundled("stereo-to-binaural"),
@@ -258,5 +260,20 @@ describe("groupBundledTemplatesByDomain", () => {
 
   it("places prompt-modular-synth in Modular", () => {
     expect(domainIdForTemplate("prompt-modular-synth")).toBe("modular");
+  });
+});
+
+describe("isNodeVisibleInStudio", () => {
+  it("limits standard mode to ISMIR demo template nodes", () => {
+    expect(isNodeVisibleInStudio("Denoise")).toBe(true);
+    expect(isNodeVisibleInStudio("LoadAudio")).toBe(true);
+    expect(isNodeVisibleInStudio("Mix")).toBe(false);
+    expect(isNodeVisibleInStudio("GenerateAudio")).toBe(false);
+    expect(STANDARD_MODE_NODE_TYPES).toContain("TTS");
+  });
+
+  it("shows all node types in studio dev mode", () => {
+    expect(isNodeVisibleInStudio("Mix", true)).toBe(true);
+    expect(isNodeVisibleInStudio("GenerateAudio", true)).toBe(true);
   });
 });

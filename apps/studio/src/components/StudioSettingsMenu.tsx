@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  openAboutWindow,
-  openApiStatusWindow,
-  openTemplateLicenseWindow,
-} from "../aboutWindow";
+import { openApiStatusWindow, openTemplateLicenseWindow } from "../aboutWindow";
 
 export type StudioSettingsMenuProps = {
   groupCollapsed: boolean | null;
   paletteOpen: boolean;
   helperOpen: boolean;
   workflowBarOpen: boolean;
-  /** ⌘D studio dev mode — reveals template license matrix (not for OSS alpha UX). */
+  /** ⌘⇧D studio dev mode — reveals template license matrix (not for OSS alpha UX). */
   studioDevMode?: boolean;
   onImportWorkflow: (file: File) => void;
   onSaveAsTemplate: () => void;
@@ -19,6 +15,7 @@ export type StudioSettingsMenuProps = {
   onToggleHelper: () => void;
   onToggleWorkflowBar: () => void;
   onOpenStudioSettings: () => void;
+  onAbout: () => void;
 };
 
 export default function StudioSettingsMenu({
@@ -34,6 +31,7 @@ export default function StudioSettingsMenu({
   onToggleHelper,
   onToggleWorkflowBar,
   onOpenStudioSettings,
+  onAbout,
 }: StudioSettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -133,7 +131,7 @@ export default function StudioSettingsMenu({
             {studioDevMode
               ? item("Template licenses…", () => openTemplateLicenseWindow())
               : null}
-            {item("About GroovyUI", () => openAboutWindow())}
+            {item("About GroovyUI", onAbout)}
             {item("API status", () => void openApiStatusWindow())}
           </div>
         </div>

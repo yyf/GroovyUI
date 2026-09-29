@@ -16,8 +16,6 @@ type Suggestion = {
   unknown_node_types?: string[];
 };
 
-type GeneratePath = "llm" | "templates";
-
 type Props = {
   onApply: (workflow: Workflow) => void;
   onTaskStart?: () => void;
@@ -29,6 +27,7 @@ function isEnterKey(event: { key: string; code?: string }): boolean {
   return event.key === "Enter" || event.code === "Enter" || event.code === "NumpadEnter";
 }
 
+/** ⌘G — LLM graph drafts only. Template match lives in Model Browser → Suggest workflow. */
 export default function WorkflowGenerateButton({
   onApply,
   onTaskStart,
@@ -39,12 +38,7 @@ export default function WorkflowGenerateButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<string | null>(null);
-  const [resultMode, setResultMode] = useState<"llm" | "templates" | null>(null);
-  const [fallbackReason, setFallbackReason] = useState<string | null>(null);
   const [claudeAvailable, setClaudeAvailable] = useState(false);
-  /** Explicit user choice — never inferred from key alone at submit time. */
-  const [generatePath, setGeneratePath] = useState<GeneratePath>("templates");
-  const [pathInitialized, setPathInitialized] = useState(false);
   const [llmModel, setLlmModel] = useState<PlanLlmModelId>(PLAN_LLM_OPTIONS[0].id);
   const [results, setResults] = useState<Suggestion[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -55,33 +49,24 @@ export default function WorkflowGenerateButton({
   promptRef.current = prompt;
   loadingRef.current = loading;
 
-  const useLlm = generatePath === "llm";
   const selected = useMemo(
     () => results.find((item) => item.template_id === selectedId) ?? results[0] ?? null,
     [results, selectedId],
   );
   const selectedUnknown = selected?.unknown_node_types ?? [];
-  const applyLocked = resultMode === "llm" && selectedUnknown.length > 0;
+  const applyLocked = selectedUnknown.length > 0;
   const hasDraft = results.length > 0 && !loading;
-  const llmBlocked = useLlm && !claudeAvailable;
+  const llmBlocked = !claudeAvailable;
 
   const resetDraft = () => {
     setResults([]);
     setSelectedId(null);
     setError(null);
     setNotes(null);
-    setResultMode(null);
-    setFallbackReason(null);
   };
 
   const close = () => {
     setOpen(false);
-  };
-
-  const choosePath = (path: GeneratePath) => {
-    if (path === generatePath) return;
-    setGeneratePath(path);
-    resetDraft();
   };
 
   useEffect(() => {
@@ -92,25 +77,6 @@ export default function WorkflowGenerateButton({
       queueMicrotask(() => inputRef.current?.focus());
     }
   }, [openNonce]);
-
-  useEffect(() => {
-    void fetchStudioSettings()
-      .then((settings) => {
-        const keyed = Boolean(settings.anthropic_api_key_set);
-        setClaudeAvailable(keyed);
-        if (!pathInitialized) {
-          setGeneratePath(keyed ? "llm" : "templates");
-          setPathInitialized(true);
-        }
-      })
-      .catch(() => {
-        setClaudeAvailable(false);
-        if (!pathInitialized) {
-          setGeneratePath("templates");
-          setPathInitialized(true);
-        }
-      });
-  }, [pathInitialized]);
 
   useEffect(() => {
     if (!open) return;
@@ -138,9 +104,9 @@ export default function WorkflowGenerateButton({
   const handleGenerate = async (rawText?: string) => {
     const text = (rawText ?? promptRef.current).trim();
     if (!text || loadingRef.current) return;
-    if (useLlm && !claudeAvailable) {
+    if (!claudeAvailable) {
       setError(
-        "LLM path needs a Claude key — set ANTHROPIC_API_KEY or Settings → Plan / Claude, or switch to Templates.",
+        "Generate needs a Claude key — set ANTHROPIC_API_KEY or Settings → Plan / Claude. For bundled templates, use Model Browser → Suggest workflow.",
       );
       return;
     }
@@ -148,25 +114,23 @@ export default function WorkflowGenerateButton({
     setLoading(true);
     setError(null);
     setNotes(null);
-    setResultMode(null);
-    setFallbackReason(null);
     setResults([]);
     try {
       const data = await suggestWorkflows(text, {
-        prefer_llm: useLlm,
-        llm_model: useLlm ? llmModel : undefined,
+        prefer_llm: true,
+        llm_model: llmModel,
       });
-      const mode = data.mode === "llm" || data.source === "llm" ? "llm" : "templates";
-      setResultMode(mode);
-      setFallbackReason(data.fallback_reason ?? null);
       if (data.notes) setNotes(data.notes);
-      const nextResults = data.results ?? [];
-      setResults(nextResults);
-      if (nextResults.length === 0) {
+      // Template fallback belongs in Model Browser → Suggest workflow — never show it here.
+      const fromLlm =
+        data.mode === "llm" || data.source === "llm"
+          ? (data.results ?? [])
+          : (data.results ?? []).filter((item) => item.source === "llm");
+      setResults(fromLlm);
+      if (fromLlm.length === 0) {
+        const fallback = data.fallback_reason ? ` (${data.fallback_reason})` : "";
         setError(
-          useLlm
-            ? "Claude returned no graph drafts — try another prompt."
-            : "No matching templates — try describing your audio task.",
+          `Claude returned no graph drafts${fallback}. Try another prompt, or use Model Browser → Suggest workflow for bundled templates.`,
         );
       }
     } catch (err) {
@@ -184,14 +148,6 @@ export default function WorkflowGenerateButton({
     close();
   };
 
-  const submitLabel = loading
-    ? useLlm
-      ? "Drafting…"
-      : "Matching…"
-    : useLlm
-      ? "Draft with LLM"
-      : "Match templates";
-
   const stage = open
     ? createPortal(
         <div className="generate-stage" role="dialog" aria-modal="true" aria-label="Generate workflow">
@@ -200,77 +156,44 @@ export default function WorkflowGenerateButton({
             <header className="generate-stage__header">
               <div className="generate-stage__brand">
                 <span className="generate-stage__eyebrow">Generate</span>
-                <strong className="generate-stage__title">
-                  {useLlm ? "Draft a patch blueprint" : "Match a bundled template"}
-                </strong>
+                <strong className="generate-stage__title">Draft a patch blueprint with LLM</strong>
               </div>
               <button type="button" className="generate-stage__close" onClick={close} aria-label="Close">
                 Esc
               </button>
             </header>
 
-            <div className="generate-stage__path" role="radiogroup" aria-label="Generate path">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={useLlm}
-                className={`generate-stage__path-btn${useLlm ? " generate-stage__path-btn--active" : ""}`}
-                disabled={loading}
-                onClick={() => choosePath("llm")}
-              >
-                <strong>With LLM</strong>
-                <span>Claude drafts a new blueprint (BYOK)</span>
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={!useLlm}
-                className={`generate-stage__path-btn${!useLlm ? " generate-stage__path-btn--active" : ""}`}
-                disabled={loading}
-                onClick={() => choosePath("templates")}
-              >
-                <strong>Without LLM</strong>
-                <span>Deterministic match of bundled templates</span>
-              </button>
-            </div>
-
             <div className="generate-stage__composer">
-              {useLlm ? (
-                <div className="generate-stage__models" role="radiogroup" aria-label="Claude model">
-                  {PLAN_LLM_OPTIONS.map((option) => {
-                    const active = llmModel === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        className={`generate-stage__model${active ? " generate-stage__model--active" : ""}`}
-                        title={option.description}
-                        disabled={loading || !claudeAvailable}
-                        onClick={() => setLlmModel(option.id)}
-                      >
-                        {option.label.replace(/^Claude\s+/, "")}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
+              <div className="generate-stage__models" role="radiogroup" aria-label="Claude model">
+                {PLAN_LLM_OPTIONS.map((option) => {
+                  const active = llmModel === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={`generate-stage__model${active ? " generate-stage__model--active" : ""}`}
+                      title={option.description}
+                      disabled={loading || !claudeAvailable}
+                      onClick={() => setLlmModel(option.id)}
+                    >
+                      {option.label.replace(/^Claude\s+/, "")}
+                    </button>
+                  );
+                })}
+              </div>
               {llmBlocked ? (
                 <p className="generate-stage__key-hint">
-                  No Claude key detected. Add <code>ANTHROPIC_API_KEY</code> or Settings → Plan / Claude, or choose{" "}
-                  <strong>Without LLM</strong>.
+                  No Claude key detected. Add <code>ANTHROPIC_API_KEY</code> or Settings → Plan / Claude.
+                  For bundled templates, open Model Browser → <strong>Suggest workflow</strong>.
                 </p>
               ) : null}
               <textarea
                 ref={inputRef}
                 className="generate-stage__input"
                 rows={2}
-                placeholder={
-                  useLlm
-                    ? "Describe the patch outcome — e.g. modular drone with granular texture"
-                    : "Describe your audio task — e.g. denoise podcast then normalize"
-                }
+                placeholder="Describe the patch outcome — e.g. modular drone with granular texture"
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 onKeyDown={(event) => {
@@ -283,7 +206,7 @@ export default function WorkflowGenerateButton({
               />
               <div className="generate-stage__composer-actions">
                 <span className="generate-stage__hint">
-                  <kbd>Enter</kbd> {useLlm ? "draft" : "match"} · <kbd>⇧Enter</kbd> newline
+                  <kbd>Enter</kbd> draft · <kbd>⇧Enter</kbd> newline
                 </span>
                 <div className="generate-stage__composer-buttons">
                   {hasDraft ? (
@@ -297,7 +220,7 @@ export default function WorkflowGenerateButton({
                     disabled={loading || !prompt.trim() || llmBlocked}
                     onClick={() => void handleGenerate()}
                   >
-                    {submitLabel}
+                    {loading ? "Drafting…" : "Draft with LLM"}
                   </button>
                 </div>
               </div>
@@ -309,13 +232,13 @@ export default function WorkflowGenerateButton({
             {loading ? (
               <div className="generate-stage__waiting">
                 <p>
-                  {useLlm ? "Waiting for Claude…" : "Matching templates…"}
+                  Waiting for Claude…
                   <span>{prompt.trim()}</span>
                 </p>
               </div>
             ) : null}
 
-            {!loading && resultMode === "llm" && selected?.workflow ? (
+            {!loading && selected?.workflow ? (
               <div className="generate-stage__review">
                 {results.length > 1 ? (
                   <aside className="generate-stage__rail" aria-label="Blueprint options">
@@ -366,41 +289,11 @@ export default function WorkflowGenerateButton({
               </div>
             ) : null}
 
-            {!loading && resultMode === "templates" && results.length > 0 ? (
-              <ul className="generate-stage__templates">
-                {fallbackReason && useLlm ? (
-                  <li className="generate-stage__templates-note">
-                    Claude returned no drafts ({fallbackReason}) — showing template matches. Switch to{" "}
-                    <strong>Without LLM</strong> for intentional template search.
-                  </li>
-                ) : null}
-                {results.map((item) => (
-                  <li key={item.template_id}>
-                    <button
-                      type="button"
-                      className="generate-stage__template"
-                      onClick={() => {
-                        onApply(item.workflow);
-                        setPrompt("");
-                        resetDraft();
-                        close();
-                      }}
-                    >
-                      <strong>{item.title}</strong>
-                      <span>{item.rationale}</span>
-                      <em>Apply &amp; review compliance →</em>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
             {!loading && !hasDraft && !error ? (
               <div className="generate-stage__empty">
                 <p>
-                  {useLlm
-                    ? "LLM drafts stay off-canvas until you Apply. Unavailable nodes stay visible for snapshot export — no silent template swap when Claude returns a graph."
-                    : "Without LLM matches bundled templates only — same prompt always yields the same ranking."}
+                  LLM drafts stay off-canvas until you Apply. For bundled template match, use Model Browser →
+                  Suggest workflow.
                 </p>
               </div>
             ) : null}
@@ -419,7 +312,7 @@ export default function WorkflowGenerateButton({
           if (!open) event.preventDefault();
         }}
         onClick={() => setOpen((prev) => !prev)}
-        title="Generate a workflow — choose LLM or templates (⌘G / Ctrl+G)"
+        title="Generate a workflow with LLM (⌘G / Ctrl+G). Templates: Model Browser → Suggest workflow."
         aria-keyshortcuts="Meta+G Control+G"
         aria-expanded={open}
       >

@@ -39,6 +39,7 @@ import {
   paramDefault,
   resolveInferenceParams,
 } from "../modelNodeWidgets";
+import AboutPanel from "./AboutPanel";
 import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
 import TrajectoryPanel, { TrajectoryAuthorPad } from "./TrajectoryPanel";
@@ -95,6 +96,8 @@ type Props = {
   onOpenCompliance?: () => void;
   renderIssue?: string | null;
   renderIssueDetail?: string | null;
+  /** When true, show About in the Inspector instead of node/empty state. */
+  showAbout?: boolean;
 };
 
 export default function NodeHelper({
@@ -124,6 +127,7 @@ export default function NodeHelper({
   onOpenCompliance,
   renderIssue,
   renderIssueDetail,
+  showAbout = false,
 }: Props) {
   const [tab, setTab] = useState<Tab>("config");
   const [schema, setSchema] = useState<NodeSchema | null>(null);
@@ -261,6 +265,10 @@ export default function NodeHelper({
     const widgetNames = new Set(schema.widgets.map((widget) => widget.name));
     return modelParams.filter((param) => !widgetNames.has(param.name));
   }, [modelParams, schema, selectedModelId]);
+
+  if (showAbout) {
+    return <AboutPanel />;
+  }
 
   if (showCompare) {
     return (

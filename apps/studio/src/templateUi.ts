@@ -2,7 +2,7 @@ import type { TemplateListItem } from "./api";
 
 /**
  * Bundled templates shown in standard (demo) mode — ISMIR 2026 LBD hero set.
- * Toggle studio dev mode (⌘D) to reveal the full featured picker list.
+ * Toggle studio dev mode (⌘⇧D) to reveal the full featured picker list and full node palette.
  */
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "hello-groovy",
@@ -142,13 +142,42 @@ const standardBundledIds = new Set<string>(STANDARD_BUNDLED_TEMPLATE_IDS);
 const featuredBundledIds = new Set<string>(FEATURED_BUNDLED_TEMPLATE_IDS);
 const pickerHiddenBundledIds = new Set<string>(PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS);
 
+/**
+ * Node types used by {@link STANDARD_BUNDLED_TEMPLATE_IDS} graphs.
+ * Standard mode (non-⌘⇧D) palette / canvas picker only lists these.
+ * Keep in sync when ISMIR demo templates change.
+ */
+export const STANDARD_MODE_NODE_TYPES = [
+  "AutomationApply",
+  "ControlCurve",
+  "Denoise",
+  "Granulate",
+  "LoadAudio",
+  "Normalize",
+  "Note",
+  "Preview",
+  "Prompt",
+  "SaveAudio",
+  "SeparateStems",
+  "TTS",
+  "WhisperSTT",
+] as const;
+
+const standardModeNodeTypes = new Set<string>(STANDARD_MODE_NODE_TYPES);
+
+/** Standard mode: only nodes used by the ISMIR demo templates. Dev mode (⌘⇧D): all palette-eligible. */
+export function isNodeVisibleInStudio(nodeType: string, studioDevMode = false): boolean {
+  if (studioDevMode) return true;
+  return standardModeNodeTypes.has(nodeType);
+}
+
 export function domainIdForTemplate(templateId: string): TemplateDomainId {
   return TEMPLATE_DOMAIN_BY_ID[templateId] ?? "other";
 }
 
 /**
  * Hide non-featured bundled templates from the studio UI; user templates always show.
- * Standard mode: ISMIR demo set only (Immersive not included). Studio dev mode (⌘D): full featured list.
+ * Standard mode: ISMIR demo set only (Immersive not included). Studio dev mode (⌘⇧D): full featured list.
  */
 export function templatesVisibleInUi(
   templates: TemplateListItem[],
