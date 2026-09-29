@@ -3,6 +3,10 @@ workspace/
 .groovy/
 .secrets/
 docs/internal/
+node_modules/
+apps/studio/dist/
+.DS_Store
+.cursor/
 *.wav
 *.mp3
 *.mp4

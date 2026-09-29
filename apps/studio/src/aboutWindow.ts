@@ -1,4 +1,3 @@
-import { API } from "./api";
 import {
   TEMPLATE_LICENSE_MATRIX,
   templateLicenseSummary,
@@ -89,35 +88,6 @@ ${body}
   };
   popup.requestAnimationFrame(() => fit());
   setTimeout(fit, 50);
-}
-
-export async function openApiStatusWindow(): Promise<void> {
-  let health: Record<string, unknown> = { status: "offline" };
-  try {
-    const res = await fetch(`${API}/api/health`);
-    if (res.ok) health = await res.json();
-  } catch {
-    /* offline */
-  }
-
-  const status = escapeHtml(String(health.status ?? "offline"));
-  const version = escapeHtml(String(health.groovy_version ?? "unknown"));
-  const api = escapeHtml(API);
-  const features = Object.entries(health)
-    .filter(([key]) => !["status", "groovy_version"].includes(key))
-    .map(([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(String(value))}</td></tr>`)
-    .join("");
-
-  const body = `
-  <h1>API status</h1>
-  <p class="sub">Live connection to the GroovyUI backend.</p>
-  <table>
-    <tr><td>Endpoint</td><td>${api}</td></tr>
-    <tr><td>Status</td><td class="${status === "ok" ? "ok" : "bad"}">${status}</td></tr>
-    <tr><td>Version</td><td>${version}</td></tr>
-    ${features}
-  </table>`;
-  popupShell("GroovyUI — API status", body, 380);
 }
 
 function toneClass(tone: TemplateLicenseTone): string {

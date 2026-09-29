@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  API,
   clearActivationDiagnostics,
   clearInstalledModels,
   clearRenderCache,
@@ -16,11 +15,10 @@ import {
   type StudioSettings,
 } from "../api";
 import { buildCleanMachineReport } from "../cleanMachineReport";
+import { displayProjectPath } from "../displayProjectPath";
 import type { ActivationDiagnosticsSummary, C2paStatus } from "../types";
 
 type Props = {
-  open: boolean;
-  onClose: () => void;
   onSettingsChange?: (settings: StudioSettings) => void;
   onForceRebuildNext?: () => void;
 };
@@ -75,9 +73,8 @@ function stageDuration(
   return end.elapsed_ms - start.elapsed_ms;
 }
 
+/** Studio settings for the Inspector (same surface as About / API status). */
 export default function SettingsDrawer({
-  open,
-  onClose,
   onSettingsChange,
   onForceRebuildNext,
 }: Props) {
@@ -139,18 +136,8 @@ export default function SettingsDrawer({
   }, [onSettingsChange, refreshInstalledModels]);
 
   useEffect(() => {
-    if (!open) return;
     void refresh();
-  }, [open, refresh]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [refresh]);
 
   const saveStudio = async (patch: {
     hf_token?: string | null;
@@ -270,8 +257,6 @@ export default function SettingsDrawer({
     }
   };
 
-  if (!open) return null;
-
   const envLocksMode = studioSettings?.inference_effective_source === "environment";
   const envLocksCredentials =
     studioSettings?.content_credentials_effective_source === "environment";
@@ -294,15 +279,11 @@ export default function SettingsDrawer({
   );
 
   return (
-    <div className="compliance-backdrop" onClick={onClose}>
-      <aside className="compliance-drawer settings-drawer" onClick={(e) => e.stopPropagation()}>
-        <header>
-          <h2>Settings</h2>
-          <button type="button" onClick={onClose}>
-            Close
-          </button>
-        </header>
-        <div className="compliance-body">
+    <aside className="node-helper node-helper--about node-helper--settings" aria-label="Studio settings">
+      <header className="node-helper__header">
+        <h2>Studio settings</h2>
+      </header>
+      <div className="node-helper__scroll settings-panel__scroll">
           {loading && !studioSettings ? <p className="compliance-hint">Loading settings…</p> : null}
           {!loading && !studioSettings ? (
             <div className="settings-error">
@@ -446,7 +427,12 @@ export default function SettingsDrawer({
                 <h4 className="settings-subsection-title">Installed models</h4>
                 <p className="compliance-hint">
                   Local weight files under{" "}
-                  <code>{modelsDir ?? `${studioSettings.project_dir}/.groovy/models`}</code>
+                  <code>
+                    {displayProjectPath(
+                      modelsDir ?? `${studioSettings.project_dir}/.groovy/models`,
+                      studioSettings.project_dir,
+                    )}
+                  </code>
                   {modelsUsedMb != null ? (
                     <>
                       {" "}
@@ -670,7 +656,10 @@ export default function SettingsDrawer({
                     Local trace
                     <div className="settings-path-row">
                       <code className="settings-path">
-                        {activationDiagnostics.path}
+                        {displayProjectPath(
+                          activationDiagnostics.path,
+                          studioSettings.project_dir,
+                        )}
                       </code>
                       <button
                         type="button"
@@ -708,7 +697,15 @@ export default function SettingsDrawer({
                     disabled={!activationDiagnostics?.latest_session && !capabilities}
                     onClick={() => {
                       const report = buildCleanMachineReport({
-                        diagnostics: activationDiagnostics,
+                        diagnostics: activationDiagnostics
+                          ? {
+                              ...activationDiagnostics,
+                              path: displayProjectPath(
+                                activationDiagnostics.path,
+                                studioSettings.project_dir,
+                              ),
+                            }
+                          : null,
                         capabilities,
                       });
                       void copyText(JSON.stringify(report, null, 2)).then((ok) =>
@@ -739,7 +736,12 @@ export default function SettingsDrawer({
                 <label className="settings-field">
                   Project
                   <div className="settings-path-row">
-                    <code className="settings-path">{studioSettings.project_dir}</code>
+                    <code className="settings-path">
+                      {displayProjectPath(
+                        studioSettings.project_dir,
+                        studioSettings.project_dir,
+                      )}
+                    </code>
                     <button
                       type="button"
                       onClick={() =>
@@ -755,7 +757,12 @@ export default function SettingsDrawer({
                 <label className="settings-field">
                   Render cache
                   <div className="settings-path-row">
-                    <code className="settings-path">{studioSettings.cache_dir}</code>
+                    <code className="settings-path">
+                      {displayProjectPath(
+                        studioSettings.cache_dir,
+                        studioSettings.project_dir,
+                      )}
+                    </code>
                     <button
                       type="button"
                       onClick={() =>
@@ -791,12 +798,6 @@ export default function SettingsDrawer({
                   <button type="button" onClick={() => void handleClearCache()}>
                     Clear render cache
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => window.open(`${API}${studioSettings.nodes_schema_url}`, "_blank")}
-                  >
-                    Open node schema
-                  </button>
                 </div>
               </section>
             </>
@@ -816,8 +817,7 @@ export default function SettingsDrawer({
               {status}
             </p>
           ) : null}
-        </div>
-      </aside>
-    </div>
+      </div>
+    </aside>
   );
 }

@@ -23,6 +23,7 @@ def build_compliance_report(
     *,
     provenance: dict[str, Any] | None = None,
     authenticity: dict[str, Any] | None = None,
+    include_authenticity: bool = True,
 ) -> dict[str, Any]:
     license_scan = scan_workflow_licenses(workflow, registry)
     return {
@@ -31,7 +32,8 @@ def build_compliance_report(
         "workflow_title": license_scan.get("workflow_title") or workflow.id,
         "license": license_scan,
         "provenance": provenance,
-        "authenticity": authenticity,
+        "include_authenticity": include_authenticity,
+        "authenticity": authenticity if include_authenticity else None,
         "summary": {
             "commercial_ok": license_scan.get("commercial_ok", True),
             "scan_ok": license_scan.get("scan_ok", True),
@@ -118,30 +120,31 @@ def render_compliance_pdf(report: dict[str, Any]) -> bytes:
         pdf.body_text("No render outputs supplied. Run the workflow to include provenance lineage.")
 
     authenticity = report.get("authenticity")
-    if authenticity:
-        pdf.section_title("Authenticity")
-        overall = authenticity.get("overall") or {}
-        pdf.body_text(f"Label: {overall.get('label', 'unknown')}")
-        if overall.get("confidence") is not None:
-            pdf.body_text(f"Confidence: {round(float(overall['confidence']) * 100)}%")
-        if overall.get("summary"):
-            pdf.body_text(str(overall["summary"]))
-        prov_check = authenticity.get("provenance_check")
-        if prov_check:
-            pdf.body_text(
-                f"Provenance check: {prov_check.get('status')} "
-                f"(sidecar {'found' if prov_check.get('sidecar_found') else 'missing'})"
-            )
-        ml_det = authenticity.get("ml_detection")
-        if ml_det:
-            pdf.body_text(
-                f"ML detection ({ml_det.get('model_id')}): "
-                f"spoof {round(float(ml_det.get('spoof_score', 0)) * 100)}%"
-            )
-        pdf.body_text("Indicators only — not legal proof.")
-    else:
-        pdf.section_title("Authenticity")
-        pdf.body_text("No authenticity report available for this workflow.")
+    if report.get("include_authenticity", True):
+        if authenticity:
+            pdf.section_title("Authenticity")
+            overall = authenticity.get("overall") or {}
+            pdf.body_text(f"Label: {overall.get('label', 'unknown')}")
+            if overall.get("confidence") is not None:
+                pdf.body_text(f"Confidence: {round(float(overall['confidence']) * 100)}%")
+            if overall.get("summary"):
+                pdf.body_text(str(overall["summary"]))
+            prov_check = authenticity.get("provenance_check")
+            if prov_check:
+                pdf.body_text(
+                    f"Provenance check: {prov_check.get('status')} "
+                    f"(sidecar {'found' if prov_check.get('sidecar_found') else 'missing'})"
+                )
+            ml_det = authenticity.get("ml_detection")
+            if ml_det:
+                pdf.body_text(
+                    f"ML detection ({ml_det.get('model_id')}): "
+                    f"spoof {round(float(ml_det.get('spoof_score', 0)) * 100)}%"
+                )
+            pdf.body_text("Indicators only — not legal proof.")
+        else:
+            pdf.section_title("Authenticity")
+            pdf.body_text("No authenticity report available for this workflow.")
 
     pdf.section_title("Disclaimer")
     pdf.body_text(_DISCLAIMER)

@@ -65,6 +65,8 @@ Published, installable (`dev_stub: false`) entries must satisfy `tests/test_seed
 | Label | Use |
 |-------|-----|
 | `model-request` | Inbox — auto on template |
+| `blueprint-request` | Generate blueprint / template inbox |
+| `node-request` | Missing node type inbox |
 | `needs-triage` | Waiting on maintainer |
 | `agent-ok` | Optional: you intend to implement locally |
 | `wontfix` / `duplicate` | Close reasons |

@@ -351,7 +351,14 @@ def build_template_spec(template_path: Path) -> TemplateIntegritySpec:
 
 def all_template_specs() -> tuple[TemplateIntegritySpec, ...]:
     paths = sorted(_templates_dir().glob("*.groovy.json"))
-    return tuple(build_template_spec(path) for path in paths)
+    specs: list[TemplateIntegritySpec] = []
+    for path in paths:
+        workflow = Workflow.model_validate(json.loads(path.read_text()))
+        # Blank starter templates have no graph to audit (L1–L3).
+        if not workflow.nodes:
+            continue
+        specs.append(build_template_spec(path))
+    return tuple(specs)
 
 
 # v1 subset retained for docs / quick CI slice

@@ -1282,6 +1282,13 @@ body {
   color: #d4c4a0;
 }
 
+.generate-stage__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .generate-stage__templates {
   list-style: none;
   margin: 0;
@@ -1376,7 +1383,8 @@ body {
 }
 
 .side-panel--right.side-panel--open.side-panel--wide {
-  /* Room for inputs | model | outputs without crushing the subgraph canvas */
+  /* Room for inputs | model | outputs without crushing the subgraph canvas;
+     Studio settings also opens wide for readable copy. */
   flex: 0 0 min(540px, 46vw);
 }
 
@@ -1920,6 +1928,31 @@ body {
   border-bottom: 1px solid var(--border-dim);
 }
 
+.node-helper--about .node-helper__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.node-helper__header-action {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-silver);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.node-helper__header-action:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+}
+
 .node-helper__header h2 {
   margin: 0;
   font-size: 15px;
@@ -1928,6 +1961,113 @@ body {
 .node-helper__id {
   font-size: 11px;
   color: #6b7280;
+}
+
+.api-status-panel__code {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.api-status-panel__ok {
+  color: var(--text-primary);
+}
+
+.api-status-panel__bad {
+  color: #d4c4a0;
+}
+
+.api-status-panel__hint code {
+  font-size: 11px;
+}
+
+.settings-panel__scroll {
+  padding: 14px 16px 24px;
+}
+
+.node-helper--settings .settings-section:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+/* Match About / API status type scale inside the Inspector. */
+.node-helper--settings .settings-section {
+  margin-top: 22px;
+  padding-top: 16px;
+}
+
+.node-helper--settings .settings-section h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.node-helper--settings .compliance-hint {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.node-helper--settings .compliance-hint code {
+  font-size: 11px;
+}
+
+.node-helper--settings .settings-field {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.node-helper--settings .settings-subsection-title {
+  margin: 18px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.node-helper--settings .settings-mode-toggle__btn {
+  font-size: 12px;
+  height: 28px;
+}
+
+.node-helper--settings .settings-installed-name {
+  font-size: 12px;
+}
+
+.node-helper--settings .settings-installed-detail,
+.node-helper--settings .settings-path,
+.node-helper--settings .settings-diagnostic-summary {
+  font-size: 11px;
+}
+
+.node-helper--settings .model-card__actions button {
+  font-size: 12px;
+}
+
+/* Long health keys (e.g. inference_stub_active) overflow the About 88px label column. */
+.api-status-panel__row {
+  grid-template-columns: 1fr;
+  gap: 4px;
+  padding: 10px 0;
+}
+
+.api-status-panel__row dt {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.api-status-panel__row dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .node-helper__tabs {
@@ -6143,6 +6283,15 @@ body {
   box-shadow: inset 0 -2px 0 var(--accent);
 }
 
+.compliance-tab-blurb {
+  margin: 0;
+  padding: 10px 16px 12px;
+  border-bottom: 1px solid var(--border-rule);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .compliance-body {
   padding: 16px;
   overflow: auto;
@@ -6491,8 +6640,8 @@ body {
 }
 
 .settings-section {
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 28px;
+  padding-top: 20px;
   border-top: 1px solid #2a3144;
 }
 
@@ -6503,8 +6652,12 @@ body {
 }
 
 .settings-section h3 {
-  margin: 0 0 8px;
-  font-size: 14px;
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  color: var(--text-primary);
 }
 
 .settings-diagnostic-summary {
@@ -6643,12 +6796,12 @@ body {
 }
 
 .settings-subsection-title {
-  margin: 18px 0 6px;
-  font-size: 12px;
+  margin: 22px 0 8px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .settings-installed-list {

@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchStudioSettings, suggestWorkflows } from "../api";
+import { STUDIO_VERSION } from "./AboutPanel";
+import {
+  openGenerateBlueprintIssue,
+  prefillFromGenerateBlueprint,
+} from "../generateRequestIssue";
+import {
+  openNodeRequestIssue,
+  prefillFromGenerateUnknownNodes,
+} from "../nodeRequestIssue";
 import { PLAN_LLM_OPTIONS, type PlanLlmModelId } from "../planLlmOptions";
 import type { Workflow } from "../types";
 import WorkflowBlueprintPreview from "./WorkflowBlueprintPreview";
@@ -148,6 +157,20 @@ export default function WorkflowGenerateButton({
     close();
   };
 
+  const fileBlueprintRequest = () => {
+    if (!selected?.workflow) return;
+    openGenerateBlueprintIssue(
+      prefillFromGenerateBlueprint(prompt.trim(), selected, STUDIO_VERSION),
+    );
+  };
+
+  const fileNodeRequest = () => {
+    if (!selected?.workflow) return;
+    const prefill = prefillFromGenerateUnknownNodes(prompt.trim(), selected, STUDIO_VERSION);
+    if (!prefill) return;
+    openNodeRequestIssue(prefill);
+  };
+
   const stage = open
     ? createPortal(
         <div className="generate-stage" role="dialog" aria-modal="true" aria-label="Generate workflow">
@@ -269,22 +292,42 @@ export default function WorkflowGenerateButton({
                     subtitle={selected.rationale || selected.description}
                     unknownNodeTypes={selected.unknown_node_types}
                     showSnapshotExport={selectedUnknown.length > 0}
+                    onFileBlueprintRequest={fileBlueprintRequest}
+                    onFileNodeRequest={applyLocked ? fileNodeRequest : undefined}
                   />
                 </div>
                 <footer className="generate-stage__footer">
                   <p className={`generate-stage__footer-hint${applyLocked ? " generate-stage__footer-hint--warn" : ""}`}>
                     {applyLocked
-                      ? "Brainstorming snapshot — Apply locked. Save JSON or image from the blueprint chrome."
-                      : "All nodes available — Apply replaces the canvas with this blueprint."}
+                      ? "Brainstorming snapshot — Apply locked. Save JSON or image, or file a GitHub request to crowdsource nodes / templates."
+                      : "All nodes available — Apply replaces the canvas, or file a GitHub request to suggest a verified template."}
                   </p>
-                  <button
-                    type="button"
-                    className="generate-stage__primary"
-                    disabled={applyLocked}
-                    onClick={applySelected}
-                  >
-                    Apply to canvas
-                  </button>
+                  <div className="generate-stage__footer-actions">
+                    <button
+                      type="button"
+                      className="generate-stage__secondary"
+                      onClick={fileBlueprintRequest}
+                    >
+                      Blueprint request
+                    </button>
+                    {applyLocked ? (
+                      <button
+                        type="button"
+                        className="generate-stage__secondary"
+                        onClick={fileNodeRequest}
+                      >
+                        Node request
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="generate-stage__primary"
+                      disabled={applyLocked}
+                      onClick={applySelected}
+                    >
+                      Apply to canvas
+                    </button>
+                  </div>
                 </footer>
               </div>
             ) : null}

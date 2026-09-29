@@ -16,6 +16,18 @@ import type {
 import { authenticityReportId } from "../workflow";
 
 type Tab = "license" | "provenance" | "authenticity" | "disclosure";
+
+const TAB_DESCRIPTIONS: Record<Tab, string> = {
+  license:
+    "Which model licenses are on this graph, and whether they fit commercial or evaluation use. Not legal advice.",
+  provenance:
+    "Render lineage for the selected output — nodes, models, and transforms that produced the cached audio.",
+  authenticity:
+    "Signals that content may be synthetic or unverified (sidecar checks, deepfake scores). Indicators only.",
+  disclosure:
+    "Copy-ready wording for credits and AI disclosure when you share or publish this workflow’s output.",
+};
+
 export type ComplianceIntent = "commercial" | "evaluation";
 
 export function fastPathBlockReason(
@@ -53,6 +65,8 @@ type Props = {
   onApplyModelSwap?: (nodeId: string, modelId: string) => void;
   onApplyModelSwaps?: (swaps: Array<{ nodeId: string; modelId: string }>) => void;
   fastPath?: boolean;
+  /** ⌘⇧D studio dev mode — reveals Authenticity tab. */
+  studioDevMode?: boolean;
   onInstallRenderAudition?: () => Promise<FastPathRunResult>;
   onCancelInstall?: () => void;
 };
@@ -67,6 +81,7 @@ export default function ComplianceDrawer({
   onApplyModelSwap,
   onApplyModelSwaps,
   fastPath = false,
+  studioDevMode = false,
   onInstallRenderAudition,
   onCancelInstall,
 }: Props) {
@@ -119,7 +134,7 @@ export default function ComplianceDrawer({
   }, [open, workflow, outputs, targetNodeId]);
 
   useEffect(() => {
-    if (!open || !authenticityId) {
+    if (!open || !studioDevMode || !authenticityId) {
       setAuthenticity(null);
       return;
     }
@@ -134,7 +149,11 @@ export default function ComplianceDrawer({
         setAuthenticity(null);
       });
     return () => ac.abort();
-  }, [open, authenticityId]);
+  }, [open, studioDevMode, authenticityId]);
+
+  useEffect(() => {
+    if (!studioDevMode && tab === "authenticity") setTab("license");
+  }, [studioDevMode, tab]);
 
   useEffect(() => {
     if (!open) return;
@@ -163,6 +182,7 @@ export default function ComplianceDrawer({
       const blob = await downloadComplianceReport(workflow, {
         outputs,
         targetNodeId: targetNodeId,
+        includeAuthenticity: studioDevMode,
       });
       const slug = (workflow.metadata?.title || workflow.id)
         .toLowerCase()
@@ -234,13 +254,20 @@ export default function ComplianceDrawer({
           <button type="button" className={tab === "provenance" ? "active" : ""} onClick={() => setTab("provenance")}>
             Provenance
           </button>
-          <button type="button" className={tab === "authenticity" ? "active" : ""} onClick={() => setTab("authenticity")}>
-            Authenticity
-          </button>
+          {studioDevMode ? (
+            <button
+              type="button"
+              className={tab === "authenticity" ? "active" : ""}
+              onClick={() => setTab("authenticity")}
+            >
+              Authenticity
+            </button>
+          ) : null}
           <button type="button" className={tab === "disclosure" ? "active" : ""} onClick={() => setTab("disclosure")}>
             Disclosure
           </button>
         </nav>
+        <p className="compliance-tab-blurb">{TAB_DESCRIPTIONS[tab]}</p>
         {tab === "license" && license ? (
           <div className="compliance-body">
             {fastPath ? (
@@ -643,7 +670,7 @@ export default function ComplianceDrawer({
             )}
           </div>
         ) : null}
-        {tab === "authenticity" ? (
+        {tab === "authenticity" && studioDevMode ? (
           <div className="compliance-body">
             {!authenticity ? (
               <p className="compliance-hint">

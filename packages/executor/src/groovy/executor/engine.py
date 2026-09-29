@@ -172,7 +172,11 @@ class Executor:
                     else None
                 )
                 if cached_state and cached_state.get("signature") == signature and cached_output_meta:
-                    result = self._result_from_meta(cached_output_meta, node_cls=node_cls)
+                    try:
+                        result = self._result_from_meta(cached_output_meta, node_cls=node_cls)
+                    except (FileNotFoundError, OSError, ValueError, KeyError):
+                        # Stale node_state after cache clear / partial delete — re-run.
+                        result = None
                     if result is not None:
                         node_outputs[node_id] = result
                         outputs[node_id] = cached_output_meta

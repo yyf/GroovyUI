@@ -1,0 +1,88 @@
+# Generate blueprint / template request
+name: Blueprint request
+description: Crowdsource an LLM-generated patch blueprint — missing nodes or a candidate bundled template for the verified catalog.
+title: "[blueprint-request] "
+labels: ["blueprint-request", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a **Generate** blueprint request. This helps maintainers prioritize new nodes and verified templates.
+
+        - Filed from Studio **Generate** (no GitHub API — you submit on github.com).
+        - **`blueprint_payload`** is structured JSON for triage and future catalog import.
+        - If the payload omits the full graph (URL size), attach **Save JSON** from the blueprint chrome.
+
+        Do **not** paste API keys, HF tokens, passwords, or absolute paths with credentials.
+
+  - type: dropdown
+    id: request_kind
+    attributes:
+      label: Request type
+      description: What are you asking for?
+      options:
+        - missing-nodes
+        - catalog-template
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_prompt
+    attributes:
+      label: Generate prompt
+      description: What you asked Claude to draft (public wording only).
+      placeholder: Modular drone with granular texture and stem-friendly cleanup chain.
+    validations:
+      required: true
+
+  - type: input
+    id: blueprint_title
+    attributes:
+      label: Blueprint title
+      description: Title from the LLM draft.
+      placeholder: Granular drone cleanup
+    validations:
+      required: true
+
+  - type: input
+    id: unavailable_nodes
+    attributes:
+      label: Unavailable node type(s)
+      description: Comma-separated GroovyUI node types not in this build (leave empty if all nodes exist).
+      placeholder: FantasyStemAI, GenerateAudio
+
+  - type: textarea
+    id: blueprint_payload
+    attributes:
+      label: Structured payload (JSON)
+      description: Machine-readable snapshot from Studio — schema `groovy.generate_blueprint_request.v1`.
+      placeholder: |
+        {"schema":"groovy.generate_blueprint_request.v1","blueprint":{"title":"…","unknown_node_types":[]}}
+    validations:
+      required: true
+
+  - type: textarea
+    id: why_needed
+    attributes:
+      label: Why this blueprint?
+      description: Job-to-be-done in a patch (exploration, template gallery, teaching, etc.). Public info only.
+      placeholder: Want this as a verified starter template for podcast denoise + stem split.
+    validations:
+      required: true
+
+  - type: input
+    id: groovy_version
+    attributes:
+      label: GroovyUI version (optional)
+      description: From About / health if known.
+      placeholder: 0.18.0
+
+  - type: checkboxes
+    id: acknowledgements
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I did not include secrets (tokens, keys, private paths) in this issue.
+          required: true
+        - label: I understand this blueprint is not verified until a maintainer triages and merges catalog work.
+          required: true

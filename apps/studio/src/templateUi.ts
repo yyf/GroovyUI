@@ -5,6 +5,7 @@ import type { TemplateListItem } from "./api";
  * Toggle studio dev mode (⌘⇧D) to reveal the full featured picker list and full node palette.
  */
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
+  "empty-canvas",
   "hello-groovy",
   "isolate-vocals-to-transcribe",
   "podcast-denoise",
@@ -19,6 +20,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "watermark-embed-detect",
   "compare-stemmers",
   "compare-whisper-sizes",
+  "empty-canvas",
   "extract-lyrics-to-music-with-ace-step",
   "hello-groovy",
   "instrumental-tts-dub",
@@ -86,6 +88,7 @@ export const TEMPLATE_DOMAINS: readonly TemplateDomain[] = [
 
 /** Featured (and known) template → domain. Unknown featured IDs fall into Other. */
 export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> = {
+  "empty-canvas": "start",
   "hello-groovy": "start",
 
   "podcast-denoise": "speech",

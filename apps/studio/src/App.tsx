@@ -58,7 +58,6 @@ import ModelBrowser from "./components/ModelBrowser";
 import NodeHelper from "./components/NodeHelper";
 import NodePalette, { defaultWidgetsForNode } from "./components/NodePalette";
 import OnboardingOverlay, { isOnboardingComplete } from "./components/OnboardingOverlay";
-import SettingsDrawer from "./components/SettingsDrawer";
 import SidePanel from "./components/SidePanel";
 import StudioTopBar from "./components/StudioTopBar";
 import TransportBar from "./components/TransportBar";
@@ -196,7 +195,6 @@ export default function App() {
   const [complianceOpen, setComplianceOpen] = useState(false);
   const [complianceWarnings, setComplianceWarnings] = useState(0);
   const [complianceFastPath, setComplianceFastPath] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [inferenceStubActive, setInferenceStubActive] = useState(false);
   const [forceRebuildNext, setForceRebuildNext] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
@@ -213,6 +211,8 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);
   const [inspectorAbout, setInspectorAbout] = useState(false);
+  const [inspectorApiStatus, setInspectorApiStatus] = useState(false);
+  const [inspectorStudioSettings, setInspectorStudioSettings] = useState(false);
   const [inspectorWide, setInspectorWide] = useState(false);
   const [workflowBarOpen, setWorkflowBarOpen] = useState(true);
   const [generateOpenNonce, setGenerateOpenNonce] = useState(0);
@@ -746,16 +746,38 @@ export default function App() {
   const openAbout = useCallback(() => {
     if (focusMode) return;
     aboutOpenedAtSelectionRef.current = selectionKey;
+    setInspectorApiStatus(false);
+    setInspectorStudioSettings(false);
     setInspectorAbout(true);
     setHelperOpen(true);
   }, [focusMode, selectionKey]);
 
-  // Leave About only when the canvas selection actually changes after opening.
+  const openApiStatus = useCallback(() => {
+    if (focusMode) return;
+    aboutOpenedAtSelectionRef.current = selectionKey;
+    setInspectorAbout(false);
+    setInspectorStudioSettings(false);
+    setInspectorApiStatus(true);
+    setHelperOpen(true);
+  }, [focusMode, selectionKey]);
+
+  const openStudioSettings = useCallback(() => {
+    if (focusMode) return;
+    aboutOpenedAtSelectionRef.current = selectionKey;
+    setInspectorAbout(false);
+    setInspectorApiStatus(false);
+    setInspectorStudioSettings(true);
+    setHelperOpen(true);
+  }, [focusMode, selectionKey]);
+
+  // Leave About / API status / Studio settings only when canvas selection changes after opening.
   useEffect(() => {
-    if (!inspectorAbout) return;
+    if (!inspectorAbout && !inspectorApiStatus && !inspectorStudioSettings) return;
     if (selectionKey === aboutOpenedAtSelectionRef.current) return;
     setInspectorAbout(false);
-  }, [selectionKey, inspectorAbout]);
+    setInspectorApiStatus(false);
+    setInspectorStudioSettings(false);
+  }, [selectionKey, inspectorAbout, inspectorApiStatus, inspectorStudioSettings]);
 
   const registerFlowCenter = useCallback((getter: () => { x: number; y: number }) => {
     flowCenterRef.current = getter;
@@ -1815,16 +1837,6 @@ export default function App() {
         return `• ${type} (${id})\n  ${message}`;
       })
       .join("\n\n");
-    const apiReport =
-      apiOnline === false
-        ? [
-            "API is offline.",
-            "Start the server in a terminal:",
-            "uv run --package groovy-server groovy-server",
-            "",
-            "Studio expects http://127.0.0.1:8188",
-          ].join("\n")
-        : undefined;
     const rndReport = [
       status || "Render idle",
       failedNode ? `Node: ${failedNode.type} (${failedNode.id})` : "",
@@ -1849,7 +1861,7 @@ export default function App() {
             : apiOnline
               ? "API online"
               : "API offline — start groovy-server",
-        report: apiReport,
+        onInspect: openApiStatus,
       },
       {
         id: "rnd",
@@ -1890,6 +1902,7 @@ export default function App() {
     nodeIssues,
     workflow,
     inspectFailedNode,
+    openApiStatus,
   ]);
 
   const resetCanvasAfterCrash = useCallback(() => {
@@ -1935,6 +1948,7 @@ export default function App() {
           onCompliance={() => setComplianceOpen(true)}
           onShareWorkflow={() => void handleShareWorkflow()}
           onAbout={openAbout}
+          onApiStatus={openApiStatus}
           workflowBarOpen={workflowBarOpen}
           onToggleWorkflowBar={() => setWorkflowBarOpen((prev) => !prev)}
           settings={{
@@ -1946,7 +1960,7 @@ export default function App() {
             onToggleGroupCollapse: handleToggleGroupCollapse,
             onTogglePalette: () => setPaletteOpen((prev) => !prev),
             onToggleHelper: () => setHelperOpen((prev) => !prev),
-            onOpenStudioSettings: () => setSettingsOpen(true),
+            onOpenStudioSettings: openStudioSettings,
           }}
         />
         <div
@@ -2200,6 +2214,10 @@ export default function App() {
                 onCompareAudition={(nodeId) => auditionNode(nodeId)}
                 onOpenCompliance={() => setComplianceOpen(true)}
                 showAbout={inspectorAbout}
+                showApiStatus={inspectorApiStatus}
+                showStudioSettings={inspectorStudioSettings}
+                onSettingsChange={handleStudioSettingsChange}
+                onForceRebuildNext={() => setForceRebuildNext(true)}
                 renderIssue={selectedNodeId ? nodeIssues[selectedNodeId] : null}
                 renderIssueDetail={
                   failedNodeId === selectedNodeId && lastJob?.status === "failed"
@@ -2266,14 +2284,9 @@ export default function App() {
           onApplyModelSwap={handleApplyModelSwap}
           onApplyModelSwaps={handleApplyModelSwaps}
           fastPath={complianceFastPath}
+          studioDevMode={studioDevMode}
           onInstallRenderAudition={installRenderAndAudition}
           onCancelInstall={stopFastPathInstall}
-        />
-        <SettingsDrawer
-          open={settingsOpen}
-          onClose={() => setSettingsOpen(false)}
-          onSettingsChange={handleStudioSettingsChange}
-          onForceRebuildNext={() => setForceRebuildNext(true)}
         />
         <OnboardingOverlay
           open={onboardingOpen}

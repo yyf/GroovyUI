@@ -23,6 +23,18 @@ export type TemplateLicenseRow = {
 /** All bundled templates — commercial-safe first, then NC, then TBD. */
 export const TEMPLATE_LICENSE_MATRIX: TemplateLicenseRow[] = [
   {
+    id: "empty-canvas",
+    title: "Empty canvas",
+    models: "— (blank graph)",
+    licenses: "— (DSP / no AI weights)",
+    impact: "High",
+    cluster: "Onboarding",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe · Conference Safe",
+    tone: "safe",
+  },
+  {
     id: "hello-groovy",
     title: "Hello GroovyUI",
     models: "kokoro-82m",

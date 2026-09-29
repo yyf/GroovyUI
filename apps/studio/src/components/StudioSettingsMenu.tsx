@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { openApiStatusWindow, openTemplateLicenseWindow } from "../aboutWindow";
+import { openTemplateLicenseWindow } from "../aboutWindow";
 
 export type StudioSettingsMenuProps = {
   groupCollapsed: boolean | null;
@@ -16,6 +16,7 @@ export type StudioSettingsMenuProps = {
   onToggleWorkflowBar: () => void;
   onOpenStudioSettings: () => void;
   onAbout: () => void;
+  onApiStatus: () => void;
 };
 
 export default function StudioSettingsMenu({
@@ -32,6 +33,7 @@ export default function StudioSettingsMenu({
   onToggleWorkflowBar,
   onOpenStudioSettings,
   onAbout,
+  onApiStatus,
 }: StudioSettingsMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -132,7 +134,7 @@ export default function StudioSettingsMenu({
               ? item("Template licenses…", () => openTemplateLicenseWindow())
               : null}
             {item("About GroovyUI", onAbout)}
-            {item("API status", () => void openApiStatusWindow())}
+            {item("API status", onApiStatus)}
           </div>
         </div>
       ) : null}

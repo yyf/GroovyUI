@@ -20,6 +20,7 @@ type Props = {
   onCompliance: () => void;
   onShareWorkflow: () => void;
   onAbout: () => void;
+  onApiStatus: () => void;
   workflowBarOpen: boolean;
   onToggleWorkflowBar: () => void;
   settings: Omit<
@@ -30,6 +31,7 @@ type Props = {
     | "workflowBarOpen"
     | "onToggleWorkflowBar"
     | "onAbout"
+    | "onApiStatus"
   >;
 };
 
@@ -48,6 +50,7 @@ export default function StudioTopBar({
   onCompliance,
   onShareWorkflow,
   onAbout,
+  onApiStatus,
   workflowBarOpen,
   onToggleWorkflowBar,
   settings,
@@ -139,6 +142,7 @@ export default function StudioTopBar({
         workflowBarOpen={workflowBarOpen}
         onToggleWorkflowBar={onToggleWorkflowBar}
         onAbout={onAbout}
+        onApiStatus={onApiStatus}
       />
     </header>
   );
