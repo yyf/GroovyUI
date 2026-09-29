@@ -15,7 +15,15 @@ class _AudioMetaData:
 
 
 def ensure_deepfilter_importable() -> None:
+    """Patch torchaudio so DeepFilterNet's ``df.io`` can import on modern wheels.
+
+    Recent torchaudio dropped ``AudioMetaData`` / ``torchaudio.backend``; DeepFilterNet
+    still imports them. Call this before ``import df.enhance``.
+    """
     import torchaudio as ta
+
+    if not hasattr(ta, "AudioMetaData"):
+        ta.AudioMetaData = _AudioMetaData  # type: ignore[attr-defined]
 
     if not hasattr(ta, "info"):
 
