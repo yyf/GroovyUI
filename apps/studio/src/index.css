@@ -1003,47 +1003,6 @@ body {
   border-color: var(--border-bright);
 }
 
-.generate-stage__path {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.generate-stage__path-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  text-align: left;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-dim);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.generate-stage__path-btn:hover {
-  border-color: var(--border-bright);
-}
-
-.generate-stage__path-btn--active {
-  border-color: var(--accent);
-  background: var(--accent-dim);
-  color: var(--text-primary);
-  box-shadow: inset 0 -2px 0 var(--accent);
-}
-
-.generate-stage__path-btn strong {
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.generate-stage__path-btn span {
-  font-size: 11px;
-  color: var(--text-muted);
-  line-height: 1.35;
-}
-
 .generate-stage__key-hint {
   margin: 0;
   font-size: 12px;
@@ -1799,12 +1758,14 @@ body {
 
 .node-helper--empty,
 .node-helper--compare-only,
-.node-helper--selection-only {
+.node-helper--selection-only,
+.node-helper--about {
   min-height: 0;
 }
 
 .node-helper--compare-only,
-.node-helper--selection-only {
+.node-helper--selection-only,
+.node-helper--about {
   justify-content: stretch;
 }
 
@@ -1814,6 +1775,64 @@ body {
   color: var(--text-muted);
   font-size: 13px;
   text-align: center;
+}
+
+.about-panel__lede,
+.about-panel__body {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.about-panel__lede {
+  color: var(--text-primary);
+}
+
+.node-helper--about .node-helper__scroll {
+  padding: 14px 16px 20px;
+}
+
+.about-panel__meta {
+  margin: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.about-panel__meta-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.about-panel__meta-row:first-child {
+  border-top: 1px solid var(--border-dim);
+}
+
+.about-panel__meta-row dt {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.about-panel__meta-row dd {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.about-panel__link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.about-panel__link:hover {
+  color: var(--text-primary);
 }
 
 .node-helper__selection {

@@ -208,10 +208,11 @@ export default function App() {
       return false;
     }
   });
-  /** Template picker: false = ISMIR demo set; true (⌘D) = full featured list. */
+  /** Template picker: false = ISMIR demo set; true (⌘⇧D) = full featured list + nodes. */
   const [studioDevMode, setStudioDevMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);
+  const [inspectorAbout, setInspectorAbout] = useState(false);
   const [inspectorWide, setInspectorWide] = useState(false);
   const [workflowBarOpen, setWorkflowBarOpen] = useState(true);
   const [generateOpenNonce, setGenerateOpenNonce] = useState(0);
@@ -739,6 +740,23 @@ export default function App() {
     if (!focusMode) setHelperOpen(true);
   }, [focusMode]);
 
+  const selectionKey = `${selectedEdgeId ?? ""}|${selectedNodeIds.join(",")}`;
+  const aboutOpenedAtSelectionRef = useRef(selectionKey);
+
+  const openAbout = useCallback(() => {
+    if (focusMode) return;
+    aboutOpenedAtSelectionRef.current = selectionKey;
+    setInspectorAbout(true);
+    setHelperOpen(true);
+  }, [focusMode, selectionKey]);
+
+  // Leave About only when the canvas selection actually changes after opening.
+  useEffect(() => {
+    if (!inspectorAbout) return;
+    if (selectionKey === aboutOpenedAtSelectionRef.current) return;
+    setInspectorAbout(false);
+  }, [selectionKey, inspectorAbout]);
+
   const registerFlowCenter = useCallback((getter: () => { x: number; y: number }) => {
     flowCenterRef.current = getter;
   }, []);
@@ -1157,6 +1175,13 @@ export default function App() {
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        const next = !studioDevMode;
+        setStudioDevMode(next);
+        setStatus(next ? "Dev mode — all templates + nodes" : "Standard mode — ISMIR templates + nodes");
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "d") {
         if (!workflow || selectedNodeIds.length === 0) return;
         event.preventDefault();
         const { workflow: next, newNodeIds } = duplicateSelection(workflow, selectedNodeIds);
@@ -1164,13 +1189,6 @@ export default function App() {
         setWorkflow(next);
         setLastJob(null);
         setStatus(`Duplicated ${newNodeIds.length} node(s)`);
-        return;
-      }
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "d") {
-        event.preventDefault();
-        const next = !studioDevMode;
-        setStudioDevMode(next);
-        setStatus(next ? "Dev mode — all templates" : "Standard mode — ISMIR templates");
         return;
       }
       if (event.key === "Tab" && selectedNodeIds.length === 1 && selectedNodeId && workflow) {
@@ -1916,6 +1934,7 @@ export default function App() {
           onModelBrowser={() => openModelBrowser()}
           onCompliance={() => setComplianceOpen(true)}
           onShareWorkflow={() => void handleShareWorkflow()}
+          onAbout={openAbout}
           workflowBarOpen={workflowBarOpen}
           onToggleWorkflowBar={() => setWorkflowBarOpen((prev) => !prev)}
           settings={{
@@ -1943,6 +1962,7 @@ export default function App() {
           {!focusMode ? (
             <SidePanel side="left" label="Nodes" open={paletteOpen} onToggle={() => setPaletteOpen((prev) => !prev)}>
               <NodePalette
+                studioDevMode={studioDevMode}
                 catalog={Object.values(nodeSchemas).map((schema) => ({
                   type: schema.type,
                   category: schema.category ?? "",
@@ -2092,6 +2112,7 @@ export default function App() {
                   <CanvasNodePicker
                     clientX={nodePicker.x}
                     clientY={nodePicker.y}
+                    studioDevMode={studioDevMode}
                     onClose={() => setNodePicker(null)}
                     onPick={(nodeType, flowPos) => {
                       setNodePicker(null);
@@ -2178,6 +2199,7 @@ export default function App() {
                 }}
                 onCompareAudition={(nodeId) => auditionNode(nodeId)}
                 onOpenCompliance={() => setComplianceOpen(true)}
+                showAbout={inspectorAbout}
                 renderIssue={selectedNodeId ? nodeIssues[selectedNodeId] : null}
                 renderIssueDetail={
                   failedNodeId === selectedNodeId && lastJob?.status === "failed"

@@ -260,7 +260,7 @@ export default function ModelBrowser({
       }
       setAgentPlan(null);
       if (mode === "workflow") {
-        // Suggest workflow tab stays deterministic template match; ⌘G Generate uses LLM when keyed.
+        // Suggest workflow = deterministic bundled templates; Generate (⌘G) is LLM-only.
         const data = await suggestWorkflows(debouncedQuery, { prefer_llm: false });
         setWorkflowSuggestions(data.results);
         setSearchHits([]);
@@ -571,7 +571,7 @@ export default function ModelBrowser({
         : mode === "discover"
           ? "Hugging Face browse only — no Install here. File a GitHub request; Install unlocks after a verified registry entry is merged (no secrets; no GroovyUI account)."
           : mode === "workflow"
-            ? "Suggest a workflow template from your description (bundled templates only)."
+            ? "Suggest workflow — match a bundled template from your description (no LLM). For a new graph draft, use Generate (⌘G)."
             : null;
 
   const requiredPending = requiredModels.filter((model) => !modelIsReady(model));
