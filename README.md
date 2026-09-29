@@ -1,7 +1,7 @@
 # GroovyUI
 
 <!-- Placeholder — swap for the official ISMIR 2026 badge when available. -->
-[![ISMIR 2026](https://img.shields.io/badge/ISMIR-2026-111111?style=flat-square&labelColor=ff002b&color=111111)](https://ismir.net/)
+[![ISMIR 2026](https://img.shields.io/badge/ISMIR-2026-111111?style=flat-square&labelColor=ff002b&color=111111)](https://ismir2026.ismir.net/)
 
 **Open-source alpha.** Patch-bay for AI audio — wire models in a graph, render sample-accurate offline previews (cached PCM), share workflows as JSON.
 
