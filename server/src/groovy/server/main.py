@@ -56,6 +56,8 @@ from groovy.server.bootstrap import ensure_project_samples
 from groovy.server.compare import analyze_ab_pair
 from groovy.server.live_io_hub import MidiInHub, start_osc_listener
 from groovy.server.paths import (
+    find_bundled_template_path,
+    iter_bundled_template_dirs,
     resolve_bundle_root,
     resolve_default_project_dir,
     resolve_samples_dir,
@@ -403,9 +405,11 @@ def _template_meta(path: Path, source: str) -> dict[str, str]:
 def _list_all_templates() -> list[dict[str, str]]:
     templates: list[dict[str, str]] = []
     seen: set[str] = set()
-    if TEMPLATES_DIR.is_dir():
-        for path in sorted(TEMPLATES_DIR.glob("*.groovy.json")):
+    for directory in iter_bundled_template_dirs(REPO_ROOT):
+        for path in sorted(directory.glob("*.groovy.json")):
             entry = _template_meta(path, "bundled")
+            if entry["id"] in seen:
+                continue
             templates.append(entry)
             seen.add(entry["id"])
     if USER_TEMPLATES_DIR.is_dir():
@@ -419,9 +423,9 @@ def _list_all_templates() -> list[dict[str, str]]:
 
 
 def _resolve_template_path(template_id: str) -> Path | None:
-    # Bundled wins over any user file with the same id (user saves must not shadow defaults).
-    bundled_path = TEMPLATES_DIR / f"{template_id}.groovy.json"
-    if bundled_path.exists():
+    # Bundled (public + local-dev) wins over any user file with the same id.
+    bundled_path = find_bundled_template_path(template_id, REPO_ROOT)
+    if bundled_path is not None:
         return bundled_path
     user_path = USER_TEMPLATES_DIR / f"{template_id}.groovy.json"
     if user_path.exists():
@@ -432,7 +436,7 @@ def _resolve_template_path(template_id: str) -> Path | None:
 def _user_template_id_taken(template_id: str) -> bool:
     if (USER_TEMPLATES_DIR / f"{template_id}.groovy.json").exists():
         return True
-    if (TEMPLATES_DIR / f"{template_id}.groovy.json").exists():
+    if find_bundled_template_path(template_id, REPO_ROOT) is not None:
         return True
     return False
 
@@ -984,7 +988,7 @@ def delete_user_template(template_id: str) -> dict[str, Any]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Invalid template id") from exc
     if not path.is_file():
-        if (TEMPLATES_DIR / f"{template_id}.groovy.json").is_file():
+        if find_bundled_template_path(template_id, REPO_ROOT) is not None:
             raise HTTPException(status_code=403, detail="Bundled templates cannot be deleted")
         raise HTTPException(status_code=404, detail="Template not found")
     path.unlink()

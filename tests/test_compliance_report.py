@@ -13,7 +13,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "templates" / "podcast-denoise.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("podcast-denoise")
 
 
 def test_build_compliance_report_includes_license_scan(tmp_path: Path) -> None:

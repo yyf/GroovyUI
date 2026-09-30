@@ -1,4 +1,4 @@
-# Generate blueprint / template request
+# Patch Generation blueprint / template request
 name: Blueprint request
 description: Crowdsource an LLM-generated patch blueprint — missing nodes or a candidate bundled template for the verified catalog.
 title: "[blueprint-request] "
@@ -7,9 +7,9 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for filing a **Generate** blueprint request. This helps maintainers prioritize new nodes and verified templates.
+        Thanks for filing a **Patch Generation** blueprint request. This helps maintainers prioritize new nodes and verified templates.
 
-        - Filed from Studio **Generate** (no GitHub API — you submit on github.com).
+        - Filed from Studio **Patch Generation** (no GitHub API — you submit on github.com).
         - **`blueprint_payload`** is structured JSON for triage and future catalog import.
         - If the payload omits the full graph (URL size), attach **Save JSON** from the blueprint chrome.
 
@@ -29,7 +29,7 @@ body:
   - type: textarea
     id: user_prompt
     attributes:
-      label: Generate prompt
+      label: Patch Generation prompt
       description: What you asked Claude to draft (public wording only).
       placeholder: Modular drone with granular texture and stem-friendly cleanup chain.
     validations:

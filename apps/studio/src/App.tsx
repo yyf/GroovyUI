@@ -213,6 +213,7 @@ export default function App() {
   const [inspectorAbout, setInspectorAbout] = useState(false);
   const [inspectorApiStatus, setInspectorApiStatus] = useState(false);
   const [inspectorStudioSettings, setInspectorStudioSettings] = useState(false);
+  const [inspectorTemplateLicenses, setInspectorTemplateLicenses] = useState(false);
   const [inspectorWide, setInspectorWide] = useState(false);
   const [workflowBarOpen, setWorkflowBarOpen] = useState(true);
   const [generateOpenNonce, setGenerateOpenNonce] = useState(0);
@@ -748,6 +749,7 @@ export default function App() {
     aboutOpenedAtSelectionRef.current = selectionKey;
     setInspectorApiStatus(false);
     setInspectorStudioSettings(false);
+    setInspectorTemplateLicenses(false);
     setInspectorAbout(true);
     setHelperOpen(true);
   }, [focusMode, selectionKey]);
@@ -757,6 +759,7 @@ export default function App() {
     aboutOpenedAtSelectionRef.current = selectionKey;
     setInspectorAbout(false);
     setInspectorStudioSettings(false);
+    setInspectorTemplateLicenses(false);
     setInspectorApiStatus(true);
     setHelperOpen(true);
   }, [focusMode, selectionKey]);
@@ -766,18 +769,43 @@ export default function App() {
     aboutOpenedAtSelectionRef.current = selectionKey;
     setInspectorAbout(false);
     setInspectorApiStatus(false);
+    setInspectorTemplateLicenses(false);
     setInspectorStudioSettings(true);
     setHelperOpen(true);
   }, [focusMode, selectionKey]);
 
-  // Leave About / API status / Studio settings only when canvas selection changes after opening.
+  const openTemplateLicenses = useCallback(() => {
+    if (focusMode) return;
+    aboutOpenedAtSelectionRef.current = selectionKey;
+    setInspectorAbout(false);
+    setInspectorApiStatus(false);
+    setInspectorStudioSettings(false);
+    setInspectorTemplateLicenses(true);
+    setHelperOpen(true);
+  }, [focusMode, selectionKey]);
+
+  // Leave About / API status / Studio settings / Template licenses only when canvas selection changes after opening.
   useEffect(() => {
-    if (!inspectorAbout && !inspectorApiStatus && !inspectorStudioSettings) return;
+    if (
+      !inspectorAbout &&
+      !inspectorApiStatus &&
+      !inspectorStudioSettings &&
+      !inspectorTemplateLicenses
+    ) {
+      return;
+    }
     if (selectionKey === aboutOpenedAtSelectionRef.current) return;
     setInspectorAbout(false);
     setInspectorApiStatus(false);
     setInspectorStudioSettings(false);
-  }, [selectionKey, inspectorAbout, inspectorApiStatus, inspectorStudioSettings]);
+    setInspectorTemplateLicenses(false);
+  }, [
+    selectionKey,
+    inspectorAbout,
+    inspectorApiStatus,
+    inspectorStudioSettings,
+    inspectorTemplateLicenses,
+  ]);
 
   const registerFlowCenter = useCallback((getter: () => { x: number; y: number }) => {
     flowCenterRef.current = getter;
@@ -1961,6 +1989,7 @@ export default function App() {
             onTogglePalette: () => setPaletteOpen((prev) => !prev),
             onToggleHelper: () => setHelperOpen((prev) => !prev),
             onOpenStudioSettings: openStudioSettings,
+            onOpenTemplateLicenses: openTemplateLicenses,
           }}
         />
         <div
@@ -2216,6 +2245,7 @@ export default function App() {
                 showAbout={inspectorAbout}
                 showApiStatus={inspectorApiStatus}
                 showStudioSettings={inspectorStudioSettings}
+                showTemplateLicenses={inspectorTemplateLicenses}
                 onSettingsChange={handleStudioSettingsChange}
                 onForceRebuildNext={() => setForceRebuildNext(true)}
                 renderIssue={selectedNodeId ? nodeIssues[selectedNodeId] : null}

@@ -14,7 +14,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE = ROOT / "templates" / "text-to-music.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("text-to-music")
 
 
 @pytest.fixture

@@ -19,6 +19,7 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
+from template_fixtures import require_template
 
 
 def test_speech_translate_node_schema() -> None:
@@ -42,7 +43,7 @@ def test_seamless_lang_normalize() -> None:
 
 def test_localize_dialogue_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
-    path = ROOT / "templates" / "localize-dialogue-a-to-b.groovy.json"
+    path = require_template("localize-dialogue-a-to-b")
     data = json.loads(path.read_text())
     assert "featured" in data["metadata"]["tags"]
     st = next(node for node in data["nodes"] if node["type"] == "SpeechTranslate")

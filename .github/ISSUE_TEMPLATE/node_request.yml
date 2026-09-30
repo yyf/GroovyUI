@@ -1,6 +1,6 @@
 # Node type request
 name: Node request
-description: Request a new GroovyUI node type (or family) — often from Generate when the LLM names a type that is not in the palette yet.
+description: Request a new GroovyUI node type (or family) — often from Patch Generation when the LLM names a type that is not in the palette yet.
 title: "[node-request] "
 labels: ["node-request", "needs-triage"]
 body:
@@ -9,7 +9,7 @@ body:
       value: |
         Thanks for requesting a **node type**. This helps maintainers prioritize the palette and verified templates.
 
-        - Filed from Studio **Generate** when types are missing, or via this template manually.
+        - Filed from Studio **Patch Generation** when types are missing, or via this template manually.
         - **`node_payload`** is structured JSON (`groovy.node_request.v1`) for triage.
         - Prefer one issue per distinct node **family**; list related type names in **node types**.
 
@@ -49,8 +49,8 @@ body:
   - type: textarea
     id: generate_context
     attributes:
-      label: Generate context (optional)
-      description: User prompt and blueprint title if this came from Generate.
+      label: Patch Generation context (optional)
+      description: User prompt and blueprint title if this came from Patch Generation.
       placeholder: Prompt: granular drone cleanup. Blueprint: Granular drone chain.
 
   - type: textarea

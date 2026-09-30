@@ -380,7 +380,7 @@ export default function SettingsDrawer({
 
                 <h4 className="settings-subsection-title">Plan / Claude</h4>
                 <p className="compliance-hint">
-                  Anthropic API key for Model Plan (model picks in the browser) and Generate-by-LLM (graph
+                  Anthropic API key for Model Plan (model picks in the browser) and Patch Generation (graph
                   drafts). Environment variable <code>ANTHROPIC_API_KEY</code> takes precedence. Prefer env
                   over saving in the project file. Keys never leave this machine except to api.anthropic.com.
                 </p>
@@ -390,7 +390,7 @@ export default function SettingsDrawer({
                   <p className="compliance-hint">Key saved in project settings (.groovy/, gitignored).</p>
                 ) : (
                   <p className="compliance-hint">
-                    No Claude key — Model Plan falls back to deterministic recommendations; Generate (⌘G)
+                    No Claude key — Model Plan falls back to deterministic recommendations; Patch Generation (⌘G)
                     stays locked until a key is set. Bundled templates: Model Browser → Suggest workflow.
                   </p>
                 )}

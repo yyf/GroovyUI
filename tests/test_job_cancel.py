@@ -18,7 +18,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "templates" / "transcribe-and-regenerate.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("transcribe-and-regenerate")
 
 
 @pytest.fixture(autouse=True)

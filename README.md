@@ -8,7 +8,7 @@
 Not a DAW: no timeline, no live low-latency engine. **Play** auditions the last render from cache; **Render** is explicit.
 
 <p align="center">
-  <img src="assets/media/groovy-demos-2x2.gif" alt="GroovyUI demos: Model Browser, Generate, isolate-to-transcribe, prompt modular synth" width="960" />
+  <img src="assets/media/groovy-demos-2x2.gif" alt="GroovyUI demos: Model Browser, Patch Generation, isolate-to-transcribe, prompt modular synth" width="960" />
 </p>
 
 ## Status
@@ -49,4 +49,4 @@ Or with [just](https://github.com/casey/just): `just install`, `just test`, `jus
 
 [Apache License 2.0](LICENSE). Third-party models and weights keep their own SPDX licenses — the app license is not a grant to those weights.
 
-Catalog requests from Studio (browser deep link, no GitHub token in the app): Model Browser → **File GitHub request**; Generate → **Blueprint request** / **Node request**. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Release notes: [CHANGELOG.md](CHANGELOG.md).
+Catalog requests from Studio (browser deep link, no GitHub token in the app): Model Browser → **File GitHub request**; Patch Generation → **Blueprint request** / **Node request**. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). Release notes: GitHub Releases.

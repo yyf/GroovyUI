@@ -237,6 +237,30 @@ def _templates_dir() -> Path:
     return _repo_root() / "templates"
 
 
+def _dev_templates_dir() -> Path:
+    return _repo_root() / "docs" / "internal" / "templates"
+
+
+def _iter_template_dirs() -> list[Path]:
+    dirs: list[Path] = []
+    public = _templates_dir()
+    if public.is_dir():
+        dirs.append(public)
+    dev = _dev_templates_dir()
+    if dev.is_dir() and dev.resolve() != public.resolve():
+        dirs.append(dev)
+    return dirs
+
+
+def _find_template_path(template_id: str) -> Path | None:
+    name = f"{template_id}.groovy.json"
+    for directory in _iter_template_dirs():
+        path = directory / name
+        if path.is_file():
+            return path
+    return None
+
+
 def _terminal_node_ids(workflow: Workflow) -> tuple[str, ...]:
     sources = {link.from_[0] for link in workflow.links}
     return tuple(
@@ -350,7 +374,9 @@ def build_template_spec(template_path: Path) -> TemplateIntegritySpec:
 
 
 def all_template_specs() -> tuple[TemplateIntegritySpec, ...]:
-    paths = sorted(_templates_dir().glob("*.groovy.json"))
+    paths: list[Path] = []
+    for directory in _iter_template_dirs():
+        paths.extend(sorted(directory.glob("*.groovy.json")))
     specs: list[TemplateIntegritySpec] = []
     for path in paths:
         workflow = Workflow.model_validate(json.loads(path.read_text()))
@@ -361,9 +387,11 @@ def all_template_specs() -> tuple[TemplateIntegritySpec, ...]:
     return tuple(specs)
 
 
-# v1 subset retained for docs / quick CI slice
+# v1 subset retained for docs / quick CI slice (public shipped templates only)
 SIGNAL_INTEGRITY_V1_TEMPLATES: tuple[TemplateIntegritySpec, ...] = tuple(
-    spec for spec in all_template_specs() if spec.template_id in {"hello-groovy", "podcast-denoise", "stem-separation"}
+    spec
+    for spec in all_template_specs()
+    if spec.template_id in {"hello-groovy", "podcast-denoise", "isolate-vocals-to-transcribe"}
 )
 
 ALL_TEMPLATE_INTEGRITY_SPECS: tuple[TemplateIntegritySpec, ...] = all_template_specs()
@@ -410,7 +438,9 @@ def prepare_template_project(project_dir: Path, spec: TemplateIntegritySpec) -> 
 
 
 def load_template_workflow(spec: TemplateIntegritySpec) -> Workflow:
-    path = _templates_dir() / f"{spec.template_id}.groovy.json"
+    path = _find_template_path(spec.template_id)
+    if path is None:
+        raise FileNotFoundError(f"Template not found: {spec.template_id}")
     workflow = Workflow.model_validate(json.loads(path.read_text()))
     for node in workflow.nodes:
         if spec.sample_path and node.type == "LoadAudio":

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { openTemplateLicenseWindow } from "../aboutWindow";
 
 export type StudioSettingsMenuProps = {
   groupCollapsed: boolean | null;
@@ -15,6 +14,7 @@ export type StudioSettingsMenuProps = {
   onToggleHelper: () => void;
   onToggleWorkflowBar: () => void;
   onOpenStudioSettings: () => void;
+  onOpenTemplateLicenses?: () => void;
   onAbout: () => void;
   onApiStatus: () => void;
 };
@@ -32,6 +32,7 @@ export default function StudioSettingsMenu({
   onToggleHelper,
   onToggleWorkflowBar,
   onOpenStudioSettings,
+  onOpenTemplateLicenses,
   onAbout,
   onApiStatus,
 }: StudioSettingsMenuProps) {
@@ -130,8 +131,8 @@ export default function StudioSettingsMenu({
           </div>
           <div className="studio-menu__section studio-menu__section--tail">
             {item("Studio settings…", onOpenStudioSettings)}
-            {studioDevMode
-              ? item("Template licenses…", () => openTemplateLicenseWindow())
+            {studioDevMode && onOpenTemplateLicenses
+              ? item("Template licenses…", onOpenTemplateLicenses)
               : null}
             {item("About GroovyUI", onAbout)}
             {item("API status", onApiStatus)}

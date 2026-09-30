@@ -260,7 +260,7 @@ export default function ModelBrowser({
       }
       setAgentPlan(null);
       if (mode === "workflow") {
-        // Suggest workflow = deterministic bundled templates; Generate (⌘G) is LLM-only.
+        // Suggest workflow = deterministic bundled templates; Patch Generation (⌘G) is LLM-only.
         const data = await suggestWorkflows(debouncedQuery, { prefer_llm: false });
         setWorkflowSuggestions(data.results);
         setSearchHits([]);
@@ -565,13 +565,13 @@ export default function ModelBrowser({
 
   const catalogHint =
     mode === "plan"
-      ? "Model Plan — describe a task; Claude (or deterministic fallback) picks published registry models to Install / Drop. Does not install from Discover or compose graphs — use Generate (⌘G) for a full patch."
+      ? "Model Plan — describe a task; Claude (or deterministic fallback) picks published registry models to Install / Drop. Does not install from Discover or compose graphs — use Patch Generation (⌘G) for a full patch."
       : mode === "search"
         ? "Search ranks the local published catalog (keywords or natural-language task). Install only works for published entries — not live Hugging Face (use Discover to browse)."
         : mode === "discover"
           ? "Hugging Face browse only — no Install here. File a GitHub request; Install unlocks after a verified registry entry is merged (no secrets; no GroovyUI account)."
           : mode === "workflow"
-            ? "Suggest workflow — match a bundled template from your description (no LLM). For a new graph draft, use Generate (⌘G)."
+            ? "Suggest workflow — match a bundled template from your description (no LLM). For a new graph draft, use Patch Generation (⌘G)."
             : null;
 
   const requiredPending = requiredModels.filter((model) => !modelIsReady(model));
@@ -923,7 +923,7 @@ export default function ModelBrowser({
                     <p className="model-browser__hint">
                       Type a task and press <strong>Enter</strong> — Plan recommends which published
                       models to install (and optional Drop node). Graph drafting is{" "}
-                      <strong>Generate (⌘G)</strong>, not Plan.
+                      <strong>Patch Generation (⌘G)</strong>, not Plan.
                     </p>
                   ) : null}
                   {loading && planSubmittedQuery ? (

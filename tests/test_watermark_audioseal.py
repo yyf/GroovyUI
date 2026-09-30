@@ -20,7 +20,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "templates" / "watermark-embed-detect.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("watermark-embed-detect")
 
 
 @pytest.fixture(autouse=True)

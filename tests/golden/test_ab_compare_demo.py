@@ -17,7 +17,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE = ROOT / "templates" / "ab-compare-demo.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("ab-compare-demo")
 
 
 @pytest.fixture

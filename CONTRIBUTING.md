@@ -31,8 +31,8 @@ Users can file GitHub issues from Studio (browser deep link — no token in the 
 | Template | Studio entry |
 |----------|----------------|
 | [Model request](.github/ISSUE_TEMPLATE/model_request.yml) | Model Browser → Discover / unknown model → **File GitHub request** |
-| [Blueprint request](.github/ISSUE_TEMPLATE/blueprint_request.yml) | Generate → **Blueprint request** |
-| [Node request](.github/ISSUE_TEMPLATE/node_request.yml) | Generate (missing types) → **Node request** |
+| [Blueprint request](.github/ISSUE_TEMPLATE/blueprint_request.yml) | Patch Generation → **Blueprint request** |
+| [Node request](.github/ISSUE_TEMPLATE/node_request.yml) | Patch Generation (missing types) → **Node request** |
 
 Maintainer playbooks: [MODEL_REQUEST_PLAYBOOK.md](.github/MODEL_REQUEST_PLAYBOOK.md), [BLUEPRINT_REQUEST_PLAYBOOK.md](.github/BLUEPRINT_REQUEST_PLAYBOOK.md).
 
@@ -40,6 +40,7 @@ Forks can set `VITE_GROOVY_GITHUB_REPO=owner/repo` when building studio so issue
 
 ## What not to commit
 
+- `docs/internal/` (local planning only — gitignored)
 - `.groovy/`, `.env`, `.secrets/`, `studio_settings.json`, tokens, or absolute paths with credentials
 - Broad `git add .` without checking the above
 

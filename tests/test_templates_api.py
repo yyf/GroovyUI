@@ -15,6 +15,15 @@ register_all()
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = ROOT / "templates"
+DEV_TEMPLATES_DIR = ROOT / "docs" / "internal" / "templates"
+
+
+def _bundled_template_paths() -> list[Path]:
+    paths: list[Path] = []
+    for directory in (TEMPLATES_DIR, DEV_TEMPLATES_DIR):
+        if directory.is_dir():
+            paths.extend(sorted(directory.glob("*.groovy.json")))
+    return paths
 
 
 @pytest.fixture
@@ -115,7 +124,7 @@ def test_all_templates_validate() -> None:
 
     register_core()
     register_ai()
-    for path in sorted(TEMPLATES_DIR.glob("*.groovy.json")):
+    for path in _bundled_template_paths():
         workflow = Workflow.model_validate(json.loads(path.read_text()))
         result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
         assert result.valid, f"{path.name}: {[e.message for e in result.errors]}"

@@ -32,7 +32,7 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATES = ROOT / "templates"
+from template_fixtures import require_template
 DIALOGUE_FIXTURE = ROOT / "assets" / "samples" / "dialogue_48k.wav"
 
 FEATURED = [
@@ -93,7 +93,7 @@ def project_dir(tmp_path: Path) -> Path:
 
 
 def _load(template_id: str, *, sample: str | None = None) -> Workflow:
-    path = TEMPLATES / f"{template_id}.groovy.json"
+    path = require_template(template_id)
     workflow = Workflow.model_validate(json.loads(path.read_text()))
     if sample is not None:
         for node in workflow.nodes:
