@@ -9,11 +9,22 @@
   <img src="assets/media/groovy-demos-2x2.gif" alt="GroovyUI demos: Model Browser, Patch Generation, isolate-to-transcribe, prompt modular synth" width="960" />
 </p>
 
-<p align="center">
-  <a href="https://youtu.be/jwZCArIzonQ"><img src="https://img.youtube.com/vi/jwZCArIzonQ/hqdefault.jpg" alt="GroovyUI on YouTube" width="460" /></a>
-  &nbsp;
-  <a href="https://youtu.be/EkHTXhkB1fE"><img src="https://img.youtube.com/vi/EkHTXhkB1fE/hqdefault.jpg" alt="GroovyUI on YouTube" width="460" /></a>
-</p>
+---
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/jwZCArIzonQ"><img src="https://img.youtube.com/vi/jwZCArIzonQ/hqdefault.jpg" alt="GroovyUI — a patchbay for local AI audio exploration" width="440" /></a><br />
+      <sub>GroovyUI — a patchbay for local AI audio exploration</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/EkHTXhkB1fE"><img src="https://img.youtube.com/vi/EkHTXhkB1fE/hqdefault.jpg" alt="GroovyUI — patch generation (OSS release)" width="440" /></a><br />
+      <sub>GroovyUI — patch generation (OSS release)</sub>
+    </td>
+  </tr>
+</table>
+
+---
 
 ## Status
 
