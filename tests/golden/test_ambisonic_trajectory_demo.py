@@ -11,11 +11,12 @@ from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
 from groovy.schema.models import Workflow
+from template_fixtures import require_template
 
 register_core()
 register_ai()
 
-TEMPLATE = Path(__file__).resolve().parents[2] / "templates" / "ambisonic-trajectory-demo.groovy.json"
+TEMPLATE = require_template("ambisonic-trajectory-demo")
 
 
 @pytest.fixture

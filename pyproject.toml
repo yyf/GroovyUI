@@ -52,6 +52,7 @@ inference = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [
+    "tests",
     "packages/schema/src",
     "packages/node-sdk/src",
     "packages/executor/src",

@@ -150,7 +150,8 @@ def test_save_audio_writes_mp4(project_dir: Path) -> None:
 
 
 def test_stem_split_template_path_is_stem_demo() -> None:
-    root = Path(__file__).resolve().parents[1]
-    data = json.loads((root / "templates" / "stem-separation.groovy.json").read_text())
+    from template_fixtures import require_template
+
+    data = json.loads(require_template("stem-separation").read_text())
     load = next(node for node in data["nodes"] if node["type"] == "LoadAudio")
     assert load["widgets"]["path"] == "assets/samples/stem_separation_demo.wav"
