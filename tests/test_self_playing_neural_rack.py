@@ -17,7 +17,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "templates" / "self-playing-neural-rack.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("self-playing-neural-rack")
 
 
 def test_automation_to_midi_registered() -> None:
@@ -65,7 +66,7 @@ def test_self_playing_neural_rack_schema_and_stub_render(tmp_path: Path, monkeyp
     assert out.outputs["n21"]["type"] == "AUTHENTICITY"
 
 
-MODULAR_TEMPLATE = ROOT / "templates" / "neural-modular-rack.groovy.json"
+MODULAR_TEMPLATE = require_template("neural-modular-rack")
 
 
 def test_neural_modular_rack_schema_and_stub_render(tmp_path: Path, monkeypatch) -> None:

@@ -56,7 +56,7 @@ describe("templatesVisibleInUi", () => {
   it("shows only ISMIR demo templates in standard mode", () => {
     const visible = templatesVisibleInUi([
       ...allBundled,
-      bundled("empty-canvas", "Empty canvas"),
+      bundled("empty-canvas", "Empty Canvas"),
     ]);
     expect(visible.map((t) => t.id)).toEqual([
       "empty-canvas",
@@ -202,7 +202,7 @@ describe("groupBundledTemplatesByDomain", () => {
   it("groups featured templates into domain submenus", () => {
     const visible = templatesVisibleInUi(
       [
-        bundled("empty-canvas", "Empty canvas"),
+        bundled("empty-canvas", "Empty Canvas"),
         bundled("hello-groovy", "Hello GroovyUI"),
         bundled("podcast-denoise", "Podcast Denoise"),
         bundled("stem-separation", "Stem Separation"),

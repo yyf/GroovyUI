@@ -4,7 +4,7 @@ Maintainer-only. Same trust model as [MODEL_REQUEST_PLAYBOOK.md](MODEL_REQUEST_P
 
 ## Flow
 
-1. User files via Studio **Generate** → **Blueprint request** (or [Blueprint request](ISSUE_TEMPLATE/blueprint_request.yml) template). Labels: `blueprint-request`, `needs-triage`.
+1. User files via Studio **Patch Generation** → **Blueprint request** (or [Blueprint request](ISSUE_TEMPLATE/blueprint_request.yml) template). Labels: `blueprint-request`, `needs-triage`.
 2. **You** triage: spam, duplicate template, or actionable graph?
 3. Parse **`blueprint_payload`** JSON (`groovy.generate_blueprint_request.v1`). If `workflow_omitted`, ask for **Save JSON** attachment from the blueprint chrome.
 4. If the gap is **missing node types only**, point the user to [Node request](ISSUE_TEMPLATE/node_request.yml) or implement nodes first — see node playbook below.
@@ -31,7 +31,7 @@ When done: template id, nodes used, models required, and smoke steps (Install �
 | Field | Meaning |
 |-------|---------|
 | `schema` | `groovy.generate_blueprint_request.v1` |
-| `user_prompt` | Generate prompt (scrubbed) |
+| `user_prompt` | Patch Generation prompt (scrubbed) |
 | `blueprint.unknown_node_types` | Types not in user's build |
 | `blueprint.node_types` | Full palette mix in draft |
 | `workflow` | Optional sanitized graph (may be omitted for URL size) |

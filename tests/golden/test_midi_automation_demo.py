@@ -15,7 +15,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE = ROOT / "templates" / "midi-automation-demo.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("midi-automation-demo")
 
 
 @pytest.fixture

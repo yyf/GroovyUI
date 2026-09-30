@@ -91,29 +91,43 @@ def suggest_workflows(prompt: str, templates_dir: Path) -> dict[str, Any]:
     if not prompt:
         return {"prompt": prompt, "results": [], "mode": "workflow_suggester"}
 
+    template_dirs = [templates_dir]
+    dev_dir = templates_dir.parent / "docs" / "internal" / "templates"
+    if dev_dir.is_dir() and dev_dir.resolve() != templates_dir.resolve():
+        template_dirs.append(dev_dir)
+
+    def _find(template_id: str) -> Path | None:
+        name = f"{template_id}.groovy.json"
+        for directory in template_dirs:
+            path = directory / name
+            if path.is_file():
+                return path
+        return None
+
     scored: list[tuple[int, str, str]] = []
     for pattern, template_id, rationale in TEMPLATE_HINTS:
         if pattern.search(prompt):
             scored.append((20, template_id, rationale))
 
-    for path in sorted(templates_dir.glob("*.groovy.json")):
-        template_id = path.name.removesuffix(".groovy.json")
-        if any(tid == template_id for _, tid, _ in scored):
-            continue
-        data = json.loads(path.read_text())
-        meta = data.get("metadata", {})
-        haystack = " ".join(
-            [
-                template_id,
-                str(meta.get("title", "")),
-                str(meta.get("description", "")),
-                " ".join(meta.get("tags", [])),
-            ]
-        ).lower()
-        tokens = [t for t in prompt.lower().split() if len(t) > 2]
-        score = sum(2 for token in tokens if token in haystack)
-        if score > 0:
-            scored.append((score, template_id, str(meta.get("title", template_id))))
+    for directory in template_dirs:
+        for path in sorted(directory.glob("*.groovy.json")):
+            template_id = path.name.removesuffix(".groovy.json")
+            if any(tid == template_id for _, tid, _ in scored):
+                continue
+            data = json.loads(path.read_text())
+            meta = data.get("metadata", {})
+            haystack = " ".join(
+                [
+                    template_id,
+                    str(meta.get("title", "")),
+                    str(meta.get("description", "")),
+                    " ".join(meta.get("tags", [])),
+                ]
+            ).lower()
+            tokens = [t for t in prompt.lower().split() if len(t) > 2]
+            score = sum(2 for token in tokens if token in haystack)
+            if score > 0:
+                scored.append((score, template_id, str(meta.get("title", template_id))))
 
     scored.sort(key=lambda item: (-item[0], item[1]))
     results: list[dict[str, Any]] = []
@@ -122,8 +136,8 @@ def suggest_workflows(prompt: str, templates_dir: Path) -> dict[str, Any]:
         if template_id in seen:
             continue
         seen.add(template_id)
-        path = templates_dir / f"{template_id}.groovy.json"
-        if not path.exists():
+        path = _find(template_id)
+        if path is None:
             continue
         data = json.loads(path.read_text())
         meta = data.get("metadata", {})

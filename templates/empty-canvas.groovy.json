@@ -3,7 +3,7 @@
   "groovy_version": "0.1.0",
   "id": "e0a1b2c3-d4e5-6789-abcd-ef0123456789",
   "metadata": {
-    "title": "Empty canvas",
+    "title": "Empty Canvas",
     "author": "groovy",
     "description": "Start from a blank patch-bay. Add nodes from the palette, drop audio onto the canvas, or import a workflow JSON.",
     "tags": [

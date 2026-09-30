@@ -31,6 +31,36 @@ def resolve_templates_dir(bundle_root: Path | None = None) -> Path:
     return root / "templates"
 
 
+def resolve_dev_templates_dir(bundle_root: Path | None = None) -> Path:
+    """Local-only templates (⌘⇧D / featured). Never shipped — under docs/internal/."""
+    root = bundle_root or resolve_bundle_root()
+    env = (os.environ.get("GROOVY_DEV_TEMPLATES_DIR") or "").strip()
+    if env:
+        return Path(env).expanduser().resolve()
+    return (root / "docs" / "internal" / "templates").resolve()
+
+
+def iter_bundled_template_dirs(bundle_root: Path | None = None) -> list[Path]:
+    """Public templates/ first, then optional local dev templates when present."""
+    dirs: list[Path] = []
+    public = resolve_templates_dir(bundle_root)
+    if public.is_dir():
+        dirs.append(public)
+    dev = resolve_dev_templates_dir(bundle_root)
+    if dev.is_dir() and dev.resolve() != public.resolve():
+        dirs.append(dev)
+    return dirs
+
+
+def find_bundled_template_path(template_id: str, bundle_root: Path | None = None) -> Path | None:
+    name = f"{template_id}.groovy.json"
+    for directory in iter_bundled_template_dirs(bundle_root):
+        path = directory / name
+        if path.is_file():
+            return path
+    return None
+
+
 def resolve_samples_dir(bundle_root: Path | None = None) -> Path:
     root = bundle_root or resolve_bundle_root()
     return root / "assets" / "samples"

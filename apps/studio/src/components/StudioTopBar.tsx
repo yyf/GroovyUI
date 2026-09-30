@@ -90,7 +90,7 @@ export default function StudioTopBar({
             title="Model Browser (⌘K / Ctrl+K)"
             aria-keyshortcuts="Meta+K Control+K"
           >
-            Models
+            Model Browser
             <kbd className="workflow-generate__kbd">⌘K</kbd>
           </button>
         </div>

@@ -2,7 +2,8 @@ import type { TemplateListItem } from "./api";
 
 /**
  * Bundled templates shown in standard (demo) mode — ISMIR 2026 LBD hero set.
- * Toggle studio dev mode (⌘⇧D) to reveal the full featured picker list and full node palette.
+ * Files live in repo `templates/`. Toggle studio dev mode (⌘⇧D) to reveal the full
+ * featured picker list (local `docs/internal/templates/` when present) and full node palette.
  */
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "empty-canvas",

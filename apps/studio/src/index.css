@@ -1384,7 +1384,7 @@ body {
 
 .side-panel--right.side-panel--open.side-panel--wide {
   /* Room for inputs | model | outputs without crushing the subgraph canvas;
-     Studio settings also opens wide for readable copy. */
+     Studio settings and Template licenses also open wide for readable copy. */
   flex: 0 0 min(540px, 46vw);
 }
 
@@ -1799,6 +1799,88 @@ body {
 
 .node-helper--about .node-helper__scroll {
   padding: 14px 16px 20px;
+}
+
+.template-license-panel__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.template-license-panel__pill {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text-secondary);
+}
+
+.template-license-panel__pill--safe {
+  border-color: rgba(120, 180, 120, 0.45);
+  color: #c8e0c8;
+}
+
+.template-license-panel__pill--caution {
+  border-color: rgba(200, 100, 100, 0.45);
+  color: #e0b0b0;
+}
+
+.template-license-panel__matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.template-license-panel__matrix th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 6px 8px 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  position: sticky;
+  top: 0;
+  background: var(--bg-elevated, #121212);
+}
+
+.template-license-panel__matrix td {
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.template-license-panel__title {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.template-license-panel__id {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.template-license-panel__decision {
+  font-weight: 500;
+}
+
+.template-license-panel__row--safe .template-license-panel__decision {
+  color: #c8e0c8;
+}
+
+.template-license-panel__row--nc .template-license-panel__decision {
+  color: #e0d0a8;
+}
+
+.template-license-panel__row--caution .template-license-panel__decision {
+  color: #e0b0b0;
+}
+
+.template-license-panel__foot {
+  margin-top: 14px;
+  margin-bottom: 0;
 }
 
 .about-panel__meta {

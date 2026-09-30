@@ -1,4 +1,4 @@
-/** Product version — next release after GitHub tag v0.20.0; bump CHANGELOG when cutting the release. */
+/** Product version — next release after GitHub tag v0.20.0; bump docs/internal/CHANGELOG.md when cutting the release. */
 export const STUDIO_VERSION = "0.21.0";
 
 const DEVELOPER_URL = "https://onesystemics.com/";

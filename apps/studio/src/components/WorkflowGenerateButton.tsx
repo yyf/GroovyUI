@@ -115,7 +115,7 @@ export default function WorkflowGenerateButton({
     if (!text || loadingRef.current) return;
     if (!claudeAvailable) {
       setError(
-        "Generate needs a Claude key — set ANTHROPIC_API_KEY or Settings → Plan / Claude. For bundled templates, use Model Browser → Suggest workflow.",
+        "Patch Generation needs a Claude key — set ANTHROPIC_API_KEY or Settings → Plan / Claude. For bundled templates, use Model Browser → Suggest workflow.",
       );
       return;
     }
@@ -173,12 +173,12 @@ export default function WorkflowGenerateButton({
 
   const stage = open
     ? createPortal(
-        <div className="generate-stage" role="dialog" aria-modal="true" aria-label="Generate workflow">
-          <button type="button" className="generate-stage__scrim" aria-label="Close generate" onClick={close} />
+        <div className="generate-stage" role="dialog" aria-modal="true" aria-label="Patch Generation">
+          <button type="button" className="generate-stage__scrim" aria-label="Close Patch Generation" onClick={close} />
           <div className={`generate-stage__sheet${hasDraft || loading ? " generate-stage__sheet--expanded" : ""}`}>
             <header className="generate-stage__header">
               <div className="generate-stage__brand">
-                <span className="generate-stage__eyebrow">Generate</span>
+                <span className="generate-stage__eyebrow">Patch Generation</span>
                 <strong className="generate-stage__title">Draft a patch blueprint with LLM</strong>
               </div>
               <button type="button" className="generate-stage__close" onClick={close} aria-label="Close">
@@ -355,11 +355,11 @@ export default function WorkflowGenerateButton({
           if (!open) event.preventDefault();
         }}
         onClick={() => setOpen((prev) => !prev)}
-        title="Generate a workflow with LLM (⌘G / Ctrl+G). Templates: Model Browser → Suggest workflow."
+        title="Patch Generation — draft a workflow with LLM (⌘G / Ctrl+G). Templates: Model Browser → Suggest workflow."
         aria-keyshortcuts="Meta+G Control+G"
         aria-expanded={open}
       >
-        Generate
+        Patch Generation
         <kbd className="workflow-generate__kbd">⌘G</kbd>
       </button>
       {stage}

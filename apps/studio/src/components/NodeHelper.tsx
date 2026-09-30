@@ -42,6 +42,7 @@ import {
 } from "../modelNodeWidgets";
 import AboutPanel from "./AboutPanel";
 import ApiStatusPanel from "./ApiStatusPanel";
+import TemplateLicensePanel from "./TemplateLicensePanel";
 import SettingsDrawer from "./SettingsDrawer";
 import AudioFormatPanel from "./AudioFormatPanel";
 import CompareMetricsViz from "./CompareMetricsViz";
@@ -105,6 +106,8 @@ type Props = {
   showApiStatus?: boolean;
   /** When true, show Studio settings in the Inspector instead of node/empty state. */
   showStudioSettings?: boolean;
+  /** When true, show Template licenses in the Inspector (⌘⇧D / studio dev mode). */
+  showTemplateLicenses?: boolean;
   onSettingsChange?: (settings: StudioSettings) => void;
   onForceRebuildNext?: () => void;
 };
@@ -139,6 +142,7 @@ export default function NodeHelper({
   showAbout = false,
   showApiStatus = false,
   showStudioSettings = false,
+  showTemplateLicenses = false,
   onSettingsChange,
   onForceRebuildNext,
 }: Props) {
@@ -173,6 +177,7 @@ export default function NodeHelper({
 
   const subgraphWide =
     showStudioSettings ||
+    showTemplateLicenses ||
     (Boolean(node) &&
       !showCompare &&
       !selectedLink &&
@@ -295,6 +300,10 @@ export default function NodeHelper({
         onForceRebuildNext={onForceRebuildNext}
       />
     );
+  }
+
+  if (showTemplateLicenses) {
+    return <TemplateLicensePanel />;
   }
 
   if (showCompare) {

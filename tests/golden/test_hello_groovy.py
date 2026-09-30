@@ -15,7 +15,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE = ROOT / "templates" / "hello-groovy.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("hello-groovy")
 
 
 def test_hello_groovy_template_shape() -> None:

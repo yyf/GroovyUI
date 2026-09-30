@@ -17,6 +17,7 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
+from template_fixtures import require_template
 
 
 def test_generate_audio_lists_stable_audio_model() -> None:
@@ -25,7 +26,7 @@ def test_generate_audio_lists_stable_audio_model() -> None:
 
 def test_stable_audio_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
-    path = ROOT / "templates" / "stable-audio.groovy.json"
+    path = require_template("stable-audio")
     data = json.loads(path.read_text())
     assert "featured" in data["metadata"]["tags"]
     gen = next(node for node in data["nodes"] if node["type"] == "GenerateAudio")

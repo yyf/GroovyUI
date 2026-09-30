@@ -13,7 +13,8 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "templates" / "podcast-denoise.groovy.json"
+from template_fixtures import require_template
+TEMPLATE = require_template("podcast-denoise")
 
 
 def test_compliance_summary_flags_nc_model(tmp_path: Path) -> None:

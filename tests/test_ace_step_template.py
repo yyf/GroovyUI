@@ -17,6 +17,7 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
+from template_fixtures import require_template
 
 
 def test_generate_audio_lists_ace_step_model() -> None:
@@ -37,7 +38,7 @@ def test_ace_step_2b_turbo_in_seed_catalog() -> None:
 
 def test_ace_step_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
-    path = ROOT / "templates" / "ace-step-1.5.groovy.json"
+    path = require_template("ace-step-1.5")
     data = json.loads(path.read_text())
     assert "featured" in data["metadata"]["tags"]
     gen = next(node for node in data["nodes"] if node["type"] == "GenerateAudio")

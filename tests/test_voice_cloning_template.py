@@ -19,6 +19,7 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
+from template_fixtures import require_template
 
 
 def test_tts_exposes_optional_reference_audio_socket() -> None:
@@ -28,7 +29,7 @@ def test_tts_exposes_optional_reference_audio_socket() -> None:
 
 def test_voice_cloning_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
-    path = ROOT / "templates" / "voice-cloning.groovy.json"
+    path = require_template("voice-cloning")
     data = json.loads(path.read_text())
     assert "featured" in data["metadata"]["tags"]
     tts = next(node for node in data["nodes"] if node["type"] == "TTS")

@@ -23,8 +23,9 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
-PODCAST = ROOT / "templates" / "podcast-denoise.groovy.json"
-DIALOGUE = ROOT / "templates" / "transcribe-dialogue.groovy.json"
+from template_fixtures import require_template
+PODCAST = require_template("podcast-denoise")
+DIALOGUE = require_template("transcribe-dialogue")
 DIALOGUE_FIXTURE = ROOT / "assets" / "samples" / "dialogue_48k.wav"
 
 

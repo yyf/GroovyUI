@@ -22,8 +22,9 @@ from groovy.schema.models import Link, NodeInstance, Workflow, WorkflowMetadata
 register_all()
 
 ROOT = Path(__file__).resolve().parents[1]
-AMBISONIC_TEMPLATE = ROOT / "templates" / "ambisonic-vr-preview.groovy.json"
-OBJECT_TEMPLATE = ROOT / "templates" / "object-spatial-demo.groovy.json"
+from template_fixtures import require_template
+AMBISONIC_TEMPLATE = require_template("ambisonic-vr-preview")
+OBJECT_TEMPLATE = require_template("object-spatial-demo")
 
 
 def test_foa_encode_decode_roundtrip() -> None:

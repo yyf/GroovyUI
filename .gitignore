@@ -24,3 +24,6 @@ assets/samples/archived/
 !workspace/assets/samples/stem_separation_demo.wav
 # Portable desktop packaging output (do not commit)
 dist/portable/
+# Standalone / portable macOS packaging (not part of OSS alpha)
+packaging/
+
