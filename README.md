@@ -2,6 +2,7 @@
 
 <!-- Placeholder — swap for the official ISMIR 2026 / LBD badge when available. -->
 [![ISMIR(LBD) 2026](https://img.shields.io/badge/ISMIR(LBD)-2026-111111?style=flat-square&labelColor=ff002b&color=111111)](https://ismir2026.ismir.net/)
+[![YouTube](https://img.shields.io/badge/YouTube-111111?style=flat-square&logo=youtube&logoColor=ff0000)](https://www.youtube.com/@OneSystemics)
 
 **Open-source alpha.** Patch-bay for AI audio — wire models in a graph, render sample-accurate offline previews (cached PCM), share workflows as JSON. Not a DAW: no timeline, no live low-latency engine. **Play** auditions the last render from cache; **Render** is explicit.
 
@@ -11,6 +12,8 @@
 
 ---
 
+### YouTube
+
 <table>
   <tr>
     <td align="center" width="50%">
@@ -18,8 +21,8 @@
       <sub>GroovyUI — a patchbay for local AI audio exploration</sub>
     </td>
     <td align="center" width="50%">
-      <a href="https://youtu.be/EkHTXhkB1fE"><img src="https://img.youtube.com/vi/EkHTXhkB1fE/hqdefault.jpg" alt="GroovyUI — patch generation (OSS release)" width="440" /></a><br />
-      <sub>GroovyUI — patch generation (OSS release)</sub>
+      <a href="https://youtu.be/EkHTXhkB1fE"><img src="https://img.youtube.com/vi/EkHTXhkB1fE/hqdefault.jpg" alt="GroovyUI — patch generation" width="440" /></a><br />
+      <sub>GroovyUI — patch generation</sub>
     </td>
   </tr>
 </table>
