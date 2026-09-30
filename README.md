@@ -3,12 +3,16 @@
 <!-- Placeholder — swap for the official ISMIR 2026 / LBD badge when available. -->
 [![ISMIR(LBD) 2026](https://img.shields.io/badge/ISMIR(LBD)-2026-111111?style=flat-square&labelColor=ff002b&color=111111)](https://ismir2026.ismir.net/)
 
-**Open-source alpha.** Patch-bay for AI audio — wire models in a graph, render sample-accurate offline previews (cached PCM), share workflows as JSON.
-
-Not a DAW: no timeline, no live low-latency engine. **Play** auditions the last render from cache; **Render** is explicit.
+**Open-source alpha.** Patch-bay for AI audio — wire models in a graph, render sample-accurate offline previews (cached PCM), share workflows as JSON. Not a DAW: no timeline, no live low-latency engine. **Play** auditions the last render from cache; **Render** is explicit.
 
 <p align="center">
   <img src="assets/media/groovy-demos-2x2.gif" alt="GroovyUI demos: Model Browser, Patch Generation, isolate-to-transcribe, prompt modular synth" width="960" />
+</p>
+
+<p align="center">
+  <a href="https://youtu.be/jwZCArIzonQ"><img src="https://img.youtube.com/vi/jwZCArIzonQ/hqdefault.jpg" alt="GroovyUI on YouTube" width="460" /></a>
+  &nbsp;
+  <a href="https://youtu.be/EkHTXhkB1fE"><img src="https://img.youtube.com/vi/EkHTXhkB1fE/hqdefault.jpg" alt="GroovyUI on YouTube" width="460" /></a>
 </p>
 
 ## Status
