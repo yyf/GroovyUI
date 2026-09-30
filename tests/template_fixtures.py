@@ -21,10 +21,16 @@ def find_template_path(template_id: str) -> Path | None:
 
 
 def require_template(template_id: str) -> Path:
+    """Return template path, or skip the importing test module when absent.
+
+    Safe for module-level use: missing public CI templates become skips, not collection errors.
+    Prefer calling from inside tests when possible; module-level is OK with pytest.skip.
+    """
     path = find_template_path(template_id)
     if path is None:
         pytest.skip(
             f"Template {template_id!r} not found "
-            f"(checked {PUBLIC_TEMPLATES} and {DEV_TEMPLATES})"
+            f"(checked {PUBLIC_TEMPLATES} and {DEV_TEMPLATES})",
+            allow_module_level=True,
         )
     return path
