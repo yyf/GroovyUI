@@ -10,7 +10,7 @@ import {
 
 const wf: Workflow = {
   schema_version: "1.0",
-  groovy_version: "0.18.0",
+  groovy_version: "0.21.0",
   id: "d1",
   metadata: { title: "Draft" },
   nodes: [
@@ -25,7 +25,7 @@ describe("prefillFromUnknownNodeTypes", () => {
   it("builds JSON payload with schema", () => {
     const prefill = prefillFromUnknownNodeTypes(["FantasyStemAI"], {
       userPrompt: "stem granular",
-      groovyVersion: "0.18.0",
+      groovyVersion: "0.21.0",
     });
     expect(prefill.node_types).toBe("FantasyStemAI");
     expect(prefill.node_payload).toContain(NODE_REQUEST_SCHEMA);
@@ -54,7 +54,7 @@ describe("prefillFromGenerateUnknownNodes", () => {
         workflow: wf,
         unknown_node_types: ["FantasyStemAI"],
       },
-      "0.18.0",
+      "0.21.0",
     );
     expect(prefill?.node_types).toBe("FantasyStemAI");
     expect(prefill?.generate_context).toContain("granular stems");

@@ -34,7 +34,7 @@ describe("buildModelRequestIssueUrl", () => {
       suggested_nodes: "SeparateStems",
       license: "MIT",
       why_needed: "Want stems in a patch",
-      groovy_version: "0.20.0",
+      groovy_version: "0.21.0",
     });
     const parsed = new URL(url);
     expect(parsed.origin + parsed.pathname).toBe(
