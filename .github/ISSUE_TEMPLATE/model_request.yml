@@ -81,7 +81,7 @@ body:
     attributes:
       label: GroovyUI version (optional)
       description: From About / health if known.
-      placeholder: 0.20.0
+      placeholder: 0.21.0
 
   - type: checkboxes
     id: acknowledgements

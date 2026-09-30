@@ -11,7 +11,7 @@ import {
 
 const sampleWorkflow: Workflow = {
   schema_version: "1.0",
-  groovy_version: "0.18.0",
+  groovy_version: "0.21.0",
   id: "draft-1",
   metadata: { title: "Test draft" },
   nodes: [
@@ -87,7 +87,7 @@ describe("buildGenerateBlueprintIssueUrl", () => {
       unavailable_nodes: "FantasyNode",
       blueprint_payload: '{"schema":"groovy.generate_blueprint_request.v1"}',
       why_needed: "Need this node",
-      groovy_version: "0.18.0",
+      groovy_version: "0.21.0",
     });
     const parsed = new URL(url);
     expect(parsed.pathname).toBe("/yyf/GroovyUI/issues/new");
