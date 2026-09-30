@@ -17,9 +17,6 @@ from groovy.server.main import app
 
 register_all()
 
-SURROUND_TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "surround-mix.groovy.json"
-KEYBOARD_TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "keyboard-to-music.groovy.json"
-
 
 @pytest.fixture
 def project_dir(tmp_path: Path) -> Path:
@@ -97,7 +94,9 @@ def test_osc_in_rejected_when_disabled() -> None:
 
 
 def test_surround_mix_template(project_dir: Path) -> None:
-    workflow = Workflow.model_validate(json.loads(SURROUND_TEMPLATE.read_text()))
+    from template_fixtures import require_template
+
+    workflow = Workflow.model_validate(json.loads(require_template("surround-mix").read_text()))
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=["n8"])
     assert result.status == "completed", result.error
@@ -108,11 +107,12 @@ def test_surround_mix_template(project_dir: Path) -> None:
 def test_keyboard_to_music_template(project_dir: Path) -> None:
     from groovy.nodes.ai import register_all as register_ai
     from groovy.registry import ModelRegistry
+    from template_fixtures import require_template
 
     register_ai()
     registry = ModelRegistry(project_dir)
     registry.installer.install("musicgen-melody-small")
-    workflow = Workflow.model_validate(json.loads(KEYBOARD_TEMPLATE.read_text()))
+    workflow = Workflow.model_validate(json.loads(require_template("keyboard-to-music").read_text()))
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=["n3"])
     assert result.status == "completed", result.error

@@ -13,11 +13,12 @@ from groovy.nodes.core import register_all as register_core
 from groovy.node import NODE_REGISTRY
 from groovy.registry import ModelRegistry
 from groovy.schema.models import Workflow
+from template_fixtures import require_template
 
 register_core()
 register_ai()
 
-STEMS_TEMPLATE = Path(__file__).resolve().parents[2] / "templates" / "stems-to-spatial.groovy.json"
+STEMS_TEMPLATE = require_template("stems-to-spatial")
 
 
 @pytest.fixture

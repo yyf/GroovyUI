@@ -82,7 +82,12 @@ def test_l3_output_contract(prepared_project: tuple[Path, TemplateIntegritySpec]
 
 
 def test_ab_compare_demo_spot_check(tmp_path: Path) -> None:
-    spec = next(s for s in ALL_TEMPLATE_INTEGRITY_SPECS if s.template_id == "ab-compare-demo")
+    spec = next(
+        (s for s in ALL_TEMPLATE_INTEGRITY_SPECS if s.template_id == "ab-compare-demo"),
+        None,
+    )
+    if spec is None:
+        pytest.skip("Template 'ab-compare-demo' not in integrity set (local-only)")
     project_dir = prepare_template_project(tmp_path, spec)
     workflow = load_template_workflow(spec)
     executor = Executor(project_dir)
@@ -113,7 +118,12 @@ def test_ab_compare_demo_spot_check(tmp_path: Path) -> None:
 def test_sample_verify_spot_check(tmp_path: Path) -> None:
     from groovy.executor.sample_integrity import sample_pair_check, verify_samples_for_audio
 
-    spec = next(s for s in ALL_TEMPLATE_INTEGRITY_SPECS if s.template_id == "sample-verify")
+    spec = next(
+        (s for s in ALL_TEMPLATE_INTEGRITY_SPECS if s.template_id == "sample-verify"),
+        None,
+    )
+    if spec is None:
+        pytest.skip("Template 'sample-verify' not in integrity set (local-only)")
     project_dir = prepare_template_project(tmp_path, spec)
     workflow = load_template_workflow(spec)
     executor = Executor(project_dir)
