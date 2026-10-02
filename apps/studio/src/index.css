@@ -7040,6 +7040,22 @@ body {
   color: var(--text-primary);
 }
 
+.model-browser__request-blank {
+  margin-left: auto;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+  border: 1px solid var(--border-silver);
+  background: var(--bg-recessed);
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.model-browser__request-blank:hover {
+  border-color: var(--text-secondary);
+}
+
 .model-browser__llm-options {
   flex: 1 1 100%;
   display: flex;

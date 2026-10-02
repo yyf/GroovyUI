@@ -55,6 +55,15 @@ describe("buildModelRequestIssueUrl", () => {
     expect(url).toContain("redacted");
     expect(url.toLowerCase()).not.toContain("hf_notarealtokenvalue");
   });
+
+  it("blank prefill opens template with no model fields", () => {
+    const url = buildModelRequestIssueUrl({});
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("template")).toBe("model_request.yml");
+    expect(parsed.searchParams.has("hf_id")).toBe(false);
+    expect(parsed.searchParams.has("source_url")).toBe(false);
+    expect(parsed.searchParams.has("title")).toBe(false);
+  });
 });
 
 describe("prefill helpers", () => {

@@ -30,7 +30,7 @@ Users can file GitHub issues from Studio (browser deep link — no token in the 
 
 | Template | Studio entry |
 |----------|----------------|
-| [Model request](.github/ISSUE_TEMPLATE/model_request.yml) | Model Browser → Discover / unknown model → **File GitHub request** |
+| [Model request](.github/ISSUE_TEMPLATE/model_request.yml) | Model Browser → **File GitHub request** (blank form next to Commercial OK, or prefilled from Discover / unknown model) |
 | [Blueprint request](.github/ISSUE_TEMPLATE/blueprint_request.yml) | Patch Generation → **Blueprint request** |
 | [Node request](.github/ISSUE_TEMPLATE/node_request.yml) | Patch Generation (missing types) → **Node request** |
 
