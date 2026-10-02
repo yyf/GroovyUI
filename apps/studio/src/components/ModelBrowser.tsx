@@ -828,6 +828,14 @@ export default function ModelBrowser({
                     />
                     {mode === "discover" ? "Commercial OK only" : "Commercial OK"}
                   </label>
+                  <button
+                    type="button"
+                    className="model-browser__request-link model-browser__request-blank"
+                    title="Opens a blank model-request issue — paste any Hugging Face (or allowlisted) model URL"
+                    onClick={() => openModelRequestIssue({})}
+                  >
+                    File GitHub request
+                  </button>
                   {mode === "plan" ? (
                     <div className="model-browser__llm-options" role="radiogroup" aria-label="LLM options">
                       <p className="model-browser__llm-options-label">LLM for model picks</p>
