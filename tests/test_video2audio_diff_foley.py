@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from groovy.executor import Executor
+from groovy.executor.media_io import ffmpeg_available
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.node import NODE_REGISTRY
@@ -97,6 +98,9 @@ def test_video_to_audio_template_schema_and_stub_render(
     assert gen["widgets"]["model"] == "diff-foley"
     assert gen["widgets"]["path"] == "assets/samples/video480p.mov"
     assert mux["widgets"]["path"] == "assets/samples/video480p.mov"
+
+    if not ffmpeg_available():
+        pytest.skip("ffmpeg not on PATH (MuxVideo / SaveVideo path)")
 
     sample = Path(__file__).resolve().parents[1] / "assets" / "samples" / "video480p.mov"
     dest = tmp_path / "assets" / "samples" / "video480p.mov"

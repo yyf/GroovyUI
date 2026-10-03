@@ -20,6 +20,8 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: uv sync --all-packages --group dev
+      # Video to Audio / MuxVideo / PreviewVideo need ffmpeg (not on the default runner PATH).
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: |
           if command -v pnpm >/dev/null 2>&1; then pnpm install; else cd apps/studio && npm install; fi
       - run: uv run pytest tests/ -q

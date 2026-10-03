@@ -14,6 +14,7 @@ from groovy.executor import (
     load_template_workflow,
     prepare_template_project,
 )
+from groovy.executor.media_io import ffmpeg_available
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.node import NODE_REGISTRY
@@ -25,6 +26,15 @@ register_core()
 register_ai()
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _requires_ffmpeg(spec: TemplateIntegritySpec) -> bool:
+    return any(out_type == "VIDEO" for _, out_type in spec.required_outputs)
+
+
+def _skip_if_ffmpeg_missing(spec: TemplateIntegritySpec) -> None:
+    if _requires_ffmpeg(spec) and not ffmpeg_available():
+        pytest.skip("ffmpeg not on PATH (required for VIDEO mux templates)")
 
 
 @pytest.fixture(params=ALL_TEMPLATE_INTEGRITY_SPECS, ids=lambda s: s.template_id)
@@ -45,6 +55,7 @@ def test_l0_schema_valid(integrity_spec: TemplateIntegritySpec) -> None:
 
 def test_l1_render_smoke(prepared_project: tuple[Path, TemplateIntegritySpec]) -> None:
     project_dir, spec = prepared_project
+    _skip_if_ffmpeg_missing(spec)
     workflow = load_template_workflow(spec)
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=list(spec.target_nodes))
@@ -60,6 +71,7 @@ def test_l1_render_smoke(prepared_project: tuple[Path, TemplateIntegritySpec]) -
 
 def test_l2_manifest_audit(prepared_project: tuple[Path, TemplateIntegritySpec]) -> None:
     project_dir, spec = prepared_project
+    _skip_if_ffmpeg_missing(spec)
     workflow = load_template_workflow(spec)
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=list(spec.target_nodes))
@@ -72,6 +84,7 @@ def test_l2_manifest_audit(prepared_project: tuple[Path, TemplateIntegritySpec])
 
 def test_l3_output_contract(prepared_project: tuple[Path, TemplateIntegritySpec]) -> None:
     project_dir, spec = prepared_project
+    _skip_if_ffmpeg_missing(spec)
     workflow = load_template_workflow(spec)
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=list(spec.target_nodes))
