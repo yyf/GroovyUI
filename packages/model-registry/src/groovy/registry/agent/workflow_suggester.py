@@ -79,6 +79,11 @@ TEMPLATE_HINTS: list[tuple[re.Pattern[str], str, str]] = [
         "stable-audio",
         "Text to Music- Stable Audio",
     ),
+    (
+        re.compile(r"\b(diff.?foley|video.?to.?audio|foley|synced.?audio)\b", re.I),
+        "video-to-audio",
+        "Video to Audio",
+    ),
     (re.compile(r"\b(text.?to.?music|generate.?music|music.?from.?text)\b", re.I), "text-to-music", "Text to Music- MusicGen"),
     (re.compile(r"\b(sing|vocal|diffsinger|lyrics)\b", re.I), "sing-from-midi", "Singing synthesis from MIDI"),
     (re.compile(r"\b(remix|stemforge)\b", re.I), "stem-to-remix", "Stem to remix chain"),

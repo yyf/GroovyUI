@@ -162,6 +162,95 @@ def write_audio_ffmpeg(
         tmp_path.unlink(missing_ok=True)
 
 
+def probe_video_dimensions(path: Path) -> tuple[int, int] | None:
+    """Return (width, height) for the first video stream, or None if unavailable."""
+    if not path.is_file() or not ffprobe_available():
+        return None
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_streams",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return None
+    for stream in payload.get("streams") or []:
+        if stream.get("codec_type") != "video":
+            continue
+        width = int(stream.get("width") or 0)
+        height = int(stream.get("height") or 0)
+        if width > 0 and height > 0:
+            # Honor display rotation when present (90/270 swap axes).
+            rotate = str(stream.get("tags", {}).get("rotate") or "")
+            side_data = stream.get("side_data_list") or []
+            for entry in side_data:
+                if "rotation" in entry:
+                    rotate = str(entry.get("rotation") or rotate)
+            try:
+                angle = abs(int(float(rotate))) % 180
+            except (TypeError, ValueError):
+                angle = 0
+            if angle in (90, 270):
+                return height, width
+            return width, height
+    return None
+
+
+def mux_video_with_audio(
+    video_path: Path,
+    pcm: np.ndarray,
+    sample_rate: int,
+    dest: Path,
+) -> Path:
+    """Replace / attach audio on a video file; copy video stream, AAC audio → ``dest`` (mp4)."""
+    if not video_path.is_file():
+        raise FileNotFoundError(f"Video not found: {video_path}")
+    dest = dest.with_suffix(".mp4")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
+        tmp_wav = Path(handle.name)
+    try:
+        interleaved = pcm.T if pcm.ndim == 2 else pcm.reshape(-1, 1)
+        sf.write(tmp_wav, interleaved, sample_rate, format="WAV", subtype="PCM_16")
+        _run_ffmpeg(
+            [
+                "-y",
+                "-i",
+                str(video_path),
+                "-i",
+                str(tmp_wav),
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-c:v",
+                "copy",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-shortest",
+                "-movflags",
+                "+faststart",
+                str(dest),
+            ]
+        )
+    finally:
+        tmp_wav.unlink(missing_ok=True)
+    return dest
+
+
 def probe_with_ffmpeg(path: Path) -> dict[str, Any]:
     """Minimal probe for ffmpeg-only containers (channels, rate, duration)."""
     from typing import Any

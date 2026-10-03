@@ -17,6 +17,7 @@ from groovy.nodes.ai.nodes import (
     SpeechTranslate,
     TTS,
     TimbreTransfer,
+    Video2Audio,
     VoiceConvert,
     WhisperSTT,
     register_all,
@@ -44,4 +45,5 @@ __all__ = [
     "MIDIToAudio",
     "GenerateAudio",
     "SingFromMIDI",
+    "Video2Audio",
 ]

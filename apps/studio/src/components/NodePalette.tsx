@@ -82,7 +82,17 @@ const HIDDEN_FROM_PALETTE = new Set([
   "ModuleOutlet",
 ]);
 
-const CORE_IO = new Set(["LoadAudio", "SaveAudio", "Preview", "Mix", "ChannelMerge", "Note"]);
+const CORE_IO = new Set([
+  "LoadAudio",
+  "SaveAudio",
+  "SaveVideo",
+  "MuxVideo",
+  "Preview",
+  "PreviewVideo",
+  "Mix",
+  "ChannelMerge",
+  "Note",
+]);
 
 const AUTHENTICITY = new Set([
   "VerifyProvenance",
@@ -95,7 +105,7 @@ const AUTHENTICITY = new Set([
 const CORE_DSP_EXTRA = new Set(["VerifySamples", "Meter"]);
 
 /** Create audio from text / MIDI / prompts (sources). */
-const AI_GENERATE = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "SingFromMIDI"]);
+const AI_GENERATE = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "SingFromMIDI", "Video2Audio"]);
 
 /** Shape or convert existing audio (processors). */
 const AI_TRANSFORM = new Set([

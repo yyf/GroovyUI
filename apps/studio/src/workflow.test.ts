@@ -18,6 +18,9 @@ import {
   previewMidiId,
   previewListenId,
   previewTextSnippet,
+  previewVideoPath,
+  previewVideoAspect,
+  lockPreviewVideoSize,
   promptWidgetSnippet,
   savedFilePath,
   savedProvenancePath,
@@ -250,6 +253,37 @@ describe("previewTextSnippet", () => {
     const prompt = nodes.find((node) => node.id === "n0");
     expect(prompt?.data).toMatchObject({ previewText: "new inspector prompt" });
     expect(promptWidgetSnippet(workflow.nodes[0]!)).toBe("new inspector prompt");
+  });
+
+  it("attaches previewVideoPath on PreviewVideo VIDEO outputs", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [{ id: "pv", type: "PreviewVideo", pos: { x: 0, y: 0 }, widgets: {} }],
+      links: [],
+    };
+    expect(previewVideoPath({ type: "VIDEO", path: ".groovy/cache/x.mp4" })).toBe(
+      ".groovy/cache/x.mp4",
+    );
+    const nodes = workflowToFlowNodes(
+      workflow,
+      {},
+      { pv: { type: "VIDEO", path: ".groovy/cache/x.mp4" } },
+    );
+    expect(nodes.find((node) => node.id === "pv")?.data).toMatchObject({
+      previewVideoPath: ".groovy/cache/x.mp4",
+    });
+  });
+
+  it("locks PreviewVideo size to source aspect", () => {
+    expect(previewVideoAspect({ type: "VIDEO", width: 160, height: 120 })).toBeCloseTo(4 / 3);
+    expect(lockPreviewVideoSize("preview_width", 240, 4 / 3)).toEqual({
+      preview_width: 240,
+      preview_height: 180,
+    });
+    expect(lockPreviewVideoSize("preview_height", 180, 4 / 3)).toEqual({
+      preview_width: 240,
+      preview_height: 180,
+    });
   });
 });
 
@@ -992,6 +1026,29 @@ describe("resolveNodeListenId", () => {
     };
     expect(resolveNodeListenId(workflow, "n2", outputs)).toBe("vocals");
     expect(nodeHasListenableOutput(workflow, "n2", outputs)).toBe(true);
+  });
+
+  it("auditions PreviewVideo via MuxVideo upstream AUDIO", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "Video2Audio", widgets: { model: "diff-foley", path: "a.mov" } },
+        { id: "n2", type: "MuxVideo", widgets: { path: "a.mov" } },
+        { id: "n3", type: "PreviewVideo", widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+        { id: "l2", from: ["n2", 0], to: ["n3", 0], type: "VIDEO" },
+      ],
+    };
+    const outputs: Record<string, JobOutput> = {
+      n1: { type: "AUDIO", cache_id: "foley-pcm" },
+      n2: { type: "VIDEO", path: ".groovy/cache/clip.mp4" },
+      n3: { type: "VIDEO", path: ".groovy/cache/clip.mp4" },
+    };
+    expect(resolveNodeListenId(workflow, "n3", outputs)).toBe("foley-pcm");
+    expect(resolveNodeListenId(workflow, "n2", outputs)).toBe("foley-pcm");
+    expect(nodeHasListenableOutput(workflow, "n3", outputs)).toBe(true);
   });
 
   it("listens to AUDIO slot on SAMPLE_CHECK+AUDIO MULTI (VerifySamples)", () => {

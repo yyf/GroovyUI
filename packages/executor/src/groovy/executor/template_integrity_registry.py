@@ -14,10 +14,12 @@ from groovy.registry.studio_settings import inference_stub_active
 from groovy.schema.models import Workflow
 
 FixtureKind = Literal["tone", "surround_51", "none"]
-TerminalOutputType = Literal["AUDIO", "MIDI", "TEXT", "AUTHENTICITY", "NONE"]
+TerminalOutputType = Literal["AUDIO", "MIDI", "TEXT", "AUTHENTICITY", "VIDEO", "STRING", "NONE"]
 
 TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "Preview": "AUDIO",
+    "PreviewVideo": "VIDEO",
+    "SaveVideo": "STRING",
     "WhisperSTT": "TEXT",
     "DetectWatermark": "TEXT",
     "DiarizeTranscribe": "TEXT",
@@ -89,6 +91,12 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "sample_path": None,
         "models": ("stable-audio-open-1.0",),
         "required_outputs": (("n3", "AUDIO"),),
+    },
+    "video-to-audio": {
+        "fixture": "none",
+        "sample_path": "assets/samples/video480p.mov",
+        "models": ("diff-foley",),
+        "required_outputs": (("n3", "AUDIO"), ("n6", "VIDEO"), ("n7", "STRING")),
     },
     "ace-step-1.5": {
         "fixture": "none",
@@ -419,6 +427,17 @@ def prepare_template_project(project_dir: Path, spec: TemplateIntegritySpec) -> 
         _write_surround_wav(project_dir / spec.sample_path)
     elif spec.fixture == "tone" and spec.sample_path:
         _write_tone_wav(project_dir / spec.sample_path)
+    elif spec.fixture == "none" and spec.sample_path:
+        # Copy bundled media (e.g. video480p.mov) when present so MuxVideo / Video2Audio resolve.
+        suffix = Path(spec.sample_path).suffix.lower()
+        if suffix in {".mov", ".mp4", ".webm", ".mkv", ".wav", ".flac", ".mp3", ".m4a"}:
+            bundled = _repo_root() / "assets" / "samples" / Path(spec.sample_path).name
+            dest = project_dir / spec.sample_path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            if bundled.is_file() and not dest.exists():
+                import shutil
+
+                shutil.copy2(bundled, dest)
     if spec.midi_path:
         midi_abs = project_dir / spec.midi_path
         midi_abs.parent.mkdir(parents=True, exist_ok=True)

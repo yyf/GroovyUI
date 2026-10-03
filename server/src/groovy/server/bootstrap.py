@@ -23,11 +23,32 @@ def ensure_project_samples(project_dir: Path, *, bundled_dir: Path | None = None
     for path in sorted(source.iterdir()):
         if not path.is_file():
             continue
-        if path.suffix.lower() not in {".wav", ".flac", ".mid", ".midi", ".mp4", ".m4a", ".mp3"}:
+        if path.suffix.lower() not in {
+            ".wav",
+            ".flac",
+            ".mid",
+            ".midi",
+            ".mp4",
+            ".m4a",
+            ".mp3",
+            ".mov",
+            ".webm",
+            ".mkv",
+        }:
             continue
         target = dest / path.name
         if target.exists():
-            continue
+            try:
+                src_stat = path.stat()
+                dst_stat = target.stat()
+                # Skip only when workspace copy matches bundled size + mtime.
+                if (
+                    src_stat.st_size == dst_stat.st_size
+                    and int(src_stat.st_mtime) == int(dst_stat.st_mtime)
+                ):
+                    continue
+            except OSError:
+                pass
         shutil.copy2(path, target)
         copied.append(str(target.relative_to(project_dir)))
     return copied

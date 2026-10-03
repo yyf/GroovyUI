@@ -9,6 +9,7 @@ describe("nodeKinds", () => {
 
   it("classifies known AI types without schema", () => {
     expect(isAiNodeType("GenerateAudio")).toBe(true);
+    expect(isAiNodeType("Video2Audio")).toBe(true);
     expect(isAiNodeType("Denoise")).toBe(true);
     expect(isAiNodeType("WhisperSTT")).toBe(true);
     expect(canvasNodeKind("TTS")).toBe("ai");

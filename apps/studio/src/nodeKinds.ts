@@ -21,6 +21,8 @@ const AI_NODE_TYPES = new Set([
   "MIDIToAudio",
   "GenerateAudio",
   "SingFromMIDI",
+  "Video2Audio",
+  "SpeechTranslate",
 ]);
 
 export type CanvasNodeKind = "ai" | "core";

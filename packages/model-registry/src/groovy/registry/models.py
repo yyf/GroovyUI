@@ -4,10 +4,19 @@ from pydantic import BaseModel, Field
 
 
 class LicenseInfo(BaseModel):
+    """Model licensing.
+
+    ``spdx`` is the governing weights (or single) license — it drives ``commercial_ok``.
+    When the installable package/repo differs, set ``code_spdx`` and optional ``notes``.
+    """
+
     spdx: str
     commercial_ok: bool = False
     attribution_required: bool = False
     confidence: float = 1.0
+    # Package / GitHub license when different from pretrained weights (``spdx``).
+    code_spdx: str | None = None
+    notes: str | None = None
 
 
 class InstallSpec(BaseModel):

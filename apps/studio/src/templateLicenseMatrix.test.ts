@@ -19,6 +19,8 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("podcast-denoise")).toBe(true);
     expect(isCommerciallyCleared("isolate-vocals-to-transcribe")).toBe(true);
     expect(isCommerciallyCleared("prompt-modular-synth")).toBe(true);
+    expect(isCommerciallyCleared("video-to-audio")).toBe(true);
+    expect(isCommerciallyCleared("stable-audio")).toBe(false);
   });
 
   it("does not claim clearance for non-public / internal-only templates", () => {
@@ -33,7 +35,7 @@ describe("templateLicenseMatrix", () => {
     expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(
       summary.total,
     );
-    expect(summary.commercialSafe).toBe(5);
+    expect(summary.commercialSafe).toBe(6);
     expect(summary.conferenceOnly).toBe(0);
     expect(summary.caution).toBe(0);
   });

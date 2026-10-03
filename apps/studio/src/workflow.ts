@@ -31,6 +31,27 @@ function listenOutputFromInboundLinks(
   return undefined;
 }
 
+/**
+ * PreviewVideo ← VIDEO ← MuxVideo ← AUDIO: transport should audition the muxed PCM,
+ * not the VIDEO path (HTML5 video lives on-canvas / Node Helper).
+ */
+function listenOutputFromVideoChain(
+  workflow: Workflow,
+  nodeId: string,
+  outputs: Record<string, JobOutput>,
+  depth = 0,
+): JobOutput | undefined {
+  if (depth > 8) return undefined;
+  const audioOrMidi = listenOutputFromInboundLinks(workflow, nodeId, outputs);
+  if (audioOrMidi) return audioOrMidi;
+  for (const link of workflow.links) {
+    if (link.to[0] !== nodeId || link.type !== "VIDEO") continue;
+    const upstream = listenOutputFromVideoChain(workflow, link.from[0], outputs, depth + 1);
+    if (upstream) return upstream;
+  }
+  return undefined;
+}
+
 /** Job output slot to audition for a node (direct render or wired upstream). */
 export function resolveNodeListenOutput(
   workflow: Workflow,
@@ -42,6 +63,10 @@ export function resolveNodeListenOutput(
   const node = workflow.nodes.find((entry) => entry.id === nodeId);
   if (node?.type === "Preview") {
     const wired = listenOutputFromInboundLinks(workflow, nodeId, outputs);
+    if (wired) return wired;
+  }
+  if (node?.type === "PreviewVideo" || node?.type === "MuxVideo") {
+    const wired = listenOutputFromVideoChain(workflow, nodeId, outputs);
     if (wired) return wired;
   }
 
@@ -90,6 +115,106 @@ export function preferredAuditionNodeId(
   );
 }
 
+/** Prefer PreviewVideo when a muxed VIDEO clip is ready (on-node player + transport PCM). */
+export function preferredVideoPreviewNodeId(
+  workflow: Workflow,
+  outputs?: Record<string, JobOutput>,
+): string | null {
+  if (!outputs) return null;
+  const hit = workflow.nodes.find((node) => {
+    if (node.type !== "PreviewVideo") return false;
+    const out = outputs[node.id];
+    return out?.type === "VIDEO" && Boolean(out.path);
+  });
+  return hit?.id ?? null;
+}
+
+/** Project-relative VIDEO path for on-canvas PreviewVideo / MuxVideo players. */
+export function previewVideoPath(output?: JobOutput): string | null {
+  if (output?.type === "VIDEO" && output.path) return output.path;
+  return null;
+}
+
+const PREVIEW_VIDEO_DEFAULT_ASPECT = 16 / 9;
+const PREVIEW_VIDEO_MIN_W = 120;
+const PREVIEW_VIDEO_MAX_W = 960;
+const PREVIEW_VIDEO_MIN_H = 68;
+const PREVIEW_VIDEO_MAX_H = 720;
+/** Title row + video top margin — keep in sync with GroovyFlowNode minHeight. */
+const PREVIEW_VIDEO_CHROME_H = 36;
+/**
+ * Node horizontal chrome for PreviewVideo footprint.
+ * Matches `.groovy-node` padding `8px 10px` + `1px` border each side (border-box).
+ */
+const PREVIEW_VIDEO_CHROME_W = 22;
+
+/** Aspect ratio (width / height) from muxed VIDEO job output, else null. */
+export function previewVideoAspect(output?: JobOutput): number | null {
+  const w = Number(output?.width);
+  const h = Number(output?.height);
+  if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) return w / h;
+  return null;
+}
+
+export function clampPreviewVideoWidth(width: number): number {
+  return Math.round(Math.min(PREVIEW_VIDEO_MAX_W, Math.max(PREVIEW_VIDEO_MIN_W, width)));
+}
+
+export function clampPreviewVideoHeight(height: number): number {
+  return Math.round(Math.min(PREVIEW_VIDEO_MAX_H, Math.max(PREVIEW_VIDEO_MIN_H, height)));
+}
+
+/** Keep PreviewVideo on-canvas size locked to source aspect (width or height drives the other). */
+export function lockPreviewVideoSize(
+  changed: "preview_width" | "preview_height",
+  value: number,
+  aspect: number = PREVIEW_VIDEO_DEFAULT_ASPECT,
+): { preview_width: number; preview_height: number } {
+  const ratio = aspect > 0 ? aspect : PREVIEW_VIDEO_DEFAULT_ASPECT;
+  if (changed === "preview_width") {
+    const preview_width = clampPreviewVideoWidth(value);
+    return {
+      preview_width,
+      preview_height: clampPreviewVideoHeight(preview_width / ratio),
+    };
+  }
+  const preview_height = clampPreviewVideoHeight(value);
+  return {
+    preview_width: clampPreviewVideoWidth(preview_height * ratio),
+    preview_height,
+  };
+}
+
+export function previewVideoPanelSize(
+  node: WorkflowNode,
+  output?: JobOutput,
+): { width: number; height: number; aspect: number } {
+  const aspect = previewVideoAspect(output) ?? PREVIEW_VIDEO_DEFAULT_ASPECT;
+  const rawW = Number(node.widgets.preview_width);
+  const rawH = Number(node.widgets.preview_height);
+  const locked =
+    Number.isFinite(rawW) && rawW > 0
+      ? lockPreviewVideoSize("preview_width", rawW, aspect)
+      : Number.isFinite(rawH) && rawH > 0
+        ? lockPreviewVideoSize("preview_height", rawH, aspect)
+        : lockPreviewVideoSize("preview_width", 240, aspect);
+  return {
+    width: locked.preview_width,
+    height: locked.preview_height,
+    aspect,
+  };
+}
+
+export function previewVideoNodeFootprint(panel: {
+  width: number;
+  height: number;
+}): { width: number; height: number } {
+  return {
+    width: panel.width + PREVIEW_VIDEO_CHROME_W,
+    height: panel.height + PREVIEW_VIDEO_CHROME_H,
+  };
+}
+
 export function nodeHasListenableOutput(
   workflow: Workflow,
   nodeId: string,
@@ -114,7 +239,8 @@ export function cachedStatusFromOutputs(
       out?.automation_id ||
       out?.type === "MULTI" ||
       out?.type === "TEXT" ||
-      out?.type === "STRING"
+      out?.type === "STRING" ||
+      (out?.type === "VIDEO" && Boolean(out.path))
     ) {
       cached[node.id] = "cached";
     }
@@ -241,6 +367,10 @@ export function resolveNodeInspectorOutput(
   direct?: JobOutput,
   listen?: JobOutput,
 ): JobOutput | undefined {
+  // Muxed VIDEO (PreviewVideo / MuxVideo) must keep its path for the HTML5 player.
+  if (direct?.type === "VIDEO" && direct.path) {
+    return direct;
+  }
   if (direct?.text) {
     const cacheId = direct.cache_id ?? listen?.cache_id;
     return {
@@ -251,9 +381,7 @@ export function resolveNodeInspectorOutput(
       text: direct.text,
     };
   }
-  // SaveAudio: keep the written-file STRING payload (path + provenance sidecar)
-  // so the Inspector can show the output path and Review compliance action.
-  // Auditioning still works via the separately-resolved listen id.
+  // SaveAudio / SaveVideo: keep the written-file STRING payload (path + optional provenance).
   if (direct?.type === "STRING" && direct.path) {
     return direct;
   }
@@ -317,6 +445,7 @@ const WIREABLE_INPUT_TYPES = new Set([
   "TRAJECTORY",
   "AUTHENTICITY",
   "SAMPLE_CHECK",
+  "VIDEO",
 ]);
 
 /** Widget-only params — never auto-wired or shown as canvas handles. */
@@ -463,6 +592,7 @@ export function mergeFlowNodes<T extends Node>(current: T[], next: T[]): T[] {
       data: fresh.data,
       type: fresh.type,
       hidden: fresh.hidden,
+      style: fresh.style,
       position: existing.dragging ? existing.position : fresh.position,
     });
   }
@@ -955,10 +1085,16 @@ export function workflowToFlowNodes(
           : n.type === "TrajectoryMonitor" && trajectoryRole === "input"
             ? findUpstreamTrajectoryAuthor(workflow, n.id)
             : null;
+      const videoPanel =
+        n.type === "PreviewVideo" ? previewVideoPanelSize(n, jobOut) : null;
+      const videoFootprint = videoPanel ? previewVideoNodeFootprint(videoPanel) : null;
       return {
         id: n.id,
         type: "groovy",
         position: n.pos ?? { x: 0, y: 0 },
+        style: videoFootprint
+          ? { width: videoFootprint.width, height: videoFootprint.height }
+          : undefined,
         data: {
           label: n.type,
           kind: canvasNodeKind(n.type, schema?.category),
@@ -971,6 +1107,11 @@ export function workflowToFlowNodes(
             n.type === "Meter"
               ? undefined
               : promptWidgetSnippet(n) ?? previewTextSnippet(jobOut, 140) ?? undefined,
+          previewVideoPath:
+            n.type === "PreviewVideo" ? previewVideoPath(jobOut) ?? undefined : undefined,
+          previewVideoWidth: videoPanel?.width,
+          previewVideoHeight: videoPanel?.height,
+          previewVideoAspect: videoPanel?.aspect,
           noteText,
           channelLabel,
           trajectoryId: resolveNodeTrajectoryId(workflow, n.id, outputs),
@@ -1049,6 +1190,7 @@ export type WiredInputRow = {
 /** When a socket is wired, these local widgets are ignored at render. */
 const WIRED_TEXT_SUPERSEDES_WIDGET: Record<string, Record<string, string | string[]>> = {
   GenerateAudio: { text: "prompt" },
+  Video2Audio: { text: "prompt" },
   MIDIToAudio: { text: "prompt" },
   SingFromMIDI: { lyrics: "text" },
   TTS: { transcript: "text" },
@@ -1795,8 +1937,16 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
       width = 220;
       height = 140;
       break;
+    case "PreviewVideo": {
+      const panel = previewVideoPanelSize(node);
+      const footprint = previewVideoNodeFootprint(panel);
+      width = footprint.width;
+      height = footprint.height;
+      break;
+    }
     case "Prompt":
     case "GenerateAudio":
+    case "Video2Audio":
     case "TTS":
     case "SingFromMIDI":
       width = 210;

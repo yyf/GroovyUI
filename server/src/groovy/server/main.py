@@ -731,6 +731,49 @@ def reveal_project_path(body: RevealPathRequest) -> dict[str, str]:
     return {"status": "ok", "path": str(candidate)}
 
 
+@app.get("/api/project/media")
+def project_media(path: str):
+    """Stream a project-relative (or project-absolute) media file for in-studio video preview.
+
+    Serves inline (no Content-Disposition attachment) so ``<video controls>`` can play
+    both the video and muxed audio tracks in the browser.
+    """
+    from fastapi.responses import FileResponse
+
+    raw = str(path or "").strip()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Missing path")
+    candidate = Path(raw).expanduser()
+    if not candidate.is_absolute():
+        candidate = (PROJECT_DIR / candidate).resolve()
+    else:
+        candidate = candidate.resolve()
+    project_root = PROJECT_DIR.resolve()
+    try:
+        candidate.relative_to(project_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Path escapes project directory") from exc
+    if not candidate.is_file():
+        raise HTTPException(status_code=404, detail=f"Media not found: {candidate.name}")
+    suffix = candidate.suffix.lower()
+    media_types = {
+        ".mp4": "video/mp4",
+        ".mov": "video/quicktime",
+        ".webm": "video/webm",
+        ".mkv": "video/x-matroska",
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
+        ".m4a": "audio/mp4",
+    }
+    # Do not pass ``filename=`` — that sets Content-Disposition: attachment and breaks
+    # inline HTML5 video+audio playback in the studio.
+    return FileResponse(
+        candidate,
+        media_type=media_types.get(suffix, "application/octet-stream"),
+        headers={"Content-Disposition": f'inline; filename="{candidate.name}"'},
+    )
+
+
 def _huggingface_hub_cache_dir() -> Path:
     """Resolve Hugging Face hub cache (same rules as huggingface_hub defaults)."""
     import os

@@ -1,11 +1,36 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from groovy.executor.cache import CacheStore
 
+# Nodes that read media from a ``path`` widget — fingerprint file identity for cache keys.
+PATH_MEDIA_INPUT_NODE_TYPES = frozenset(
+    {
+        "LoadAudio",
+        "LoadMIDI",
+        "MuxVideo",
+        "Video2Audio",
+    }
+)
+
 MEDIA_SEARCH_DIRS = ("assets/samples", "assets/uploads")
-MEDIA_EXTENSIONS = {".wav", ".flac", ".aiff", ".aif", ".mp3", ".ogg", ".mid", ".midi", ".mp4", ".m4a"}
+MEDIA_EXTENSIONS = {
+    ".wav",
+    ".flac",
+    ".aiff",
+    ".aif",
+    ".mp3",
+    ".ogg",
+    ".mid",
+    ".midi",
+    ".mp4",
+    ".m4a",
+    ".mov",
+    ".webm",
+    ".mkv",
+}
 
 
 def _normalize_relative(path: str) -> str:
@@ -46,6 +71,26 @@ def find_media_path_suggestions(cache: CacheStore, relative: str) -> list[str]:
             path for path in _list_media_files(cache) if _normalize_basename(Path(path).name) == folded
         )
     )
+
+
+def media_path_fingerprint(cache: CacheStore, relative: str) -> dict[str, Any] | None:
+    """Return size/mtime identity for a project media path (for node-cache signatures)."""
+    normalized = _normalize_relative(relative)
+    if not normalized:
+        return None
+    try:
+        resolved, canonical = resolve_project_media_path(cache, normalized)
+    except (FileNotFoundError, OSError, ValueError):
+        return None
+    try:
+        st = resolved.stat()
+    except OSError:
+        return None
+    return {
+        "path": canonical,
+        "mtime_ns": int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1_000_000_000))),
+        "size": int(st.st_size),
+    }
 
 
 def resolve_project_media_path(cache: CacheStore, relative: str) -> tuple[Path, str]:

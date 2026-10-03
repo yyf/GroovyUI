@@ -59,6 +59,7 @@ const TASK_FILTERS = [
   { value: "voice-conversion", label: "Voice conversion" },
   { value: "audio-to-midi", label: "Audio to MIDI" },
   { value: "music-generation", label: "Music generation" },
+  { value: "video-to-audio", label: "Video to audio" },
   { value: "singing-synthesis", label: "Singing synthesis" },
   { value: "deepfake-detection", label: "Deepfake detection" },
   { value: "audio-compare", label: "A/B compare" },
@@ -123,6 +124,21 @@ function licenseBadge(license: ModelCard["license"] | undefined): { label: strin
     return { label: `${license.spdx} NC`, className: "pill pill--warning" };
   }
   return { label: license.spdx, className: "pill pill--warning" };
+}
+
+function licenseDetailLines(license: ModelCard["license"] | undefined): string[] {
+  if (!license) return [];
+  const lines: string[] = [];
+  if (license.code_spdx && license.code_spdx !== license.spdx) {
+    lines.push(`Code: ${license.code_spdx}`);
+    lines.push(`Weights: ${license.spdx}`);
+  } else {
+    lines.push(license.spdx);
+  }
+  if (license.notes?.trim()) {
+    lines.push(license.notes.trim());
+  }
+  return lines;
 }
 
 function modelIsReady(model: ModelCard): boolean {
@@ -1177,6 +1193,9 @@ export default function ModelBrowser({
                         {rationale ? <p className="model-card__rationale">{rationale}</p> : null}
                         <div className="model-card__meta">
                           <span className={badge.className}>{badge.label}</span>
+                          {model.license?.code_spdx && model.license.code_spdx !== model.license.spdx ? (
+                            <span className="pill pill--neutral">code {model.license.code_spdx}</span>
+                          ) : null}
                           {model.license?.attribution_required ? (
                             <span className="pill pill--neutral">Attribution</span>
                           ) : null}
@@ -1229,6 +1248,11 @@ export default function ModelBrowser({
                 <span>{detailModel.vram_gb_estimate} GB VRAM</span>
                 {detailModel.dev_stub ? <span className="pill pill--neutral">dev stub</span> : null}
               </div>
+              {licenseDetailLines(detailModel.license).map((line) => (
+                <p key={line} className="model-browser__detail-meta">
+                  {line}
+                </p>
+              ))}
               <p className="model-browser__detail-meta">
                 Install: {detailModel.install_status}
                 {detailModel.inference_ready === false && !detailModel.dev_stub ? " · inference not ready" : ""}

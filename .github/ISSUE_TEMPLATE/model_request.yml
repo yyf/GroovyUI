@@ -44,6 +44,7 @@ body:
         - speech-to-text
         - text-to-speech
         - music-generation
+        - video-to-audio
         - voice-conversion
         - audio-to-midi
         - speech-translation

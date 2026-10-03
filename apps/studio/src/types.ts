@@ -187,7 +187,14 @@ export type ModelCard = {
   task_types: string[];
   tags: string[];
   author?: string;
-  license: { spdx: string; commercial_ok: boolean; attribution_required: boolean };
+  license: {
+    spdx: string;
+    commercial_ok: boolean;
+    attribution_required: boolean;
+    /** Package/repo license when different from weights (``spdx``). */
+    code_spdx?: string | null;
+    notes?: string | null;
+  };
   vram_gb_estimate: number;
   download_size_mb_estimate?: number | null;
   compatible_nodes: string[];
@@ -249,6 +256,11 @@ export type JobOutput = {
   ambisonics_id?: string;
   oba_id?: string;
   trajectory_id?: string;
+  video_id?: string;
+  /** Source / muxed frame size when type === "VIDEO". */
+  width?: number;
+  height?: number;
+  source_video_path?: string;
   outputs?: JobOutput[];
 };
 
