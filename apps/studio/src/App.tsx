@@ -1780,7 +1780,7 @@ export default function App() {
   // PreviewVideo picture locks to transport Space / Play / seek (muted; PCM is master).
   useEffect(() => {
     return attachTransportVideoSync();
-  }, [selectedNodeId, selectedNodePreview, lastJob?.id]);
+  }, [selectedNodeId, selectedNodePreview, lastJob]);
 
   const selectedTemplateId = activeTemplateId;
 
