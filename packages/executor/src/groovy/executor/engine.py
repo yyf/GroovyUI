@@ -27,7 +27,12 @@ from groovy.executor.midi import MidiBuffer
 from groovy.executor.node_cache import compute_node_signature
 from groovy.executor.oba import ObjectScene
 from groovy.executor.osc_live import OscBuffer
+from groovy.executor.project_paths import (
+    PATH_MEDIA_INPUT_NODE_TYPES,
+    media_path_fingerprint,
+)
 from groovy.executor.trajectory import TrajectoryBuffer
+from groovy.executor.video import VideoClip
 from groovy.executor.provenance import build_record, parent_refs, read_provenance
 from groovy.executor.signal_integrity import attach_signal_metadata
 from groovy.node import NODE_REGISTRY, get_node_class
@@ -158,7 +163,16 @@ class Executor:
                         )
                     kwargs[_input_name(node_cls, input_idx)] = src_outputs[src_out_idx]
 
-                signature = compute_node_signature(node.type, dict(node.widgets), kwargs)
+                widgets_for_sig = dict(node.widgets)
+                # Path widgets alone are not enough: replacing a file in place must
+                # bust MuxVideo / LoadAudio / Video2Audio node-cache hits.
+                if node.type in PATH_MEDIA_INPUT_NODE_TYPES:
+                    path_val = widgets_for_sig.get("path")
+                    if isinstance(path_val, str) and path_val.strip():
+                        fingerprint = media_path_fingerprint(self.cache, path_val)
+                        if fingerprint is not None:
+                            widgets_for_sig["_source_media"] = fingerprint
+                signature = compute_node_signature(node.type, widgets_for_sig, kwargs)
                 cacheable = getattr(node_cls, "CACHEABLE", True)
                 cached_state = (
                     None
@@ -372,6 +386,8 @@ class Executor:
                 result.append(self.cache.load_trajectory(item["trajectory_id"]))
             elif item.get("type") == "OSC" and item.get("osc_id"):
                 result.append(self.cache.load_osc(item["osc_id"]))
+            elif item.get("type") == "VIDEO" and item.get("video_id"):
+                result.append(self.cache.load_video(item["video_id"]))
             elif item.get("type") == "TEXT":
                 result.append(str(item.get("text", "")))
             elif item.get("type") == "STRING" and item.get("path"):
@@ -425,6 +441,15 @@ class Executor:
             meta = {"type": "TRAJECTORY", "trajectory_id": item.id}
         elif isinstance(item, OscBuffer):
             meta = {"type": "OSC", "osc_id": item.id}
+        elif isinstance(item, VideoClip):
+            meta = {
+                "type": "VIDEO",
+                "video_id": item.id,
+                "path": item.path,
+                "source_video_path": item.source_video_path,
+                "width": item.width,
+                "height": item.height,
+            }
         elif isinstance(item, AudioBuffer):
             if not (
                 getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
@@ -458,6 +483,26 @@ class Executor:
                         "content_credentials",
                         {"status": "off", "mode": "off", "verified": False},
                     ),
+                }
+            elif node.type == "SaveVideo":
+                output_path = Path(item)
+                provenance_path = output_path.with_name(
+                    f"{output_path.stem}.provenance.json"
+                )
+                resolved = (
+                    provenance_path
+                    if provenance_path.is_absolute()
+                    else (self.project_dir / provenance_path)
+                )
+                if not resolved.is_file():
+                    raise RuntimeError(
+                        f"SaveVideo wrote video but provenance sidecar is missing: "
+                        f"{provenance_path}"
+                    )
+                meta = {
+                    "type": "STRING",
+                    "path": item,
+                    "provenance_path": str(provenance_path).replace("\\", "/"),
                 }
             else:
                 meta = {"type": "TEXT", "text": item}
@@ -525,6 +570,7 @@ def _input_name(node_cls: type, index: int) -> str:
                 "OBA",
                 "OSC",
                 "TRAJECTORY",
+                "VIDEO",
             }:
                 names.append(name)
             elif socket_type == "FLOAT" and name in {"gain_a", "gain_b", "value"}:

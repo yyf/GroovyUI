@@ -13,6 +13,7 @@ from groovy.executor import (
     load_template_workflow,
     prepare_template_project,
 )
+from groovy.executor.media_io import ffmpeg_available
 from groovy.executor.template_sample_accuracy import _iter_audio_caches, audit_sample_accuracy
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
@@ -39,6 +40,8 @@ def test_l4_template_sample_accuracy_e2e(
     prepared_sample_accuracy_project: tuple[Path, TemplateIntegritySpec],
 ) -> None:
     project_dir, spec = prepared_sample_accuracy_project
+    if any(out_type == "VIDEO" for _, out_type in spec.required_outputs) and not ffmpeg_available():
+        pytest.skip("ffmpeg not on PATH (required for VIDEO mux templates)")
     workflow = load_template_workflow(spec)
     executor = Executor(project_dir)
     result = executor.execute(workflow, target_nodes=list(spec.target_nodes))

@@ -104,6 +104,29 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "negative_prompt": "Stable Audio: concepts to avoid.",
         },
     },
+    "Video2Audio": {
+        "description": (
+            "Generic video→audio node — Diff-Foley is used as the example default. "
+            "Browse Model Browser (Cmd+K → Find models) to install and switch to alternative "
+            "video-to-audio models."
+        ),
+        "inputs": {
+            "text": "Optional TEXT wire; when connected, overrides the local prompt widget (model-dependent).",
+        },
+        "widgets": {
+            "model": (
+                "Example default: Diff-Foley. This node is model-agnostic — open Model Browser "
+                "to choose another video-to-audio model."
+            ),
+            "path": "Project-relative video (mp4/mov/…). Required for most models; some accept text-only.",
+            "prompt": "Optional soundscape description (model-dependent; ignored by some backends).",
+            "negative_prompt": "Concepts to avoid (model-dependent).",
+            "duration": "Target length in seconds (default 8).",
+            "num_steps": "Inference / diffusion steps (model-dependent).",
+            "cfg_strength": "Classifier-free guidance strength (model-dependent).",
+            "seed": "Random seed (−1 = random).",
+        },
+    },
     "SingFromMIDI": {
         "description": "Synthesize singing voice from MIDI notes and lyrics.",
         "inputs": {
@@ -160,6 +183,27 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "inputs": {
             "audio": "Audio to audition in the transport bar (also enables SaveAudio chaining).",
             "text": "Text (e.g. Whisper transcript) shown on the node and in Node Helper.",
+        },
+    },
+    "MuxVideo": {
+        "description": "Mux a source video file with generated AUDIO into a playable VIDEO clip (mp4).",
+        "inputs": {
+            "audio": "Generated or processed AUDIO to replace the source soundtrack.",
+        },
+        "widgets": {
+            "path": "Project-relative source video (video stream copied; audio replaced).",
+        },
+    },
+    "PreviewVideo": {
+        "description": "Terminal sink for muxed VIDEO audition in Node Helper (HTML5 video player).",
+        "inputs": {"video": "VIDEO clip from MuxVideo (or SaveVideo upstream passthrough)."},
+    },
+    "SaveVideo": {
+        "description": "Copy a VIDEO clip into the project exports folder.",
+        "inputs": {"video": "VIDEO clip to export (typically from PreviewVideo or MuxVideo)."},
+        "widgets": {
+            "path": "Folder under the project (e.g. exports).",
+            "filename": "Base file name; a UTC timestamp is appended when written.",
         },
     },
     "Note": {

@@ -70,6 +70,7 @@ import {
 } from "./components/StatusLeds";
 import RenderActivityBar from "./components/RenderActivityBar";
 import { AuditionContext } from "./context/AuditionContext";
+import { PreviewVideoSizeContext } from "./context/PreviewVideoSizeContext";
 import { TrajectoryEditContext } from "./context/TrajectoryEditContext";
 import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
 import { useLiveIo } from "./hooks/useLiveIo";
@@ -90,6 +91,7 @@ import { nodeStatusOnProgress, slowAiDownloadLabel } from "./renderActivity";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import { nextActiveEdgeIds, resolveEdgePlaybackTarget } from "./edgePlayback";
+import { attachTransportVideoSync } from "./transportVideoSync";
 import {
   cachedStatusFromOutputs,
   connectNodes,
@@ -111,6 +113,7 @@ import {
   extractSelection,
   pasteSelection,
   preferredAuditionNodeId,
+  preferredVideoPreviewNodeId,
   disconnectPort,
   removeLinks,
   removeNodesFromWorkflow,
@@ -122,6 +125,8 @@ import {
   resolveTargetNode,
   withAuthenticityRenderTargets,
   findUpstreamLoadAudio,
+  lockPreviewVideoSize,
+  previewVideoAspect,
   rescalePointsWidgetJson,
   setLinkColor,
   syncPositions,
@@ -370,6 +375,7 @@ export default function App() {
       "TTS",
       "SingFromMIDI",
       "TimbreTransfer",
+      "Video2Audio",
     ]);
     const hasGenerative = nondet.some((node) => generative.has(node.type));
     if (hasGenerative) {
@@ -832,18 +838,65 @@ export default function App() {
 
   const updateWidget = useCallback(
     (nodeId: string, name: string, value: unknown) => {
+      const displayOnly =
+        name === "preview_width" || name === "preview_height";
+      setWorkflow((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          nodes: prev.nodes.map((node) => {
+            if (node.id !== nodeId) return node;
+            if (
+              node.type === "PreviewVideo" &&
+              (name === "preview_width" || name === "preview_height")
+            ) {
+              const aspect =
+                previewVideoAspect(lastJob?.outputs?.[nodeId]) ?? 16 / 9;
+              const locked = lockPreviewVideoSize(
+                name,
+                Number(value),
+                aspect,
+              );
+              return { ...node, widgets: { ...node.widgets, ...locked } };
+            }
+            return { ...node, widgets: { ...node.widgets, [name]: value } };
+          }),
+        };
+      });
+      if (!displayOnly) {
+        setNodeStatus((prev) => ({ ...prev, [nodeId]: "stale" }));
+      }
+    },
+    [lastJob?.outputs, setWorkflow],
+  );
+
+  const patchPreviewVideoSize = useCallback(
+    (nodeId: string, width: number, height: number) => {
       setWorkflow((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
           nodes: prev.nodes.map((node) =>
-            node.id === nodeId ? { ...node, widgets: { ...node.widgets, [name]: value } } : node,
+            node.id === nodeId
+              ? {
+                  ...node,
+                  widgets: {
+                    ...node.widgets,
+                    preview_width: width,
+                    preview_height: height,
+                  },
+                }
+              : node,
           ),
         };
       });
-      setNodeStatus((prev) => ({ ...prev, [nodeId]: "stale" }));
     },
     [setWorkflow],
+  );
+
+  const previewVideoSizeApi = useMemo(
+    () => ({ patchSize: patchPreviewVideoSize }),
+    [patchPreviewVideoSize],
   );
 
   const patchTrajectoryAuthor = useCallback(
@@ -1003,24 +1056,60 @@ export default function App() {
         if (job.status === "completed") {
           setFailedNodeId(null);
           const outputs = job.outputs ?? {};
+          // Lock PreviewVideo canvas size to source frame aspect once VIDEO dims are known.
+          setWorkflow((prev) => {
+            if (!prev) return prev;
+            let changed = false;
+            const nodes = prev.nodes.map((node) => {
+              if (node.type !== "PreviewVideo") return node;
+              const aspect = previewVideoAspect(outputs[node.id]);
+              if (!aspect) return node;
+              const baseW = Number(node.widgets.preview_width) || 240;
+              const locked = lockPreviewVideoSize("preview_width", baseW, aspect);
+              if (
+                Number(node.widgets.preview_width) === locked.preview_width &&
+                Number(node.widgets.preview_height) === locked.preview_height
+              ) {
+                return node;
+              }
+              changed = true;
+              return { ...node, widgets: { ...node.widgets, ...locked } };
+            });
+            return changed ? { ...prev, nodes } : prev;
+          });
           setNodeStatus((prev) => ({ ...prev, ...cachedStatusFromOutputs(workflow, outputs) }));
           let auditionNodeId: string | null = null;
+          const videoPreviewId = preferredVideoPreviewNodeId(workflow, outputs);
           if (autoAudition) {
             recordActivationMilestone("render_completed");
+            // Prefer muxed VIDEO preview selection when present (A/V in Node Helper).
             auditionNodeId = preferredAuditionNodeId(workflow, outputs);
-            if (auditionNodeId) {
+            const selectId = videoPreviewId ?? auditionNodeId;
+            if (selectId) {
               setNodes((current) =>
                 current.map((node) => ({
                   ...node,
-                  selected: node.id === auditionNodeId,
+                  selected: node.id === selectId,
                 })),
               );
+            }
+            // Prefer PreviewVideo selection (on-node video); transport auditions its muxed PCM.
+            const playId =
+              videoPreviewId && resolveNodeListenId(workflow, videoPreviewId, outputs)
+                ? videoPreviewId
+                : auditionNodeId;
+            if (playId) {
               // Edges animate only after the audio element fires `play` (not eagerly).
-              auditionTargetRef.current = auditionNodeId;
+              auditionTargetRef.current = playId;
               recordActivationMilestone("playback_requested", {
-                preview_node_id: auditionNodeId,
+                preview_node_id: playId,
               });
               setAuditionNonce((nonce) => nonce + 1);
+            } else if (videoPreviewId) {
+              auditionTargetRef.current = null;
+              recordActivationMilestone("playback_requested", {
+                preview_node_id: videoPreviewId,
+              });
             } else {
               finishActivationSession("failed", {
                 reason: "preview_not_listenable",
@@ -1032,19 +1121,28 @@ export default function App() {
           const savedOutput = targets
             .map((nodeId) => {
               const node = workflow.nodes.find((n) => n.id === nodeId);
-              return node?.type === "SaveAudio" ? outputs[nodeId] : undefined;
+              return node?.type === "SaveAudio" || node?.type === "SaveVideo"
+                ? outputs[nodeId]
+                : undefined;
             })
             .find(Boolean);
           const saved = savedFilePath(savedOutput);
           const provenance = savedProvenancePath(savedOutput);
+          const savedVideo = targets.some(
+            (nodeId) => workflow.nodes.find((n) => n.id === nodeId)?.type === "SaveVideo",
+          );
           setStatus(
             saved && provenance
               ? `Saved audio + provenance: ${saved}`
               : saved
-                ? `Saved to ${saved}`
-                : autoAudition && !auditionNodeId
+                ? savedVideo
+                  ? `Saved video to ${saved}`
+                  : `Saved to ${saved}`
+                : autoAudition && !auditionNodeId && !videoPreviewId
                   ? "Render complete — Preview produced no listenable output"
-                  : "Render complete — click Play to audition",
+                  : videoPreviewId
+                    ? "Render complete — play muxed video in Node Helper → Outputs"
+                    : "Render complete — click Play to audition",
           );
         } else if (job.status === "cancelled") {
           const outputs = job.outputs ?? {};
@@ -1571,15 +1669,19 @@ export default function App() {
   const selectedSavedPath = savedFilePath(selectedOutput);
   const transportEmptyHint = !selectedNodeId
     ? "Select a node"
-    : selectedNode?.type === "SaveAudio"
+    : selectedNode?.type === "SaveAudio" || selectedNode?.type === "SaveVideo"
       ? selectedSavedPath
         ? `Saved to ${selectedSavedPath}`
-        : "Render to write audio file"
+        : selectedNode.type === "SaveVideo"
+          ? "Render to write video under workspace/exports"
+          : "Render to write audio file"
       : selectedMidiId || selectedNodePreview
         ? ""
-        : previewKind === "midi"
-          ? "Render to preview MIDI"
-          : "Render to preview this node";
+        : selectedOutput?.type === "VIDEO" && selectedOutput.path
+          ? "Render upstream audio — Space / Play drives video + waveform"
+          : previewKind === "midi"
+            ? "Render to preview MIDI"
+            : "Render to preview this node";
 
   useEffect(() => {
     document.querySelector<HTMLAudioElement>(".transport__audio")?.pause();
@@ -1674,6 +1776,11 @@ export default function App() {
       transport.removeEventListener("ended", onAudioEvent);
     };
   }, [selectedNodeId, selectedNodePreview]);
+
+  // PreviewVideo picture locks to transport Space / Play / seek (muted; PCM is master).
+  useEffect(() => {
+    return attachTransportVideoSync();
+  }, [selectedNodeId, selectedNodePreview, lastJob]);
 
   const selectedTemplateId = activeTemplateId;
 
@@ -1959,6 +2066,7 @@ export default function App() {
 
   return (
     <AuditionContext.Provider value={auditionNode}>
+      <PreviewVideoSizeContext.Provider value={previewVideoSizeApi}>
       <TrajectoryEditContext.Provider value={trajectoryEditApi}>
       <div className={`app ${focusMode ? "app--focus" : ""}`}>
         <StudioTopBar
@@ -2325,6 +2433,7 @@ export default function App() {
         />
       </div>
       </TrajectoryEditContext.Provider>
+      </PreviewVideoSizeContext.Provider>
     </AuditionContext.Provider>
   );
 }

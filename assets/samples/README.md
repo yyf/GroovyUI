@@ -4,6 +4,7 @@
 # Shipped demos:
 # - `podcast_denoise_demo.wav` — Podcast Denoise / speech templates
 # - `stem_separation_demo.wav` — Isolate to Transcribe / stem templates
+# - `video480p.mov` — Video to Audio
 #
 # MIDI / automation templates expect a user-provided `.mid` (or a local copy under
 # `assets/samples/`). `archived/` is local-only (gitignored).

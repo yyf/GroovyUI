@@ -17,6 +17,7 @@ apps/studio/dist/
 !assets/samples/README.md
 !assets/samples/podcast_denoise_demo.wav
 !assets/samples/stem_separation_demo.wav
+!assets/samples/video480p.mov
 # Local-only archive (not shipped)
 assets/samples/archived/
 !workspace/assets/samples/dialogue_48k.wav

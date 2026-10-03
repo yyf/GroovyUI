@@ -13,12 +13,31 @@ from typing import Any
 from groovy.executor.cancel import JobCancelled
 
 
+def _resolve_worker_timeout(timeout: int | None) -> int | None:
+    """Wall-clock limit in seconds, or ``None`` to wait until the worker exits / cancel.
+
+    Default is unlimited so long Mac CPU/MPS video-to-audio jobs (first weight load) are not
+    killed mid-inference. Set ``GROOVY_AI_WORKER_TIMEOUT`` (positive int) to cap.
+    Explicit ``timeout=`` on the call wins over the env var.
+    """
+    if timeout is not None:
+        return timeout if timeout > 0 else None
+    raw = os.environ.get("GROOVY_AI_WORKER_TIMEOUT", "").strip()
+    if not raw:
+        return None
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return None
+    return parsed if parsed > 0 else None
+
+
 def run_ai_worker(
     node_type: str,
     kwargs: dict[str, Any],
     project_dir: Path,
     *,
-    timeout: int = 1200,
+    timeout: int | None = None,
     cancel_check: Callable[[], bool] | None = None,
 ) -> list[dict[str, Any]]:
     # Gradio (and some Hub installs) may pull PyPI ``groovy``, which shadows
@@ -56,14 +75,15 @@ def run_ai_worker(
     proc.stdin.write(json.dumps(payload))
     proc.stdin.close()
 
+    limit = _resolve_worker_timeout(timeout)
     started = time.monotonic()
     while proc.poll() is None:
         if cancel_check and cancel_check():
             _terminate_worker(proc)
             raise JobCancelled()
-        if time.monotonic() - started > timeout:
+        if limit is not None and time.monotonic() - started > limit:
             _terminate_worker(proc)
-            raise RuntimeError(f"AI worker timed out after {timeout}s")
+            raise RuntimeError(f"AI worker timed out after {limit}s")
         time.sleep(0.25)
 
     stdout = proc.stdout.read() if proc.stdout else ""

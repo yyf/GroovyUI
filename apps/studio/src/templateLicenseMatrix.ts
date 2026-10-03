@@ -84,6 +84,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     final: "Commercial Safe",
     tone: "safe",
   },
+  {
+    id: "video-to-audio",
+    title: "Video to Audio",
+    models: "diff-foley (default)",
+    licenses: "diff-foley: code Apache-2.0 / weights MIT",
+    impact: "Med",
+    cluster: "Generate Foley",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
 ];
 
 const publicIdSet = new Set<string>(STANDARD_BUNDLED_TEMPLATE_IDS);

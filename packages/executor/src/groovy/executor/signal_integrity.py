@@ -207,6 +207,12 @@ def _validate_required_output(
     elif expected_type == "STEMS":
         if not output.get("stems_id"):
             errors.append(f"{node_id}: missing stems_id")
+    elif expected_type == "VIDEO":
+        if not output.get("video_id") and not output.get("path"):
+            errors.append(f"{node_id}: missing VIDEO path/video_id")
+    elif expected_type == "STRING":
+        if not output.get("path"):
+            errors.append(f"{node_id}: missing STRING path")
     _ = cache
     return errors
 

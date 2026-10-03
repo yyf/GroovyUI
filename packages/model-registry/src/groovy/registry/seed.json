@@ -972,6 +972,67 @@
       "similar_models": []
     },
     {
+      "id": "diff-foley",
+      "status": "published",
+      "trust": "verified",
+      "name": "Diff-Foley",
+      "description": "Synchronized video-to-audio Foley (luosiallen/Diff-Foley, NeurIPS 2023). Code Apache-2.0; weights MIT on Hugging Face (SimianLuo/Diff-Foley). Commercial-friendly V2A (~16 kHz). Install pulls Python deps; ~6GB checkpoints download on first real inference.",
+      "task_types": ["video-to-audio", "sfx"],
+      "tags": ["diff-foley", "video-to-audio", "foley", "sfx", "sync", "generation", "commercial-ok"],
+      "author": "Simian Luo et al.",
+      "license": {
+        "spdx": "MIT",
+        "code_spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.95,
+        "notes": "GitHub luosiallen/Diff-Foley is Apache-2.0; Hugging Face SimianLuo/Diff-Foley checkpoints are labeled MIT. commercial_ok follows weights."
+      },
+      "vram_gb_estimate": 12,
+      "download_size_mb_estimate": 6100,
+      "compatible_nodes": ["Video2Audio"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "torchaudio", "version": ">=2.0.0" },
+          { "package": "omegaconf", "version": ">=2.1.0" },
+          { "package": "librosa", "version": ">=0.9.0" },
+          { "package": "soundfile", "version": ">=0.12.0" },
+          { "package": "einops", "version": ">=0.6.0" }
+        ],
+        "verify_imports": ["torch", "librosa", "soundfile", "omegaconf"]
+      },
+      "inference_params": [
+        {
+          "name": "duration",
+          "type": "FLOAT",
+          "default": 8.0,
+          "min": 1.0,
+          "max": 16.0,
+          "description": "Video truncate length in seconds (Diff-Foley demos use ~8s)."
+        },
+        {
+          "name": "num_steps",
+          "type": "INT",
+          "default": 25,
+          "min": 4,
+          "max": 100,
+          "description": "Diffusion sampling steps."
+        },
+        {
+          "name": "cfg_strength",
+          "type": "FLOAT",
+          "default": 4.5,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "Guidance strength (Double Guidance when enabled in runner)."
+        }
+      ],
+      "similar_models": [],
+      "architecture_notes": "Video2Audio backend (video-conditioned; text prompt ignored). Stage1 CAVP + Stage2 LDM + Griffin-Lim @ 16 kHz. Research notebook pipeline; runner clones luosiallen/Diff-Foley and pulls HF ckpts on first real inference."
+    },
+    {
       "id": "demucs-v4-objects",
       "status": "published",
       "trust": "verified",

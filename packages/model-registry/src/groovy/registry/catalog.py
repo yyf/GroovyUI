@@ -11,22 +11,47 @@ class ModelCatalog:
     def __init__(self, catalog_path: Path | None = None, overlay_path: Path | None = None) -> None:
         if catalog_path is None:
             catalog_path = Path(resources.files("groovy.registry")) / "seed.json"
-        data = json.loads(catalog_path.read_text())
-        self._models: dict[str, ModelManifest] = {
+        self._catalog_path = Path(catalog_path)
+        self._overlay_path = Path(overlay_path) if overlay_path else None
+        self._seed_mtime: float | None = None
+        self._overlay_mtime: float | None = None
+        self._models: dict[str, ModelManifest] = {}
+        self._load()
+
+    def _path_mtime(self, path: Path | None) -> float | None:
+        if path is None or not path.exists():
+            return None
+        return path.stat().st_mtime
+
+    def _load(self) -> None:
+        data = json.loads(self._catalog_path.read_text())
+        self._models = {
             item["id"]: ModelManifest.model_validate(item) for item in data["models"]
         }
-        if overlay_path and overlay_path.exists():
-            overlay = json.loads(overlay_path.read_text())
+        if self._overlay_path and self._overlay_path.exists():
+            overlay = json.loads(self._overlay_path.read_text())
             for item in overlay.get("models", []):
                 self._models[item["id"]] = ModelManifest.model_validate(item)
+        self._seed_mtime = self._path_mtime(self._catalog_path)
+        self._overlay_mtime = self._path_mtime(self._overlay_path)
+
+    def _reload_if_stale(self) -> None:
+        """Pick up seed.json / overlay edits without restarting the API (dev ergonomics)."""
+        if self._path_mtime(self._catalog_path) != self._seed_mtime:
+            self._load()
+            return
+        if self._path_mtime(self._overlay_path) != self._overlay_mtime:
+            self._load()
 
     def all(self, *, include_drafts: bool = False) -> list[ModelManifest]:
+        self._reload_if_stale()
         return sorted(
             [m for m in self._models.values() if include_drafts or m.status == "published"],
             key=lambda m: m.name.lower(),
         )
 
     def get(self, model_id: str) -> ModelManifest | None:
+        self._reload_if_stale()
         return self._models.get(model_id)
 
     def search(
@@ -37,6 +62,7 @@ class ModelCatalog:
         commercial_ok: bool | None = None,
         node_type: str | None = None,
     ) -> list[ModelManifest]:
+        self._reload_if_stale()
         q = query.strip().lower()
         results: list[tuple[int, ModelManifest]] = []
         for model in self._models.values():

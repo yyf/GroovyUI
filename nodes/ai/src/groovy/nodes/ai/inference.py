@@ -891,6 +891,37 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
     return [{"type": "AUDIO", "cache_id": out_buffer.id}]
 
 
+def run_video2audio(cache: CacheStore, kwargs: dict) -> list[dict]:
+    from pathlib import Path
+
+    from groovy.executor.project_paths import resolve_project_media_path
+    from groovy.nodes.ai.model_params import float_param, int_param, optional_seed, seed_param
+
+    model_id = str(kwargs.get("model", "diff-foley"))
+    prompt = str(kwargs.get("text") or kwargs.get("prompt") or "")
+    path_raw = str(kwargs.get("path") or "").strip()
+    video_path: Path | None = None
+    if path_raw:
+        video_path, _ = resolve_project_media_path(cache, path_raw)
+    # Diff-Foley native 16 kHz (future backends may override).
+    sample_rate = 16000 if model_id == "diff-foley" else 44100
+    pcm = video2audio_waveform(
+        prompt,
+        video_path=video_path,
+        sample_rate=sample_rate,
+        model_id=model_id,
+        duration=float_param(kwargs, "duration", 8.0),
+        num_steps=int_param(kwargs, "num_steps", 25),
+        cfg_strength=float_param(kwargs, "cfg_strength", 4.5),
+        negative_prompt=str(kwargs.get("negative_prompt") or ""),
+        seed=optional_seed(kwargs),
+        stub_seed=seed_param(kwargs, fallback=prompt or path_raw or model_id),
+    )
+    out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="Video2Audio")
+    cache.write_audio(out_buffer, pcm)
+    return [{"type": "AUDIO", "cache_id": out_buffer.id}]
+
+
 def run_sing_from_midi(cache: CacheStore, kwargs: dict) -> list[dict]:
     from groovy.nodes.ai.model_params import seed_param
 
@@ -1295,6 +1326,111 @@ def generate_audio_waveform(
         )
 
     raise RuntimeError(f"Unsupported text-to-music model for real inference: {model_id}")
+
+
+def video2audio_waveform(
+    prompt: str,
+    *,
+    video_path,
+    sample_rate: int,
+    model_id: str,
+    duration: float = 8.0,
+    num_steps: int = 25,
+    cfg_strength: float = 4.5,
+    negative_prompt: str = "",
+    seed: int | None = None,
+    stub_seed: int | None = None,
+) -> np.ndarray:
+    """Model-agnostic video±text → audio. Dispatch by registry ``model_id``."""
+    _ = negative_prompt  # Reserved for future text-conditioned V2A backends.
+    from groovy.nodes.ai.inference_env import inference_stub_enabled
+
+    effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
+    if inference_stub_enabled():
+        return _video2audio_stub(
+            prompt,
+            sample_rate=sample_rate,
+            duration=duration,
+            seed=effective_stub,
+            has_video=video_path is not None,
+        )
+
+    if video_path is None and not prompt.strip():
+        raise RuntimeError("Video2Audio needs a video path and/or a text prompt.")
+
+    if model_id == "diff-foley":
+        return _video2audio_diff_foley(
+            prompt,
+            video_path=video_path,
+            sample_rate=sample_rate,
+            duration=duration,
+            num_steps=num_steps,
+            cfg_strength=cfg_strength,
+            seed=seed,
+        )
+
+    # Future backends (HunyuanVideo-Foley, FoleyCrafter, …) branch here.
+    raise RuntimeError(
+        f"Unsupported Video2Audio model for real inference: {model_id}. "
+        "Install a published video-to-audio model from Model Browser (Cmd+K)."
+    )
+
+
+def _video2audio_diff_foley(
+    prompt: str,
+    *,
+    video_path,
+    sample_rate: int,
+    duration: float,
+    num_steps: int,
+    cfg_strength: float,
+    seed: int | None,
+) -> np.ndarray:
+    _ = prompt  # Diff-Foley is video-conditioned only.
+    if video_path is None:
+        raise RuntimeError(
+            "Diff-Foley requires a video file path (text-only is not supported). "
+            "Set the Video2Audio path widget, or pick a model that supports text±video."
+        )
+    from groovy.nodes.ai.inference_env import diff_foley_available
+
+    if not diff_foley_available():
+        raise RuntimeError(
+            "Diff-Foley inference deps are not installed. Install diff-foley from "
+            "Model Browser (Cmd+K) (requires torch, librosa, omegaconf)."
+        )
+    from groovy.nodes.ai.backends.diff_foley_runner import generate_from_video
+
+    return generate_from_video(
+        video_path=video_path,
+        sample_rate=sample_rate,
+        duration=duration,
+        num_steps=num_steps,
+        cfg_strength=cfg_strength,
+        seed=seed,
+    )
+
+
+def _video2audio_stub(
+    prompt: str,
+    *,
+    sample_rate: int,
+    duration: float,
+    seed: int = 0,
+    has_video: bool = False,
+) -> np.ndarray:
+    """Deterministic placeholder for CI / Inference=Stub — not real V2A inference."""
+    nudge = seed % 13
+    seconds = max(1.0, min(float(duration), 30.0))
+    t = np.linspace(0, seconds, int(sample_rate * seconds), endpoint=False)
+    # Slightly different spectrum when a video path was provided vs text-only.
+    f1 = (110 if has_video else 98) + nudge * 9
+    f2 = (165 if has_video else 147) + nudge * 7
+    envelope = 0.5 + 0.5 * np.sin(2 * np.pi * (0.25 + nudge * 0.02) * t)
+    tone = 0.1 * envelope * (np.sin(2 * np.pi * f1 * t) + 0.4 * np.sin(2 * np.pi * f2 * t))
+    if prompt:
+        tone = tone * (0.85 + 0.15 * ((sum(ord(c) for c in prompt) % 7) / 7.0))
+    return tone.astype(np.float64).reshape(1, -1)
 
 
 def _generate_audio_stub(

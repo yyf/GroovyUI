@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,10 +25,17 @@ from groovy.executor.content_credentials import (
     process_content_credentials,
 )
 from groovy.executor.control import AutomationBuffer
-from groovy.executor.media_io import read_audio_pcm, write_audio_ffmpeg, write_uses_ffmpeg
+from groovy.executor.media_io import (
+    mux_video_with_audio,
+    probe_video_dimensions,
+    read_audio_pcm,
+    write_audio_ffmpeg,
+    write_uses_ffmpeg,
+)
 from groovy.executor.midi import MidiBuffer
 from groovy.executor.project_paths import resolve_project_media_path
 from groovy.executor.provenance import build_lineage_graph
+from groovy.executor.video import VideoClip
 from groovy.node import GroovyNode, register_node
 from groovy.nodes.core.immersive import register_immersive
 from groovy.nodes.core.live_io import register_live_io
@@ -41,6 +50,9 @@ def register_all() -> None:
     _ = (
         LoadAudio,
         SaveAudio,
+        MuxVideo,
+        PreviewVideo,
+        SaveVideo,
         Resample,
         Trim,
         Mix,
@@ -365,6 +377,232 @@ class SaveAudio(GroovyNode):
                 f"complete export for {relative}: {exc}"
             ) from exc
         return (str(out_path),)
+
+
+@register_node
+class MuxVideo(GroovyNode):
+    """Mux a source video file with generated AUDIO into a playable VIDEO clip (mp4)."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_CLASS = "ai_generated"
+    RETURN_TYPES = ("VIDEO",)
+    OUTPUT_NAMES = ("video",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "audio": ("AUDIO",),
+                "path": (
+                    "STRING",
+                    {
+                        "default": "assets/samples/video480p.mov",
+                        "description": "Project-relative source video (video stream is copied; audio is replaced).",
+                    },
+                ),
+            },
+            "optional": {},
+        }
+
+    def run(self, **kwargs) -> tuple[VideoClip]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        audio_in = kwargs.get("audio")
+        if not isinstance(audio_in, AudioBuffer):
+            raise TypeError("MuxVideo needs AUDIO input (e.g. from Video2Audio).")
+        path = str(kwargs.get("path") or "").strip()
+        if not path:
+            raise ValueError("MuxVideo needs a source video path.")
+        resolved, canonical = resolve_project_media_path(self._ctx.cache, path)
+        _, pcm = self._ctx.cache.load_audio(audio_in.id)
+        clip = VideoClip.create(
+            "",
+            source_node_type="MuxVideo",
+            source_video_path=canonical,
+        )
+        dest = self._ctx.cache.cache_dir / f"{clip.id}.mp4"
+        mux_video_with_audio(resolved, pcm, audio_in.sample_rate, dest)
+        dims = probe_video_dimensions(dest) or probe_video_dimensions(resolved)
+        if dims:
+            clip.width, clip.height = dims
+        rel = str(dest.relative_to(self._ctx.cache.project_dir)).replace("\\", "/")
+        clip.path = rel
+        self._ctx.cache.write_video(clip)
+        return (clip,)
+
+
+@register_node
+class PreviewVideo(GroovyNode):
+    """Terminal video audition sink — wire a VIDEO clip (e.g. from MuxVideo)."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("VIDEO",)
+    OUTPUT_NAMES = ("video",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"video": ("VIDEO",)},
+            "optional": {
+                # Studio canvas chrome only — ignored at render; aspect locked to source video.
+                "preview_width": (
+                    "INT",
+                    {
+                        "default": 240,
+                        "min": 120,
+                        "max": 960,
+                        "description": "On-canvas preview width (px). Height follows source aspect.",
+                    },
+                ),
+                "preview_height": (
+                    "INT",
+                    {
+                        "default": 135,
+                        "min": 68,
+                        "max": 720,
+                        "description": "On-canvas preview height (px). Width follows source aspect.",
+                    },
+                ),
+            },
+        }
+
+    def run(self, **kwargs) -> tuple[VideoClip]:
+        _ = kwargs.get("preview_width")
+        _ = kwargs.get("preview_height")
+        video_in = kwargs.get("video")
+        if not isinstance(video_in, VideoClip):
+            raise TypeError("PreviewVideo needs VIDEO input (wire MuxVideo).")
+        return (video_in,)
+
+
+@register_node
+class SaveVideo(GroovyNode):
+    """Copy a VIDEO clip into the project exports folder."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = False
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ("STRING",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"video": ("VIDEO",)},
+            "optional": {
+                "path": (
+                    "STRING",
+                    {
+                        "default": "exports",
+                        "description": "Folder under the project directory (e.g. exports/video)",
+                    },
+                ),
+                "filename": (
+                    "STRING",
+                    {
+                        "default": "output.mp4",
+                        "description": "Base file name; a UTC timestamp is appended when written",
+                    },
+                ),
+            },
+        }
+
+    @staticmethod
+    def _resolve_output_relative(path: str, filename: str) -> str:
+        folder = (path or "").strip().strip("/")
+        name = (filename or "").strip().lstrip("/")
+        if not name:
+            name = "output.mp4"
+        if "/" in name and (not folder or folder == "exports"):
+            return name
+        if folder:
+            return f"{folder}/{name}"
+        return name
+
+    @staticmethod
+    def _timestamped_relative(relative: str, now: datetime | None = None) -> str:
+        instant = now or datetime.now(UTC)
+        stamp = instant.strftime("%Y%m%dT%H%M%S") + f"{instant.microsecond // 1000:03d}Z"
+        path = Path(relative)
+        return str(path.with_name(f"{path.stem}-{stamp}{path.suffix or '.mp4'}"))
+
+    def run(self, **kwargs) -> tuple[str]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        video_in = kwargs.get("video")
+        if not isinstance(video_in, VideoClip):
+            raise TypeError("SaveVideo needs VIDEO input (wire MuxVideo / PreviewVideo).")
+        folder = str(kwargs.get("path", "exports"))
+        name = str(kwargs.get("filename", "output.mp4"))
+        relative = self._resolve_output_relative(folder, name)
+        if not Path(relative).suffix:
+            relative = f"{relative}.mp4"
+        relative = self._timestamped_relative(relative)
+        relative = relative.replace("\\", "/")
+        src = self._ctx.cache.resolve_project_path(video_in.path)
+        if not src.is_file():
+            raise FileNotFoundError(f"VIDEO clip missing on disk: {video_in.path}")
+        out_path = self._ctx.cache.resolve_project_path(relative)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        sidecar_path = out_path.with_name(f"{out_path.stem}.provenance.json")
+        try:
+            shutil.copy2(src, out_path)
+            digest = hashlib.sha256()
+            with out_path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            parent = self._ctx.cache.read_provenance(video_in.id)
+            record: dict = {
+                "schema_version": "1.1.0",
+                "video_id": video_in.id,
+                "content_hash": f"sha256:{digest.hexdigest()}",
+                "created_at": datetime.now(UTC).isoformat(),
+                "contribution": {
+                    "class": "human_edited",
+                    "disclosure_label": "Contains human-edited / exported video",
+                },
+                "artifact": {
+                    "filename": out_path.name,
+                    "media_type": "video/mp4",
+                    "path": relative,
+                    "source_video_path": video_in.source_video_path,
+                    "width": video_in.width,
+                    "height": video_in.height,
+                },
+                "node": {"node_type": "SaveVideo"},
+                "models": list((parent or {}).get("models") or []),
+                "parents": (
+                    [
+                        {
+                            "cache_id": video_in.id,
+                            "node_type": video_in.source_node_type,
+                            "content_hash": (parent or {}).get("content_hash"),
+                        }
+                    ]
+                    if parent
+                    else []
+                ),
+            }
+            sidecar_path.write_text(json.dumps(record, indent=2) + "\n")
+        except Exception as exc:
+            out_path.unlink(missing_ok=True)
+            sidecar_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"SaveVideo could not write video or provenance sidecar for {relative}: {exc}"
+            ) from exc
+        # Return project-relative path (under workspace / project dir) for studio reveal UX.
+        return (relative,)
 
 
 @register_node

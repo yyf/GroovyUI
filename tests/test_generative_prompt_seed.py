@@ -25,6 +25,15 @@ def test_generate_audio_exposes_prompt_and_seed_widgets() -> None:
 
 
 def test_generative_nodes_expose_seed() -> None:
-    for node_type in ("TTS", "MIDIToAudio", "SingFromMIDI", "GenerateAudio"):
+    for node_type in ("TTS", "MIDIToAudio", "SingFromMIDI", "GenerateAudio", "Video2Audio"):
         schema = get_node_class(node_type).describe()
         assert any(w["name"] == "seed" for w in schema["widgets"]), node_type
+
+
+def test_video2audio_exposes_path_prompt_and_seed() -> None:
+    schema = get_node_class("Video2Audio").describe()
+    widget_names = {w["name"] for w in schema["widgets"]}
+    assert {"model", "path", "prompt", "seed", "duration"} <= widget_names
+    input_names = {i["name"] for i in schema["inputs"]}
+    assert "text" in input_names
+    assert "path" not in input_names

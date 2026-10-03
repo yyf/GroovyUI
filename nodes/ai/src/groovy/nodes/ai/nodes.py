@@ -21,6 +21,7 @@ def register_all() -> None:
         MIDIToAudio,
         GenerateAudio,
         SingFromMIDI,
+        Video2Audio,
         SeparateToObjects,
         AmbisonicUpmix,
         AmbisonicTrajectoryExtract,
@@ -470,6 +471,65 @@ class GenerateAudio(GroovyNode):
 
     def run(self, **kwargs):
         raise RuntimeError("GenerateAudio must run in AI worker subprocess")
+
+
+@register_node
+class Video2Audio(GroovyNode):
+    """Generic video→audio node — Diff-Foley is the example default; browse for alternatives.
+
+    Model-agnostic: pick any registry model listed in ``COMPATIBLE_MODELS``
+    (default ``diff-foley`` as a worked example). Additional backends plug in via
+    the worker dispatch in ``inference.video2audio_waveform``.
+    """
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    DURATION_LOCKED = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_generated"
+    # Example default; browse Model Browser for other video-to-audio models.
+    COMPATIBLE_MODELS = ["diff-foley"]
+    RETURN_TYPES = ("AUDIO",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (
+                    "MODEL_REF",
+                    {
+                        "default": "diff-foley",
+                        "description": (
+                            "Generic Video to Audio node — Diff-Foley is the example default. "
+                            "Open Model Browser (Cmd+K → Find models) to install and choose "
+                            "alternative video-to-audio models."
+                        ),
+                    },
+                ),
+            },
+            "optional": {
+                # Project-relative video path (mp4/…). Empty = text-to-audio when the model allows.
+                "path": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": "Project-relative video file (e.g. assets/uploads/clip.mp4). Required for most models; leave empty only if the selected model supports text-to-audio.",
+                    },
+                ),
+                "text": ("TEXT",),
+                "prompt": ("STRING", {"default": ""}),
+                "negative_prompt": ("STRING", {"default": ""}),
+                "duration": ("FLOAT", {"default": 8.0, "min": 1.0, "max": 30.0}),
+                "num_steps": ("INT", {"default": 25, "min": 4, "max": 50}),
+                "cfg_strength": ("FLOAT", {"default": 4.5, "min": 0.0, "max": 15.0}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("Video2Audio must run in AI worker subprocess")
 
 
 @register_node

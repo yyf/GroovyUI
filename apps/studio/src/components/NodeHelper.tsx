@@ -12,6 +12,7 @@ import {
   fetchNodeSchema,
   fetchSampleCheck,
   fetchWaveform,
+  projectMediaUrl,
   revealProjectPath,
   uploadProjectAudio,
   type AbCompareResult,
@@ -57,7 +58,13 @@ import WaveformCompare from "./WaveformCompare";
 import WaveformMini from "./WaveformMini";
 import { resolveWidgetControl } from "../widgetControls";
 
-const GENERATIVE_NODE_TYPES = new Set(["GenerateAudio", "TTS", "MIDIToAudio", "SingFromMIDI"]);
+const GENERATIVE_NODE_TYPES = new Set([
+  "GenerateAudio",
+  "TTS",
+  "MIDIToAudio",
+  "SingFromMIDI",
+  "Video2Audio",
+]);
 
 /** Pin exploration controls (model → prompt-like → seed) above the rest of Config. */
 const EXPLORATION_WIDGET_ORDER = ["model", "prompt", "text", "lyrics", "seed"];
@@ -449,7 +456,9 @@ export default function NodeHelper({
           </p>
         ) : null}
         {hasMinimalPatch(node.type) ? (
-          <p className="node-helper__hint">Press <kbd>Tab</kbd> to wire missing example inputs and outputs for this node.</p>
+          <p className="node-helper__hint node-helper__tab-wire-hint">
+            Press <kbd>Tab</kbd> to wire missing example inputs and outputs for this node.
+          </p>
         ) : null}
         <nav className="node-helper__tabs">
         <button type="button" className={tab === "config" ? "active" : ""} onClick={() => setTab("config")}>
@@ -504,7 +513,14 @@ export default function NodeHelper({
                     </div>
                     <p className="node-helper__hint">
                       Install: {modelCard.install_status}
-                      {modelCard.license?.spdx ? ` · ${modelCard.license.spdx}` : ""}
+                      {modelCard.license?.spdx
+                        ? ` · ${
+                            modelCard.license.code_spdx &&
+                            modelCard.license.code_spdx !== modelCard.license.spdx
+                              ? `code ${modelCard.license.code_spdx} / weights ${modelCard.license.spdx}`
+                              : modelCard.license.spdx
+                          }`
+                        : ""}
                     </p>
                   </>
                 ) : null}
@@ -722,13 +738,31 @@ export default function NodeHelper({
                 ) : null}
               </>
             ) : null}
+            {node.type === "SaveVideo" ? (
+              <>
+                <p className="node-helper__hint">
+                  Filename template:{" "}
+                  <code>
+                    {joinSaveAudioPath(node.widgets.path, node.widgets.filename)}
+                  </code>
+                  . A UTC timestamp is appended when rendered. Use Choose file… to pick the folder
+                  and base name.
+                </p>
+                {output?.type === "STRING" && output.path && output.provenance_path ? (
+                  <SaveAudioExportPair output={output} onOpenCompliance={onOpenCompliance} />
+                ) : null}
+              </>
+            ) : null}
             {node.type === "LoadAudio" ? (
               <p className="node-helper__hint">
                 Choose a file to upload into the project, or enter a project-relative path (e.g.{" "}
                 <code>assets/samples/podcast_denoise_demo.wav</code>). You can also drop audio onto the canvas.
               </p>
             ) : null}
-            {schema.widgets.length === 0 && modelParamRows.length === 0 && node.type !== "SaveAudio" ? (
+            {schema.widgets.length === 0 &&
+            modelParamRows.length === 0 &&
+            node.type !== "SaveAudio" &&
+            node.type !== "SaveVideo" ? (
               <p className="node-helper__hint">No configurable parameters.</p>
             ) : null}
             {output?.text ? (
@@ -1759,6 +1793,8 @@ function OutputSnapshot({
       // VerifySamples
     } else if (socketType === "TRAJECTORY" && output.type === "TRAJECTORY") {
       // TrajectoryAuthor / AmbisonicTrajectoryExtract
+    } else if (socketType === "VIDEO" && output.type === "VIDEO") {
+      // MuxVideo / PreviewVideo
     } else {
       return <p className="node-helper__hint">No render for this socket yet.</p>;
     }
@@ -1803,9 +1839,23 @@ function OutputSnapshot({
       {output.type === "STRING" && output.path && output.provenance_path ? (
         <SaveAudioExportPair output={output} onOpenCompliance={onOpenCompliance} />
       ) : output.type === "STRING" && output.path ? (
-        <p className="node-helper__text">
-          <code>{output.path}</code>
-        </p>
+        <SavedFileReveal path={output.path} label="Output file" />
+      ) : null}
+      {output.type === "VIDEO" && output.path ? (
+        <div className="node-helper__video-preview">
+          <video
+            key={output.path}
+            controls
+            playsInline
+            preload="auto"
+            src={projectMediaUrl(output.path)}
+            className="node-helper__video-player"
+          />
+          <p className="node-helper__hint">
+            Transport / Space is master — PreviewVideo picture syncs to the waveform playhead.
+          </p>
+          <SavedFileReveal path={output.path} label="Cached clip" />
+        </div>
       ) : null}
       {output.type === "MIDI" && output.midi_id ? (
         <p className="node-helper__text">
@@ -2064,6 +2114,32 @@ function MeterLevelsPanel({ text, cacheId }: { text: string; cacheId?: string | 
   );
 }
 
+function SavedFileReveal({ path, label }: { path: string; label: string }) {
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const reveal = async () => {
+    setRevealError(null);
+    try {
+      await revealProjectPath(path);
+    } catch (err) {
+      setRevealError(err instanceof Error ? err.message : "Could not open file browser");
+    }
+  };
+  return (
+    <div className="node-helper__export-artifact">
+      <span className="node-helper__export-label">{label}</span>
+      <button
+        type="button"
+        className="node-helper__export-path"
+        title={`Open in file browser\n${path}`}
+        onClick={() => void reveal()}
+      >
+        <code>{path}</code>
+      </button>
+      {revealError ? <p className="node-helper__hint node-helper__export-error">{revealError}</p> : null}
+    </div>
+  );
+}
+
 function SaveAudioExportPair({
   output,
   onOpenCompliance,
@@ -2084,7 +2160,7 @@ function SaveAudioExportPair({
 
   if (!output.path || !output.provenance_path) return null;
   return (
-    <section className="node-helper__export-pair" aria-label="Saved audio and provenance">
+    <section className="node-helper__export-pair" aria-label="Saved file and provenance">
       <div className="node-helper__export-artifact">
         <span className="node-helper__export-label">Output file</span>
         <button

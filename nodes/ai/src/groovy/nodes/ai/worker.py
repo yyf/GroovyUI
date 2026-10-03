@@ -24,6 +24,7 @@ from groovy.nodes.ai.inference import (
     run_spatial_upmix,
     run_tts,
     run_timbre_transfer,
+    run_video2audio,
     run_voice_convert,
     run_speech_translate,
     run_whisper_stt,
@@ -50,6 +51,7 @@ HANDLERS = {
     "MIDIToAudio": run_midi_to_audio,
     "GenerateAudio": run_generate_audio,
     "SingFromMIDI": run_sing_from_midi,
+    "Video2Audio": run_video2audio,
 }
 
 

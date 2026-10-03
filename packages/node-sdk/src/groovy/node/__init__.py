@@ -87,6 +87,7 @@ class GroovyNode:
                         "OBA",
                         "OSC",
                         "TRAJECTORY",
+                        "VIDEO",
                     }:
                         input_sockets.append(
                             {

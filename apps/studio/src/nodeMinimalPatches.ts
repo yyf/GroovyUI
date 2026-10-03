@@ -606,6 +606,48 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     ],
     links: [link("l1", "n1", "n2", "TEXT"), link("l2", "n2", "n3", "AUDIO")],
   },
+  Video2Audio: {
+    title: "Video to Audio",
+    description:
+      "Generic video→audio node (Diff-Foley is the example default). Browse Model Browser for alternative models.",
+    focusNodeId: "n1",
+    nodes: [
+      {
+        id: "n1",
+        type: "Video2Audio",
+        x: 0,
+        widgets: {
+          model: "diff-foley",
+          path: "assets/samples/video480p.mov",
+          prompt: "footsteps on wet pavement, light rain, distant traffic",
+          duration: 8,
+          seed: -1,
+        },
+      },
+      preview("n2", 280),
+      {
+        id: "n3",
+        type: "MuxVideo",
+        x: 280,
+        y: 140,
+        widgets: { path: "assets/samples/video480p.mov" },
+      },
+      { id: "n4", type: "PreviewVideo", x: 560, y: 140, widgets: {} },
+      {
+        id: "n5",
+        type: "SaveVideo",
+        x: 560,
+        y: 280,
+        widgets: { path: "exports", filename: "video2audio.mp4" },
+      },
+    ],
+    links: [
+      link("l1", "n1", "n2", "AUDIO"),
+      link("l2", "n1", "n3", "AUDIO"),
+      link("l3", "n3", "n4", "VIDEO"),
+      link("l4", "n4", "n5", "VIDEO"),
+    ],
+  },
   SingFromMIDI: {
     title: "Sing from MIDI",
     description: "Singing synthesis from MIDI melody and lyrics.",

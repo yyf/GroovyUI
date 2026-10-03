@@ -1,11 +1,14 @@
-import { memo } from "react";
+import { memo, useCallback, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { projectMediaUrl } from "../api";
 import { useAudition } from "../context/AuditionContext";
+import { usePreviewVideoSize } from "../context/PreviewVideoSizeContext";
 import { useTrajectoryEdit } from "../context/TrajectoryEditContext";
 import type { CanvasNodeKind } from "../nodeKinds";
 import { shortCanvasIssueLabel } from "../planModelSanitize";
 import { socketTypeColor } from "../socketTypes";
 import type { NodeRenderStatus } from "../types";
+import { lockPreviewVideoSize } from "../workflow";
 import { TrajectoryAuthorPad } from "./TrajectoryPanel";
 
 export type NodeSocketSpec = {
@@ -28,6 +31,12 @@ export type GroovyNodeData = {
   activityLabel?: string;
   /** Truncated TEXT output shown on-node (Preview / Whisper / Prompt). */
   previewText?: string;
+  /** Project-relative muxed VIDEO path for on-node player (PreviewVideo only). */
+  previewVideoPath?: string;
+  /** Aspect-locked on-canvas video panel size (PreviewVideo). */
+  previewVideoWidth?: number;
+  previewVideoHeight?: number;
+  previewVideoAspect?: number;
   /** Freeform Note comment shown on-node. */
   noteText?: string;
   /** Channel layout / count chip (LoadAudio, Preview, SaveAudio). */
@@ -86,15 +95,59 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
   const badge = statusLabel(nodeData.status);
   const audition = useAudition();
   const { patchAuthor } = useTrajectoryEdit();
+  const { patchSize } = usePreviewVideoSize();
+  const resizeDrag = useRef<{
+    startX: number;
+    startW: number;
+    aspect: number;
+  } | null>(null);
   const inputs =
     nodeData.inputs !== undefined ? nodeData.inputs : [{ name: "in", type: "AUDIO", slot: 0 }];
   const outputs =
     nodeData.outputs !== undefined ? nodeData.outputs : [{ name: "out", type: "AUDIO", slot: 0 }];
   const showAuthorPad = Boolean(nodeData.trajectoryAuthorId && nodeData.trajectoryWidgets);
+  const videoW = nodeData.previewVideoWidth ?? 240;
+  const videoH = nodeData.previewVideoHeight ?? 135;
+  const videoAspect = nodeData.previewVideoAspect ?? 16 / 9;
   const minHeight = Math.max(
     nodeData.noteText != null ? 72 : 52,
     showAuthorPad ? 200 : nodeData.trajectoryId ? 160 : 0,
+    nodeData.previewVideoPath || nodeData.label === "PreviewVideo" ? videoH + 36 : 0,
     Math.max(inputs.length, outputs.length) * 24 + 20,
+  );
+
+  const onVideoResizePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLSpanElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const target = event.currentTarget;
+      target.setPointerCapture(event.pointerId);
+      resizeDrag.current = {
+        startX: event.clientX,
+        startW: videoW,
+        aspect: videoAspect,
+      };
+      const onMove = (ev: PointerEvent) => {
+        const drag = resizeDrag.current;
+        if (!drag) return;
+        const nextW = drag.startW + (ev.clientX - drag.startX);
+        const locked = lockPreviewVideoSize("preview_width", nextW, drag.aspect);
+        patchSize(nodeData.nodeId, locked.preview_width, locked.preview_height);
+      };
+      const onUp = (ev: PointerEvent) => {
+        resizeDrag.current = null;
+        try {
+          target.releasePointerCapture(ev.pointerId);
+        } catch {
+          /* already released */
+        }
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [nodeData.nodeId, patchSize, videoAspect, videoW],
   );
   const isNote = nodeData.label === "Note";
   const kind = nodeData.kind ?? "core";
@@ -203,6 +256,33 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
           <p className="groovy-node__preview-text" title={nodeData.previewText}>
             {nodeData.previewText}
           </p>
+        ) : null}
+        {nodeData.label === "PreviewVideo" ? (
+          <div
+            className={`groovy-node__video nodrag nopan${selected ? " groovy-node__video--selected" : ""}`}
+            style={{ width: videoW, height: videoH }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            {nodeData.previewVideoPath ? (
+              // Transport / Space is master clock — no local controls; video stays muted.
+              <video
+                key={nodeData.previewVideoPath}
+                playsInline
+                muted
+                preload="auto"
+                src={projectMediaUrl(nodeData.previewVideoPath)}
+                className="groovy-node__video-player"
+                title="Synced to transport (Space / Play)"
+              />
+            ) : (
+              <div className="groovy-node__video-placeholder">Render to preview</div>
+            )}
+            <span
+              className="groovy-node__video-resize"
+              title="Drag to scale (aspect locked)"
+              onPointerDown={onVideoResizePointerDown}
+            />
+          </div>
         ) : null}
         {showAuthorPad && nodeData.trajectoryAuthorId && nodeData.trajectoryWidgets ? (
           <div

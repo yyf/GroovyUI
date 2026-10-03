@@ -11,6 +11,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "isolate-vocals-to-transcribe",
   "podcast-denoise",
   "prompt-modular-synth",
+  "video-to-audio",
 ] as const;
 
 /** Bundled templates shown in the workflow template picker in studio dev mode. */
@@ -47,6 +48,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "transcribe-and-diarize",
   "transcribe-and-regenerate",
   "transcribe-dialogue",
+  "video-to-audio",
   "voice-cloning",
 ] as const;
 
@@ -120,6 +122,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "text-to-music": "generate",
   "stable-audio": "generate",
   "ace-step-1.5": "generate",
+  "video-to-audio": "generate",
   "extract-lyrics-to-music-with-ace-step": "generate",
   "transcribe-and-regenerate": "generate",
 
@@ -157,13 +160,17 @@ export const STANDARD_MODE_NODE_TYPES = [
   "Denoise",
   "Granulate",
   "LoadAudio",
+  "MuxVideo",
   "Normalize",
   "Note",
   "Preview",
+  "PreviewVideo",
   "Prompt",
   "SaveAudio",
+  "SaveVideo",
   "SeparateStems",
   "TTS",
+  "Video2Audio",
   "WhisperSTT",
 ] as const;
 

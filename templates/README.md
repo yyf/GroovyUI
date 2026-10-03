@@ -11,5 +11,6 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | Podcast Denoise | [podcast-denoise.groovy.json](podcast-denoise.groovy.json) | `deepfilternet-v3` |
 | Isolate to Transcribe | [isolate-vocals-to-transcribe.groovy.json](isolate-vocals-to-transcribe.groovy.json) | `demucs-v4`, Whisper |
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | `kokoro-82m` |
+| Video to Audio | [video-to-audio.groovy.json](video-to-audio.groovy.json) | `diff-foley` (default; experimental — CUDA testing) |
 
-Sample assets: `assets/samples/` (`podcast_denoise_demo.wav`, `stem_separation_demo.wav`).
+Sample assets: `assets/samples/` (`podcast_denoise_demo.wav`, `stem_separation_demo.wav`, `video480p.mov`).

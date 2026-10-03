@@ -14,6 +14,7 @@ from groovy.executor.midi import MidiBuffer
 from groovy.executor.oba import ObjectScene
 from groovy.executor.osc_live import OscBuffer
 from groovy.executor.trajectory import TrajectoryBuffer
+from groovy.executor.video import VideoClip
 
 
 class CacheStore:
@@ -637,6 +638,37 @@ class CacheStore:
             frame_count=meta["frame_count"],
             events=meta.get("events", []),
             source_node_type=meta.get("source_node_type"),
+        )
+
+    def write_video(self, clip: VideoClip) -> VideoClip:
+        meta_path = self.cache_dir / f"{clip.id}.video.json"
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "id": clip.id,
+                    "path": clip.path,
+                    "source_node_type": clip.source_node_type,
+                    "source_video_path": clip.source_video_path,
+                    "width": clip.width,
+                    "height": clip.height,
+                },
+                indent=2,
+            )
+        )
+        return clip
+
+    def load_video(self, video_id: str) -> VideoClip:
+        meta_path = self.cache_dir / f"{video_id}.video.json"
+        if not meta_path.exists():
+            raise FileNotFoundError(f"Video cache not found: {video_id}")
+        meta = json.loads(meta_path.read_text())
+        return VideoClip(
+            id=meta["id"],
+            path=meta["path"],
+            source_node_type=meta.get("source_node_type"),
+            source_video_path=meta.get("source_video_path"),
+            width=meta.get("width"),
+            height=meta.get("height"),
         )
 
     def create_run_dir(self, job_id: str) -> Path:

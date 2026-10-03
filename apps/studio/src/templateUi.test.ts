@@ -34,6 +34,7 @@ describe("templatesVisibleInUi", () => {
     bundled("extract-lyrics-to-music-with-ace-step"),
     bundled("stable-audio"),
     bundled("text-to-music"),
+    bundled("video-to-audio"),
     bundled("karaoke-stems"),
     bundled("transcribe-and-regenerate"),
     bundled("authenticity-check"),
@@ -64,6 +65,7 @@ describe("templatesVisibleInUi", () => {
       "isolate-vocals-to-transcribe",
       "podcast-denoise",
       "prompt-modular-synth",
+      "video-to-audio",
     ]);
   });
 
@@ -125,6 +127,7 @@ describe("templatesVisibleInUi", () => {
       "transcribe-and-diarize",
       "transcribe-and-regenerate",
       "transcribe-dialogue",
+      "video-to-audio",
       "voice-cloning",
     ]);
   });
@@ -242,6 +245,10 @@ describe("groupBundledTemplatesByDomain", () => {
     expect(domainIdForTemplate("hello-groovy")).toBe("start");
   });
 
+  it("places video-to-audio templates in Generate", () => {
+    expect(domainIdForTemplate("video-to-audio")).toBe("generate");
+  });
+
   it("puts unknown bundled ids in Other", () => {
     expect(domainIdForTemplate("no-such-template")).toBe("other");
     const groups = groupBundledTemplatesByDomain([
@@ -281,9 +288,14 @@ describe("isNodeVisibleInStudio", () => {
   it("limits standard mode to ISMIR demo template nodes", () => {
     expect(isNodeVisibleInStudio("Denoise")).toBe(true);
     expect(isNodeVisibleInStudio("LoadAudio")).toBe(true);
+    expect(isNodeVisibleInStudio("Video2Audio")).toBe(true);
     expect(isNodeVisibleInStudio("Mix")).toBe(false);
     expect(isNodeVisibleInStudio("GenerateAudio")).toBe(false);
     expect(STANDARD_MODE_NODE_TYPES).toContain("TTS");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("Video2Audio");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewVideo");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("SaveVideo");
   });
 
   it("shows all node types in studio dev mode", () => {

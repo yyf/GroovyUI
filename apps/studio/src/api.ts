@@ -1200,6 +1200,12 @@ export function previewUrl(cacheId: string): string {
   return `${API}/api/cache/${cacheId}/preview?format=wav`;
 }
 
+/** Stream a project media file (muxed VIDEO preview / exports). */
+export function projectMediaUrl(path: string): string {
+  const params = new URLSearchParams({ path });
+  return `${API}/api/project/media?${params.toString()}`;
+}
+
 export type JobProgressHandler = (job: JobState) => void;
 
 export type WorkflowExecution = {

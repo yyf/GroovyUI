@@ -139,6 +139,18 @@ def seamless_available() -> bool:
         return False
 
 
+def diff_foley_available() -> bool:
+    try:
+        import librosa  # noqa: F401
+        import omegaconf  # noqa: F401
+        import soundfile  # noqa: F401
+        import torch  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def stereo2spatial_available() -> bool:
     try:
         import stereo2spatial  # noqa: F401
@@ -166,6 +178,7 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "audioseal-16bit": audioseal_available,
     "rave-v1": rave_available,
     "seamless-m4t-v2-large": seamless_available,
+    "diff-foley": diff_foley_available,
     "stereo2spatial-v2-binaural": stereo2spatial_available,
     "stereo2spatial-v1": stereo2spatial_available,
 }
