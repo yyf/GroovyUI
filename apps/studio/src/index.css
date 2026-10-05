@@ -6897,8 +6897,8 @@ body {
 }
 
 .settings-mode-toggle__btn--active {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+  background: var(--accent);
+  color: #fff;
 }
 
 .settings-mode-toggle__btn:disabled {
