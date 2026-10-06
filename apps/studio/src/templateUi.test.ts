@@ -65,7 +65,6 @@ describe("templatesVisibleInUi", () => {
       "isolate-vocals-to-transcribe",
       "podcast-denoise",
       "prompt-modular-synth",
-      "video-to-audio",
     ]);
   });
 
@@ -127,7 +126,6 @@ describe("templatesVisibleInUi", () => {
       "transcribe-and-diarize",
       "transcribe-and-regenerate",
       "transcribe-dialogue",
-      "video-to-audio",
       "voice-cloning",
     ]);
   });
@@ -179,6 +177,16 @@ describe("templatesVisibleInUi", () => {
     expect(
       templatesVisibleInUi(allBundled, "melody-to-modular-synth", true).map((t) => t.id),
     ).not.toContain("melody-to-modular-synth");
+  });
+
+  it("hides video-to-audio even when it is the active selection", () => {
+    expect(templatesVisibleInUi(allBundled).map((t) => t.id)).not.toContain("video-to-audio");
+    expect(templatesVisibleInUi(allBundled, "video-to-audio").map((t) => t.id)).not.toContain(
+      "video-to-audio",
+    );
+    expect(templatesVisibleInUi(allBundled, "video-to-audio", true).map((t) => t.id)).not.toContain(
+      "video-to-audio",
+    );
   });
 
   it("always shows user templates", () => {

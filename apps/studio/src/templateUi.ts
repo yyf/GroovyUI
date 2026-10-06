@@ -11,7 +11,6 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "isolate-vocals-to-transcribe",
   "podcast-denoise",
   "prompt-modular-synth",
-  "video-to-audio",
 ] as const;
 
 /** Bundled templates shown in the workflow template picker in studio dev mode. */
@@ -48,7 +47,6 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "transcribe-and-diarize",
   "transcribe-and-regenerate",
   "transcribe-dialogue",
-  "video-to-audio",
   "voice-cloning",
 ] as const;
 
@@ -56,6 +54,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
 export const PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS = [
   "melody-to-modular-synth",
   "self-playing-neural-rack",
+  "video-to-audio",
 ] as const;
 
 export type TemplateDomainId =
