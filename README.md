@@ -59,6 +59,14 @@ Creative AI only sticks when it’s additive and knowable: inspect what ran, kee
 
 Experimental. APIs and UI will change. Expect rough edges on clean machines and first model installs.
 
+## OS compatibility
+
+Primary smoke-test machine: **macOS Tahoe 26.3** (Apple Silicon). Cold / clean machines are expected to take longer on first run — `uv` sync, Studio `npm install`, and especially **first model downloads** (minutes, multi‑GB disk). Use **Python 3.11**, keep Inference on **Real** for demos, and install models via **Cmd+K** / Model Browser when prompted.
+
+Video mux / PreviewVideo paths need **ffmpeg** on `PATH`. Some models need CUDA or other hardware; Mac CPU/MPS may be slow or unsupported depending on the backend.
+
+Linux is exercised in CI (stub inference). Windows is not a supported desktop target yet. If a cold machine fails, check port `8188`/`5173` conflicts, disk space, Python version, and Compliance / Settings for tokens (`HF_TOKEN`) on gated weights.
+
 ## Quick start
 
 ```bash
