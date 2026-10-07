@@ -139,6 +139,17 @@ def seamless_available() -> bool:
         return False
 
 
+def text_mt_available() -> bool:
+    try:
+        import sentencepiece  # noqa: F401
+        import torch  # noqa: F401
+        import transformers  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def diff_foley_available() -> bool:
     try:
         import librosa  # noqa: F401
@@ -178,6 +189,10 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "audioseal-16bit": audioseal_available,
     "rave-v1": rave_available,
     "seamless-m4t-v2-large": seamless_available,
+    "m2m100-418m": text_mt_available,
+    "madlad400-3b-mt": text_mt_available,
+    "opus-mt-en-es": text_mt_available,
+    "opus-mt-en-fr": text_mt_available,
     "diff-foley": diff_foley_available,
     "stereo2spatial-v2-binaural": stereo2spatial_available,
     "stereo2spatial-v1": stereo2spatial_available,

@@ -508,6 +508,10 @@ export type JobState = {
   outputs?: Record<string, JobOutput>;
   error?: string | null;
   manifest_path?: string;
+  /** Per-node wall time from the executor (ms). */
+  node_timings_ms?: Record<string, number>;
+  /** Job wall time from the executor (ms). */
+  total_ms?: number;
 };
 
 export type NodeRenderStatus = "idle" | "running" | "cached" | "stale";

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { AI_DOWNLOAD_HINT_MS, nodeStatusOnProgress, slowAiDownloadLabel } from "./renderActivity";
+import {
+  AI_DOWNLOAD_HINT_MS,
+  aiNodePhaseLabel,
+  aiNodeTimingPercents,
+  nodeStatusOnProgress,
+  slowAiDownloadLabel,
+} from "./renderActivity";
 
 describe("slowAiDownloadLabel", () => {
   it("is silent for DSP nodes and short AI waits", () => {
@@ -35,6 +41,83 @@ describe("slowAiDownloadLabel", () => {
         staleMs: 8_000,
       }),
     ).toBe("Downloading model…");
+  });
+});
+
+describe("aiNodePhaseLabel", () => {
+  it("is silent when idle or not the current AI hop", () => {
+    expect(
+      aiNodePhaseLabel({
+        isCurrent: false,
+        running: true,
+        isAi: true,
+        staleMs: 0,
+      }),
+    ).toBeUndefined();
+    expect(
+      aiNodePhaseLabel({
+        isCurrent: true,
+        running: false,
+        isAi: true,
+        staleMs: 0,
+      }),
+    ).toBeUndefined();
+    expect(
+      aiNodePhaseLabel({
+        isCurrent: true,
+        running: true,
+        isAi: false,
+        staleMs: 0,
+      }),
+    ).toBeUndefined();
+  });
+
+  it("labels rendering, then downloading after a quiet pause", () => {
+    expect(
+      aiNodePhaseLabel({
+        isCurrent: true,
+        running: true,
+        isAi: true,
+        message: "Running TranslateText...",
+        staleMs: 100,
+      }),
+    ).toBe("rendering");
+    expect(
+      aiNodePhaseLabel({
+        isCurrent: true,
+        running: true,
+        isAi: true,
+        message: "Running TranslateText...",
+        staleMs: AI_DOWNLOAD_HINT_MS,
+      }),
+    ).toBe("downloading");
+  });
+
+  it("labels installing from the progress message", () => {
+    expect(
+      aiNodePhaseLabel({
+        isCurrent: true,
+        running: true,
+        isAi: true,
+        message: "Installing model weights…",
+        staleMs: 0,
+      }),
+    ).toBe("installing");
+  });
+});
+
+describe("aiNodeTimingPercents", () => {
+  it("shares job time across AI nodes", () => {
+    expect(
+      aiNodeTimingPercents({ n1: 250, n2: 750, n3: 1000 }, 2000, ["n1", "n2"]),
+    ).toEqual({ n1: "13%", n2: "38%" });
+  });
+
+  it("falls back to summing timings when total is missing", () => {
+    expect(aiNodeTimingPercents({ a: 1, b: 3 }, undefined, ["a", "b"])).toEqual({
+      a: "25%",
+      b: "75%",
+    });
   });
 });
 

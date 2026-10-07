@@ -4844,6 +4844,26 @@ body {
   opacity: 1;
 }
 
+.groovy-node__corner {
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.groovy-node__corner--live {
+  color: #ffb3bd;
+}
+
+.groovy-node--ai .groovy-node__corner:not(.groovy-node__corner--live) {
+  color: rgba(232, 238, 252, 0.72);
+}
+
 .groovy-node__badge {
   font-size: 10px;
 }

@@ -176,6 +176,21 @@ def run_whisper_stt(cache: CacheStore, kwargs: dict) -> list[dict]:
     return [{"type": "TEXT", "text": text}]
 
 
+def run_translate_text(cache: CacheStore, kwargs: dict) -> list[dict]:
+    _ = cache
+    text = str(kwargs.get("text") or kwargs.get("transcript") or "")
+    model_id = str(kwargs.get("model", "m2m100-418m"))
+    src_lang = str(kwargs.get("src_lang", "en"))
+    tgt_lang = str(kwargs.get("tgt_lang", "zh"))
+    translated = translate_text_content(
+        text,
+        model_id=model_id,
+        src_lang=src_lang,
+        tgt_lang=tgt_lang,
+    )
+    return [{"type": "TEXT", "text": translated}]
+
+
 def run_diarize_transcribe(cache: CacheStore, kwargs: dict) -> list[dict]:
     from groovy.nodes.ai.model_params import float_param
 
@@ -656,6 +671,54 @@ def voice_convert_audio(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> 
     max_len = max(len(c) for c in out_channels)
     padded = [np.pad(c, (0, max_len - len(c))) for c in out_channels]
     return np.stack(padded, axis=0)
+
+
+def translate_text_content(
+    text: str,
+    *,
+    model_id: str,
+    src_lang: str = "en",
+    tgt_lang: str = "zh",
+) -> str:
+    """Text MT (M2M100 / MADLAD / Opus when installed; stub otherwise)."""
+    from groovy.nodes.ai.backends.text_mt_runner import HF_MODEL_IDS
+    from groovy.nodes.ai.inference_env import inference_stub_enabled, text_mt_available
+
+    if model_id not in HF_MODEL_IDS:
+        raise RuntimeError(
+            f"Unsupported TranslateText model {model_id!r}. "
+            f"Supported: {', '.join(sorted(HF_MODEL_IDS))}."
+        )
+    if text_mt_available() and not inference_stub_enabled():
+        from groovy.nodes.ai.backends.text_mt_runner import translate_text
+
+        return translate_text(text, model_id=model_id, src_lang=src_lang, tgt_lang=tgt_lang)
+    if inference_stub_enabled():
+        return _translate_text_stub(text, model_id=model_id, src_lang=src_lang, tgt_lang=tgt_lang)
+    raise RuntimeError(
+        f"{model_id} needs torch + transformers (+ sentencepiece) for Real inference. "
+        "Install the model from Model Browser, or switch Settings → Inference to Stub."
+    )
+
+
+def _translate_text_stub(
+    text: str,
+    *,
+    model_id: str,
+    src_lang: str,
+    tgt_lang: str,
+) -> str:
+    from groovy.nodes.ai.backends.text_mt_runner import OPUS_FIXED_PAIR, normalize_lang_iso2
+
+    source = (text or "").strip()
+    src = normalize_lang_iso2(src_lang, default="en")
+    tgt = normalize_lang_iso2(tgt_lang, default="zh")
+    if model_id in OPUS_FIXED_PAIR:
+        src, tgt = OPUS_FIXED_PAIR[model_id]
+    if not source:
+        return ""
+    # Deterministic stub so Preview shows a distinct translated string in CI.
+    return f"[{model_id}|{src}->{tgt}] {source}"
 
 
 def speech_translate_audio(

@@ -73,6 +73,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "isolate-vocals-to-transcribe-translate",
+    title: "Isolate to Transcribe + Translate",
+    models: "demucs-v4, whisper-large-v3-turbo, m2m100-418m",
+    licenses: "demucs-v4: MIT; whisper-large-v3-turbo: MIT; m2m100-418m: MIT",
+    impact: "Med",
+    cluster: "Stems + ASR + MT",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
     id: "prompt-modular-synth",
     title: "Prompt Modular Synth",
     models: "kokoro-82m",

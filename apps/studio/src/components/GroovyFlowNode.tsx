@@ -29,6 +29,8 @@ export type GroovyNodeData = {
   issue?: string;
   /** Live render hint (e.g. model download on a slow AI hop). */
   activityLabel?: string;
+  /** Minimal top-right chip: live phase (`rendering`) or share of job time (`42%`). */
+  cornerLabel?: string;
   /** Truncated TEXT output shown on-node (Preview / Whisper / Prompt). */
   previewText?: string;
   /** Project-relative muxed VIDEO path for on-node player (PreviewVideo only). */
@@ -205,6 +207,14 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
               >
                 🎧
               </button>
+            ) : null}
+            {nodeData.cornerLabel ? (
+              <span
+                className={`groovy-node__corner${nodeData.status === "running" ? " groovy-node__corner--live" : ""}`}
+                title={nodeData.cornerLabel}
+              >
+                {nodeData.cornerLabel}
+              </span>
             ) : null}
             {badge ? <span className={`groovy-node__badge groovy-node__badge--${nodeData.status}`}>{badge}</span> : null}
           </span>

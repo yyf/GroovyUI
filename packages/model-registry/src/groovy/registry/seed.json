@@ -1385,6 +1385,207 @@
         { "from": "speech decoder", "to": "translated speech", "label": "waveform" }
       ],
       "similar_models": []
+    },
+    {
+      "id": "m2m100-418m",
+      "status": "published",
+      "trust": "verified",
+      "name": "M2M100 418M",
+      "description": "Many-to-many text translation across ~100 languages (facebook/m2m100_418M). MIT — commercial OK. Mac-friendly default for TranslateText after Whisper.",
+      "task_types": ["text-translation", "localization"],
+      "tags": ["translation", "text-mt", "m2m100", "multilingual", "commercial", "meta"],
+      "author": "Meta",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 1900,
+      "compatible_nodes": ["TranslateText"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "transformers", "version": ">=4.36.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" }
+        ],
+        "verify_imports": ["transformers", "torch", "sentencepiece"]
+      },
+      "inference_params": [
+        {
+          "name": "src_lang",
+          "type": "STRING",
+          "default": "en",
+          "description": "Source language (ISO 639-1: en, es, fr, …)."
+        },
+        {
+          "name": "tgt_lang",
+          "type": "STRING",
+          "default": "zh",
+          "description": "Target language (ISO 639-1: zh, en, es, fr, …)."
+        }
+      ],
+      "architecture_notes": "M2M100 encoder-decoder: source text + forced_bos target lang id → translated text.",
+      "internal_connections": [
+        { "from": "source text", "to": "encoder", "label": "src_lang" },
+        { "from": "encoder", "to": "decoder", "label": "forced_bos tgt" },
+        { "from": "decoder", "to": "translated text", "label": "tokens" }
+      ],
+      "similar_models": ["madlad400-3b-mt", "opus-mt-en-es", "opus-mt-en-fr"]
+    },
+    {
+      "id": "madlad400-3b-mt",
+      "status": "published",
+      "trust": "verified",
+      "name": "MADLAD-400 3B MT",
+      "description": "Broad multilingual text translation (google/madlad400-3b-mt), 400+ languages. Apache-2.0 — commercial OK. Heavier than M2M100; better coverage.",
+      "task_types": ["text-translation", "localization"],
+      "tags": ["translation", "text-mt", "madlad", "multilingual", "commercial", "google"],
+      "author": "Google",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 8,
+      "download_size_mb_estimate": 12000,
+      "compatible_nodes": ["TranslateText"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "transformers", "version": ">=4.36.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" },
+          { "package": "accelerate", "version": ">=0.28.0" }
+        ],
+        "verify_imports": ["transformers", "torch", "sentencepiece"]
+      },
+      "inference_params": [
+        {
+          "name": "src_lang",
+          "type": "STRING",
+          "default": "en",
+          "description": "Source language hint (ISO 639-1). MADLAD primarily uses tgt via <2xx> prefix."
+        },
+        {
+          "name": "tgt_lang",
+          "type": "STRING",
+          "default": "zh",
+          "description": "Target language (ISO 639-1: zh, en, es, fr, …) applied as <2xx> prefix."
+        }
+      ],
+      "architecture_notes": "T5-style MADLAD: prepend <2xx> target code to source text, then generate translation.",
+      "internal_connections": [
+        { "from": "source text", "to": "encoder", "label": "<2tgt> + text" },
+        { "from": "encoder", "to": "decoder", "label": "cross-attn" },
+        { "from": "decoder", "to": "translated text", "label": "tokens" }
+      ],
+      "similar_models": ["m2m100-418m", "opus-mt-en-es", "opus-mt-en-fr"]
+    },
+    {
+      "id": "opus-mt-en-es",
+      "status": "published",
+      "trust": "verified",
+      "name": "Opus-MT EN→ES",
+      "description": "Fast English→Spanish text translation (Helsinki-NLP/opus-mt-en-es). CC-BY-4.0 — commercial OK with attribution. Fixed language pair.",
+      "task_types": ["text-translation", "localization"],
+      "tags": ["translation", "text-mt", "opus-mt", "en-es", "commercial", "helsinki"],
+      "author": "Helsinki-NLP",
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 1.0,
+        "notes": "Upstream OPUS-MT pretrained models are CC-BY-4.0; some Hub cards mislabel Apache-2.0."
+      },
+      "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 300,
+      "compatible_nodes": ["TranslateText"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "transformers", "version": ">=4.36.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" },
+          { "package": "sacremoses", "version": ">=0.0.53" }
+        ],
+        "verify_imports": ["transformers", "torch", "sentencepiece"]
+      },
+      "inference_params": [
+        {
+          "name": "src_lang",
+          "type": "STRING",
+          "default": "en",
+          "description": "Fixed EN→ES model; src/tgt widgets are informational."
+        },
+        {
+          "name": "tgt_lang",
+          "type": "STRING",
+          "default": "es",
+          "description": "Fixed EN→ES model; src/tgt widgets are informational."
+        }
+      ],
+      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng→spa).",
+      "internal_connections": [
+        { "from": "English text", "to": "encoder", "label": "tokens" },
+        { "from": "encoder", "to": "decoder", "label": "cross-attn" },
+        { "from": "decoder", "to": "Spanish text", "label": "tokens" }
+      ],
+      "similar_models": ["opus-mt-en-fr", "m2m100-418m", "madlad400-3b-mt"]
+    },
+    {
+      "id": "opus-mt-en-fr",
+      "status": "published",
+      "trust": "verified",
+      "name": "Opus-MT EN→FR",
+      "description": "Fast English→French text translation (Helsinki-NLP/opus-mt-en-fr). CC-BY-4.0 — commercial OK with attribution. Fixed language pair.",
+      "task_types": ["text-translation", "localization"],
+      "tags": ["translation", "text-mt", "opus-mt", "en-fr", "commercial", "helsinki"],
+      "author": "Helsinki-NLP",
+      "license": {
+        "spdx": "CC-BY-4.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 1.0,
+        "notes": "Upstream OPUS-MT pretrained models are CC-BY-4.0; some Hub cards mislabel Apache-2.0."
+      },
+      "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 300,
+      "compatible_nodes": ["TranslateText"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "transformers", "version": ">=4.36.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" },
+          { "package": "sacremoses", "version": ">=0.0.53" }
+        ],
+        "verify_imports": ["transformers", "torch", "sentencepiece"]
+      },
+      "inference_params": [
+        {
+          "name": "src_lang",
+          "type": "STRING",
+          "default": "en",
+          "description": "Fixed EN→FR model; src/tgt widgets are informational."
+        },
+        {
+          "name": "tgt_lang",
+          "type": "STRING",
+          "default": "fr",
+          "description": "Fixed EN→FR model; src/tgt widgets are informational."
+        }
+      ],
+      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng→fra).",
+      "internal_connections": [
+        { "from": "English text", "to": "encoder", "label": "tokens" },
+        { "from": "encoder", "to": "decoder", "label": "cross-attn" },
+        { "from": "decoder", "to": "French text", "label": "tokens" }
+      ],
+      "similar_models": ["opus-mt-en-es", "m2m100-418m", "madlad400-3b-mt"]
     }
   ]
 }

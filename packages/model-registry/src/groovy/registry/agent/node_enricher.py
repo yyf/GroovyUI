@@ -60,6 +60,15 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "speaker_id": "Vocoder speaker 0–199 (timbre); not a gender control and not source cloning.",
         },
     },
+    "TranslateText": {
+        "description": "Translate transcript TEXT to another language (M2M100 / MADLAD / Opus-MT).",
+        "inputs": {"text": "Source transcript (usually from WhisperSTT)."},
+        "widgets": {
+            "model": "Text MT model (default m2m100-418m — MIT, Mac-friendly).",
+            "src_lang": "Source language ISO 639-1 (en, es, fr). Opus models ignore this.",
+            "tgt_lang": "Target language ISO 639-1 (zh, en, es, fr). Opus models ignore this.",
+        },
+    },
     "TimbreTransfer": {
         "description": "Neural resynthesis / timbre transfer via RAVE-class VAEs (encode → latent → decode).",
         "widgets": {
