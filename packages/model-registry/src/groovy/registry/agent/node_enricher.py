@@ -44,6 +44,8 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "widgets": {
             "model": "Text-to-speech model (Kokoro for plain TTS; F5-TTS / GPT-SoVITS for cloning).",
             "text": "Script or prompt to speak.",
+            "language": "ISO 639-1 for Kokoro (en, zh, es, fr, ja…). Mandarin = zh (needs misaki[zh]).",
+            "voice": "Optional Kokoro voice id (e.g. zf_xiaobei). Empty = language default.",
             "seed": "Random seed (−1 = random).",
         },
     },

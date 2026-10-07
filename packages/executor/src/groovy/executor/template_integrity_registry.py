@@ -160,13 +160,15 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "sample_path": "assets/samples/stem_separation_demo.wav",
         "expect_stems_node": "n2",
         "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
-        "terminal_output_type": "TEXT",
+        "terminal_output_type": "AUDIO",
         "required_outputs": (
             ("n3", "AUDIO"),
             ("n4", "TEXT"),
             ("n5", "TEXT"),
             ("n6", "TEXT"),
             ("n7", "TEXT"),
+            ("n8", "AUDIO"),
+            ("n9", "AUDIO"),
         ),
     },
     "karaoke-stems": {

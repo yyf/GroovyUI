@@ -40,6 +40,14 @@ def test_text_mt_lang_normalize() -> None:
     assert normalize_lang_iso2("fra") == "fr"
 
 
+def test_kokoro_zh_voice_resolve() -> None:
+    from groovy.nodes.ai.backends.kokoro_runner import resolve_kokoro_voice
+
+    assert resolve_kokoro_voice("zh") == ("z", "zf_xiaobei")
+    assert resolve_kokoro_voice("zh", "zm_yunxi") == ("z", "zm_yunxi")
+    assert resolve_kokoro_voice("en") == ("a", "af_heart")
+
+
 def test_translate_text_stub() -> None:
     from groovy.nodes.ai.inference import _translate_text_stub
 
@@ -80,6 +88,10 @@ def test_isolate_transcribe_translate_template_schema_and_stub_render(
     assert mt["widgets"]["model"] == "m2m100-418m"
     assert mt["widgets"]["src_lang"] == "en"
     assert mt["widgets"]["tgt_lang"] == "zh"
+    tts = next(node for node in data["nodes"] if node["type"] == "TTS")
+    assert tts["widgets"]["model"] == "kokoro-82m"
+    assert tts["widgets"]["language"] == "zh"
+    assert tts["widgets"]["voice"] == "zf_xiaobei"
 
     workflow = Workflow.model_validate(data)
     result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
@@ -95,10 +107,12 @@ def test_isolate_transcribe_translate_template_schema_and_stub_render(
     registry.installer.install("demucs-v4")
     registry.installer.install("whisper-large-v3-turbo")
     registry.installer.install("m2m100-418m")
-    out = Executor(tmp_path).execute(workflow, target_nodes=["n5", "n7"])
+    registry.installer.install("kokoro-82m")
+    out = Executor(tmp_path).execute(workflow, target_nodes=["n5", "n7", "n9"])
     assert out.status == "completed", out.error
     assert out.outputs["n5"]["type"] == "TEXT"
     assert out.outputs["n7"]["type"] == "TEXT"
+    assert out.outputs["n9"]["type"] == "AUDIO"
     translated = out.outputs["n7"]["text"]
     assert "m2m100-418m" in translated
     assert "en->zh" in translated

@@ -316,9 +316,9 @@
       "status": "published",
       "trust": "verified",
       "name": "Kokoro 82M",
-      "description": "Lightweight Apache-2.0 TTS — top downloaded Hub speech model for local voiceover.",
+      "description": "Lightweight Apache-2.0 multilingual TTS (en/zh/es/fr/ja/…). Mandarin uses language=zh + voice zf_xiaobei (needs misaki[zh]).",
       "task_types": ["tts"],
-      "tags": ["tts", "kokoro", "speech", "commercial", "voiceover"],
+      "tags": ["tts", "kokoro", "speech", "commercial", "voiceover", "multilingual", "chinese"],
       "author": "hexgrad",
       "license": {
         "spdx": "Apache-2.0",
@@ -331,9 +331,31 @@
       "compatible_nodes": ["TTS"],
       "install": {
         "dev_stub": false,
-        "python_deps": [{ "package": "kokoro", "version": ">=0.9.0" }],
-        "verify_imports": ["kokoro"]
+        "python_deps": [
+          { "package": "kokoro", "version": ">=0.9.0" },
+          { "package": "misaki[zh]", "version": ">=0.4.0" },
+          { "package": "ordered-set", "version": ">=4.1.0" },
+          { "package": "jieba", "version": ">=0.42.1" },
+          { "package": "pypinyin", "version": ">=0.51.0" },
+          { "package": "pypinyin-dict", "version": ">=0.9.0" },
+          { "package": "cn2an", "version": ">=0.5.22" }
+        ],
+        "verify_imports": ["kokoro", "misaki"]
       },
+      "inference_params": [
+        {
+          "name": "language",
+          "type": "STRING",
+          "default": "en",
+          "description": "ISO 639-1 (en, zh, es, fr, ja, …). Mandarin = zh."
+        },
+        {
+          "name": "voice",
+          "type": "STRING",
+          "default": "",
+          "description": "Optional Kokoro voice (e.g. zf_xiaobei). Empty = language default."
+        }
+      ],
       "similar_models": ["cosyvoice-300m", "f5-tts-base", "xtts-v2"]
     },
     {

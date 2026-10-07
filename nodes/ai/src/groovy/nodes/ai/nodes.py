@@ -213,6 +213,20 @@ class TTS(GroovyNode):
             "optional": {
                 "transcript": ("TEXT",),
                 "text": ("STRING", {"default": "Hello from GroovyUI."}),
+                "language": (
+                    "STRING",
+                    {
+                        "default": "en",
+                        "description": "ISO 639-1 for Kokoro (en, zh, es, fr, ja, …). Mandarin needs misaki[zh].",
+                    },
+                ),
+                "voice": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": "Optional Kokoro voice id (e.g. zf_xiaobei). Empty = language default.",
+                    },
+                ),
                 "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
                 # Zero-shot / few-shot clone models (F5-TTS, GPT-SoVITS) use this clip.
                 "reference_audio": ("AUDIO",),

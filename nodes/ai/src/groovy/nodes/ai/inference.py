@@ -216,6 +216,8 @@ def run_tts(cache: CacheStore, kwargs: dict) -> list[dict]:
 
     text = str(kwargs.get("transcript") or kwargs.get("text") or "Hello from GroovyUI.")
     model_id = str(kwargs.get("model", "kokoro-82m"))
+    language = str(kwargs.get("language") or "en")
+    voice = str(kwargs.get("voice") or "").strip() or None
     sample_rate = 48000
     reference_pcm = None
     reference_sample_rate = sample_rate
@@ -233,6 +235,8 @@ def run_tts(cache: CacheStore, kwargs: dict) -> list[dict]:
         reference_pcm=reference_pcm,
         reference_sample_rate=reference_sample_rate,
         reference_text=str(kwargs.get("reference_text") or ""),
+        language=language,
+        voice=voice,
     )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="TTS")
     cache.write_audio(out_buffer, pcm)
@@ -571,6 +575,8 @@ def synthesize_speech(
     reference_pcm: np.ndarray | None = None,
     reference_sample_rate: int | None = None,
     reference_text: str = "",
+    language: str = "en",
+    voice: str | None = None,
 ) -> np.ndarray:
     from groovy.nodes.ai.inference_env import f5_tts_available, inference_stub_enabled
 
@@ -580,7 +586,12 @@ def synthesize_speech(
         if not inference_stub_enabled():
             from groovy.nodes.ai.backends.kokoro_runner import synthesize_pcm
 
-            return synthesize_pcm(text, sample_rate=sample_rate)
+            return synthesize_pcm(
+                text,
+                sample_rate=sample_rate,
+                language=language,
+                voice=voice,
+            )
         return _synthesize_speech_stub(
             text,
             sample_rate=sample_rate,
