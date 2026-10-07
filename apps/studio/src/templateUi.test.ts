@@ -39,6 +39,7 @@ describe("templatesVisibleInUi", () => {
     bundled("transcribe-and-regenerate"),
     bundled("authenticity-check"),
     bundled("isolate-vocals-to-transcribe"),
+    bundled("isolate-vocals-to-transcribe-translate"),
     bundled("isolate-vocals-to-voice-convert"),
     bundled("localize-dialogue-a-to-b"),
     bundled("modular-generative-rack"),
@@ -63,6 +64,7 @@ describe("templatesVisibleInUi", () => {
       "empty-canvas",
       "hello-groovy",
       "isolate-vocals-to-transcribe",
+      "isolate-vocals-to-transcribe-translate",
       "podcast-denoise",
       "prompt-modular-synth",
     ]);
@@ -109,6 +111,7 @@ describe("templatesVisibleInUi", () => {
       "hello-groovy",
       "instrumental-tts-dub",
       "isolate-vocals-to-transcribe",
+      "isolate-vocals-to-transcribe-translate",
       "isolate-vocals-to-voice-convert",
       "karaoke-guide-vocal",
       "localize-dialogue-a-to-b",
@@ -300,6 +303,7 @@ describe("isNodeVisibleInStudio", () => {
     expect(isNodeVisibleInStudio("Mix")).toBe(false);
     expect(isNodeVisibleInStudio("GenerateAudio")).toBe(false);
     expect(STANDARD_MODE_NODE_TYPES).toContain("TTS");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("TranslateText");
     expect(STANDARD_MODE_NODE_TYPES).toContain("Video2Audio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewVideo");

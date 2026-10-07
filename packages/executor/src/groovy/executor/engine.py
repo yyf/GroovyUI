@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 import uuid
 from collections import defaultdict, deque
 from collections.abc import Callable
@@ -71,6 +72,9 @@ class ExecutionResult:
     outputs: dict[str, dict[str, Any]] = field(default_factory=dict)
     manifest_path: str | None = None
     error: str | None = None
+    # Wall time per node in the execution order (includes cache hits).
+    node_timings_ms: dict[str, int] = field(default_factory=dict)
+    total_ms: int = 0
 
 
 class Executor:
@@ -130,7 +134,9 @@ class Executor:
         inputs_map = _build_inputs_map(workflow.links)
         manifest_nodes: list[dict[str, Any]] = []
         outputs: dict[str, dict[str, Any]] = {}
+        node_timings_ms: dict[str, int] = {}
         started_at = datetime.now(UTC).isoformat()
+        job_t0 = time.perf_counter()
 
         try:
             node_outputs: dict[str, tuple[Any, ...]] = {}
@@ -138,6 +144,7 @@ class Executor:
             for node_index, node_id in enumerate(order):
                 ctx.check_cancelled()
                 node = node_by_id[node_id]
+                node_t0 = time.perf_counter()
 
                 def overall_fraction(local: float) -> float:
                     if total_nodes <= 0:
@@ -195,6 +202,9 @@ class Executor:
                         node_outputs[node_id] = result
                         outputs[node_id] = cached_output_meta
                         cache_hit = True
+                        node_timings_ms[node_id] = max(
+                            0, int(round((time.perf_counter() - node_t0) * 1000))
+                        )
                         ctx.emit_progress(node_id, overall_fraction(1.0), f"Cache hit {node.type}")
                         manifest_output = attach_signal_metadata(self.cache, cached_output_meta)
                         if cached_state.get("output", {}).get("type") == "STEMS":
@@ -209,6 +219,7 @@ class Executor:
                                 "node_id": node_id,
                                 "type": node.type,
                                 "cache_hit": True,
+                                "elapsed_ms": node_timings_ms[node_id],
                                 "output": manifest_output,
                             }
                         )
@@ -231,6 +242,9 @@ class Executor:
                     result = (result,)
 
                 node_outputs[node_id] = result
+                node_timings_ms[node_id] = max(
+                    0, int(round((time.perf_counter() - node_t0) * 1000))
+                )
                 ctx.emit_progress(node_id, overall_fraction(1.0), f"Completed {node.type}")
 
                 output_meta = self._output_meta_from_result(
@@ -250,6 +264,7 @@ class Executor:
                         "node_id": node_id,
                         "type": node.type,
                         "cache_hit": cache_hit,
+                        "elapsed_ms": node_timings_ms[node_id],
                         "output": manifest_output,
                     }
                 )
@@ -258,6 +273,7 @@ class Executor:
                         workflow.id, node_id, signature=signature, output_meta=output_meta
                     )
 
+            total_ms = max(0, int(round((time.perf_counter() - job_t0) * 1000)))
             manifest = {
                 "job_id": job_id,
                 "workflow_id": workflow.id,
@@ -267,6 +283,8 @@ class Executor:
                 "groovy_version": GROOVY_VERSION,
                 "nodes": manifest_nodes,
                 "outputs": outputs,
+                "node_timings_ms": node_timings_ms,
+                "total_ms": total_ms,
             }
             manifest_path = self.cache.write_manifest(job_id, manifest)
             return ExecutionResult(
@@ -274,6 +292,8 @@ class Executor:
                 status="completed",
                 outputs=outputs,
                 manifest_path=str(manifest_path),
+                node_timings_ms=node_timings_ms,
+                total_ms=total_ms,
             )
         except JobCancelled as exc:
             return ExecutionResult(
@@ -281,9 +301,18 @@ class Executor:
                 status="cancelled",
                 outputs=outputs,
                 error=exc.message,
+                node_timings_ms=node_timings_ms,
+                total_ms=max(0, int(round((time.perf_counter() - job_t0) * 1000))),
             )
         except Exception as exc:
-            return ExecutionResult(job_id=job_id, status="failed", error=str(exc), outputs=outputs)
+            return ExecutionResult(
+                job_id=job_id,
+                status="failed",
+                error=str(exc),
+                outputs=outputs,
+                node_timings_ms=node_timings_ms,
+                total_ms=max(0, int(round((time.perf_counter() - job_t0) * 1000))),
+            )
 
     def _write_provenance(
         self,

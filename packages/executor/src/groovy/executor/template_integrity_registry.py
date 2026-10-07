@@ -21,6 +21,7 @@ TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "PreviewVideo": "VIDEO",
     "SaveVideo": "STRING",
     "WhisperSTT": "TEXT",
+    "TranslateText": "TEXT",
     "DetectWatermark": "TEXT",
     "DiarizeTranscribe": "TEXT",
     "AudioToMIDI": "MIDI",
@@ -154,6 +155,22 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
         "terminal_output_type": "TEXT",
         "required_outputs": (("n3", "AUDIO"), ("n4", "TEXT"), ("n5", "TEXT")),
+    },
+    "isolate-vocals-to-transcribe-translate": {
+        "sample_path": "assets/samples/stem_separation_demo.wav",
+        "expect_stems_node": "n2",
+        "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
+        "terminal_output_type": "AUDIO",
+        # n8 TTS is the AI hop (role=ai); list Preview/TEXT terminals only — same
+        # pattern as hello-groovy (TTS not in required_outputs).
+        "required_outputs": (
+            ("n3", "AUDIO"),
+            ("n4", "TEXT"),
+            ("n5", "TEXT"),
+            ("n6", "TEXT"),
+            ("n7", "TEXT"),
+            ("n9", "AUDIO"),
+        ),
     },
     "karaoke-stems": {
         "sample_path": "assets/samples/podcast_denoise_demo.wav",

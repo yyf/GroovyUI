@@ -27,6 +27,7 @@ from groovy.nodes.ai.inference import (
     run_video2audio,
     run_voice_convert,
     run_speech_translate,
+    run_translate_text,
     run_whisper_stt,
 )
 
@@ -40,6 +41,7 @@ HANDLERS = {
     "SpatialUpmix": run_spatial_upmix,
     "WhisperSTT": run_whisper_stt,
     "DiarizeTranscribe": run_diarize_transcribe,
+    "TranslateText": run_translate_text,
     "TTS": run_tts,
     "VoiceConvert": run_voice_convert,
     "SpeechTranslate": run_speech_translate,

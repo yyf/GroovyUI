@@ -1723,11 +1723,19 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
                     "outputs": result.outputs,
                     "manifest_path": result.manifest_path,
                     "message": "Complete",
+                    "node_timings_ms": result.node_timings_ms,
+                    "total_ms": result.total_ms,
                 }
             )
             await _broadcast(
                 job_id,
-                {"type": "job.complete", "job_id": job_id, "outputs": result.outputs},
+                {
+                    "type": "job.complete",
+                    "job_id": job_id,
+                    "outputs": result.outputs,
+                    "node_timings_ms": result.node_timings_ms,
+                    "total_ms": result.total_ms,
+                },
             )
         elif result.status == "cancelled":
             _jobs[job_id].update(
@@ -1736,6 +1744,8 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
                     "outputs": result.outputs,
                     "error": result.error,
                     "message": result.error or "Cancelled",
+                    "node_timings_ms": result.node_timings_ms,
+                    "total_ms": result.total_ms,
                 }
             )
             await _broadcast(
@@ -1744,6 +1754,8 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
                     "type": "job.cancelled",
                     "job_id": job_id,
                     "outputs": result.outputs,
+                    "node_timings_ms": result.node_timings_ms,
+                    "total_ms": result.total_ms,
                     "error": {"code": "CANCELLED", "message": result.error or "Cancelled"},
                 },
             )
@@ -1754,6 +1766,8 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
                     "error": result.error,
                     "outputs": result.outputs,
                     "message": result.error,
+                    "node_timings_ms": result.node_timings_ms,
+                    "total_ms": result.total_ms,
                 }
             )
             await _broadcast(
@@ -1761,6 +1775,8 @@ async def execute(body: ExecuteRequest) -> dict[str, str]:
                 {
                     "type": "job.failed",
                     "job_id": job_id,
+                    "node_timings_ms": result.node_timings_ms,
+                    "total_ms": result.total_ms,
                     "error": {"code": "EXECUTION_FAILED", "message": result.error},
                 },
             )

@@ -87,7 +87,12 @@ import {
   widgetsForDroppedModel,
 } from "./modelNodeWidgets";
 import { isAiNodeType } from "./nodeKinds";
-import { nodeStatusOnProgress, slowAiDownloadLabel } from "./renderActivity";
+import {
+  aiNodePhaseLabel,
+  aiNodeTimingPercents,
+  nodeStatusOnProgress,
+  slowAiDownloadLabel,
+} from "./renderActivity";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
 import type { WorkflowClipboard } from "./workflow";
 import { nextActiveEdgeIds, resolveEdgePlaybackTarget } from "./edgePlayback";
@@ -314,6 +319,41 @@ export default function App() {
     });
   }, [workflow, currentNode, nodeSchemas, running, lastProgressAt, renderTick]);
 
+  const aiCornerLabels = useMemo(() => {
+    if (!workflow) return {} as Record<string, string>;
+    const aiIds = workflow.nodes
+      .filter((node) => isAiNodeType(node.type, nodeSchemas[node.type]?.category))
+      .map((node) => node.id);
+    if (running) {
+      const labels: Record<string, string> = {};
+      for (const id of aiIds) {
+        const node = workflow.nodes.find((item) => item.id === id);
+        const phase = aiNodePhaseLabel({
+          isCurrent: id === currentNode,
+          running,
+          isAi: true,
+          message: renderMessage,
+          staleMs: lastProgressAt ? renderTick - lastProgressAt : 0,
+        });
+        if (phase && node) labels[id] = phase;
+      }
+      return labels;
+    }
+    if (lastJob?.status === "completed" && lastJob.node_timings_ms) {
+      return aiNodeTimingPercents(lastJob.node_timings_ms, lastJob.total_ms, aiIds);
+    }
+    return {};
+  }, [
+    workflow,
+    nodeSchemas,
+    running,
+    currentNode,
+    renderMessage,
+    lastProgressAt,
+    renderTick,
+    lastJob,
+  ]);
+
   const flowNodes = useMemo(() => {
     if (!workflow) return [];
     const nodes = workflowToFlowNodes(
@@ -325,12 +365,19 @@ export default function App() {
       loadAudioChannels,
       channelLayouts,
     );
-    if (!currentNode) return nodes;
     return nodes.map((node) => {
-      if (node.id !== currentNode || node.type !== "groovy") return node;
+      if (node.type !== "groovy") return node;
+      const cornerLabel = aiCornerLabels[node.id];
+      const activityLabel =
+        node.id === currentNode && downloadHint ? downloadHint : undefined;
+      if (!cornerLabel && !activityLabel) return node;
       return {
         ...node,
-        data: { ...node.data, activityLabel: downloadHint },
+        data: {
+          ...node.data,
+          ...(cornerLabel ? { cornerLabel } : {}),
+          ...(activityLabel ? { activityLabel } : {}),
+        },
       };
     });
   }, [
@@ -343,6 +390,7 @@ export default function App() {
     channelLayouts,
     currentNode,
     downloadHint,
+    aiCornerLabels,
   ]);
 
   useEffect(() => {

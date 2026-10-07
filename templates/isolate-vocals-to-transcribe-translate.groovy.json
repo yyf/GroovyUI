@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "3d1b6e2c-7e8f-4a9b-0c1d-2345678901bc",
+  "metadata": {
+    "title": "Isolate → STT → Translate → TTS",
+    "author": "groovy",
+    "description": "Isolate vocals (Demucs) → STT (Whisper) → translate (M2M100 en→zh) → TTS (Kokoro Mandarin) for audition.",
+    "tags": [
+      "ai",
+      "vocals",
+      "separation",
+      "stt",
+      "whisper",
+      "translation",
+      "text-mt",
+      "localization",
+      "tts"
+    ],
+    "created_at": "2026-10-07T00:00:00Z",
+    "modified_at": "2026-10-07T00:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "Isolate → STT → Translate → TTS — Demucs vocals, Whisper STT, M2M100 en→zh, then Kokoro Mandarin TTS (zf_xiaobei) for audition. MIT/Apache commercial-clear."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": {
+        "x": 0,
+        "y": 180.0
+      },
+      "widgets": {
+        "path": "assets/samples/stem_separation_demo.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "SeparateStems",
+      "pos": {
+        "x": 260,
+        "y": 180.0
+      },
+      "widgets": {
+        "model": "demucs-v4",
+        "shifts": 1,
+        "overlap": 0.25,
+        "segment": 0,
+        "split": true
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Preview",
+      "pos": {
+        "x": 520,
+        "y": 120.0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n4",
+      "type": "WhisperSTT",
+      "pos": {
+        "x": 780,
+        "y": 120.0
+      },
+      "widgets": {
+        "model": "whisper-large-v3-turbo",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Preview",
+      "pos": {
+        "x": 780,
+        "y": 280.0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n6",
+      "type": "TranslateText",
+      "pos": {
+        "x": 1040,
+        "y": 120.0
+      },
+      "widgets": {
+        "model": "m2m100-418m",
+        "src_lang": "en",
+        "tgt_lang": "zh"
+      }
+    },
+    {
+      "id": "n7",
+      "type": "Preview",
+      "pos": {
+        "x": 1040,
+        "y": 280.0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n8",
+      "type": "TTS",
+      "pos": {
+        "x": 1300,
+        "y": 120.0
+      },
+      "widgets": {
+        "model": "kokoro-82m",
+        "language": "zh",
+        "voice": "zf_xiaobei",
+        "text": "",
+        "seed": -1
+      }
+    },
+    {
+      "id": "n9",
+      "type": "Preview",
+      "pos": {
+        "x": 1560,
+        "y": 120.0
+      },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n2", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": ["n2", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n2", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": ["n4", 0],
+      "to": ["n5", 1],
+      "type": "TEXT"
+    },
+    {
+      "id": "l5",
+      "from": ["n4", 0],
+      "to": ["n6", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l6",
+      "from": ["n6", 0],
+      "to": ["n7", 1],
+      "type": "TEXT"
+    },
+    {
+      "id": "l7",
+      "from": ["n6", 0],
+      "to": ["n8", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l8",
+      "from": ["n8", 0],
+      "to": ["n9", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
+}

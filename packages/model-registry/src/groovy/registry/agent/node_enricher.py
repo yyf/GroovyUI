@@ -44,6 +44,8 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "widgets": {
             "model": "Text-to-speech model (Kokoro for plain TTS; F5-TTS / GPT-SoVITS for cloning).",
             "text": "Script or prompt to speak.",
+            "language": "ISO 639-1 for Kokoro (en, zh, es, fr, ja…). Mandarin = zh (needs misaki[zh]).",
+            "voice": "Optional Kokoro voice id (e.g. zf_xiaobei). Empty = language default.",
             "seed": "Random seed (−1 = random).",
         },
     },
@@ -58,6 +60,15 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "src_lang": "Source language (ISO 639-3 preferred: eng, spa, fra).",
             "tgt_lang": "Target language (ISO 639-3 preferred: eng, spa, fra).",
             "speaker_id": "Vocoder speaker 0–199 (timbre); not a gender control and not source cloning.",
+        },
+    },
+    "TranslateText": {
+        "description": "Translate transcript TEXT to another language (M2M100 / MADLAD / Opus-MT).",
+        "inputs": {"text": "Source transcript (usually from WhisperSTT)."},
+        "widgets": {
+            "model": "Text MT model (default m2m100-418m — MIT, Mac-friendly).",
+            "src_lang": "Source language ISO 639-1 (en, es, fr). Opus models ignore this.",
+            "tgt_lang": "Target language ISO 639-1 (zh, en, es, fr). Opus models ignore this.",
         },
     },
     "TimbreTransfer": {

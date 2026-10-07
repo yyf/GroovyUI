@@ -10,6 +10,7 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | Hello GroovyUI | [hello-groovy.groovy.json](hello-groovy.groovy.json) | `kokoro-82m` |
 | Podcast Denoise | [podcast-denoise.groovy.json](podcast-denoise.groovy.json) | `deepfilternet-v3` |
 | Isolate to Transcribe | [isolate-vocals-to-transcribe.groovy.json](isolate-vocals-to-transcribe.groovy.json) | `demucs-v4`, Whisper |
+| Isolate → STT → Translate → TTS | [isolate-vocals-to-transcribe-translate.groovy.json](isolate-vocals-to-transcribe-translate.groovy.json) | `demucs-v4`, Whisper, `m2m100-418m`, `kokoro-82m` (zh) |
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | `kokoro-82m` |
 | Video to Audio | [video-to-audio.groovy.json](video-to-audio.groovy.json) | `diff-foley` (default; experimental — CUDA testing) |
 

@@ -1291,25 +1291,47 @@ export async function executeWorkflow(
             message: msg.message,
           });
         } else if (msg.type === "job.complete") {
+          const timings = msg.node_timings_ms as Record<string, number> | undefined;
+          const totalMs = typeof msg.total_ms === "number" ? msg.total_ms : undefined;
           onProgress({
             status: "completed",
             progress: 1,
             outputs: msg.outputs,
+            node_timings_ms: timings,
+            total_ms: totalMs,
           });
           finish({
             status: "completed",
             progress: 1,
             outputs: msg.outputs,
+            node_timings_ms: timings,
+            total_ms: totalMs,
           });
         } else if (msg.type === "job.failed") {
           const message = msg.error?.message ?? "Execution failed";
-          onProgress({ status: "failed", error: message });
-          finish({ status: "failed", error: message });
+          const timings = msg.node_timings_ms as Record<string, number> | undefined;
+          const totalMs = typeof msg.total_ms === "number" ? msg.total_ms : undefined;
+          onProgress({ status: "failed", error: message, node_timings_ms: timings, total_ms: totalMs });
+          finish({ status: "failed", error: message, node_timings_ms: timings, total_ms: totalMs });
         } else if (msg.type === "job.cancelled") {
           const message = msg.error?.message ?? "Cancelled";
           const outputs = msg.outputs as Record<string, JobOutput> | undefined;
-          onProgress({ status: "cancelled", error: message, outputs });
-          finish({ status: "cancelled", error: message, outputs });
+          const timings = msg.node_timings_ms as Record<string, number> | undefined;
+          const totalMs = typeof msg.total_ms === "number" ? msg.total_ms : undefined;
+          onProgress({
+            status: "cancelled",
+            error: message,
+            outputs,
+            node_timings_ms: timings,
+            total_ms: totalMs,
+          });
+          finish({
+            status: "cancelled",
+            error: message,
+            outputs,
+            node_timings_ms: timings,
+            total_ms: totalMs,
+          });
         }
       } catch {
         // ignore malformed messages

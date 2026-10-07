@@ -10,6 +10,7 @@ def register_all() -> None:
         SeparateStems,
         WhisperSTT,
         DiarizeTranscribe,
+        TranslateText,
         TTS,
         VoiceConvert,
         SpeechTranslate,
@@ -115,6 +116,53 @@ class WhisperSTT(GroovyNode):
 
 
 @register_node
+class TranslateText(GroovyNode):
+    """Text machine translation (Whisper transcript → target language)."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_transformed"
+    COMPATIBLE_MODELS = [
+        "m2m100-418m",
+        "madlad400-3b-mt",
+        "opus-mt-en-es",
+        "opus-mt-en-fr",
+    ]
+    RETURN_TYPES = ("TEXT",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "text": ("TEXT",),
+                "model": ("MODEL_REF", {"default": "m2m100-418m"}),
+            },
+            "optional": {
+                "src_lang": (
+                    "STRING",
+                    {
+                        "default": "en",
+                        "description": "Source language (ISO 639-1 preferred: en, es, fr). Opus models ignore this (fixed pair).",
+                    },
+                ),
+                "tgt_lang": (
+                    "STRING",
+                    {
+                        "default": "zh",
+                        "description": "Target language (ISO 639-1 preferred: zh, en, es, fr). Opus models ignore this (fixed pair).",
+                    },
+                ),
+            },
+        }
+
+    def run(self, **kwargs):
+        raise RuntimeError("TranslateText must run in AI worker subprocess")
+
+
+@register_node
 class DiarizeTranscribe(GroovyNode):
     """Speaker-labeled transcript for meetings/podcasts (Whisper + diarization)."""
 
@@ -165,6 +213,20 @@ class TTS(GroovyNode):
             "optional": {
                 "transcript": ("TEXT",),
                 "text": ("STRING", {"default": "Hello from GroovyUI."}),
+                "language": (
+                    "STRING",
+                    {
+                        "default": "en",
+                        "description": "ISO 639-1 for Kokoro (en, zh, es, fr, ja, …). Mandarin needs misaki[zh].",
+                    },
+                ),
+                "voice": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": "Optional Kokoro voice id (e.g. zf_xiaobei). Empty = language default.",
+                    },
+                ),
                 "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
                 # Zero-shot / few-shot clone models (F5-TTS, GPT-SoVITS) use this clip.
                 "reference_audio": ("AUDIO",),
