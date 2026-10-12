@@ -13,7 +13,11 @@ Most AI audio tools hide the chain. If you care about the take, you want somethi
 Creative AI only sticks when it’s additive and knowable: inspect what ran, keep the workflow yours, and avoid black-box finishes that replace craft with a vibe. GroovyUI makes that posture operable for audio.
 
 <p align="center">
-  <img src="assets/media/groovy-demos-2x2.gif" alt="GroovyUI demos: Model Browser, Patch Generation, isolate-to-transcribe, prompt modular synth" width="960" />
+  <img src="assets/media/groovy-demos-2x2-10x-1920.gif" alt="GroovyUI demos: Model Browser, Patch Generation, isolate-to-transcribe, prompt modular synth" width="960" />
+</p>
+
+<p align="center">
+  <img src="assets/media/GroovyUI-interaction-design-4.gif" alt="GroovyUI interaction design: patch-bay canvas and workflow exploration" width="960" />
 </p>
 
 ---
