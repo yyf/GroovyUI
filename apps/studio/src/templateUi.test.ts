@@ -61,14 +61,15 @@ describe("templatesVisibleInUi", () => {
       ...allBundled,
       bundled("empty-canvas", "Empty Canvas"),
     ]);
+    // Sorted by display title (default title = id), not STANDARD_BUNDLED order.
     expect(visible.map((t) => t.id)).toEqual([
       "empty-canvas",
       "hello-groovy",
-      "tab-creative-grow",
       "isolate-vocals-to-transcribe",
       "isolate-vocals-to-transcribe-translate",
       "podcast-denoise",
       "prompt-modular-synth",
+      "tab-creative-grow",
     ]);
   });
 
