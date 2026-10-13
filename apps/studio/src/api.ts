@@ -617,6 +617,50 @@ export async function planAgentRequest(
   return res.json();
 }
 
+export type CreativeAgentStep = {
+  id: string;
+  index: number;
+  title: string;
+  rationale: string;
+  action: import("./creativeAgentApply").CreativeAgentAction;
+  unknown_node_types?: string[];
+  /** Original Claude type when remapped or degraded to a note. */
+  remapped_from?: string | null;
+  requires_approval?: boolean;
+  apply_locked?: boolean;
+  status?: string;
+};
+
+export type CreativeAgentPlan = {
+  prompt: string;
+  mode: string;
+  goal?: string | null;
+  notes?: string;
+  steps: CreativeAgentStep[];
+  skipped?: string[];
+  human_in_the_loop?: boolean;
+  revise_step_id?: string | null;
+};
+
+export async function planCreativeAgent(body: {
+  prompt?: string;
+  canvas?: { nodes: unknown[]; links: unknown[] };
+  revision?: string;
+  revise_step_id?: string;
+  prior_steps?: CreativeAgentStep[];
+  llm_model?: string;
+}): Promise<CreativeAgentPlan> {
+  const res = await fetch(`${API}/api/agent/creative`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`Creative Agent failed (${res.status})`);
+  }
+  return res.json();
+}
+
 export async function recommendModels(
   prompt: string,
   filters?: {

@@ -49,6 +49,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "tab-creative-grow",
+    title: "Tab Creative Grow",
+    models: "— (LoadAudio seed; Tab proposes Denoise etc.)",
+    licenses: "— (demo sample + DSP/AI hops chosen at Tab time)",
+    impact: "High",
+    cluster: "Onboarding",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
     id: "podcast-denoise",
     title: "Podcast Denoise",
     models: "deepfilternet-v3",

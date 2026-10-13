@@ -9,6 +9,8 @@ type Props = {
   nodeSyncKey?: string;
   /** Bumps after template load — fits all nodes in view. */
   fitViewKey?: number;
+  /** Bumps during Tab Creative growth — animated zoom-out to keep ghosts in view. */
+  softFitKey?: number;
 };
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -22,6 +24,7 @@ export default function FlowViewportBridge({
   onCenterReady,
   nodeSyncKey,
   fitViewKey,
+  softFitKey,
 }: Props) {
   const { screenToFlowPosition, getNodes, fitView } = useReactFlow();
   const updateNodeInternals = useUpdateNodeInternals();
@@ -56,6 +59,20 @@ export default function FlowViewportBridge({
     });
     return () => cancelAnimationFrame(frame);
   }, [fitViewKey, nodeSyncKey, fitView, getNodes]);
+
+  useEffect(() => {
+    if (!softFitKey) return;
+    const frame = requestAnimationFrame(() => {
+      if (getNodes().length === 0) return;
+      void fitView({
+        padding: 0.28,
+        duration: 560,
+        minZoom: FIT_ALL_OPTIONS.minZoom,
+        maxZoom: 1.1,
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [softFitKey, fitView, getNodes]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

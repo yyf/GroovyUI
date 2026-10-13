@@ -200,6 +200,17 @@ class AgentPlanRequest(BaseModel):
     llm_model: str | None = None
 
 
+class CreativeAgentRequest(BaseModel):
+    """Multi-step Creative Agent plan — proposals only; studio applies per thumbs-up."""
+
+    prompt: str = ""
+    canvas: dict[str, Any] | None = None
+    revision: str | None = None
+    revise_step_id: str | None = None
+    prior_steps: list[dict[str, Any]] | None = None
+    llm_model: str | None = None
+
+
 class ModelDraftRequest(BaseModel):
     external_id: str
     name: str
@@ -1259,6 +1270,39 @@ def agent_plan_endpoint(body: AgentPlanRequest) -> dict[str, Any]:
         node_type=body.node_type,
         max_models=body.max_models,
         max_workflows=body.max_workflows,
+    )
+
+
+def _node_model_defaults() -> dict[str, str]:
+    defaults: dict[str, str] = {}
+    for node_name, node_cls in NODE_REGISTRY.items():
+        try:
+            desc = node_cls.describe()
+        except Exception:
+            continue
+        for widget in desc.get("widgets") or []:
+            if widget.get("name") == "model" and widget.get("default"):
+                defaults[node_name] = str(widget["default"])
+                break
+    return defaults
+
+
+@app.post("/api/agent/creative")
+def agent_creative_endpoint(body: CreativeAgentRequest) -> dict[str, Any]:
+    """Creative Agent: multi-step canvas proposals; each step needs human approval."""
+    from groovy.registry.agent.creative_agent import plan_creative_agent
+
+    return plan_creative_agent(
+        prompt=body.prompt,
+        api_key=_studio_settings.anthropic_api_key(),
+        canvas=body.canvas,
+        revision=body.revision,
+        revise_step_id=body.revise_step_id,
+        prior_steps=body.prior_steps,
+        model=(body.llm_model or "").strip() or "claude-sonnet-5",
+        known_node_types=set(NODE_REGISTRY.keys()),
+        catalog=_registry.catalog,
+        node_model_defaults=_node_model_defaults(),
     )
 
 

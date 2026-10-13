@@ -53,6 +53,12 @@ export type GroovyNodeData = {
   trajectoryWidgets?: Record<string, number | string>;
   /** Brief ⌘F locate pulse. */
   found?: boolean;
+  /** Tab Creative Agent ghost preview (non-committed). */
+  ghost?: boolean;
+  ghostStep?: number;
+  ghostTitle?: string;
+  /** Next hop awaiting Tab approve. */
+  ghostNext?: boolean;
   inputs?: NodeSocketSpec[];
   outputs?: NodeSocketSpec[];
 };
@@ -162,14 +168,25 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
     (nodeData.channelLabel && outputs.length === 1 && nodeData.label === "LoadAudio") ||
     namedOutlets;
 
+  const ghost = Boolean(nodeData.ghost);
   return (
     <div
-      className={`groovy-node groovy-node--${nodeData.status}${kindClass}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}${nodeData.found ? " groovy-node--found" : ""}${isNote ? " groovy-node--note" : ""}`}
+      className={`groovy-node groovy-node--${nodeData.status}${kindClass}${nodeData.issue ? " groovy-node--issue" : ""}${selected ? " groovy-node--selected" : ""}${nodeData.found ? " groovy-node--found" : ""}${isNote ? " groovy-node--note" : ""}${ghost ? " groovy-node--ghost" : ""}${nodeData.ghostNext ? " groovy-node--ghost-next" : ""}`}
       style={{ minHeight }}
       data-kind={isNote ? "note" : kind}
       aria-busy={nodeData.status === "running"}
     >
       <span className="groovy-node__ticks" aria-hidden />
+      {ghost && nodeData.ghostStep != null ? (
+        <span className="groovy-node__ghost-step" aria-hidden>
+          {nodeData.ghostStep}
+        </span>
+      ) : null}
+      {ghost && nodeData.ghostNext ? (
+        <span className="groovy-node__ghost-tab" title="Press Tab to approve">
+          Tab
+        </span>
+      ) : null}
       {inputs.map((socket, index) => (
         <Handle
           key={`in-${socket.slot ?? index}-${socket.name}`}

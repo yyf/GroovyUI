@@ -19,6 +19,7 @@ function user(id: string): TemplateListItem {
 describe("templatesVisibleInUi", () => {
   const allBundled = [
     bundled("hello-groovy"),
+    bundled("tab-creative-grow"),
     bundled("podcast-denoise"),
     bundled("stem-separation"),
     bundled("transcribe-dialogue"),
@@ -63,6 +64,7 @@ describe("templatesVisibleInUi", () => {
     expect(visible.map((t) => t.id)).toEqual([
       "empty-canvas",
       "hello-groovy",
+      "tab-creative-grow",
       "isolate-vocals-to-transcribe",
       "isolate-vocals-to-transcribe-translate",
       "podcast-denoise",
@@ -125,6 +127,7 @@ describe("templatesVisibleInUi", () => {
       "stable-audio",
       "stem-lyrics-to-ace",
       "stem-separation",
+      "tab-creative-grow",
       "text-to-music",
       "transcribe-and-diarize",
       "transcribe-and-regenerate",
@@ -218,6 +221,7 @@ describe("groupBundledTemplatesByDomain", () => {
       [
         bundled("empty-canvas", "Empty Canvas"),
         bundled("hello-groovy", "Hello GroovyUI"),
+        bundled("tab-creative-grow", "Tab Creative Grow"),
         bundled("podcast-denoise", "Podcast Denoise"),
         bundled("stem-separation", "Stem Separation"),
         bundled("text-to-music", "Text to Music"),
@@ -244,6 +248,7 @@ describe("groupBundledTemplatesByDomain", () => {
     expect(groups.find((g) => g.domain.id === "start")?.templates.map((t) => t.id)).toEqual([
       "empty-canvas",
       "hello-groovy",
+      "tab-creative-grow",
     ]);
     expect(groups.find((g) => g.domain.id === "speech")?.templates.map((t) => t.id)).toEqual([
       "podcast-denoise",
@@ -251,9 +256,10 @@ describe("groupBundledTemplatesByDomain", () => {
     expect(groups.every((g) => g.templates.every((t) => t.source !== "user"))).toBe(true);
   });
 
-  it("places empty-canvas and hello-groovy in Start", () => {
+  it("places empty-canvas, hello-groovy, and tab-creative-grow in Start", () => {
     expect(domainIdForTemplate("empty-canvas")).toBe("start");
     expect(domainIdForTemplate("hello-groovy")).toBe("start");
+    expect(domainIdForTemplate("tab-creative-grow")).toBe("start");
   });
 
   it("places video-to-audio templates in Generate", () => {

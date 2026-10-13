@@ -36,10 +36,24 @@ import {
   saveUserTemplate,
   shareWorkflow,
   deleteUserTemplate,
+  planCreativeAgent,
   previewUrl,
   uploadProjectAudio,
   type TemplateListItem,
 } from "./api";
+import {
+  applyCreativeAgentAction,
+  type CreativeAgentAction,
+} from "./creativeAgentApply";
+import {
+  canvasSnapshotForCreative,
+  creativeSessionStatus,
+  creativeTabPrompt,
+  projectCreativeGhosts,
+  recordCreativePlanDuration,
+  type CreativeTabSession,
+} from "./creativeTabSession";
+import CreativeTabHud from "./components/CreativeTabHud";
 import { CANVAS_MAX_ZOOM, CANVAS_MIN_ZOOM, FIT_ALL_OPTIONS } from "./canvasViewport";
 import ComplianceDrawer from "./components/ComplianceDrawer";
 import FlowViewportBridge from "./components/FlowViewportBridge";
@@ -227,6 +241,11 @@ export default function App() {
   const [inspectorWide, setInspectorWide] = useState(false);
   const [workflowBarOpen, setWorkflowBarOpen] = useState(true);
   const [generateOpenNonce, setGenerateOpenNonce] = useState(0);
+  const [creativeSession, setCreativeSession] = useState<CreativeTabSession | null>(null);
+  const [creativeSoftFitKey, setCreativeSoftFitKey] = useState(0);
+  const [claudeAvailable, setClaudeAvailable] = useState(false);
+  const creativeSessionRef = useRef<CreativeTabSession | null>(null);
+  const creativePlanningRef = useRef(false);
   const [onboardingOpen, setOnboardingOpen] = useState(() => !isOnboardingComplete());
   const [dropHint, setDropHint] = useState(false);
   const [nodePicker, setNodePicker] = useState<{ x: number; y: number } | null>(null);
@@ -402,12 +421,36 @@ export default function App() {
     () => (workflow ? workflowToFlowEdges(workflow, activeEdgeIds) : []),
     [workflow, activeEdgeIds],
   );
-  const displayEdges = useMemo(
-    () => flowEdges.map((edge) => ({ ...edge, selected: edge.id === selectedEdgeId })),
-    [flowEdges, selectedEdgeId],
-  );
   const flowNodeSyncKey = useMemo(() => flowNodesSyncKey(flowNodes), [flowNodes]);
   const [nodes, setNodes, applyNodeChanges] = useNodesState<Node>([]);
+
+  const creativeGhosts = useMemo(() => {
+    if (!workflow || !creativeSession || creativeSession.planning) {
+      return { nodes: [] as Node<GroovyNodeData>[], edges: [] as import("@xyflow/react").Edge[] };
+    }
+    if (creativeSession.cursor >= creativeSession.steps.length) {
+      return { nodes: [] as Node<GroovyNodeData>[], edges: [] as import("@xyflow/react").Edge[] };
+    }
+    // Placement always grows from the first signal node (not selection).
+    return projectCreativeGhosts(creativeSession, workflow, nodeSchemas);
+  }, [workflow, creativeSession, nodeSchemas]);
+
+  useEffect(() => {
+    if (!creativeSession || creativeSession.planning) return;
+    // Debounced soft zoom when the plan appears or a hop is approved.
+    const timer = window.setTimeout(() => {
+      setCreativeSoftFitKey((key) => key + 1);
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [creativeSession?.planning, creativeSession?.cursor, creativeSession?.steps.length]);
+
+  const displayEdges = useMemo(
+    () => [
+      ...flowEdges.map((edge) => ({ ...edge, selected: edge.id === selectedEdgeId })),
+      ...creativeGhosts.edges,
+    ],
+    [flowEdges, selectedEdgeId, creativeGhosts.edges],
+  );
 
   const sampleAccuracyNote = useMemo(() => {
     if (!workflow?.nodes?.length) return null;
@@ -449,8 +492,11 @@ export default function App() {
           : node,
       );
     }
+    if (creativeGhosts.nodes.length) {
+      merged = [...merged, ...creativeGhosts.nodes];
+    }
     return merged;
-  }, [nodes, flowNodes, flowNodeSyncKey, foundNodeId]);
+  }, [nodes, flowNodes, flowNodeSyncKey, foundNodeId, creativeGhosts.nodes]);
 
   const loadTemplate = useCallback(
     async (templateId: string) => {
@@ -678,9 +724,19 @@ export default function App() {
       .then(setTemplates)
       .catch(() => setTemplates([]));
     fetchStudioSettings()
-      .then((settings) => setInferenceStubActive(settings.inference_stub_active))
-      .catch(() => setInferenceStubActive(false));
+      .then((settings) => {
+        setInferenceStubActive(settings.inference_stub_active);
+        setClaudeAvailable(Boolean(settings.anthropic_api_key_set));
+      })
+      .catch(() => {
+        setInferenceStubActive(false);
+        setClaudeAvailable(false);
+      });
   }, []);
+
+  useEffect(() => {
+    creativeSessionRef.current = creativeSession;
+  }, [creativeSession]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1297,6 +1353,196 @@ export default function App() {
     [setWorkflow],
   );
 
+  const dismissCreativeSession = useCallback(() => {
+    creativePlanningRef.current = false;
+    setCreativeSession(null);
+    setStatus("Creative dismissed");
+  }, []);
+
+  const applyCreativeStep = useCallback(
+    (action: CreativeAgentAction) => {
+      const current = workflowRef.current;
+      if (!current) {
+        setStatus("No workflow loaded");
+        return "No workflow loaded";
+      }
+      if (!hasActiveActivationSession()) {
+        startActivationSession({ source: "creative_agent" });
+      }
+      const center = flowCenterRef.current?.() ?? { x: 320, y: 200 };
+      const result = applyCreativeAgentAction(current, action, nodeSchemas, center);
+      if (result.canvasChanged) {
+        setWorkflow(result.workflow);
+        setLastJob(null);
+        if (result.selectedNodeId) {
+          pendingSelectionRef.current = new Set([result.selectedNodeId]);
+        }
+        // Soft-fit only (creativeSoftFitKey) — hard fitView feels like a spiral jump.
+      } else if (result.selectedNodeId) {
+        pendingSelectionRef.current = new Set([result.selectedNodeId]);
+        setNodes((currentNodes) =>
+          currentNodes.map((node) => ({
+            ...node,
+            selected: node.id === result.selectedNodeId,
+          })),
+        );
+      }
+      setStatus(result.statusMessage);
+      return result.statusMessage;
+    },
+    [nodeSchemas, setWorkflow, setNodes],
+  );
+
+  const startCreativeTabSession = useCallback(async () => {
+    if (creativePlanningRef.current) return false;
+    const current = workflowRef.current;
+    if (!current) return false;
+    creativePlanningRef.current = true;
+    const selectedType =
+      (selectedNodeId && current.nodes.find((n) => n.id === selectedNodeId)?.type) || null;
+    const planningStartedAt = performance.now();
+    setCreativeSession({
+      goal: null,
+      notes: null,
+      steps: [],
+      cursor: 0,
+      planning: true,
+      planningStartedAt,
+      notice: null,
+    });
+    setStatus("Creative · AI agent planning…");
+    try {
+      const data = await planCreativeAgent({
+        prompt: creativeTabPrompt({
+          selectedNodeId,
+          selectedNodeType: selectedType,
+          nodeCount: current.nodes.length,
+        }),
+        canvas: canvasSnapshotForCreative(current),
+      });
+      recordCreativePlanDuration(performance.now() - planningStartedAt);
+      if (data.mode === "needs_api_key" || data.mode === "auth_error") {
+        creativePlanningRef.current = false;
+        setCreativeSession(null);
+        setClaudeAvailable(false);
+        setStatus(
+          data.mode === "auth_error"
+            ? "Creative · Claude key rejected — update Settings → Plan / Claude"
+            : "Creative · Claude key needed — falling back to minimal expand",
+        );
+        return false;
+      }
+      if (data.mode === "error" || !data.steps?.length) {
+        creativePlanningRef.current = false;
+        setCreativeSession(null);
+        setStatus(
+          (data.notes || "Creative · no steps").replace(/^Creative Agent failed:\s*/i, "Creative · "),
+        );
+        return false;
+      }
+      const next: CreativeTabSession = {
+        goal: data.goal ?? null,
+        notes: data.notes ?? null,
+        steps: data.steps,
+        cursor: 0,
+        planning: false,
+        planningStartedAt: null,
+        notice: `Ready · ${data.steps.length} step${data.steps.length === 1 ? "" : "s"} — Tab to approve`,
+      };
+      creativePlanningRef.current = false;
+      setCreativeSession(next);
+      setStatus(creativeSessionStatus(next));
+      return true;
+    } catch (err) {
+      creativePlanningRef.current = false;
+      setCreativeSession(null);
+      setStatus(`Creative · ${formatJobError(String(err))}`);
+      return false;
+    }
+  }, [selectedNodeId]);
+
+  const advanceCreativeTab = useCallback(
+    (mode: "approve" | "skip") => {
+      const session = creativeSessionRef.current;
+      if (!session || session.planning) return;
+      if (session.cursor >= session.steps.length) {
+        dismissCreativeSession();
+        return;
+      }
+      const step = session.steps[session.cursor];
+      if (mode === "approve") {
+        if (step.apply_locked) {
+          const notice = `Locked: ${(step.unknown_node_types || []).join(", ") || "unavailable type"} — Shift+Tab to skip`;
+          setCreativeSession({ ...session, notice });
+          setStatus(`Creative · ${notice}`);
+          return;
+        }
+        let action = step.action;
+        // Commit add_node at the ghost's laid-out position so approve matches preview.
+        if (action.type === "add_node" && workflowRef.current) {
+          const { nodes: ghosts } = projectCreativeGhosts(
+            session,
+            workflowRef.current,
+            nodeSchemas,
+          );
+          const ghost = ghosts.find((node) => node.id === `__ghost__${step.id}`);
+          if (ghost) {
+            action = {
+              ...action,
+              node: { ...action.node, pos: { x: ghost.position.x, y: ghost.position.y } },
+            };
+          }
+        }
+        applyCreativeStep(action);
+        const nextCursor = session.cursor + 1;
+        if (nextCursor >= session.steps.length) {
+          const notice = `Approved “${step.title}” · plan complete`;
+          setCreativeSession({ ...session, cursor: nextCursor, notice });
+          setStatus(`Creative · ${notice} — Esc to clear`);
+          return;
+        }
+        const nextStep = session.steps[nextCursor];
+        const notice = `Approved “${step.title}” · next: ${nextStep.title}`;
+        const next = { ...session, cursor: nextCursor, notice };
+        setCreativeSession(next);
+        setStatus(`Creative · ${notice}`);
+        return;
+      }
+      const nextCursor = session.cursor + 1;
+      if (nextCursor >= session.steps.length) {
+        const notice = `Skipped “${step.title}” · plan complete`;
+        setCreativeSession({ ...session, cursor: nextCursor, notice });
+        setStatus(`Creative · ${notice} — Esc to clear`);
+        return;
+      }
+      const nextStep = session.steps[nextCursor];
+      const notice = `Skipped “${step.title}” · next: ${nextStep.title}`;
+      setCreativeSession({ ...session, cursor: nextCursor, notice });
+      setStatus(`Creative · ${notice}`);
+    },
+    [applyCreativeStep, dismissCreativeSession, nodeSchemas],
+  );
+
+  const tryMinimalTabExpand = useCallback(() => {
+    if (!workflow || selectedNodeIds.length !== 1 || !selectedNodeId) return false;
+    const workflowNode = workflow.nodes.find((node) => node.id === selectedNodeId);
+    const rfNode = nodes.find((node) => node.id === selectedNodeId);
+    const nodeType =
+      workflowNode?.type ?? (rfNode?.data as GroovyNodeData | undefined)?.label ?? null;
+    if (!nodeType) return false;
+    const patch = getMinimalPatch(nodeType, nodeSchemas);
+    if (!patch) return false;
+    augmentMinimalPatchForNode(patch, selectedNodeId, nodeSchemas[nodeType]);
+    return true;
+  }, [
+    workflow,
+    selectedNodeIds,
+    selectedNodeId,
+    nodes,
+    nodeSchemas,
+    augmentMinimalPatchForNode,
+  ]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target;
@@ -1320,6 +1566,25 @@ export default function App() {
         return;
       }
 
+      // Creative Tab loop must work even if Compliance / HUD stole focus.
+      if (event.key === "Tab" && workflow && creativeSessionRef.current) {
+        event.preventDefault();
+        const session = creativeSessionRef.current;
+        if (session.planning) {
+          const notice = "Still planning — wait for ghost steps";
+          setCreativeSession({ ...session, notice });
+          setStatus(`Creative · ${notice}`);
+          return;
+        }
+        advanceCreativeTab(event.shiftKey ? "skip" : "approve");
+        return;
+      }
+      if (event.key === "Escape" && creativeSessionRef.current) {
+        event.preventDefault();
+        dismissCreativeSession();
+        return;
+      }
+
       if (editing) return;
 
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "k") {
@@ -1327,7 +1592,7 @@ export default function App() {
         openModelBrowser();
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "g") {
         event.preventDefault();
         setWorkflowBarOpen(true);
         setGenerateOpenNonce((n) => n + 1);
@@ -1387,17 +1652,29 @@ export default function App() {
         setStatus(`Duplicated ${newNodeIds.length} node(s)`);
         return;
       }
-      if (event.key === "Tab" && selectedNodeIds.length === 1 && selectedNodeId && workflow) {
-        const workflowNode = workflow.nodes.find((node) => node.id === selectedNodeId);
-        const rfNode = nodes.find((node) => node.id === selectedNodeId);
-        const nodeType =
-          workflowNode?.type ?? (rfNode?.data as GroovyNodeData | undefined)?.label ?? null;
-        if (nodeType) {
-          const patch = getMinimalPatch(nodeType, nodeSchemas);
-          if (patch) {
-            event.preventDefault();
-            augmentMinimalPatchForNode(patch, selectedNodeId, nodeSchemas[nodeType]);
-            return;
+      if (event.key === "Tab" && workflow) {
+        if (event.shiftKey) return;
+        // Start Creative Agent when Claude is available; else minimal-patch expand.
+        if (claudeAvailable) {
+          event.preventDefault();
+          void (async () => {
+            const ok = await startCreativeTabSession();
+            if (!ok) tryMinimalTabExpand();
+          })();
+          return;
+        }
+        if (selectedNodeIds.length === 1 && selectedNodeId) {
+          const workflowNode = workflow.nodes.find((node) => node.id === selectedNodeId);
+          const rfNode = nodes.find((node) => node.id === selectedNodeId);
+          const nodeType =
+            workflowNode?.type ?? (rfNode?.data as GroovyNodeData | undefined)?.label ?? null;
+          if (nodeType) {
+            const patch = getMinimalPatch(nodeType, nodeSchemas);
+            if (patch) {
+              event.preventDefault();
+              augmentMinimalPatchForNode(patch, selectedNodeId, nodeSchemas[nodeType]);
+              return;
+            }
           }
         }
       }
@@ -1447,7 +1724,28 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [running, runRender, cancelRender, undo, redo, workflow, nodes, selectedNodeIds, selectedNodeId, nodeSchemas, augmentMinimalPatchForNode, openModelBrowser, setNodes, nodeFinderOpen, studioDevMode]);
+  }, [
+    running,
+    runRender,
+    cancelRender,
+    undo,
+    redo,
+    workflow,
+    nodes,
+    selectedNodeIds,
+    selectedNodeId,
+    nodeSchemas,
+    augmentMinimalPatchForNode,
+    openModelBrowser,
+    setNodes,
+    nodeFinderOpen,
+    studioDevMode,
+    claudeAvailable,
+    startCreativeTabSession,
+    tryMinimalTabExpand,
+    advanceCreativeTab,
+    dismissCreativeSession,
+  ]);
 
   useEffect(() => {
     if (!workflow) return;
@@ -2200,6 +2498,9 @@ export default function App() {
             {sampleAccuracyNote && !dropHint ? (
               <SampleAccuracyBadge note={sampleAccuracyNote} />
             ) : null}
+            {creativeSession ? (
+              <CreativeTabHud session={creativeSession} onDismiss={dismissCreativeSession} />
+            ) : null}
             <CanvasErrorBoundary
               crashed={canvasCrashed}
               onError={(error) => {
@@ -2280,6 +2581,7 @@ export default function App() {
                     onCenterReady={registerFlowCenter}
                     nodeSyncKey={flowNodeSyncKey}
                     fitViewKey={viewportFitKey}
+                    softFitKey={creativeSoftFitKey}
                   />
                   <Controls
                     className="flow-controls"
