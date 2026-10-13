@@ -36,7 +36,7 @@ describe("templateLicenseMatrix", () => {
     expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(
       summary.total,
     );
-    expect(summary.commercialSafe).toBe(6);
+    expect(summary.commercialSafe).toBe(7);
     expect(summary.conferenceOnly).toBe(0);
     expect(summary.caution).toBe(0);
   });

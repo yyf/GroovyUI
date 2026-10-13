@@ -1561,6 +1561,215 @@ body {
   opacity: 0.35;
 }
 
+/* Tab Creative Agent — thin HUD + canvas ghosts */
+.creative-tab-hud {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: min(560px, calc(100% - 24px));
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-silver);
+  pointer-events: auto;
+}
+
+.creative-tab-hud__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.creative-tab-hud__eyebrow-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.creative-tab-hud__eyebrow {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-text, var(--accent));
+  font-weight: 700;
+}
+
+.creative-tab-hud__agent-pill {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 2px 6px;
+  border: 1px solid var(--accent);
+  color: var(--accent-text, var(--accent));
+  background: var(--accent-dim);
+}
+
+.creative-tab-hud--planning {
+  border-color: var(--accent);
+}
+
+.creative-tab-hud--flash {
+  animation: creative-tab-hud-flash 0.45s steps(2, end) 1;
+}
+
+@keyframes creative-tab-hud-flash {
+  0%,
+  100% {
+    border-color: var(--border-silver);
+  }
+  50% {
+    border-color: var(--accent);
+  }
+}
+
+.creative-tab-hud__notice {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--accent-text, var(--accent));
+}
+
+.creative-tab-hud__wait {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.creative-tab-hud__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.creative-tab-hud__rationale {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.creative-tab-hud__keys {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.creative-tab-hud__keys kbd,
+.creative-tab-hud__dismiss kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 4px;
+  border: 1px solid var(--border-dim);
+  color: var(--text-secondary);
+}
+
+.creative-tab-hud__dismiss {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.creative-tab-hud__dismiss:hover kbd {
+  border-color: var(--border-silver);
+  color: var(--text-primary);
+}
+
+.groovy-node--ghost {
+  border-style: dashed;
+  border-color: var(--border-silver);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.groovy-node--ghost-next {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 43, 0.35);
+  animation: creative-ghost-pulse 1.5s ease-in-out infinite;
+}
+
+.groovy-node__ghost-step {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--accent-text, var(--accent));
+  font-weight: 700;
+}
+
+.groovy-node__ghost-tab {
+  position: absolute;
+  bottom: 4px;
+  right: 6px;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 1px 5px;
+  border: 1px solid var(--accent);
+  color: var(--accent-text, var(--accent));
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.react-flow__node.groovy-node-ghost {
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.35s ease;
+}
+
+.react-flow__edge.groovy-edge-ghost path {
+  transition: stroke-opacity 0.35s ease, stroke 0.35s ease;
+}
+
+.react-flow__node.groovy-node-ghost--next {
+  z-index: 6;
+}
+
+.react-flow__node.groovy-node-ghost--near {
+  z-index: 4;
+}
+
+.react-flow__node.groovy-node-ghost--far {
+  z-index: 3;
+}
+
+@keyframes creative-ghost-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(255, 0, 43, 0.25);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(255, 0, 43, 0.7);
+  }
+}
+
+.react-flow__edge.groovy-edge-ghost {
+  pointer-events: none;
+}
+
+.react-flow__edge.groovy-edge-ghost--next path {
+  stroke: var(--accent) !important;
+}
+
 .canvas-node-picker {
   position: fixed;
   z-index: 50;

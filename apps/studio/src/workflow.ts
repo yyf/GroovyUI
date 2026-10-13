@@ -2133,10 +2133,15 @@ export function addNodeToWorkflow(
   nodeType: string,
   widgets: Record<string, unknown>,
   center?: { x: number; y: number },
+  options?: { exactPosition?: boolean },
 ): { workflow: Workflow; nodeId: string } {
   const id = nextWorkflowNodeId(workflow);
   const anchor = center ?? { x: 320, y: 200 };
-  const pos = findOpenNodePosition(workflow, anchor);
+  // Creative Tab passes the ghost's top-left; do not treat it as a center for
+  // findOpenNodePosition (that subtracts half size and rings for gaps → north jump).
+  const pos = options?.exactPosition
+    ? { x: anchor.x, y: anchor.y }
+    : findOpenNodePosition(workflow, anchor);
   return {
     nodeId: id,
     workflow: {

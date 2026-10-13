@@ -20,6 +20,10 @@ Creative AI only sticks when it’s additive and knowable: inspect what ran, kee
   <img src="assets/media/GroovyUI-interaction-design-4.gif" alt="GroovyUI interaction design: patch-bay canvas and workflow exploration" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/creative-agent-1.gif" alt="GroovyUI creative agent: patch generation and creative tab exploration" width="960" />
+</p>
+
 ---
 
 ### YouTube

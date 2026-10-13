@@ -226,17 +226,54 @@ def fill_load_audio_paths(workflow: dict[str, Any]) -> list[dict[str, str]]:
     return fills
 
 
-def _extract_json_object(text: str) -> dict[str, Any]:
+def _strip_json_fences(text: str) -> str:
     stripped = text.strip()
-    fence = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", stripped, re.DOTALL)
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", stripped, re.IGNORECASE)
     if fence:
-        stripped = fence.group(1)
-    else:
-        start = stripped.find("{")
-        end = stripped.rfind("}")
-        if start >= 0 and end > start:
-            stripped = stripped[start : end + 1]
-    data = json.loads(stripped)
+        return fence.group(1).strip()
+    return stripped
+
+
+def _slice_balanced_object(text: str) -> str:
+    """Return the first top-level `{...}` span, respecting string escapes."""
+    start = text.find("{")
+    if start < 0:
+        raise ValueError("No JSON object in Claude response")
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    raise ValueError("Unbalanced JSON object in Claude response")
+
+
+def _soften_json(text: str) -> str:
+    """Fix common Claude JSON slips (trailing commas) before a second parse."""
+    return re.sub(r",(\s*[}\]])", r"\1", text)
+
+
+def _extract_json_object(text: str) -> dict[str, Any]:
+    candidate = _slice_balanced_object(_strip_json_fences(text))
+    try:
+        data = json.loads(candidate)
+    except json.JSONDecodeError:
+        data = json.loads(_soften_json(candidate))
     if not isinstance(data, dict):
         raise ValueError("Claude response JSON must be an object")
     return data

@@ -8,6 +8,7 @@ import type { TemplateListItem } from "./api";
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "empty-canvas",
   "hello-groovy",
+  "tab-creative-grow",
   "isolate-vocals-to-transcribe",
   "isolate-vocals-to-transcribe-translate",
   "podcast-denoise",
@@ -45,6 +46,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "stereo-to-binaural",
   "stem-lyrics-to-ace",
   "stem-separation",
+  "tab-creative-grow",
   "text-to-music",
   "transcribe-and-diarize",
   "transcribe-and-regenerate",
@@ -94,6 +96,7 @@ export const TEMPLATE_DOMAINS: readonly TemplateDomain[] = [
 export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> = {
   "empty-canvas": "start",
   "hello-groovy": "start",
+  "tab-creative-grow": "start",
 
   "podcast-denoise": "speech",
   "transcribe-dialogue": "speech",
