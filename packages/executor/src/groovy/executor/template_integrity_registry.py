@@ -59,6 +59,12 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("kokoro-82m",),
         "required_outputs": (("n8", "AUDIO"),),
     },
+    # LoadAudio-only seed for Tab Creative Agent — no downstream terminal yet.
+    # L4 verifies the input hop; do not list n1 as AUDIO terminal (role=input).
+    "tab-creative-grow": {
+        "sample_path": "assets/samples/podcast_denoise_demo.wav",
+        "terminal_output_type": "NONE",
+    },
     "podcast-denoise": {"sample_path": "assets/samples/podcast_denoise_demo.wav"},
     "ab-compare-demo": {"sample_path": "assets/samples/podcast_denoise_demo.wav", "spot_check": "ab_compare"},
     "sample-verify": {
