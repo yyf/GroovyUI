@@ -27,6 +27,11 @@ const PLAN_MS_SAMPLES = 8;
 /** Vertical pitch between parallel branches (and chrome below the lane). */
 export const FLOW_ROW = 130;
 
+/** Horizontal pitch between connected hops (keeps ghost edge spans even). */
+export const FLOW_COL_MIN = 260;
+
+const GHOST_OVERLAP_MARGIN = 24;
+
 export function estimateCreativePlanMs(): number {
   try {
     const raw = localStorage.getItem(PLAN_MS_STORAGE_KEY);
@@ -147,9 +152,77 @@ export function resolveCreativeAnchor(workflow: Workflow): {
     x: first.pos?.x ?? 0,
     y: first.pos?.y ?? 140,
     width,
-    col: Math.max(260, width + 72),
+    col: Math.max(FLOW_COL_MIN, width + 72),
     solidCount: signal.length,
   };
+}
+
+type GhostRect = { x: number; y: number; w: number; h: number };
+
+function ghostRectsOverlap(a: GhostRect, b: GhostRect, margin = 0): boolean {
+  return (
+    a.x < b.x + b.w + margin &&
+    a.x + a.w + margin > b.x &&
+    a.y < b.y + b.h + margin &&
+    a.y + a.h + margin > b.y
+  );
+}
+
+/** Nudge along the placement axis so the ghost does not sit on solids / other ghosts. */
+function clearGhostOverlap(
+  pos: { x: number; y: number },
+  size: { width: number; height: number },
+  side: -1 | 0 | 1,
+  col: number,
+  obstacles: GhostRect[],
+): { x: number; y: number } {
+  let { x, y } = pos;
+  for (let attempt = 0; attempt < 32; attempt++) {
+    const rect: GhostRect = { x, y, w: size.width, h: size.height };
+    const hit = obstacles.some((obs) => ghostRectsOverlap(rect, obs, GHOST_OVERLAP_MARGIN));
+    if (!hit) return { x, y };
+    if (side === 1) x += col;
+    else if (side === -1) x -= col;
+    else y += FLOW_ROW;
+  }
+  return { x, y };
+}
+
+/**
+ * Pick placement relative to a connected neighbor:
+ * - inbound from neighbor's outlet → ghost goes to the RIGHT of neighbor
+ * - outbound into neighbor's inlet → ghost goes to the LEFT of neighbor
+ */
+function ghostPlacementAnchor(
+  logicalId: string,
+  edgeList: Array<{ from: string; to: string }>,
+  depth: Map<string, number>,
+  preferIds: Set<string>,
+): { neighborId: string; side: -1 | 1 } | null {
+  const parents = edgeList.filter((e) => e.to === logicalId).map((e) => e.from);
+  const children = edgeList.filter((e) => e.from === logicalId).map((e) => e.to);
+  const rank = (id: string) => {
+    const known = preferIds.has(id) ? 0 : 1;
+    return [known, -(depth.get(id) ?? 0), id] as const;
+  };
+  const pick = (ids: string[]) =>
+    [...ids].sort((a, b) => {
+      const ra = rank(a);
+      const rb = rank(b);
+      if (ra[0] !== rb[0]) return ra[0] - rb[0];
+      if (ra[1] !== rb[1]) return ra[1] - rb[1];
+      return ra[2].localeCompare(rb[2]);
+    })[0];
+
+  if (parents.length) {
+    const neighborId = pick(parents);
+    if (neighborId) return { neighborId, side: 1 };
+  }
+  if (children.length) {
+    const neighborId = pick(children);
+    if (neighborId) return { neighborId, side: -1 };
+  }
+  return null;
 }
 
 function schemaSockets(schema: NodeSchema | undefined): {
@@ -418,16 +491,9 @@ export function projectCreativeGhosts(
   const edges: Edge[] = [];
   // Lane Y follows the anchor solid; approved solids keep their own Y via positions.
   const laneY = origin.y;
-  const slotPos = (logicalId: string) => {
-    const d = depth.get(logicalId) ?? 1;
-    const b = branch.get(logicalId) ?? 0;
-    return {
-      x: origin.x + d * origin.col,
-      y: laneY + b * FLOW_ROW,
-    };
-  };
+  const col = origin.col;
+  const knownPositions = new Set(positions.keys());
 
-  let addOrdinal = 0;
   const orderedGhosts = [...ghostIds].sort((a, b) => {
     const da = depth.get(a) ?? 0;
     const db = depth.get(b) ?? 0;
@@ -438,6 +504,68 @@ export function projectCreativeGhosts(
     return (ghostMeta.get(a)?.order ?? 0) - (ghostMeta.get(b)?.order ?? 0);
   });
 
+  // Place ghosts relative to connected neighbors (outlet→right, inlet→left),
+  // with a fixed column pitch so edge spans stay even when possible.
+  for (const logicalId of orderedGhosts) {
+    const meta = ghostMeta.get(logicalId)!;
+    const action = meta.step.action as Extract<CreativeAgentAction, { type: "add_node" }>;
+    const size = estimateNodeSize({
+      id: logicalId,
+      type: action.node.type,
+      pos: { x: 0, y: 0 },
+      widgets: action.node.widgets ?? {},
+    });
+    const b = branch.get(logicalId) ?? 0;
+    const anchor = ghostPlacementAnchor(logicalId, edgeList, depth, knownPositions);
+
+    let side: -1 | 0 | 1 = 1;
+    let x: number;
+    let y: number;
+
+    if (anchor) {
+      const neighborPos = positions.get(anchor.neighborId) ?? { x: origin.x, y: laneY };
+      side = anchor.side;
+      const neighborDepth = depth.get(anchor.neighborId) ?? 0;
+      const myDepth = depth.get(logicalId) ?? neighborDepth + 1;
+      const hops =
+        side === 1
+          ? Math.max(1, myDepth - neighborDepth)
+          : Math.max(1, neighborDepth - myDepth);
+      x = neighborPos.x + side * hops * col;
+      y = b !== 0 ? laneY + b * FLOW_ROW : neighborPos.y;
+    } else {
+      // Unwired ghost: sit one column to the right of the lane origin.
+      side = 1;
+      const orphanIndex = orderedGhosts.indexOf(logicalId);
+      x = origin.x + (orphanIndex + 1) * col;
+      y = laneY + b * FLOW_ROW;
+    }
+
+    const obstacles: GhostRect[] = [];
+    for (const node of workflow.nodes) {
+      const p = positions.get(node.id) ?? { x: node.pos?.x ?? 0, y: node.pos?.y ?? 0 };
+      const s = estimateNodeSize(node);
+      obstacles.push({ x: p.x, y: p.y, w: s.width, h: s.height });
+    }
+    for (const [id, p] of positions) {
+      if (!ghostMeta.has(id)) continue;
+      const other = ghostMeta.get(id)!;
+      const otherAction = other.step.action as Extract<CreativeAgentAction, { type: "add_node" }>;
+      const s = estimateNodeSize({
+        id,
+        type: otherAction.node.type,
+        pos: p,
+        widgets: otherAction.node.widgets ?? {},
+      });
+      obstacles.push({ x: p.x, y: p.y, w: s.width, h: s.height });
+    }
+
+    const cleared = clearGhostOverlap({ x, y }, size, side, col, obstacles);
+    positions.set(logicalId, cleared);
+    knownPositions.add(logicalId);
+  }
+
+  let addOrdinal = 0;
   for (const logicalId of orderedGhosts) {
     const meta = ghostMeta.get(logicalId)!;
     const step = meta.step;
@@ -446,8 +574,7 @@ export function projectCreativeGhosts(
     const tier = ghostTierClass(addOrdinal);
     const schema = nodeSchemas[action.node.type];
     const sockets = schemaSockets(schema);
-    const pos = slotPos(logicalId);
-    positions.set(logicalId, pos);
+    const pos = positions.get(logicalId) ?? { x: origin.x + col, y: laneY };
     const flowId = `__ghost__${step.id}`;
     flowIdFor.set(logicalId, flowId);
     nodes.push({

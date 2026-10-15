@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   creativeTabPrompt,
+  FLOW_COL_MIN,
   FLOW_ROW,
   formatCreativePlanTiming,
   ghostOpacityForOffset,
@@ -11,6 +12,7 @@ import {
   type CreativeTabSession,
 } from "./creativeTabSession";
 import type { Workflow } from "./types";
+import { estimateNodeSize } from "./workflow";
 
 const emptyWorkflow: Workflow = {
   schema_version: "1.0.0",
@@ -314,5 +316,106 @@ describe("creativeTabSession", () => {
     expect(save.position.y).toBe(140 + FLOW_ROW);
     expect(preview.position.x).toBe(save.position.x);
     expect(preview.position.x).toBeGreaterThan(denoise.position.x);
+  });
+
+  it("places a ghost left of the source when it feeds the source inlet", () => {
+    const workflow: Workflow = {
+      ...emptyWorkflow,
+      nodes: [{ id: "n1", type: "LoadAudio", pos: { x: 400, y: 140 }, widgets: {} }],
+    };
+    const session: CreativeTabSession = {
+      goal: "upstream",
+      notes: null,
+      cursor: 0,
+      planning: false,
+      steps: [
+        {
+          id: "s-trim",
+          index: 0,
+          title: "Trim",
+          rationale: "",
+          action: { type: "add_node", node: { id: "n0", type: "Trim", widgets: {} } },
+        },
+        {
+          id: "c1",
+          index: 1,
+          title: "into load",
+          rationale: "",
+          action: { type: "connect", from: ["n0", 0], to: ["n1", 0], link_type: "AUDIO" },
+        },
+      ],
+    };
+    const { nodes } = projectCreativeGhosts(session, workflow, {});
+    const trim = nodes.find((n) => n.id === "__ghost__s-trim")!;
+    expect(trim.position.x).toBeLessThan(400);
+    expect(trim.position.y).toBe(140);
+  });
+
+  it("keeps even hop spans and avoids overlapping an existing solid", () => {
+    const blocking = { id: "nBlock", type: "Preview", pos: { x: 272, y: 140 }, widgets: {} };
+    const workflow: Workflow = {
+      ...emptyWorkflow,
+      nodes: [
+        { id: "n1", type: "LoadAudio", pos: { x: 0, y: 140 }, widgets: {} },
+        blocking,
+      ],
+      links: [],
+    };
+    const session: CreativeTabSession = {
+      goal: "grow",
+      notes: null,
+      cursor: 0,
+      planning: false,
+      steps: [
+        {
+          id: "s-denoise",
+          index: 0,
+          title: "Denoise",
+          rationale: "",
+          action: { type: "add_node", node: { id: "n2", type: "Denoise", widgets: {} } },
+        },
+        {
+          id: "s-norm",
+          index: 1,
+          title: "Normalize",
+          rationale: "",
+          action: { type: "add_node", node: { id: "n3", type: "Normalize", widgets: {} } },
+        },
+        {
+          id: "c1",
+          index: 2,
+          title: "to denoise",
+          rationale: "",
+          action: { type: "connect", from: ["n1", 0], to: ["n2", 0], link_type: "AUDIO" },
+        },
+        {
+          id: "c2",
+          index: 3,
+          title: "to norm",
+          rationale: "",
+          action: { type: "connect", from: ["n2", 0], to: ["n3", 0], link_type: "AUDIO" },
+        },
+      ],
+    };
+    const { nodes } = projectCreativeGhosts(session, workflow, {});
+    const denoise = nodes.find((n) => n.id === "__ghost__s-denoise")!;
+    const norm = nodes.find((n) => n.id === "__ghost__s-norm")!;
+    const loadSize = estimateNodeSize(workflow.nodes[0]);
+    const col = Math.max(FLOW_COL_MIN, loadSize.width + 72);
+    // Even spans along the chain after collision nudge.
+    expect(norm.position.x - denoise.position.x).toBe(col);
+    const blockSize = estimateNodeSize(blocking);
+    const ghostSize = estimateNodeSize({
+      id: "n2",
+      type: "Denoise",
+      pos: denoise.position,
+      widgets: {},
+    });
+    const overlap =
+      denoise.position.x < blocking.pos.x + blockSize.width + 24 &&
+      denoise.position.x + ghostSize.width + 24 > blocking.pos.x &&
+      denoise.position.y < blocking.pos.y + blockSize.height + 24 &&
+      denoise.position.y + ghostSize.height + 24 > blocking.pos.y;
+    expect(overlap).toBe(false);
   });
 });
