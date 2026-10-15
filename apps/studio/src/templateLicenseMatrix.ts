@@ -51,7 +51,7 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
   {
     id: "tab-creative-grow",
     title: "Tab Creative Grow",
-    models: "— (LoadAudio seed; Tab proposes Denoise etc.)",
+    models: "— (GOAL Note + LoadAudio seed; Tab proposes hops toward goal)",
     licenses: "— (demo sample + DSP/AI hops chosen at Tab time)",
     impact: "High",
     cluster: "Onboarding",

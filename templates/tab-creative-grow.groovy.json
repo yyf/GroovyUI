@@ -5,28 +5,29 @@
   "metadata": {
     "title": "Tab Creative Grow",
     "author": "groovy",
-    "description": "Hero for Tab Creative Agent: start from LoadAudio, press Tab to propose the next hops (denoise → normalize → preview), approve each ghost with Tab. Patch-bay growth — not a DAW timeline.",
+    "description": "Task-first Tab Creative demo: GOAL Note states what to finish (clean dialogue), LoadAudio holds the seed. Press Tab to propose next hops toward the goal; approve each ghost. Patch-bay growth — not a DAW timeline.",
     "tags": [
       "starter",
       "featured",
       "creative",
       "tab",
       "denoise",
-      "podcast"
+      "podcast",
+      "goal"
     ],
     "created_at": "2026-10-13T00:00:00Z",
-    "modified_at": "2026-10-13T00:00:00Z"
+    "modified_at": "2026-10-15T00:00:00Z"
   },
   "nodes": [
     {
-      "id": "note-tab",
+      "id": "note-goal",
       "type": "Note",
       "pos": {
         "x": 0,
         "y": 0
       },
       "widgets": {
-        "text": "Tab Creative Grow — Select LoadAudio, press Tab.\nClaude proposes ghost hops (L→R signal flow).\nTab = approve · ⇧Tab = skip · Esc = dismiss.\nYou're building a patch-bay for AI audio, not a DAW."
+        "text": "GOAL: Clean this dialogue for podcast — denoise, normalize, then Preview and SaveAudio.\n\nSeed audio is on LoadAudio below. Select a node (or leave selection empty), press Tab.\nTab = approve next ghost · ⇧Tab = skip · Esc = dismiss.\nYou're building a patch-bay for AI audio, not a DAW."
       }
     },
     {
@@ -34,7 +35,7 @@
       "type": "LoadAudio",
       "pos": {
         "x": 0,
-        "y": 140
+        "y": 180
       },
       "widgets": {
         "path": "assets/samples/podcast_denoise_demo.wav"
