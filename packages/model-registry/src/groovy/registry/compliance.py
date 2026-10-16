@@ -16,7 +16,9 @@ def summarize_compliance(workflow: Workflow, registry: Any) -> dict[str, Any]:
                 "component": node.type,
                 "component_id": node.id,
                 "kind": "node",
-                "license_spdx": "MIT",
+                # Built-in GroovyUI nodes ship under the app license (Apache-2.0), not
+                # model/weights SPDX — those appear as separate kind=model rows.
+                "license_spdx": "Apache-2.0",
                 "commercial_ok": True,
                 "attribution_required": False,
             }
