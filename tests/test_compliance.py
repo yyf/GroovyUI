@@ -24,3 +24,6 @@ def test_compliance_summary_flags_nc_model(tmp_path: Path) -> None:
     assert summary["workflow_title"] == "Podcast Denoise"
     assert any(row["kind"] == "model" for row in summary["license_rows"])
     assert isinstance(summary["license_rows"], list)
+    node_rows = [row for row in summary["license_rows"] if row["kind"] == "node"]
+    assert node_rows
+    assert all(row["license_spdx"] == "Apache-2.0" for row in node_rows)
