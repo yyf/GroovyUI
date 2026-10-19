@@ -12,6 +12,13 @@ Most AI audio tools hide the chain. If you care about the take, you want somethi
 
 Creative AI only sticks when it’s additive and knowable: inspect what ran, keep the workflow yours, and avoid black-box finishes that replace craft with a vibe. GroovyUI makes that posture operable for audio.
 
+### At a glance
+
+- Not a black box that finishes the take — additive AI audio you can patch.
+- **Use case:** first listen to what a model does on your material, then judge it against your spec — local and privacy-first, with Compliance (Cmd+C) making license and provenance first-class beside the patch; Cmd+K / Cmd+G / Tab propose, but Install, Apply, and Tab-accept stay explicit (human-in-the-loop, never auto-applied).
+- **Where:** quick evaluation between raw model repos and production DAWs. Explore here; arrange elsewhere — hand off the recipe as shareable `.groovy.json`.
+- **Who:** people already comfortable with node-based tools (modular racks, Pure Data, Max/MSP).
+
 <p align="center">
   <img src="assets/media/groovy-demos-2x2-10x-1920.gif" alt="GroovyUI demos: Model Browser, Patch Generation, isolate-to-transcribe, prompt modular synth" width="960" />
 </p>
