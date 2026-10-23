@@ -1,22 +1,12 @@
 # GroovyUI
 
-<!-- Placeholder — swap for the official ISMIR 2026 / LBD badge when available. -->
-[![ISMIR(LBD) 2026](https://img.shields.io/badge/ISMIR(LBD)-2026-111111?style=flat-square&labelColor=ff002b&color=111111)](https://ismir2026.ismir.net/)
+[![ISMIR(LBD) 2026](https://img.shields.io/badge/ISMIR(LBD)-2026-111111?style=flat-square&labelColor=ff002b&color=111111)](https://ismir2026program.ismir.net/lbd_569.html#details)
 [![YouTube](https://img.shields.io/badge/YouTube-111111?style=flat-square&logo=youtube&logoColor=ff0000)](https://www.youtube.com/@OneSystemics)
 
-**Why GroovyUI?** Not a song button — additive AI audio you can patch, not a black box that finishes the take for you.
+**Why GroovyUI?** Not a song button — additive AI audio you can patch, not a black box that finishes the take.
 
-A local patch-bay where models and modular DSP live in one graph: render a hop offline, audition the cache, A/B outputs, check provenance, share the recipe as JSON — discrete tools under human control, not prompt→whole track→shrug.
-
-Most AI audio tools hide the chain. If you care about the take, you want something you can rewire, compare, disclose, and hand off — same ergonomics as modular synthesis / node graphs, aimed at local audio models.
-
-Creative AI only sticks when it’s additive and knowable: inspect what ran, keep the workflow yours, and avoid black-box finishes that replace craft with a vibe. GroovyUI makes that posture operable for audio.
-
-### At a glance
-
-- Not a black box that finishes the take — additive AI audio you can patch.
-- **Use case:** first listen to what a model does on your material, then judge it against your spec — local and privacy-first, with Compliance (Cmd+C) making license and provenance first-class beside the patch; Cmd+K / Cmd+G / Tab propose, but Install, Apply, and Tab-accept stay explicit (human-in-the-loop, never auto-applied).
-- **Where:** quick evaluation between raw model repos and production DAWs. Explore here; arrange elsewhere — hand off the recipe as shareable `.groovy.json`.
+- **Use case:** first listen to what a model does on your material, then judge it against your spec.
+- **Where:** quick evaluation between raw model repos and production DAWs. Explore here; arrange elsewhere.
 - **Who:** people already comfortable with node-based tools (modular racks, Pure Data, Max/MSP).
 
 <p align="center">
