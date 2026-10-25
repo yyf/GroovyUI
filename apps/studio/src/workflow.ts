@@ -1905,10 +1905,17 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
   let width = DEFAULT_NODE_SIZE.width;
   let height = DEFAULT_NODE_SIZE.height;
   switch (node.type) {
-    case "Note":
-      width = 260;
-      height = 160;
+    case "Note": {
+      width = 420;
+      const text =
+        typeof node.widgets.text === "string"
+          ? node.widgets.text
+          : String(node.widgets.text ?? "");
+      const lines = Math.max(3, text.split("\n").length);
+      // Match on-canvas Note chrome + readable guide height (see .groovy-node__note-text).
+      height = Math.min(420, 48 + lines * 16);
       break;
+    }
     case "TrajectoryMonitor":
       // Node chrome + ~160–200px XYZ pad + labels.
       width = 260;
@@ -2036,12 +2043,18 @@ export function findOpenNodePosition(
 export function layoutWorkflowNodes(workflow: Workflow): Workflow {
   if (workflow.nodes.length === 0) return workflow;
 
+  // Notes are documentation chrome — keep them out of the DAG columns and pin each
+  // under the nearest signal node (by authored position) so guide notes sit below
+  // the node they describe (e.g. VoiceConvert edit list under VoiceConvert).
+  const signalNodes = workflow.nodes.filter((node) => node.type !== "Note");
+  const noteNodes = workflow.nodes.filter((node) => node.type === "Note");
+
   const layer = new Map<string, number>();
-  for (const node of workflow.nodes) layer.set(node.id, 0);
+  for (const node of signalNodes) layer.set(node.id, 0);
 
   let changed = true;
   let guard = 0;
-  while (changed && guard < workflow.nodes.length + 2) {
+  while (changed && guard < signalNodes.length + 2) {
     changed = false;
     guard += 1;
     for (const link of workflow.links) {
@@ -2057,7 +2070,7 @@ export function layoutWorkflowNodes(workflow: Workflow): Workflow {
   }
 
   const byLayer = new Map<number, WorkflowNode[]>();
-  for (const node of workflow.nodes) {
+  for (const node of signalNodes) {
     const depth = layer.get(node.id) ?? 0;
     const bucket = byLayer.get(depth) ?? [];
     bucket.push(node);
@@ -2083,6 +2096,30 @@ export function layoutWorkflowNodes(workflow: Workflow): Workflow {
     cursorX += columnWidth + NODE_PLACEMENT_GAP;
   }
 
+  if (noteNodes.length > 0) {
+    const anchors = signalNodes.length > 0 ? signalNodes : workflow.nodes;
+    const notesByAnchor = new Map<string, WorkflowNode[]>();
+    for (const note of noteNodes) {
+      const anchor = nearestAuthoredNeighbor(note, anchors);
+      const key = anchor?.id ?? "__origin__";
+      const bucket = notesByAnchor.get(key) ?? [];
+      bucket.push(note);
+      notesByAnchor.set(key, bucket);
+    }
+    for (const [anchorId, notes] of notesByAnchor) {
+      notes.sort((a, b) => (a.pos?.y ?? 0) - (b.pos?.y ?? 0) || a.id.localeCompare(b.id));
+      const anchor = anchors.find((node) => node.id === anchorId);
+      const anchorPos = anchor ? positions.get(anchor.id) ?? { x: 0, y: 0 } : { x: 0, y: 0 };
+      const anchorSize = anchor ? estimateNodeSize(anchor) : { width: DEFAULT_NODE_SIZE.width, height: 0 };
+      let cursorY = anchorPos.y + anchorSize.height + NODE_PLACEMENT_GAP;
+      for (const note of notes) {
+        const size = estimateNodeSize(note);
+        positions.set(note.id, { x: anchorPos.x, y: cursorY });
+        cursorY += size.height + NODE_PLACEMENT_GAP;
+      }
+    }
+  }
+
   return {
     ...workflow,
     nodes: workflow.nodes.map((node) => ({
@@ -2090,6 +2127,29 @@ export function layoutWorkflowNodes(workflow: Workflow): Workflow {
       pos: positions.get(node.id) ?? node.pos ?? { x: 0, y: 0 },
     })),
   };
+}
+
+/** Closest non-Note (or fallback) neighbor using authored canvas positions. */
+function nearestAuthoredNeighbor(
+  note: WorkflowNode,
+  candidates: WorkflowNode[],
+): WorkflowNode | null {
+  if (candidates.length === 0) return null;
+  const nx = note.pos?.x ?? 0;
+  const ny = note.pos?.y ?? 0;
+  let best: WorkflowNode | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const candidate of candidates) {
+    if (candidate.id === note.id) continue;
+    const cx = candidate.pos?.x ?? 0;
+    const cy = candidate.pos?.y ?? 0;
+    const dist = (nx - cx) * (nx - cx) + (ny - cy) * (ny - cy);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = candidate;
+    }
+  }
+  return best;
 }
 
 /** Relayout when node rectangles already overlap (imports / applied graphs). */

@@ -13,6 +13,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "isolate-vocals-to-transcribe-translate",
   "podcast-denoise",
   "prompt-modular-synth",
+  "tts-emotion-edit",
 ] as const;
 
 /** Bundled templates shown in the workflow template picker in studio dev mode. */
@@ -51,6 +52,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "transcribe-and-diarize",
   "transcribe-and-regenerate",
   "transcribe-dialogue",
+  "tts-emotion-edit",
   "voice-cloning",
 ] as const;
 
@@ -110,6 +112,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "ab-compare-demo": "compare",
 
   "voice-cloning": "voice",
+  "tts-emotion-edit": "voice",
   "script-to-vo-master": "voice",
   "localize-dialogue-a-to-b": "voice",
   "instrumental-tts-dub": "voice",
@@ -177,6 +180,7 @@ export const STANDARD_MODE_NODE_TYPES = [
   "TranslateText",
   "TTS",
   "Video2Audio",
+  "VoiceConvert",
   "WhisperSTT",
 ] as const;
 

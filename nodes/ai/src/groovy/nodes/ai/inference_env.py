@@ -110,6 +110,44 @@ def f5_tts_available() -> bool:
         return False
 
 
+def voxcpm2_available() -> bool:
+    try:
+        import voxcpm  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def step_audio_editx_available() -> bool:
+    """Install/runtime readiness for Step-Audio-EditX.
+
+    Apple Silicon uses an MLX sidecar (bootstrapped on first real inference).
+    CUDA Linux uses torch + transformers (+ vLLM at runtime).
+    """
+    import platform
+
+    if platform.system() == "Darwin" and platform.machine() == "arm64":
+        # Sidecar + mlx-speech are created on first edit; soundfile is enough to stage WAV I/O.
+        try:
+            import soundfile  # noqa: F401
+
+            return True
+        except ImportError:
+            return False
+    try:
+        import huggingface_hub  # noqa: F401
+        import librosa  # noqa: F401
+        import soundfile  # noqa: F401
+        import torch  # noqa: F401
+        import torchaudio  # noqa: F401
+        import transformers  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def audioseal_available() -> bool:
     try:
         import audioseal  # noqa: F401
@@ -186,6 +224,8 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "whisper-small-en": whisper_available,
     "kokoro-82m": kokoro_available,
     "f5-tts-base": f5_tts_available,
+    "voxcpm2": voxcpm2_available,
+    "step-audio-editx": step_audio_editx_available,
     "audioseal-16bit": audioseal_available,
     "rave-v1": rave_available,
     "seamless-m4t-v2-large": seamless_available,

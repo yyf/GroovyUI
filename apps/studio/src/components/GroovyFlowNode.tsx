@@ -117,8 +117,12 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
   const videoW = nodeData.previewVideoWidth ?? 240;
   const videoH = nodeData.previewVideoHeight ?? 135;
   const videoAspect = nodeData.previewVideoAspect ?? 16 / 9;
+  const noteLineCount =
+    nodeData.noteText != null
+      ? Math.max(3, nodeData.noteText.split("\n").length)
+      : 0;
   const minHeight = Math.max(
-    nodeData.noteText != null ? 72 : 52,
+    nodeData.noteText != null ? Math.min(420, 48 + noteLineCount * 16) : 52,
     showAuthorPad ? 200 : nodeData.trajectoryId ? 160 : 0,
     nodeData.previewVideoPath || nodeData.label === "PreviewVideo" ? videoH + 36 : 0,
     Math.max(inputs.length, outputs.length) * 24 + 20,

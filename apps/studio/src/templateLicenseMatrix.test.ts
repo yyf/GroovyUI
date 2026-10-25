@@ -20,6 +20,7 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("isolate-vocals-to-transcribe")).toBe(true);
     expect(isCommerciallyCleared("isolate-vocals-to-transcribe-translate")).toBe(true);
     expect(isCommerciallyCleared("prompt-modular-synth")).toBe(true);
+    expect(isCommerciallyCleared("tts-emotion-edit")).toBe(true);
     expect(isCommerciallyCleared("stable-audio")).toBe(false);
   });
 
@@ -36,7 +37,7 @@ describe("templateLicenseMatrix", () => {
     expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(
       summary.total,
     );
-    expect(summary.commercialSafe).toBe(7);
+    expect(summary.commercialSafe).toBe(STANDARD_BUNDLED_TEMPLATE_IDS.length);
     expect(summary.conferenceOnly).toBe(0);
     expect(summary.caution).toBe(0);
   });

@@ -4777,8 +4777,8 @@ body {
 }
 
 .groovy-node--note {
-  min-width: 160px;
-  max-width: 240px;
+  min-width: 200px;
+  max-width: 420px;
   background: #141210;
   border-color: #5c5346;
   box-shadow: inset 0 0 0 1px rgba(232, 200, 120, 0.08);
@@ -4794,9 +4794,9 @@ body {
 .groovy-node__note-text {
   margin: 6px 0 0;
   padding: 0;
-  max-width: 220px;
-  max-height: 7.5em;
-  overflow: hidden;
+  max-width: 400px;
+  max-height: 28em;
+  overflow: auto;
   font-family: var(--font-ui, var(--font-mono));
   font-size: 11px;
   line-height: 1.45;
@@ -4804,6 +4804,11 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
   opacity: 0.92;
+}
+
+.groovy-node--note .groovy-node__note-text {
+  /* Guide notes (emotion / style lists) need room; short notes stay compact via content. */
+  max-height: 32em;
 }
 
 .groovy-node__note-text--empty {
