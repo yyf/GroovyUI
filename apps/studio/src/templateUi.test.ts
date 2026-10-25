@@ -28,6 +28,7 @@ describe("templatesVisibleInUi", () => {
     bundled("song-cover-remix"),
     bundled("cleanup-and-transcribe"),
     bundled("voice-cloning"),
+    bundled("tts-emotion-edit"),
     bundled("prompt-modular-synth"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
@@ -70,6 +71,7 @@ describe("templatesVisibleInUi", () => {
       "podcast-denoise",
       "prompt-modular-synth",
       "tab-creative-grow",
+      "tts-emotion-edit",
     ]);
   });
 
@@ -133,6 +135,7 @@ describe("templatesVisibleInUi", () => {
       "transcribe-and-diarize",
       "transcribe-and-regenerate",
       "transcribe-dialogue",
+      "tts-emotion-edit",
       "voice-cloning",
     ]);
   });
@@ -310,6 +313,7 @@ describe("isNodeVisibleInStudio", () => {
     expect(isNodeVisibleInStudio("Mix")).toBe(false);
     expect(isNodeVisibleInStudio("GenerateAudio")).toBe(false);
     expect(STANDARD_MODE_NODE_TYPES).toContain("TTS");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("VoiceConvert");
     expect(STANDARD_MODE_NODE_TYPES).toContain("TranslateText");
     expect(STANDARD_MODE_NODE_TYPES).toContain("Video2Audio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");

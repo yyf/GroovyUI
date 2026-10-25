@@ -356,7 +356,106 @@
           "description": "Optional Kokoro voice (e.g. zf_xiaobei). Empty = language default."
         }
       ],
-      "similar_models": ["cosyvoice-300m", "f5-tts-base", "xtts-v2"]
+      "similar_models": ["cosyvoice-300m", "f5-tts-base", "voxcpm2", "xtts-v2"]
+    },
+    {
+      "id": "voxcpm2",
+      "status": "published",
+      "trust": "verified",
+      "name": "VoxCPM2",
+      "description": "OpenBMB tokenizer-free diffusion TTS (2B): 30 languages, 48 kHz, voice design from text, optional clone from reference. Apache-2.0 commercial-ready. Install pulls the voxcpm package; weights download from Hugging Face on first real inference (~8 GB VRAM).",
+      "task_types": ["tts", "voice-design", "voice-clone"],
+      "tags": ["tts", "voxcpm", "voice-design", "voice-clone", "multilingual", "speech", "commercial"],
+      "author": "OpenBMB",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 8,
+      "download_size_mb_estimate": 4500,
+      "compatible_nodes": ["TTS"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "voxcpm", "version": ">=1.0.0" },
+          { "package": "soundfile", "version": ">=0.12.0" }
+        ],
+        "verify_imports": ["voxcpm"]
+      },
+      "inference_params": [
+        {
+          "name": "cfg_value",
+          "type": "FLOAT",
+          "default": 2.0,
+          "min": 1.0,
+          "max": 4.0,
+          "description": "Classifier-free guidance strength."
+        },
+        {
+          "name": "inference_timesteps",
+          "type": "INT",
+          "default": 10,
+          "min": 4,
+          "max": 30,
+          "description": "Diffusion sampling steps (lower = faster)."
+        }
+      ],
+      "similar_models": ["kokoro-82m", "f5-tts-base", "cosyvoice-300m"]
+    },
+    {
+      "id": "step-audio-editx",
+      "status": "published",
+      "trust": "verified",
+      "name": "Step-Audio-EditX",
+      "description": "StepFun 3B RL audio editor: emotion / speaking-style / speed / paralinguistic edits on an existing take (also zero-shot clone). Apache-2.0. Apple Silicon: real path via mlx-speech (Python 3.13 sidecar + ~4 GB MLX weights, first run downloads). CUDA Linux: upstream Step-Audio-EditX + vLLM (~12 GB VRAM).",
+      "task_types": ["speech-edit", "emotion-edit", "style-edit", "tts"],
+      "tags": ["speech-edit", "emotion", "style", "paralinguistic", "stepfun", "voice", "commercial", "mlx", "apple-silicon"],
+      "author": "StepFun",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0,
+        "notes": "Upstream stepfun-ai/Step-Audio-EditX is Apache-2.0. Apple Silicon uses the AppAutomaton MLX int8 port (same license)."
+      },
+      "vram_gb_estimate": 12,
+      "download_size_mb_estimate": 8000,
+      "compatible_nodes": ["VoiceConvert"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "torchaudio", "version": ">=2.0.0" },
+          { "package": "transformers", "version": ">=4.40.0" },
+          { "package": "huggingface_hub", "version": ">=0.20.0" },
+          { "package": "librosa", "version": ">=0.10.0" },
+          { "package": "soundfile", "version": ">=0.12.0" }
+        ],
+        "verify_imports": ["torch", "torchaudio", "transformers", "huggingface_hub", "librosa", "soundfile"]
+      },
+      "inference_params": [
+        {
+          "name": "edit_type",
+          "type": "STRING",
+          "default": "emotion",
+          "description": "emotion | style | speed | denoise | vad | paralinguistic | clone"
+        },
+        {
+          "name": "edit_info",
+          "type": "STRING",
+          "default": "happy",
+          "description": "Sub-type (e.g. happy, whisper, faster). Empty for denoise/vad."
+        },
+        {
+          "name": "prompt_text",
+          "type": "STRING",
+          "default": "",
+          "description": "Transcript of the input audio (required for emotion/style/speed)."
+        }
+      ],
+      "similar_models": ["openvoice-v2", "rvc-v2-base", "voxcpm2"]
     },
     {
       "id": "cosyvoice-300m",

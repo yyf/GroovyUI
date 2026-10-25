@@ -1,0 +1,161 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "b7c8d9e0-f1a2-4567-8901-cdef23456789",
+  "metadata": {
+    "title": "TTS with Emotion Editing",
+    "author": "groovy",
+    "description": "Prompt → Kokoro TTS → Step-Audio-EditX VoiceConvert (emotion / style / paralinguistic) → Normalize → Preview/Save. Apache-2.0. Install kokoro-82m + step-audio-editx from Model Browser. See canvas Notes for edit_type / edit_info values. Cold-machine: first Step run on Apple Silicon bootstraps a Python 3.13 mlx-speech sidecar and downloads ~4 GB weights.",
+    "tags": [
+      "starter",
+      "featured",
+      "ai",
+      "tts",
+      "speech-edit",
+      "emotion",
+      "kokoro",
+      "stepfun",
+      "mlx"
+    ],
+    "created_at": "2026-10-24T00:00:00Z",
+    "modified_at": "2026-10-25T17:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": {
+        "x": 0,
+        "y": 0
+      },
+      "widgets": {
+        "text": "TTS with Emotion Editing\nPrompt → Kokoro TTS → VoiceConvert (step-audio-editx) → Normalize → Preview/Save.\nOffline sample-accurate render · Play = cached PCM.\nKeep VoiceConvert.prompt_text = the spoken transcript."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 160.0
+      },
+      "widgets": {
+        "text": "Welcome to GroovyUI — patch AI audio like modular synthesis.",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "TTS",
+      "pos": {
+        "x": 260,
+        "y": 160.0
+      },
+      "widgets": {
+        "model": "kokoro-82m",
+        "text": "",
+        "seed": -1
+      }
+    },
+    {
+      "id": "n3",
+      "type": "VoiceConvert",
+      "pos": {
+        "x": 520,
+        "y": 160.0
+      },
+      "widgets": {
+        "model": "step-audio-editx",
+        "prompt_text": "Welcome to GroovyUI — patch AI audio like modular synthesis.",
+        "edit_type": "style",
+        "edit_info": "whisper",
+        "target_text": ""
+      }
+    },
+    {
+      "id": "note-voiceconvert-edits",
+      "type": "Note",
+      "pos": {
+        "x": 520,
+        "y": 320
+      },
+      "widgets": {
+        "text": "VoiceConvert edits (step-audio-editx)\nSet edit_type + edit_info on the VoiceConvert node.\n\n1) Emotion — edit_type: emotion\n   edit_info: happy · angry · sad · fear · surprised · excited · confused · empathy · embarrass · depressed · admiration · coldness · disgusted · humour\n\n2) Speaking style — edit_type: style\n   edit_info: whisper · serious · child · older · girl · sweet · exaggerated · ethereal · generous · act_coy · warm · shy · chat · radio · news · advertising · recite · story · vivid · roar · murmur · shout · deeply · loudly\n\n3) Paralinguistic — edit_type: paralinguistic\n   Put tags in target_text, e.g.\n   [laugh] [sigh] [uhm] [cough] [breath] [chuckle] [Surprise-oh] [Confirmation-en]\n\nAlso: speed (faster / slower / more faster / more slower) · denoise · vad · clone (needs target_text)"
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Normalize",
+      "pos": {
+        "x": 780,
+        "y": 160.0
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Preview",
+      "pos": {
+        "x": 1040,
+        "y": 160.0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n6",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 1040,
+        "y": 300.0
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "tts-emotion-edit.wav",
+        "format": "wav"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n2", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l2",
+      "from": ["n2", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n3", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": ["n4", 0],
+      "to": ["n5", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l5",
+      "from": ["n4", 0],
+      "to": ["n6", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 0.85,
+    "pan": {
+      "x": 0,
+      "y": 40
+    }
+  }
+}

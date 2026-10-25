@@ -848,6 +848,47 @@ describe("layoutWorkflowNodes", () => {
     expect(workflowHasOverlappingNodes(laid)).toBe(false);
     expect(estimateNodeSize({ id: "n2", type: "SeparateStems", widgets: {} }).height).toBeGreaterThan(88);
   });
+
+  it("pins Notes below their nearest authored signal neighbor", () => {
+    const graph: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "Prompt", pos: { x: 0, y: 0 }, widgets: { text: "hi" } },
+        { id: "n2", type: "TTS", pos: { x: 260, y: 0 }, widgets: { model: "kokoro-82m" } },
+        {
+          id: "n3",
+          type: "VoiceConvert",
+          pos: { x: 520, y: 0 },
+          widgets: { model: "step-audio-editx" },
+        },
+        {
+          id: "note-voiceconvert-edits",
+          type: "Note",
+          pos: { x: 520, y: 200 },
+          widgets: { text: "emotion / style / paralinguistic" },
+        },
+        {
+          id: "note-overview",
+          type: "Note",
+          pos: { x: 0, y: -40 },
+          widgets: { text: "overview" },
+        },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "TEXT" },
+        { id: "l2", from: ["n2", 0], to: ["n3", 0], type: "AUDIO" },
+      ],
+    };
+    const laid = layoutWorkflowNodes(graph);
+    const voice = laid.nodes.find((n) => n.id === "n3")!;
+    const editNote = laid.nodes.find((n) => n.id === "note-voiceconvert-edits")!;
+    const overview = laid.nodes.find((n) => n.id === "note-overview")!;
+    const prompt = laid.nodes.find((n) => n.id === "n1")!;
+    expect(editNote.pos!.x).toBe(voice.pos!.x);
+    expect(editNote.pos!.y).toBeGreaterThan(voice.pos!.y);
+    expect(overview.pos!.x).toBe(prompt.pos!.x);
+    expect(overview.pos!.y).toBeGreaterThan(prompt.pos!.y);
+  });
 });
 
 describe("ensureNoOverlappingNodes", () => {

@@ -247,7 +247,16 @@ def run_voice_convert(cache: CacheStore, kwargs: dict) -> list[dict]:
     audio_id = kwargs["audio_id"]
     model_id = str(kwargs.get("model", "rvc-v2-base"))
     buffer, pcm = cache.load_audio(audio_id)
-    out = voice_convert_audio(pcm, sample_rate=buffer.sample_rate, model_id=model_id)
+    prompt_text = str(kwargs.get("transcript") or kwargs.get("prompt_text") or "")
+    out = voice_convert_audio(
+        pcm,
+        sample_rate=buffer.sample_rate,
+        model_id=model_id,
+        prompt_text=prompt_text,
+        edit_type=str(kwargs.get("edit_type") or "emotion"),
+        edit_info=str(kwargs.get("edit_info") or "happy"),
+        target_text=str(kwargs.get("target_text") or ""),
+    )
     out_buffer = AudioBuffer.from_planar(
         out, buffer.sample_rate, source_node_type="VoiceConvert", channel_layout=buffer.channel_layout
     )
@@ -629,6 +638,31 @@ def synthesize_speech(
             seed=seed,
         )
 
+    if model_id == "voxcpm2":
+        if inference_stub_enabled():
+            return _synthesize_speech_stub(
+                text,
+                sample_rate=sample_rate,
+                model_id=model_id,
+                seed=effective_stub,
+                reference_pcm=reference_pcm,
+            )
+        from groovy.nodes.ai.inference_env import voxcpm2_available
+
+        if not voxcpm2_available():
+            raise RuntimeError(
+                "voxcpm is not installed. Install voxcpm2 from Model Browser (Cmd+K)."
+            )
+        from groovy.nodes.ai.backends.voxcpm2_runner import synthesize_pcm as voxcpm_synthesize
+
+        return voxcpm_synthesize(
+            text,
+            sample_rate=sample_rate,
+            reference_pcm=reference_pcm,
+            reference_sample_rate=reference_sample_rate,
+            reference_text=reference_text,
+        )
+
     if inference_stub_enabled():
         return _synthesize_speech_stub(
             text,
@@ -640,7 +674,8 @@ def synthesize_speech(
 
     raise RuntimeError(
         f"Unsupported TTS model for real inference: {model_id}. "
-        "Install a supported model from Model Browser (kokoro-82m or f5-tts-base)."
+        "Install a supported model from Model Browser "
+        "(kokoro-82m, f5-tts-base, or voxcpm2)."
     )
 
 
@@ -658,6 +693,8 @@ def _synthesize_speech_stub(
     base = 196.0 if "kokoro" in model_id else 220.0
     if "f5" in model_id or "sovits" in model_id or "cosyvoice" in model_id:
         base = 180.0
+    if "voxcpm" in model_id:
+        base = 188.0
     freq = base + (seed % 17) * 3.0
     if reference_pcm is not None:
         # Nudge timbre from reference energy so clone graphs sound distinct in stub mode.
@@ -670,7 +707,43 @@ def _synthesize_speech_stub(
     return tone.reshape(1, -1)
 
 
-def voice_convert_audio(pcm: np.ndarray, *, sample_rate: int, model_id: str) -> np.ndarray:
+def voice_convert_audio(
+    pcm: np.ndarray,
+    *,
+    sample_rate: int,
+    model_id: str,
+    prompt_text: str = "",
+    edit_type: str = "emotion",
+    edit_info: str = "happy",
+    target_text: str = "",
+) -> np.ndarray:
+    from groovy.nodes.ai.inference_env import inference_stub_enabled, step_audio_editx_available
+
+    if model_id == "step-audio-editx":
+        if inference_stub_enabled():
+            return _voice_convert_stub(pcm, model_id=model_id)
+        if not step_audio_editx_available():
+            raise RuntimeError(
+                "step-audio-editx deps missing. Install from Model Browser (Cmd+K). "
+                "Apple Silicon uses mlx-speech (auto sidecar); CUDA Linux needs torch + vLLM."
+            )
+        from groovy.nodes.ai.backends.step_audio_editx_runner import edit_pcm
+
+        return edit_pcm(
+            pcm,
+            sample_rate=sample_rate,
+            prompt_text=prompt_text,
+            edit_type=edit_type,
+            edit_info=edit_info,
+            target_text=target_text,
+        )
+
+    # RVC / OpenVoice: stub pitch-shift until real backends land.
+    _ = (prompt_text, edit_type, edit_info, target_text)
+    return _voice_convert_stub(pcm, model_id=model_id)
+
+
+def _voice_convert_stub(pcm: np.ndarray, *, model_id: str) -> np.ndarray:
     _ = model_id
     if pcm.ndim == 1:
         pcm = pcm.reshape(1, -1)

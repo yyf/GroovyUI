@@ -12,6 +12,7 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | Isolate to Transcribe | [isolate-vocals-to-transcribe.groovy.json](isolate-vocals-to-transcribe.groovy.json) | `demucs-v4`, Whisper |
 | Isolate → STT → Translate → TTS | [isolate-vocals-to-transcribe-translate.groovy.json](isolate-vocals-to-transcribe-translate.groovy.json) | `demucs-v4`, Whisper, `m2m100-418m`, `kokoro-82m` (zh) |
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | `kokoro-82m` |
+| TTS with Emotion Editing | [tts-emotion-edit.groovy.json](tts-emotion-edit.groovy.json) | `kokoro-82m`, `step-audio-editx` (Step = MLX on Apple Silicon or CUDA+vLLM on Linux) |
 | Video to Audio | [video-to-audio.groovy.json](video-to-audio.groovy.json) | `diff-foley` (default; experimental — CUDA testing) |
 
 Sample assets: `assets/samples/` (`podcast_denoise_demo.wav`, `stem_separation_demo.wav`, `video480p.mov`).

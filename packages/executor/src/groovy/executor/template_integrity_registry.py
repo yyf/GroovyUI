@@ -116,6 +116,14 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("f5-tts-base",),
         "required_outputs": (("n4", "AUDIO"),),
     },
+    "tts-emotion-edit": {
+        "fixture": "none",
+        "sample_path": None,
+        # Kokoro for fast TTS; Step-Audio-EditX is the VoiceConvert edit path.
+        "models": ("kokoro-82m", "step-audio-editx"),
+        # n5 Preview; TTS/VoiceConvert are AI hops (not listed) — same as hello-groovy.
+        "required_outputs": (("n5", "AUDIO"),),
+    },
     "prompt-modular-synth": {
         "fixture": "none",
         "sample_path": None,

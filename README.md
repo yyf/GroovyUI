@@ -66,11 +66,11 @@ Experimental. APIs and UI will change. Expect rough edges on clean machines and 
 
 ## OS compatibility
 
-Primary smoke-test machine: **macOS Tahoe 26.3** (Apple Silicon). Cold / clean machines are expected to take longer on first run — `uv` sync, Studio `npm install`, and especially **first model downloads** (minutes, multi‑GB disk). Use **Python 3.11**, keep Inference on **Real** for demos, and install models via **Cmd+K** / Model Browser when prompted.
+Primary smoke-test machine: **macOS Tahoe 26.3** (Apple Silicon). Use **Python 3.11**, keep Inference on **Real** for demos, and install models via **Cmd+K** / Model Browser when prompted.
 
 Video mux / PreviewVideo paths need **ffmpeg** on `PATH`. Some models need CUDA or other hardware; Mac CPU/MPS may be slow or unsupported depending on the backend.
 
-Linux is exercised in CI (stub inference). Windows is not a supported desktop target yet. If a cold machine fails, check port `8188`/`5173` conflicts, disk space, Python version, and Compliance / Settings for tokens (`HF_TOKEN`) on gated weights.
+Linux is exercised in CI (stub inference). Windows is not a supported desktop target yet.
 
 ## Quick start
 
@@ -92,8 +92,6 @@ Opens http://127.0.0.1:5173 (API on `:8188`). Ctrl+C stops both.
 3. **Cmd+K** / **Ctrl+K** → install required models if prompted.
 4. **Render** → play the cached preview.
 
-First model install can take minutes and gigabytes of disk. Models keep their own licenses (see Compliance).
-
 If `./scripts/dev.sh` says port 8188 is in use, quit the leftover API (`lsof -nP -iTCP:8188 -sTCP:LISTEN`) and retry.
 
 ```bash
@@ -101,6 +99,24 @@ uv run pytest tests/ -q && cd apps/studio && npm test && uv run groovy-verify
 ```
 
 Or with [just](https://github.com/casey/just): `just install`, `just test`, `just verify`, `just dev`.
+
+## Cold machine
+
+Cold / clean machines take longer on first run — `uv` sync, Studio `npm install`, and especially **first model downloads** (minutes, multi‑GB disk). Models keep their own licenses (see Compliance).
+
+If a cold machine fails, check port `8188`/`5173` conflicts, disk space, Python version, and Compliance / Settings for tokens (`HF_TOKEN`) on gated weights.
+
+### TTS with Emotion Editing
+
+Template models: `kokoro-82m` + `step-audio-editx` (both Apache-2.0). Needs `uv` on `PATH` for the Apple Silicon sidecar. Without Apple Silicon or CUDA, use Settings → Inference → **Stub** for UI-only demos.
+
+| Model | Platform | First-run expectation |
+| --- | --- | --- |
+| `kokoro-82m` | any | Lightweight TTS via Cmd+K.<br>Mandarin needs `misaki[zh]` extras (pulled with the model). |
+| `step-audio-editx` | Apple Silicon | Bootstraps Python **3.13** sidecar (`uv` + `mlx-speech`).<br>Then ~**4 GB** MLX weights — often several minutes. |
+| `step-audio-editx` | CUDA Linux | Upstream Step + **vLLM** (~12 GB VRAM).<br>Not a Mac path. |
+
+Later Apple Silicon runs reuse `.groovy/models/step-audio-editx/`.
 
 ## License
 

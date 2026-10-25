@@ -201,7 +201,13 @@ class TTS(GroovyNode):
     DURATION_LOCKED = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_generated"
-    COMPATIBLE_MODELS = ["kokoro-82m", "cosyvoice-300m", "f5-tts-base", "gpt-sovits-v2"]
+    COMPATIBLE_MODELS = [
+        "kokoro-82m",
+        "cosyvoice-300m",
+        "f5-tts-base",
+        "gpt-sovits-v2",
+        "voxcpm2",
+    ]
     RETURN_TYPES = ("AUDIO",)
 
     @classmethod
@@ -228,7 +234,7 @@ class TTS(GroovyNode):
                     },
                 ),
                 "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
-                # Zero-shot / few-shot clone models (F5-TTS, GPT-SoVITS) use this clip.
+                # Zero-shot / few-shot clone models (F5-TTS, GPT-SoVITS, VoxCPM2) use this clip.
                 "reference_audio": ("AUDIO",),
                 "reference_text": (
                     "STRING",
@@ -252,7 +258,7 @@ class VoiceConvert(GroovyNode):
     DETERMINISTIC = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_transformed"
-    COMPATIBLE_MODELS = ["rvc-v2-base", "openvoice-v2"]
+    COMPATIBLE_MODELS = ["rvc-v2-base", "openvoice-v2", "step-audio-editx"]
     RETURN_TYPES = ("AUDIO",)
 
     @classmethod
@@ -262,7 +268,47 @@ class VoiceConvert(GroovyNode):
                 "audio": ("AUDIO",),
                 "model": ("MODEL_REF", {"default": "rvc-v2-base"}),
             },
-            "optional": {},
+            "optional": {
+                # Step-Audio-EditX: transcript of the input take (emotion/style/speed).
+                "prompt_text": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "description": "Transcript of input audio (required for Step-Audio-EditX).",
+                    },
+                ),
+                "transcript": ("TEXT",),
+                "edit_type": (
+                    "STRING",
+                    {
+                        "default": "emotion",
+                        "description": (
+                            "Step-Audio-EditX category only: emotion | style | speed | "
+                            "denoise | vad | paralinguistic | clone. "
+                            "Do not put radio/whisper/happy here — those go in edit_info."
+                        ),
+                    },
+                ),
+                "edit_info": (
+                    "STRING",
+                    {
+                        "default": "happy",
+                        "description": (
+                            "Sub-type for the category: emotion→happy/sad/…; "
+                            "style→whisper/radio/news/…; speed→faster/slower/…"
+                        ),
+                    },
+                ),
+                "target_text": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "multiline": True,
+                        "description": "Step-Audio-EditX clone / paralinguistic target text.",
+                    },
+                ),
+            },
         }
 
     def run(self, **kwargs):

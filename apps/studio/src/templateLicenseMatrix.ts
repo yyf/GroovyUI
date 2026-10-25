@@ -110,6 +110,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "tts-emotion-edit",
+    title: "TTS with Emotion Editing",
+    models: "kokoro-82m, step-audio-editx",
+    licenses: "kokoro-82m: Apache-2.0; step-audio-editx: Apache-2.0",
+    impact: "Med",
+    cluster: "TTS + speech edit",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
     id: "video-to-audio",
     title: "Video to Audio",
     models: "diff-foley (default)",
