@@ -11,11 +11,17 @@ from typing import NoReturn
 import numpy as np
 from scipy import signal
 
-# XL hero pack (~11GB) vs smallest Diffusers 2B turbo (~6.3GB).
+# XL turbo (~11GB), 2B SFT (CFG, ~50 steps, ~6.3GB), 2B turbo (~6.3GB).
+# Demo SFT uses the 2B pack — XL SFT (~5B / ~12GB) OOMs many Macs on CPU.
 HF_BY_MODEL_ID: dict[str, str] = {
     "ace-step-1.5": "ACE-Step/acestep-v15-xl-turbo-diffusers",
+    "ace-step-1.5-sft": "Runware/acestep-v15-sft-diffusers",
     "ace-step-1.5-2b-turbo": "Runware/acestep-v15-turbo-diffusers",
 }
+# Turbo packs are guidance-distilled; SFT uses CFG / APG (guidance_scale matters).
+ACE_STEP_SFT_MODEL_IDS = frozenset({"ace-step-1.5-sft"})
+ACE_STEP_TURBO_MODEL_IDS = frozenset({"ace-step-1.5", "ace-step-1.5-2b-turbo"})
+ACE_STEP_MODEL_IDS = frozenset(HF_BY_MODEL_ID)
 NATIVE_SAMPLE_RATE = 48_000
 
 _HF_TOKEN_RE = re.compile(r"hf_[A-Za-z0-9]+")
@@ -91,7 +97,7 @@ def _hf_model_id(model_id: str) -> str:
         raise RuntimeError(f"Unsupported ACE-Step model id: {model_id}") from exc
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=3)
 def _load_pipeline(hf_model_id: str):
     # Lazy: keep module importable in CI (no torch) for Hub auth unit tests.
     import torch
@@ -102,8 +108,8 @@ def _load_pipeline(hf_model_id: str):
     except ImportError as exc:
         raise RuntimeError(
             "diffusers AceStepPipeline is missing. "
-            "Install ace-step-1.5 or ace-step-1.5-2b-turbo from Model Browser (Cmd+K) "
-            "(requires diffusers >= 0.39 with AceStepPipeline)."
+            "Install ace-step-1.5, ace-step-1.5-sft, or ace-step-1.5-2b-turbo "
+            "from Model Browser (Cmd+K) (requires diffusers >= 0.39 with AceStepPipeline)."
         ) from exc
 
     token = _resolve_hf_token()

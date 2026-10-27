@@ -1,0 +1,152 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "e4f5a6b7-c8d9-0123-def0-444455556666",
+  "metadata": {
+    "title": "ACE-Step 1.5 SFT",
+    "author": "groovy",
+    "description": "Text-to-music with ACE-Step 1.5 SFT (~2B). Two Prompt wires into GenerateAudio: style (prompt) and optional lyrics. Empty lyrics = instrumental. CFG defaults: 50 steps, guidance 7. Install ace-step-1.5-sft before first real Render. Prefer NVIDIA CUDA.",
+    "tags": [
+      "starter",
+      "featured",
+      "generation",
+      "ace-step",
+      "sft",
+      "text",
+      "music",
+      "lyrics",
+      "cfg"
+    ],
+    "created_at": "2026-10-26T00:00:00Z",
+    "modified_at": "2026-10-27T04:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-sft",
+      "type": "Note",
+      "pos": {
+        "x": 246,
+        "y": 320.0
+      },
+      "widgets": {
+        "text": "Two TEXT wires into GenerateAudio: prompt = style/sound, lyrics = optional words (leave empty for instrumental). SFT uses CFG (~50 steps, guidance ≈ 7). Prefer CUDA — CPU on Mac is slow and RAM-heavy."
+      }
+    },
+    {
+      "id": "n0",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 80.0
+      },
+      "widgets": {
+        "text": "dark IDM with experimental granular texture",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n0b",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 220.0
+      },
+      "widgets": {
+        "text": "",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 246,
+        "y": 120.0
+      },
+      "widgets": {
+        "model": "ace-step-1.5-sft",
+        "prompt": "dark IDM with experimental granular texture",
+        "lyrics_text": "",
+        "seed": 42,
+        "seconds_total": 15.0,
+        "num_inference_steps": 50,
+        "guidance_scale": 7.0
+      }
+    },
+    {
+      "id": "n2",
+      "type": "Normalize",
+      "pos": {
+        "x": 492,
+        "y": 120.0
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Preview",
+      "pos": {
+        "x": 738,
+        "y": 120.0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n4",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 738,
+        "y": 244.0
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "ace-step-1.5-sft.wav",
+        "format": "wav",
+        "bit_depth": "16"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": ["n0", 0],
+      "to": ["n1", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l0b",
+      "from": ["n0b", 0],
+      "to": ["n1", 3],
+      "type": "TEXT"
+    },
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n2", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": ["n2", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n2", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
+}

@@ -1189,7 +1189,7 @@ export type WiredInputRow = {
 
 /** When a socket is wired, these local widgets are ignored at render. */
 const WIRED_TEXT_SUPERSEDES_WIDGET: Record<string, Record<string, string | string[]>> = {
-  GenerateAudio: { text: "prompt" },
+  GenerateAudio: { text: "prompt", lyrics: "lyrics_text" },
   Video2Audio: { text: "prompt" },
   MIDIToAudio: { text: "prompt" },
   SingFromMIDI: { lyrics: "text" },
@@ -1952,12 +1952,16 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
       break;
     }
     case "Prompt":
-    case "GenerateAudio":
     case "Video2Audio":
     case "TTS":
     case "SingFromMIDI":
       width = 210;
       height = 100;
+      break;
+    case "GenerateAudio":
+      // Named inlets (prompt / midi / reference / lyrics) need a taller body.
+      width = 210;
+      height = 128;
       break;
     case "DiarizeTranscribe":
     case "WhisperSTT":

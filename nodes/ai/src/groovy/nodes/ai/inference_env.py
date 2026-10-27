@@ -219,6 +219,7 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "musicgen-small": musicgen_small_available,
     "stable-audio-open-1.0": stable_audio_available,
     "ace-step-1.5": ace_step_available,
+    "ace-step-1.5-sft": ace_step_available,
     "ace-step-1.5-2b-turbo": ace_step_available,
     "whisper-large-v3-turbo": whisper_available,
     "whisper-small-en": whisper_available,

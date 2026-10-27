@@ -98,6 +98,12 @@ function isGenericSocketName(name: string): boolean {
   );
 }
 
+/** Canvas inlet labels — keep schema names stable, show intent on GenerateAudio. */
+function inletDisplayName(nodeLabel: string, socketName: string): string {
+  if (nodeLabel === "GenerateAudio" && socketName === "text") return "prompt";
+  return socketName;
+}
+
 function GroovyFlowNode({ data, selected }: NodeProps) {
   const nodeData = data as GroovyNodeData;
   const badge = statusLabel(nodeData.status);
@@ -202,7 +208,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             top: handleTop(index, inputs.length),
             background: socketTypeColor(socket.type),
           }}
-          title={`${socket.name} (${socket.type})`}
+          title={`${inletDisplayName(nodeData.label, socket.name)} (${socket.type})`}
         />
       ))}
       <div className="groovy-node__body">
@@ -245,7 +251,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             {inputs.map((socket) => (
               <li key={socket.name}>
                 <span className="groovy-node__socket-dot" style={{ background: socketTypeColor(socket.type) }} />
-                {socket.name}
+                {inletDisplayName(nodeData.label, socket.name)}
               </li>
             ))}
           </ul>

@@ -6,6 +6,7 @@ import type { TemplateListItem } from "./api";
  * featured picker list (local `docs/internal/templates/` when present) and full node palette.
  */
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
+  "ace-step-1.5-sft",
   "empty-canvas",
   "hello-groovy",
   "tab-creative-grow",
@@ -19,6 +20,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
 /** Bundled templates shown in the workflow template picker in studio dev mode. */
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5",
+  "ace-step-1.5-sft",
   "ambisonic-trajectory-demo",
   "authenticity-check",
   "watermark-embed-detect",
@@ -130,6 +132,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "text-to-music": "generate",
   "stable-audio": "generate",
   "ace-step-1.5": "generate",
+  "ace-step-1.5-sft": "generate",
   "video-to-audio": "generate",
   "extract-lyrics-to-music-with-ace-step": "generate",
   "transcribe-and-regenerate": "generate",
@@ -166,6 +169,7 @@ export const STANDARD_MODE_NODE_TYPES = [
   "AutomationApply",
   "ControlCurve",
   "Denoise",
+  "GenerateAudio",
   "Granulate",
   "LoadAudio",
   "MuxVideo",

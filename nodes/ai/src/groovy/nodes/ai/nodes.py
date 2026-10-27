@@ -556,6 +556,7 @@ class GenerateAudio(GroovyNode):
         "musicgen-small",
         "stable-audio-open-1.0",
         "ace-step-1.5",
+        "ace-step-1.5-sft",
         "ace-step-1.5-2b-turbo",
     ]
     RETURN_TYPES = ("AUDIO",)
@@ -567,13 +568,16 @@ class GenerateAudio(GroovyNode):
                 "model": ("MODEL_REF", {"default": "musicgen-small"}),
             },
             "optional": {
-                # TEXT wire (optional) supersedes local prompt widget — same dual path as MIDIToAudio.
+                # Style prompt wire (slot 0) supersedes local prompt widget — same dual path as MIDIToAudio.
                 "text": ("TEXT",),
-                "prompt": ("STRING", {"default": ""}),
-                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+                # Keep midi / reference_audio slots stable (1 / 2); lyrics is a trailing TEXT inlet.
                 "midi": ("MIDI",),
                 "reference_audio": ("AUDIO",),
-                "lyrics": ("STRING", {"default": ""}),
+                "lyrics": ("TEXT",),
+                "prompt": ("STRING", {"default": ""}),
+                # Local lyrics when the lyrics TEXT inlet is unwired (ACE-Step).
+                "lyrics_text": ("STRING", {"default": ""}),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
             },
         }
 

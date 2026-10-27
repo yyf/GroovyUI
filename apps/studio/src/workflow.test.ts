@@ -374,11 +374,39 @@ describe("wiredInputSupersedesWidget", () => {
       { name: "text", type: "TEXT", optional: true },
       { name: "midi", type: "MIDI", optional: true },
       { name: "reference_audio", type: "AUDIO", optional: true },
+      { name: "lyrics", type: "TEXT", optional: true },
     ];
     const rows = wiredInputsForNode(workflow, "g1", inputs);
     const superseded = wiredInputSupersedesWidget("GenerateAudio", "prompt", rows);
     expect(superseded?.name).toBe("text");
     expect(wiredPromptPreview(superseded?.sourceNode)).toBe("lo-fi bed");
+  });
+
+  it("disables GenerateAudio lyrics_text when lyrics socket is wired", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        ...sampleWorkflow().nodes,
+        { id: "p1", type: "Prompt", pos: { x: 0, y: 120 }, widgets: { text: "[verse]\nhello" } },
+        {
+          id: "g1",
+          type: "GenerateAudio",
+          pos: { x: 280, y: 0 },
+          widgets: { model: "ace-step-1.5-sft", prompt: "drone", lyrics_text: "stale", seed: -1 },
+        },
+      ],
+      links: [{ id: "l3", from: ["p1", 0], to: ["g1", 3], type: "TEXT" }],
+    };
+    const inputs = [
+      { name: "text", type: "TEXT", optional: true },
+      { name: "midi", type: "MIDI", optional: true },
+      { name: "reference_audio", type: "AUDIO", optional: true },
+      { name: "lyrics", type: "TEXT", optional: true },
+    ];
+    const rows = wiredInputsForNode(workflow, "g1", inputs);
+    const superseded = wiredInputSupersedesWidget("GenerateAudio", "lyrics_text", rows);
+    expect(superseded?.name).toBe("lyrics");
+    expect(wiredPromptPreview(superseded?.sourceNode)).toBe("[verse]\nhello");
   });
 });
 

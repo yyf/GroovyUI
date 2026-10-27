@@ -111,6 +111,12 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("ace-step-1.5",),
         "required_outputs": (("n3", "AUDIO"),),
     },
+    "ace-step-1.5-sft": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("ace-step-1.5-sft",),
+        "required_outputs": (("n3", "AUDIO"),),
+    },
     "voice-cloning": {
         "sample_path": "assets/samples/podcast_denoise_demo.wav",
         "models": ("f5-tts-base",),

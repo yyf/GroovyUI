@@ -32,6 +32,7 @@ describe("templatesVisibleInUi", () => {
     bundled("prompt-modular-synth"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
+    bundled("ace-step-1.5-sft"),
     bundled("ambisonic-trajectory-demo"),
     bundled("extract-lyrics-to-music-with-ace-step"),
     bundled("stable-audio"),
@@ -64,6 +65,7 @@ describe("templatesVisibleInUi", () => {
     ]);
     // Sorted by display title (default title = id), not STANDARD_BUNDLED order.
     expect(visible.map((t) => t.id)).toEqual([
+      "ace-step-1.5-sft",
       "empty-canvas",
       "hello-groovy",
       "isolate-vocals-to-transcribe",
@@ -108,6 +110,7 @@ describe("templatesVisibleInUi", () => {
     const visible = templatesVisibleInUi(allBundled, undefined, true);
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
+      "ace-step-1.5-sft",
       "ambisonic-trajectory-demo",
       "authenticity-check",
       "compare-stemmers",
@@ -310,11 +313,12 @@ describe("isNodeVisibleInStudio", () => {
     expect(isNodeVisibleInStudio("Denoise")).toBe(true);
     expect(isNodeVisibleInStudio("LoadAudio")).toBe(true);
     expect(isNodeVisibleInStudio("Video2Audio")).toBe(true);
+    expect(isNodeVisibleInStudio("GenerateAudio")).toBe(true);
     expect(isNodeVisibleInStudio("Mix")).toBe(false);
-    expect(isNodeVisibleInStudio("GenerateAudio")).toBe(false);
     expect(STANDARD_MODE_NODE_TYPES).toContain("TTS");
     expect(STANDARD_MODE_NODE_TYPES).toContain("VoiceConvert");
     expect(STANDARD_MODE_NODE_TYPES).toContain("TranslateText");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateAudio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("Video2Audio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewVideo");
