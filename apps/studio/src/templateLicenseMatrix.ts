@@ -122,6 +122,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "ace-step-1.5-sft",
+    title: "ACE-Step 1.5 SFT",
+    models: "ace-step-1.5-sft",
+    licenses: "ace-step-1.5-sft: MIT",
+    impact: "Med",
+    cluster: "Generate music",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
     id: "video-to-audio",
     title: "Video to Audio",
     models: "diff-foley (default)",

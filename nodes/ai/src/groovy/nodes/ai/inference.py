@@ -1011,7 +1011,7 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
             "guidance_scale",
             (
                 7.0
-                if model_id == "stable-audio-open-1.0"
+                if model_id in ("stable-audio-open-1.0", "ace-step-1.5-sft")
                 else 1.0
                 if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo")
                 else 3.0
@@ -1021,15 +1021,26 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
         seconds_total=float_param(
             kwargs,
             "seconds_total",
-            15.0 if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo") else 10.0,
+            (
+                15.0
+                if model_id in ("ace-step-1.5", "ace-step-1.5-sft", "ace-step-1.5-2b-turbo")
+                else 10.0
+            ),
         ),
         num_inference_steps=int_param(
             kwargs,
             "num_inference_steps",
-            8 if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo") else 100,
+            (
+                50
+                if model_id == "ace-step-1.5-sft"
+                else 8
+                if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo")
+                else 100
+            ),
         ),
         negative_prompt=str(kwargs.get("negative_prompt") or "Low quality."),
-        lyrics=str(kwargs.get("lyrics") or ""),
+        # lyrics TEXT inlet (when wired) or lyrics_text / legacy lyrics STRING widget.
+        lyrics=str(kwargs.get("lyrics") or kwargs.get("lyrics_text") or ""),
         seed=optional_seed(kwargs),
         stub_seed=seed_param(kwargs, fallback=prompt),
     )
@@ -1443,7 +1454,7 @@ def generate_audio_waveform(
             seed=seed,
         )
 
-    if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo"):
+    if model_id in ("ace-step-1.5", "ace-step-1.5-sft", "ace-step-1.5-2b-turbo"):
         if inference_stub_enabled():
             return _generate_audio_stub(
                 prompt, sample_rate=sample_rate, midi=midi, model_id=model_id, seed=effective_stub

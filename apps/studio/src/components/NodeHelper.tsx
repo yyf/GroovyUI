@@ -67,7 +67,7 @@ const GENERATIVE_NODE_TYPES = new Set([
 ]);
 
 /** Pin exploration controls (model → prompt-like → seed) above the rest of Config. */
-const EXPLORATION_WIDGET_ORDER = ["model", "prompt", "text", "lyrics", "seed"];
+const EXPLORATION_WIDGET_ORDER = ["model", "prompt", "text", "lyrics_text", "lyrics", "seed"];
 
 type Tab = "config" | "subgraph" | "inputs" | "outputs" | "provenance";
 
@@ -2227,6 +2227,7 @@ function widgetLabel(name: string, nodeType: string): string {
   if (GENERATIVE_NODE_TYPES.has(nodeType)) {
     if (name === "prompt" || (name === "text" && nodeType !== "SingFromMIDI")) return "Prompt";
     if (name === "text" && nodeType === "SingFromMIDI") return "Lyrics";
+    if (name === "lyrics" || name === "lyrics_text") return "Lyrics";
     if (name === "seed") return "Seed";
     if (name === "model") return "Model";
   }
@@ -2240,7 +2241,7 @@ function widgetLabel(name: string, nodeType: string): string {
 }
 
 function isPromptLikeWidget(name: string): boolean {
-  return name === "prompt" || name === "text" || name === "lyrics";
+  return name === "prompt" || name === "text" || name === "lyrics" || name === "lyrics_text";
 }
 
 function promptPlaceholder(widgetName: string, nodeType: string): string | undefined {
@@ -2248,6 +2249,9 @@ function promptPlaceholder(widgetName: string, nodeType: string): string | undef
   if (widgetName === "prompt") return "describe the sound.";
   if (widgetName === "text" && nodeType === "TTS") return "describe the sound.";
   if (widgetName === "text" && nodeType === "SingFromMIDI") return "type the lyrics.";
+  if (widgetName === "lyrics" || widgetName === "lyrics_text") {
+    return "optional lyrics ([verse] / [chorus]); empty = instrumental.";
+  }
   return undefined;
 }
 

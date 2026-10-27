@@ -106,17 +106,15 @@ Cold / clean machines take longer on first run — `uv` sync, Studio `npm instal
 
 If a cold machine fails, check port `8188`/`5173` conflicts, disk space, Python version, and Compliance / Settings for tokens (`HF_TOKEN`) on gated weights.
 
-### TTS with Emotion Editing
+Install template models from Model Browser before first real Render. Without the platform below (or CUDA where noted), use Settings → Inference → **Stub** for UI-only demos. Step on Apple Silicon needs `uv` on `PATH`; later runs reuse `.groovy/models/step-audio-editx/`.
 
-Template models: `kokoro-82m` + `step-audio-editx` (both Apache-2.0). Needs `uv` on `PATH` for the Apple Silicon sidecar. Without Apple Silicon or CUDA, use Settings → Inference → **Stub** for UI-only demos.
-
-| Model | Platform | First-run expectation |
-| --- | --- | --- |
-| `kokoro-82m` | any | Lightweight TTS via Cmd+K.<br>Mandarin needs `misaki[zh]` extras (pulled with the model). |
-| `step-audio-editx` | Apple Silicon | Bootstraps Python **3.13** sidecar (`uv` + `mlx-speech`).<br>Then ~**4 GB** MLX weights — often several minutes. |
-| `step-audio-editx` | CUDA Linux | Upstream Step + **vLLM** (~12 GB VRAM).<br>Not a Mac path. |
-
-Later Apple Silicon runs reuse `.groovy/models/step-audio-editx/`.
+| Template | Model | Platform | First-run expectation |
+| --- | --- | --- | --- |
+| TTS with Emotion Editing | `kokoro-82m` (Apache-2.0) | any | Lightweight TTS via Cmd+K.<br>Mandarin needs `misaki[zh]` extras (pulled with the model). |
+| TTS with Emotion Editing | `step-audio-editx` (Apache-2.0) | Apple Silicon | Bootstraps Python **3.13** sidecar (`uv` + `mlx-speech`).<br>Then ~**4 GB** MLX weights — often several minutes. |
+| TTS with Emotion Editing | `step-audio-editx` (Apache-2.0) | CUDA Linux | Upstream Step + **vLLM** (~12 GB VRAM).<br>Not a Mac path. |
+| ACE-Step 1.5 SFT | `ace-step-1.5-sft` (MIT) | CUDA | ~**6.3 GB** Diffusers 2B SFT pack; ~50 steps + CFG guidance. |
+| ACE-Step 1.5 SFT | `ace-step-1.5-sft` (MIT) | CPU / Mac | Same download; float32 CPU inference is slow and memory-heavy. |
 
 ## License
 

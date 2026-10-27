@@ -22,6 +22,7 @@ def test_hero_models_no_longer_dev_stub() -> None:
         "f5-tts-base",
         "stable-audio-open-1.0",
         "ace-step-1.5",
+        "ace-step-1.5-sft",
         "ace-step-1.5-2b-turbo",
     ):
         manifest = catalog.get(model_id)

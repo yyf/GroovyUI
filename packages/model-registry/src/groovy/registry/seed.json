@@ -1006,7 +1006,70 @@
           "description": "Optional structured lyrics (e.g. [verse] / [chorus]). Empty = instrumental-leaning."
         }
       ],
-      "similar_models": ["musicgen-small", "stable-audio-open-1.0", "ace-step-1.5-2b-turbo"]
+      "similar_models": ["musicgen-small", "stable-audio-open-1.0", "ace-step-1.5-2b-turbo", "ace-step-1.5-sft"]
+    },
+    {
+      "id": "ace-step-1.5-sft",
+      "status": "published",
+      "trust": "verified",
+      "name": "ACE-Step 1.5 SFT",
+      "description": "Supervised fine-tuned ACE-Step 1.5 Diffusers pack (Runware/acestep-v15-sft-diffusers, ~2B / ~6.3GB). Not guidance-distilled — use ~50 steps and guidance_scale≈7. Lighter than XL SFT for demos/Mac; still prefers NVIDIA CUDA (CPU float32 is slow and RAM-heavy). MIT-class weights.",
+      "task_types": ["music-generation", "generation"],
+      "tags": ["ace-step", "generation", "text-to-music", "lyrics", "dit", "sft", "cfg", "2b"],
+      "author": "ACE-Step",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 0.9
+      },
+      "vram_gb_estimate": 8,
+      "download_size_mb_estimate": 6300,
+      "compatible_nodes": ["GenerateAudio"],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          { "package": "torch", "version": ">=2.0.0" },
+          { "package": "diffusers", "version": ">=0.39.0" },
+          { "package": "transformers", "version": ">=4.45.0" },
+          { "package": "accelerate", "version": ">=0.28.0" },
+          { "package": "sentencepiece", "version": ">=0.2.0" }
+        ],
+        "verify_imports": ["diffusers", "torch"]
+      },
+      "inference_params": [
+        {
+          "name": "seconds_total",
+          "type": "FLOAT",
+          "default": 15.0,
+          "min": 10.0,
+          "max": 120.0,
+          "description": "Output duration in seconds (demos: 15–30)."
+        },
+        {
+          "name": "num_inference_steps",
+          "type": "INT",
+          "default": 50,
+          "min": 8,
+          "max": 80,
+          "description": "SFT is not turbo-distilled; ~50 steps is the recommended default."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 7.0,
+          "min": 1.0,
+          "max": 15.0,
+          "description": "CFG / APG strength (SFT supports guidance; try 5–9)."
+        },
+        {
+          "name": "lyrics",
+          "type": "STRING",
+          "default": "",
+          "description": "Optional structured lyrics (e.g. [verse] / [chorus]). Empty = instrumental-leaning."
+        }
+      ],
+      "similar_models": ["ace-step-1.5", "ace-step-1.5-2b-turbo", "musicgen-small", "stable-audio-open-1.0"]
     },
     {
       "id": "ace-step-1.5-2b-turbo",
@@ -1069,7 +1132,7 @@
           "description": "Optional structured lyrics (e.g. [verse] / [chorus]). Empty = instrumental-leaning."
         }
       ],
-      "similar_models": ["ace-step-1.5", "musicgen-small", "stable-audio-open-1.0"]
+      "similar_models": ["ace-step-1.5", "ace-step-1.5-sft", "musicgen-small", "stable-audio-open-1.0"]
     },
     {
       "id": "diffsinger-opencpop",
