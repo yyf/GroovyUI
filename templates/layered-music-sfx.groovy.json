@@ -1,0 +1,195 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-layeredmusic01",
+  "metadata": {
+    "title": "Trailer Bumper — Music + SFX Layers",
+    "author": "groovy",
+    "description": "Real-world short-form bumper: generate a music bed and an impact accent in parallel with Stable Audio Open Small (~8s each, Mac-friendly), then Mix → Normalize → Preview/Save in series. One patch instead of two generator sessions plus a DAW bounce. Community / NC weights — install stable-audio-open-small from Model Browser (HF token + license accept) before first real Render. For MIT / longer beds, swap widgets to ace-step-1.5-sft on CUDA.",
+    "tags": [
+      "starter",
+      "featured",
+      "generation",
+      "stable-audio",
+      "sfx",
+      "music",
+      "layers",
+      "parallel",
+      "mix",
+      "compound",
+      "trailer"
+    ],
+    "created_at": "2026-10-29T00:00:00Z",
+    "modified_at": "2026-10-29T18:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-layers",
+      "type": "Note",
+      "pos": {
+        "x": 492,
+        "y": 340.0
+      },
+      "widgets": {
+        "text": "Trailer bumper — Parallel Stable Audio Open Small bed + accent → Mix → Normalize. Caps ~11s/clip (template uses 8s). Mac-friendly; needs HF token + Community license accept. Play = cached PCM."
+      }
+    },
+    {
+      "id": "n0",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 80.0
+      },
+      "widgets": {
+        "text": "dark cinematic pulse, low synth bed, 90 BPM, tense trailer underscore, no vocals",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 260.0
+      },
+      "widgets": {
+        "text": "deep cinematic impact boom with short metallic tail, single hit, no melody",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 246,
+        "y": 80.0
+      },
+      "widgets": {
+        "model": "stable-audio-open-small",
+        "prompt": "dark cinematic pulse, low synth bed, 90 BPM, tense trailer underscore, no vocals",
+        "lyrics_text": "",
+        "seed": 42,
+        "seconds_total": 8.0,
+        "num_inference_steps": 8,
+        "guidance_scale": 1.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 246,
+        "y": 260.0
+      },
+      "widgets": {
+        "model": "stable-audio-open-small",
+        "prompt": "deep cinematic impact boom with short metallic tail, single hit, no melody",
+        "lyrics_text": "",
+        "seed": 7,
+        "seconds_total": 8.0,
+        "num_inference_steps": 8,
+        "guidance_scale": 1.0
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Mix",
+      "pos": {
+        "x": 492,
+        "y": 160.0
+      },
+      "widgets": {
+        "gain_a": 1.0,
+        "gain_b": 0.7
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Normalize",
+      "pos": {
+        "x": 738,
+        "y": 160.0
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -14.0
+      }
+    },
+    {
+      "id": "n6",
+      "type": "Preview",
+      "pos": {
+        "x": 984,
+        "y": 160.0
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n7",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 984,
+        "y": 284.0
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "trailer-bumper-layers.wav",
+        "format": "wav",
+        "bit_depth": "16"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l0",
+      "from": ["n0", 0],
+      "to": ["n2", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n3", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l2",
+      "from": ["n2", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n3", 0],
+      "to": ["n4", 1],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": ["n4", 0],
+      "to": ["n5", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l5",
+      "from": ["n5", 0],
+      "to": ["n6", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l6",
+      "from": ["n5", 0],
+      "to": ["n7", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 1.0,
+    "pan": {
+      "x": 0,
+      "y": 0
+    }
+  }
+}

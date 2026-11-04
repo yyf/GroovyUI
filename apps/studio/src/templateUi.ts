@@ -34,6 +34,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "isolate-vocals-to-transcribe-translate",
   "isolate-vocals-to-voice-convert",
   "karaoke-guide-vocal",
+  "layered-music-sfx",
   "localize-dialogue-a-to-b",
   "modular-generative-rack",
   "mono-to-stereo-pan",
@@ -131,6 +132,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
 
   "text-to-music": "generate",
   "stable-audio": "generate",
+  "layered-music-sfx": "generate",
   "ace-step-1.5": "generate",
   "ace-step-1.5-sft": "generate",
   "video-to-audio": "generate",

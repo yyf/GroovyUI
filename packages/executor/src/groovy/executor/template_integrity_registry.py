@@ -99,6 +99,13 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "models": ("stable-audio-open-1.0",),
         "required_outputs": (("n3", "AUDIO"),),
     },
+    "layered-music-sfx": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("stable-audio-open-small",),
+        # n6 Preview after parallel Stable Audio Open Small gens → Mix → Normalize.
+        "required_outputs": (("n6", "AUDIO"),),
+    },
     "video-to-audio": {
         "fixture": "none",
         "sample_path": "assets/samples/video480p.mov",

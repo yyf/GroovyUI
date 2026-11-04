@@ -57,6 +57,27 @@ def stable_audio_available() -> bool:
         return False
 
 
+def stable_audio_small_available() -> bool:
+    try:
+        import einops  # noqa: F401
+        import torch  # noqa: F401
+        import stable_audio_tools  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def stable_audio_3_available() -> bool:
+    try:
+        import torch  # noqa: F401
+        from stable_audio_3 import StableAudioModel  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def ace_step_available() -> bool:
     try:
         import torch  # noqa: F401
@@ -218,6 +239,9 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "musicgen-melody-small": musicgen_melody_available,
     "musicgen-small": musicgen_small_available,
     "stable-audio-open-1.0": stable_audio_available,
+    "stable-audio-open-small": stable_audio_small_available,
+    "stable-audio-3-small-music": stable_audio_3_available,
+    "stable-audio-3-small-sfx": stable_audio_3_available,
     "ace-step-1.5": ace_step_available,
     "ace-step-1.5-sft": ace_step_available,
     "ace-step-1.5-2b-turbo": ace_step_available,

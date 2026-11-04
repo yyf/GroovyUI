@@ -27,6 +27,14 @@ import {
   prefillFromDiscover,
   prefillFromUnknownModelId,
 } from "../modelRequestIssue";
+import {
+  COMPUTE_PRESETS,
+  compareByComputePreset,
+  computeCardLabel,
+  computePillClass,
+  matchesComputePreset,
+  type ComputePreset,
+} from "../modelCompute";
 
 function openModelRequestIssue(
   prefill: Parameters<typeof buildModelRequestIssueUrl>[0],
@@ -174,6 +182,7 @@ export default function ModelBrowser({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [mode, setMode] = useState<BrowserMode>(normalizeBrowserMode(initialMode ?? launch?.mode ?? "search"));
   const [taskType, setTaskType] = useState("");
+  const [computePreset, setComputePreset] = useState<ComputePreset>("any");
   const [commercialOnly, setCommercialOnly] = useState(false);
   const [discoverResults, setDiscoverResults] = useState<DiscoverModelResult[]>([]);
   const [searchHits, setSearchHits] = useState<Array<{ model: ModelCard; rationale?: string }>>([]);
@@ -561,16 +570,54 @@ export default function ModelBrowser({
       ) ?? [],
     [agentPlan],
   );
-  const planInstallActions = useMemo(
-    () => planModelActions.filter((action) => action.type === "install_model"),
-    [planModelActions],
-  );
+  const planInstallActions = useMemo(() => {
+    const installs = planModelActions.filter((action) => action.type === "install_model");
+    const filtered = installs.filter((action) =>
+      matchesComputePreset(action.model?.compute_resolved, computePreset),
+    );
+    if (computePreset === "any") return filtered;
+    return [...filtered].sort((a, b) =>
+      compareByComputePreset(
+        {
+          compute_resolved: a.model?.compute_resolved,
+          vram_gb_estimate: a.model?.vram_gb_estimate,
+          name: a.model?.name,
+        },
+        {
+          compute_resolved: b.model?.compute_resolved,
+          vram_gb_estimate: b.model?.vram_gb_estimate,
+          name: b.model?.name,
+        },
+        computePreset,
+      ),
+    );
+  }, [planModelActions, computePreset]);
   const planPublicActions = useMemo(
     () => planModelActions.filter((action) => action.type === "suggest_public_model"),
     [planModelActions],
   );
 
-  const cards = useMemo(() => searchHits, [searchHits]);
+  const cards = useMemo(() => {
+    const filtered = searchHits.filter(({ model }) =>
+      matchesComputePreset(model.compute_resolved, computePreset),
+    );
+    if (computePreset === "any") return filtered;
+    return [...filtered].sort((a, b) =>
+      compareByComputePreset(
+        {
+          compute_resolved: a.model.compute_resolved,
+          vram_gb_estimate: a.model.vram_gb_estimate,
+          name: a.model.name,
+        },
+        {
+          compute_resolved: b.model.compute_resolved,
+          vram_gb_estimate: b.model.vram_gb_estimate,
+          name: b.model.name,
+        },
+        computePreset,
+      ),
+    );
+  }, [searchHits, computePreset]);
 
   const detailModel = useMemo(() => {
     if (!detailModelId) return null;
@@ -844,6 +891,35 @@ export default function ModelBrowser({
                     />
                     {mode === "discover" ? "Commercial OK only" : "Commercial OK"}
                   </label>
+                  {mode === "search" || mode === "plan" ? (
+                    <div
+                      className="model-browser__compute-presets"
+                      role="radiogroup"
+                      aria-label="Hardware preset"
+                    >
+                      <span className="model-browser__compute-presets-label">Hardware</span>
+                      <div className="model-browser__compute-presets-row">
+                        {COMPUTE_PRESETS.map((preset) => {
+                          const selected = computePreset === preset.value;
+                          return (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={selected}
+                              title={preset.hint}
+                              className={`model-browser__compute-preset${
+                                selected ? " model-browser__compute-preset--active" : ""
+                              }`}
+                              onClick={() => setComputePreset(preset.value)}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
                   <button
                     type="button"
                     className="model-browser__request-link model-browser__request-blank"
@@ -1001,6 +1077,15 @@ export default function ModelBrowser({
                         <p className="model-card__rationale">{action.rationale}</p>
                         <div className="model-card__meta">
                           <span className="pill">local registry</span>
+                          <span
+                            className={computePillClass(model.compute_resolved)}
+                            title={
+                              model.compute_resolved?.memory_note?.trim() ||
+                              computeCardLabel(model.compute_resolved, model.vram_gb_estimate)
+                            }
+                          >
+                            {computeCardLabel(model.compute_resolved, model.vram_gb_estimate)}
+                          </span>
                           {(model.task_types || []).slice(0, 3).map((task) => (
                             <span key={task} className="pill">
                               {task}
@@ -1137,6 +1222,16 @@ export default function ModelBrowser({
                         : "Type a keyword or task description to rank published models — or leave empty to browse the catalog."}
                     </p>
                   ) : null}
+                  {!loading &&
+                  !error &&
+                  searchHits.length > 0 &&
+                  cards.length === 0 &&
+                  computePreset !== "any" ? (
+                    <p className="model-browser__hint">
+                      No models match the <strong>{COMPUTE_PRESETS.find((p) => p.value === computePreset)?.label}</strong>{" "}
+                      hardware preset — try Any, or another preset.
+                    </p>
+                  ) : null}
                   {!loading && cards.length > 0 && debouncedQuery.trim() ? (
                     <div className="model-browser__handoff">
                       <p className="model-browser__hint">
@@ -1199,7 +1294,15 @@ export default function ModelBrowser({
                           {model.license?.attribution_required ? (
                             <span className="pill pill--neutral">Attribution</span>
                           ) : null}
-                          <span>{model.vram_gb_estimate} GB VRAM</span>
+                          <span
+                            className={computePillClass(model.compute_resolved)}
+                            title={
+                              model.compute_resolved?.memory_note?.trim() ||
+                              computeCardLabel(model.compute_resolved, model.vram_gb_estimate)
+                            }
+                          >
+                            {computeCardLabel(model.compute_resolved, model.vram_gb_estimate)}
+                          </span>
                           {model.dev_stub && !isDraftModel(model) ? <span className="pill pill--neutral">stub</span> : null}
                           {isDraftModel(model) ? <span className="pill pill--warning">pending review</span> : null}
                           {model.inference_ready === false && model.install_status === "ready" ? (
@@ -1245,7 +1348,15 @@ export default function ModelBrowser({
                 <span className={licenseBadge(detailModel.license).className}>
                   {licenseBadge(detailModel.license).label}
                 </span>
-                <span>{detailModel.vram_gb_estimate} GB VRAM</span>
+                <span
+                  className={computePillClass(detailModel.compute_resolved)}
+                  title={
+                    detailModel.compute_resolved?.memory_note?.trim() ||
+                    computeCardLabel(detailModel.compute_resolved, detailModel.vram_gb_estimate)
+                  }
+                >
+                  {computeCardLabel(detailModel.compute_resolved, detailModel.vram_gb_estimate)}
+                </span>
                 {detailModel.dev_stub ? <span className="pill pill--neutral">dev stub</span> : null}
               </div>
               {licenseDetailLines(detailModel.license).map((line) => (

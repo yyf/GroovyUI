@@ -7314,6 +7314,45 @@ body {
   flex-wrap: wrap;
 }
 
+.model-browser__compute-presets {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.model-browser__compute-presets-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.model-browser__compute-presets-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.model-browser__compute-preset {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-silver);
+  background: var(--bg-recessed);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.model-browser__compute-preset:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.model-browser__compute-preset--active {
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+  background: var(--bg-elevated, var(--bg-recessed));
+}
+
 .model-browser__filter-select {
   display: inline-flex;
   flex-direction: column;

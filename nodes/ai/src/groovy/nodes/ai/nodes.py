@@ -555,6 +555,9 @@ class GenerateAudio(GroovyNode):
     COMPATIBLE_MODELS = [
         "musicgen-small",
         "stable-audio-open-1.0",
+        "stable-audio-open-small",
+        "stable-audio-3-small-music",
+        "stable-audio-3-small-sfx",
         "ace-step-1.5",
         "ace-step-1.5-sft",
         "ace-step-1.5-2b-turbo",

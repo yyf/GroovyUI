@@ -180,6 +180,22 @@ export type ModelInternalConnection = {
   label?: string;
 };
 
+export type ModelComputeInfo = {
+  runtimes?: string[];
+  requires_cuda?: boolean;
+  label?: string | null;
+  memory_note?: string | null;
+};
+
+export type ModelComputeResolved = {
+  runtimes: string[];
+  requires_cuda: boolean;
+  presets: string[];
+  label: string;
+  vram_gb_estimate?: number;
+  memory_note?: string | null;
+};
+
 export type ModelCard = {
   id: string;
   name: string;
@@ -212,6 +228,10 @@ export type ModelCard = {
   architecture_notes?: string | null;
   /** Published internal edges; shown as-is when present. */
   internal_connections?: ModelInternalConnection[];
+  /** Optional curated compute affinity from the registry seed. */
+  compute?: ModelComputeInfo;
+  /** Server-resolved label + preset membership for hardware filters. */
+  compute_resolved?: ModelComputeResolved;
 };
 
 export type ModelInstallState = {
