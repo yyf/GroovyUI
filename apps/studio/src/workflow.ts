@@ -360,6 +360,24 @@ export function promptWidgetSnippet(node: WorkflowNode, maxLen = 140): string | 
 }
 
 /**
+ * When 2+ nodes share a type (e.g. two WhisperSTT), show the model widget so
+ * duplicates are distinguishable on the canvas.
+ */
+export function nodeModelHint(workflow: Workflow, node: WorkflowNode, maxLen = 36): string | null {
+  const raw = node.widgets.model;
+  if (typeof raw !== "string") return null;
+  const model = raw.trim();
+  if (!model) return null;
+  const sameTypeCount = workflow.nodes.reduce(
+    (count, item) => (item.type === node.type ? count + 1 : count),
+    0,
+  );
+  if (sameTypeCount < 2) return null;
+  if (model.length <= maxLen) return model;
+  return `${model.slice(0, Math.max(1, maxLen - 1))}…`;
+}
+
+/**
  * Inspector payload: prefer the node's own job output (keeps Preview transcripts)
  * while retaining listen/upstream cache_id for waveform when needed.
  */
@@ -1102,6 +1120,7 @@ export function workflowToFlowNodes(
           nodeId: n.id,
           canAudition: nodeHasListenableOutput(workflow, n.id, outputs),
           issue: nodeIssues?.[n.id],
+          modelHint: nodeModelHint(workflow, n) ?? undefined,
           previewText:
             // Meter levels live in Inspector only — keep canvas light.
             n.type === "Meter"
@@ -1464,11 +1483,50 @@ export type CompareHop = {
   label: string;
 };
 
+export type TextCompareEntry = {
+  node: WorkflowNode;
+  text: string;
+};
+
 export type CompareResolution = {
+  kind: "audio" | "text";
   pair: Array<{ node: WorkflowNode; output: JobOutput }>;
+  textPair: TextCompareEntry[];
   note: string | null;
   missingRender: boolean;
 };
+
+/** TEXT payload for a node: direct job output, or TEXT/STRING wired into Preview. */
+export function resolveNodeTextOutput(
+  workflow: Workflow,
+  nodeId: string,
+  outputs?: Record<string, JobOutput>,
+): string | null {
+  if (!outputs) return null;
+  const direct = textFromJobOutput(outputs[nodeId]);
+  if (direct) return direct;
+  for (const link of workflow.links) {
+    if (link.to[0] !== nodeId) continue;
+    if (link.type !== "TEXT" && link.type !== "STRING") continue;
+    const slot = jobOutputAtSlot(outputs[link.from[0]], link.from[1]);
+    const fromUpstream = textFromJobOutput(slot ?? outputs[link.from[0]]);
+    if (fromUpstream) return fromUpstream;
+  }
+  return null;
+}
+
+/** Prompt (or Preview fed only by Prompt) is the natural WER reference. */
+export function textCompareLooksLikeReference(workflow: Workflow, nodeId: string): boolean {
+  const node = workflow.nodes.find((item) => item.id === nodeId);
+  if (!node) return false;
+  if (node.type === "Prompt") return true;
+  return workflow.links.some((link) => {
+    if (link.to[0] !== nodeId) return false;
+    if (link.type !== "TEXT" && link.type !== "STRING") return false;
+    const src = workflow.nodes.find((item) => item.id === link.from[0]);
+    return src?.type === "Prompt";
+  });
+}
 
 export function listDistinctChainHops(
   workflow: Workflow,
@@ -1505,21 +1563,57 @@ export function resolveComparePair(
 
   const outputA = resolveNodeListenOutput(workflow, firstId, outputs);
   const outputB = resolveNodeListenOutput(workflow, secondId, outputs);
+  const textA = resolveNodeTextOutput(workflow, firstId, outputs);
+  const textB = resolveNodeTextOutput(workflow, secondId, outputs);
+
   if (!outputA?.cache_id || !outputB?.cache_id) {
+    if (textA && textB) {
+      return {
+        kind: "text",
+        pair: [],
+        textPair: [
+          { node: nodeA, text: textA },
+          { node: nodeB, text: textB },
+        ],
+        note: null,
+        missingRender: false,
+      };
+    }
     return {
+      kind: textA || textB ? "text" : "audio",
       pair: [],
-      note: "Render the workflow first (Play or Shift+R) so both nodes have cached audio.",
+      textPair: [],
+      note:
+        textA || textB
+          ? "Render both nodes so each has TEXT (or select two audio outputs for waveform A/B)."
+          : "Render the workflow first (Play or Shift+R) so both nodes have cached audio or TEXT.",
       missingRender: true,
     };
   }
 
   if (outputA.cache_id !== outputB.cache_id) {
     return {
+      kind: "audio",
       pair: [
         { node: nodeA, output: outputA },
         { node: nodeB, output: outputB },
       ],
+      textPair: [],
       note: null,
+      missingRender: false,
+    };
+  }
+
+  // Same audio cache — prefer TEXT A/B when both sides carry distinct transcripts.
+  if (textA && textB && textA !== textB) {
+    return {
+      kind: "text",
+      pair: [],
+      textPair: [
+        { node: nodeA, text: textA },
+        { node: nodeB, text: textB },
+      ],
+      note: "Selections share the same cached audio; comparing TEXT outputs instead.",
       missingRender: false,
     };
   }
@@ -1536,10 +1630,12 @@ export function resolveComparePair(
       return null;
     }
     return {
+      kind: "audio",
       pair: [
         { node: hopNodeA, output: hopOutputA },
         { node: hopNodeB, output: hopOutputB },
       ],
+      textPair: [],
       note:
         `${nodeA.type} (${firstId}) and ${nodeB.type} (${secondId}) share the same cached audio. ` +
         `Comparing ${hopNodeA.type} (${hopA}) → ${hopNodeB.type} (${hopB}) instead.`,
@@ -1548,10 +1644,12 @@ export function resolveComparePair(
   }
 
   return {
+    kind: "audio",
     pair: [
       { node: nodeA, output: outputA },
       { node: nodeB, output: outputB },
     ],
+    textPair: [],
     note:
       "Both selections share the same cached audio. Use a chain hop below (e.g. LoadAudio → Denoise).",
     missingRender: false,

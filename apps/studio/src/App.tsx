@@ -1994,7 +1994,9 @@ export default function App() {
         : null,
     [workflow, selectedNodeIds, lastJob?.outputs],
   );
+  const compareKind = compareResolution?.kind ?? null;
   const comparePair = compareResolution?.pair.length ? compareResolution.pair : null;
+  const textComparePair = compareResolution?.textPair.length ? compareResolution.textPair : null;
   const compareNote = compareResolution?.note ?? null;
   const compareMissingRender = compareResolution?.missingRender ?? false;
   const chainHops = useMemo(
@@ -2682,6 +2684,8 @@ export default function App() {
                 output={selectedInspectorOutput}
                 previewUrl={selectedNodePreview}
                 comparePair={comparePair}
+                textComparePair={textComparePair}
+                compareKind={compareKind}
                 compareNote={compareNote}
                 compareMissingRender={compareMissingRender}
                 chainHops={chainHops}

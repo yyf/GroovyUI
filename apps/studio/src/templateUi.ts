@@ -7,6 +7,7 @@ import type { TemplateListItem } from "./api";
  */
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5-sft",
+  "asr-benchmark-wer-cer",
   "empty-canvas",
   "hello-groovy",
   "tab-creative-grow",
@@ -24,6 +25,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ambisonic-trajectory-demo",
   "authenticity-check",
   "watermark-embed-detect",
+  "asr-benchmark-wer-cer",
   "compare-stemmers",
   "compare-whisper-sizes",
   "empty-canvas",
@@ -111,6 +113,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "isolate-vocals-to-transcribe": "speech",
   "isolate-vocals-to-transcribe-translate": "speech",
   "compare-whisper-sizes": "compare",
+  "asr-benchmark-wer-cer": "compare",
   "sample-verify": "compare",
   "ab-compare-demo": "compare",
 
@@ -169,6 +172,7 @@ const pickerHiddenBundledIds = new Set<string>(PICKER_HIDDEN_BUNDLED_TEMPLATE_ID
  */
 export const STANDARD_MODE_NODE_TYPES = [
   "AutomationApply",
+  "Benchmark",
   "ControlCurve",
   "Denoise",
   "GenerateAudio",

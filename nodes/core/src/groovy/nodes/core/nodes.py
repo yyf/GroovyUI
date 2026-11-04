@@ -47,6 +47,8 @@ def register_all() -> None:
     """Import side-effect registers all core nodes."""
     from groovy.nodes.core.modular_synth import register_modular_synth
 
+    from groovy.nodes.core.benchmark import Benchmark
+
     _ = (
         LoadAudio,
         SaveAudio,
@@ -79,6 +81,7 @@ def register_all() -> None:
         FloatRoute,
         Granulate,
         Meter,
+        Benchmark,
     )
     register_immersive()
     register_modular_io()

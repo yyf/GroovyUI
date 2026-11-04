@@ -31,6 +31,9 @@ import {
   preferredAuditionNodeId,
   resolveNodeListenId,
   resolveComparePair,
+  resolveNodeTextOutput,
+  textCompareLooksLikeReference,
+  nodeModelHint,
   resolveRenderAllTargets,
   nodeHasListenableOutput,
   cachedStatusFromOutputs,
@@ -134,6 +137,38 @@ describe("mergeFlowEdges", () => {
     const merged = mergeFlowEdges(current, next);
     expect(merged[0]?.animated).toBe(false);
     expect(merged[0]?.className).toBe("groovy-edge--type-audio");
+  });
+});
+
+describe("nodeModelHint", () => {
+  it("shows model only when two+ nodes share a type", () => {
+    const one: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [{ id: "n4", type: "WhisperSTT", widgets: { model: "whisper-small-en" } }],
+    };
+    expect(nodeModelHint(one, one.nodes[0]!)).toBeNull();
+
+    const two: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n4", type: "WhisperSTT", widgets: { model: "whisper-small-en" } },
+        { id: "n5", type: "WhisperSTT", widgets: { model: "whisper-large-v3-turbo" } },
+      ],
+    };
+    expect(nodeModelHint(two, two.nodes[0]!)).toBe("whisper-small-en");
+    expect(nodeModelHint(two, two.nodes[1]!)).toBe("whisper-large-v3-turbo");
+  });
+
+  it("skips empty model widgets", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "a", type: "WhisperSTT", widgets: { model: "" } },
+        { id: "b", type: "WhisperSTT", widgets: { model: "whisper-small-en" } },
+      ],
+    };
+    expect(nodeModelHint(workflow, workflow.nodes[0]!)).toBeNull();
+    expect(nodeModelHint(workflow, workflow.nodes[1]!)).toBe("whisper-small-en");
   });
 });
 
@@ -1187,8 +1222,73 @@ describe("resolveNodeListenId", () => {
     };
     const resolution = resolveComparePair(workflow, outputs, ["p1", "p2"]);
     expect(resolution?.missingRender).toBe(false);
+    expect(resolution?.kind).toBe("audio");
     expect(resolution?.pair[0]?.output.cache_id).toBe("vocals");
     expect(resolution?.pair[1]?.output.cache_id).toBe("drums");
+  });
+
+  it("resolves text compare pair for Preview TEXT outputs", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "w1", type: "WhisperSTT", widgets: { model: "whisper-small" } },
+        { id: "w2", type: "WhisperSTT", widgets: { model: "whisper-turbo" } },
+        { id: "p1", type: "Preview", widgets: {} },
+        { id: "p2", type: "Preview", widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["w1", 0], to: ["p1", 1], type: "TEXT" },
+        { id: "l2", from: ["w2", 0], to: ["p2", 1], type: "TEXT" },
+      ],
+    };
+    const outputs: Record<string, JobOutput> = {
+      w1: { type: "TEXT", text: "the cat sat on the mat" },
+      w2: { type: "TEXT", text: "the dog sat on the mat" },
+      p1: { type: "TEXT", text: "the cat sat on the mat" },
+      p2: { type: "TEXT", text: "the dog sat on the mat" },
+    };
+    expect(resolveNodeTextOutput(workflow, "p1", outputs)).toBe("the cat sat on the mat");
+    const resolution = resolveComparePair(workflow, outputs, ["p1", "p2"]);
+    expect(resolution?.kind).toBe("text");
+    expect(resolution?.missingRender).toBe(false);
+    expect(resolution?.textPair).toHaveLength(2);
+    expect(resolution?.textPair[0]?.text).toBe("the cat sat on the mat");
+    expect(resolution?.textPair[1]?.text).toBe("the dog sat on the mat");
+    expect(resolution?.pair).toHaveLength(0);
+  });
+
+  it("falls back to upstream TEXT when Preview has no direct output yet", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "w1", type: "WhisperSTT", widgets: {} },
+        { id: "p1", type: "Preview", widgets: {} },
+      ],
+      links: [{ id: "l1", from: ["w1", 0], to: ["p1", 1], type: "TEXT" }],
+    };
+    const outputs: Record<string, JobOutput> = {
+      w1: { type: "TEXT", text: "hello from whisper" },
+    };
+    expect(resolveNodeTextOutput(workflow, "p1", outputs)).toBe("hello from whisper");
+  });
+
+  it("treats Prompt-fed Preview as WER reference", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "Prompt", widgets: { text: "gold" } },
+        { id: "n8", type: "Preview", widgets: {} },
+        { id: "n6", type: "Preview", widgets: {} },
+        { id: "w1", type: "WhisperSTT", widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n8", 1], type: "TEXT" },
+        { id: "l2", from: ["w1", 0], to: ["n6", 1], type: "TEXT" },
+      ],
+    };
+    expect(textCompareLooksLikeReference(workflow, "n8")).toBe(true);
+    expect(textCompareLooksLikeReference(workflow, "n6")).toBe(false);
+    expect(textCompareLooksLikeReference(workflow, "n1")).toBe(true);
   });
 
   it("resolves STEMS bundle slots for listen", () => {

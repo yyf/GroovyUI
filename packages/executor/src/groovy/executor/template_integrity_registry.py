@@ -21,6 +21,7 @@ TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "PreviewVideo": "VIDEO",
     "SaveVideo": "STRING",
     "WhisperSTT": "TEXT",
+    "Benchmark": "TEXT",
     "TranslateText": "TEXT",
     "DetectWatermark": "TEXT",
     "DiarizeTranscribe": "TEXT",
@@ -225,6 +226,18 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "terminal_output_type": "TEXT",
         "required_outputs": (("n3", "TEXT"), ("n4", "TEXT"), ("n7", "AUDIO")),
         "spot_check": "ab_compare",
+    },
+    "asr-benchmark-wer-cer": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("kokoro-82m", "whisper-small-en", "whisper-large-v3-turbo"),
+        "terminal_output_type": "TEXT",
+        "required_outputs": (
+            ("n8", "TEXT"),
+            ("n6", "TEXT"),
+            ("n7", "TEXT"),
+            ("n3", "AUDIO"),
+        ),
     },
     "script-to-vo-master": {
         "fixture": "none",

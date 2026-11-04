@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "e8f1a2b3-c4d5-4e6f-9a0b-asrbenchwer001",
+  "metadata": {
+    "title": "ASR Benchmark — WER / CER",
+    "author": "groovy",
+    "description": "Same script → Kokoro TTS → Whisper small-en ∥ large-v3-turbo. Preview nodes show only the gold Prompt (ref) or each model transcript (hyp). Drag-select two Previews for Inspector A/B with WER/CER word highlighting. Install kokoro-82m, whisper-small-en, whisper-large-v3-turbo.",
+    "tags": [
+      "ai",
+      "asr",
+      "stt",
+      "benchmark",
+      "wer",
+      "cer",
+      "whisper",
+      "eval",
+      "compare"
+    ],
+    "created_at": "2026-11-04T00:00:00Z",
+    "modified_at": "2026-11-04T00:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": { "x": 0, "y": 0 },
+      "widgets": {
+        "text": "ASR Benchmark — WER / CER\nPrompt (gold) → Kokoro → Whisper small ∥ turbo.\nPreviews = ref or hyp text only.\nDrag-select two Previews → Inspector A/B highlights WER diffs.\nMac-local · MIT/Apache · Play = cached PCM."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "Prompt",
+      "pos": { "x": 0, "y": 160 },
+      "widgets": {
+        "text": "Welcome to GroovyUI. Patch AI audio like modular synthesis and compare models offline.",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "TTS",
+      "pos": { "x": 260, "y": 160 },
+      "widgets": {
+        "model": "kokoro-82m",
+        "text": "",
+        "language": "en",
+        "seed": 7
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Preview",
+      "pos": { "x": 260, "y": 320 },
+      "widgets": {}
+    },
+    {
+      "id": "n8",
+      "type": "Preview",
+      "pos": { "x": 0, "y": 320 },
+      "widgets": {}
+    },
+    {
+      "id": "n4",
+      "type": "WhisperSTT",
+      "pos": { "x": 520, "y": 80 },
+      "widgets": {
+        "model": "whisper-small-en",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n5",
+      "type": "WhisperSTT",
+      "pos": { "x": 520, "y": 260 },
+      "widgets": {
+        "model": "whisper-large-v3-turbo",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n6",
+      "type": "Preview",
+      "pos": { "x": 780, "y": 40 },
+      "widgets": {}
+    },
+    {
+      "id": "n7",
+      "type": "Preview",
+      "pos": { "x": 780, "y": 220 },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n2", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l-ref",
+      "from": ["n1", 0],
+      "to": ["n8", 1],
+      "type": "TEXT"
+    },
+    {
+      "id": "l2",
+      "from": ["n2", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n2", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": ["n2", 0],
+      "to": ["n5", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l5",
+      "from": ["n4", 0],
+      "to": ["n6", 1],
+      "type": "TEXT"
+    },
+    {
+      "id": "l6",
+      "from": ["n5", 0],
+      "to": ["n7", 1],
+      "type": "TEXT"
+    }
+  ],
+  "groups": [],
+  "viewport": { "x": 0, "y": 0, "zoom": 1 }
+}

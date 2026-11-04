@@ -43,6 +43,8 @@ export type GroovyNodeData = {
   noteText?: string;
   /** Channel layout / count chip (LoadAudio, Preview, SaveAudio). */
   channelLabel?: string;
+  /** Model id when multiple nodes share this type (e.g. two WhisperSTT). */
+  modelHint?: string;
   /** TRAJECTORY cache id for on-node XYZ mini plot. */
   trajectoryId?: string;
   /** Monitor role when this is a TrajectoryMonitor (input | output). */
@@ -246,6 +248,11 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             {badge ? <span className={`groovy-node__badge groovy-node__badge--${nodeData.status}`}>{badge}</span> : null}
           </span>
         </div>
+        {nodeData.modelHint ? (
+          <p className="groovy-node__model-hint" title={nodeData.modelHint}>
+            {nodeData.modelHint}
+          </p>
+        ) : null}
         {showInputLabels ? (
           <ul className="groovy-node__socket-list" aria-hidden>
             {inputs.map((socket) => (

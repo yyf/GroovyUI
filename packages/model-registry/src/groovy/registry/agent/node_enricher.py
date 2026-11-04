@@ -27,6 +27,25 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "description": "Transcribe speech to text with a Whisper-class STT model.",
         "widgets": {"model": "Speech-to-text model from the registry."},
     },
+    "Benchmark": {
+        "description": (
+            "Offline text metric vs a reference (WER / CER first). "
+            "Wire hypothesis + reference TEXT. For spotting model diffs, prefer "
+            "drag-selecting two transcript Previews (Inspector A/B highlights WER)."
+        ),
+        "inputs": {
+            "hypothesis": "Model output text (e.g. Whisper transcript).",
+            "reference": "Gold / script TEXT (often from Prompt).",
+        },
+        "widgets": {
+            "metric": "wer | cer | wer_cer (default). More metrics later.",
+            "normalize": "Lowercase + strip punctuation before scoring (recommended for ASR).",
+            "label": "Optional report header (e.g. model id).",
+        },
+        "outputs": {
+            "output_0": "Metric report TEXT (select the Benchmark node — avoid Previewing as a transcript).",
+        },
+    },
     "DiarizeTranscribe": {
         "description": "Speaker-labeled transcript for meetings and podcasts (Whisper + diarization).",
         "widgets": {
@@ -106,7 +125,7 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "reference_audio": "Optional timbre/style reference clip.",
         },
         "widgets": {
-            "model": "Text-to-audio model (MusicGen Small, Stable Audio Open, or ACE-Step 1.5 / SFT / 2B turbo).",
+            "model": "Text-to-audio model (MusicGen, Stable Audio Open / SA3 Small Music|SFX, or ACE-Step).",
             "prompt": "Describe the sound you want to generate (used when the text inlet is unwired).",
             "lyrics_text": "ACE-Step lyrics when the lyrics inlet is unwired; empty leans instrumental.",
             "seed": "Random seed (−1 = random). Same seed + prompt → repeatable output.",

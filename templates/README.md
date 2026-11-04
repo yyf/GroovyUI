@@ -14,6 +14,7 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | `kokoro-82m` |
 | TTS with Emotion Editing | [tts-emotion-edit.groovy.json](tts-emotion-edit.groovy.json) | `kokoro-82m`, `step-audio-editx` (Step = MLX on Apple Silicon or CUDA+vLLM on Linux) |
 | ACE-Step 1.5 SFT | [ace-step-1.5-sft.groovy.json](ace-step-1.5-sft.groovy.json) | `ace-step-1.5-sft` (MIT; prefer NVIDIA CUDA) |
+| ASR Benchmark — WER / CER | [asr-benchmark-wer-cer.groovy.json](asr-benchmark-wer-cer.groovy.json) | `kokoro-82m` → `whisper-small-en` ∥ `whisper-large-v3-turbo`; drag-select transcript Previews for WER A/B |
 | Video to Audio | [video-to-audio.groovy.json](video-to-audio.groovy.json) | `diff-foley` (default; experimental — CUDA testing) |
 
 Featured-only (⌘⇧D): Trailer Bumper — Music + SFX Layers ([layered-music-sfx.groovy.json](layered-music-sfx.groovy.json)) — Community / NC `stable-audio-open-small` ×2 → Mix.

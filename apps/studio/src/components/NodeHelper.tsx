@@ -21,17 +21,19 @@ import {
   type StudioSettings,
 } from "../api";
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowLink, WorkflowNode } from "../types";
-import type { CompareHop } from "../workflow";
+import type { CompareHop, TextCompareEntry } from "../workflow";
 import {
   joinSaveAudioPath,
   jobOutputAtSlot,
   meterDisplayText,
   resolveIoChannelLabel,
+  textCompareLooksLikeReference,
   wiredInputSupersedesWidget,
   wiredInputsForNode,
   wiredOutputsForNode,
   wiredPromptPreview,
 } from "../workflow";
+import { alignTextDiff, type DiffSpan } from "../textCompare";
 import { hasMinimalPatch } from "../nodeMinimalPatches";
 import { EDGE_COLOR_PALETTE, normalizeEdgeColor, socketTypeColor } from "../socketTypes";
 import {
@@ -89,6 +91,8 @@ type Props = {
   output?: JobOutput;
   previewUrl?: string | null;
   comparePair?: CompareEntry[] | null;
+  textComparePair?: TextCompareEntry[] | null;
+  compareKind?: "audio" | "text" | null;
   compareNote?: string | null;
   compareMissingRender?: boolean;
   chainHops?: CompareHop[];
@@ -131,6 +135,8 @@ export default function NodeHelper({
   output,
   previewUrl,
   comparePair,
+  textComparePair = null,
+  compareKind = null,
   compareNote,
   compareMissingRender = false,
   chainHops = [],
@@ -317,19 +323,28 @@ export default function NodeHelper({
     return (
       <aside className="node-helper node-helper--compare-only">
         <div className="node-helper__scroll">
-          <ComparePanel
-            comparePair={comparePair}
-            compareNote={compareNote}
-            compareMissingRender={compareMissingRender}
-            chainHops={chainHops}
-            waveforms={compareWaveforms}
-            onCompareAudition={onCompareAudition}
-            onSelectCompareHop={onSelectCompareHop}
-            workflow={workflow}
-            loadAudioChannels={loadAudioChannels}
-            channelLayouts={channelLayouts}
-            selectionOutputs={selectionOutputs}
-          />
+          {compareKind === "text" || (textComparePair && textComparePair.length === 2) ? (
+            <TextComparePanel
+              textPair={textComparePair}
+              compareNote={compareNote}
+              compareMissingRender={compareMissingRender}
+              workflow={workflow}
+            />
+          ) : (
+            <ComparePanel
+              comparePair={comparePair}
+              compareNote={compareNote}
+              compareMissingRender={compareMissingRender}
+              chainHops={chainHops}
+              waveforms={compareWaveforms}
+              onCompareAudition={onCompareAudition}
+              onSelectCompareHop={onSelectCompareHop}
+              workflow={workflow}
+              loadAudioChannels={loadAudioChannels}
+              channelLayouts={channelLayouts}
+              selectionOutputs={selectionOutputs}
+            />
+          )}
         </div>
       </aside>
     );
@@ -1158,7 +1173,132 @@ function MultiSelectSummary({
         </ul>
       </div>
 
-      <p className="node-helper__hint">Select one node to edit, or exactly two for A/B compare.</p>
+      <p className="node-helper__hint">
+        Select one node to edit, or exactly two Preview nodes for A/B (audio or text).
+      </p>
+    </section>
+  );
+}
+
+function TextDiffLine({ label, spans }: { label: string; spans: DiffSpan[] }) {
+  return (
+    <div className="node-helper__text-compare-line">
+      <span className="node-helper__text-compare-line-label">{label}</span>
+      <p className="node-helper__text-compare-words">
+        {spans.length === 0 ? (
+          <span className="node-helper__text-diff node-helper__text-diff--empty">(empty)</span>
+        ) : (
+          spans.map((span, index) => (
+            <span
+              key={`${span.op}-${index}-${span.text}`}
+              className={`node-helper__text-diff node-helper__text-diff--${span.op}`}
+            >
+              {span.text}
+            </span>
+          ))
+        )}
+      </p>
+    </div>
+  );
+}
+
+function TextComparePanel({
+  textPair,
+  compareNote,
+  compareMissingRender = false,
+  workflow,
+}: {
+  textPair?: TextCompareEntry[] | null;
+  compareNote?: string | null;
+  compareMissingRender?: boolean;
+  workflow: Workflow;
+}) {
+  const a = textPair?.[0];
+  const b = textPair?.[1];
+  const preferredSwap = useMemo(() => {
+    if (!a || !b) return false;
+    const aRef = textCompareLooksLikeReference(workflow, a.node.id);
+    const bRef = textCompareLooksLikeReference(workflow, b.node.id);
+    return Boolean(bRef && !aRef);
+  }, [a, b, workflow]);
+  const [swapRef, setSwapRef] = useState(preferredSwap);
+  const pairKey = `${a?.node.id ?? ""}:${b?.node.id ?? ""}`;
+
+  useEffect(() => {
+    setSwapRef(preferredSwap);
+  }, [pairKey, preferredSwap]);
+
+  const labelA = a ? `${a.node.type} · ${a.node.id}` : "A";
+  const labelB = b ? `${b.node.type} · ${b.node.id}` : "B";
+  const aIsRef = !swapRef;
+  const refLabel = aIsRef ? "A" : "B";
+
+  const alignment = useMemo(() => {
+    if (!a || !b) return null;
+    const reference = aIsRef ? a.text : b.text;
+    const hypothesis = aIsRef ? b.text : a.text;
+    return alignTextDiff(reference, hypothesis);
+  }, [a, b, aIsRef]);
+
+  if (!a || !b || !alignment) {
+    return (
+      <section className="node-helper__compare">
+        <header className="node-helper__compare-header">
+          <h3 className="node-helper__compare-title">Transcript A/B</h3>
+        </header>
+        {compareMissingRender ? (
+          <p className="node-helper__compare-warning">{compareNote}</p>
+        ) : compareNote ? (
+          <p className="node-helper__compare-warning">{compareNote}</p>
+        ) : (
+          <p className="node-helper__hint">
+            Select two transcript Previews (ref and/or hyp) after render.
+          </p>
+        )}
+      </section>
+    );
+  }
+
+  const spansRef = alignment.spansA;
+  const spansHyp = alignment.spansB;
+  const displayA = aIsRef ? spansRef : spansHyp;
+  const displayB = aIsRef ? spansHyp : spansRef;
+  const { counts } = alignment;
+
+  return (
+    <section className="node-helper__compare node-helper__compare--text">
+      <header className="node-helper__compare-header">
+        <h3 className="node-helper__compare-title">Transcript A/B</h3>
+        <button
+          type="button"
+          className="node-helper__compare-ask-toggle"
+          onClick={() => setSwapRef((v) => !v)}
+        >
+          Ref = {refLabel} (swap)
+        </button>
+      </header>
+      {compareNote ? <p className="node-helper__compare-info">{compareNote}</p> : null}
+      <p className="node-helper__text-compare-meta">
+        WER {alignment.werPercent.toFixed(2)}% · CER {alignment.cerPercent.toFixed(2)}% · S=
+        {counts.substitutions} D={counts.deletions} I={counts.insertions} N={counts.referenceLen}
+      </p>
+      <p className="node-helper__text-compare-refnote">
+        Highlights show word edits vs {refLabel} (reference). Sub/del/ins = WER errors.
+      </p>
+      <div className="node-helper__text-compare-legend" aria-hidden>
+        <span className="node-helper__text-diff node-helper__text-diff--equal">match</span>
+        <span className="node-helper__text-diff node-helper__text-diff--replace">sub</span>
+        <span className="node-helper__text-diff node-helper__text-diff--delete">del</span>
+        <span className="node-helper__text-diff node-helper__text-diff--insert">ins</span>
+      </div>
+      <TextDiffLine
+        label={`${labelA} · ${aIsRef ? "ref" : "hyp"}`}
+        spans={displayA}
+      />
+      <TextDiffLine
+        label={`${labelB} · ${aIsRef ? "hyp" : "ref"}`}
+        spans={displayB}
+      />
     </section>
   );
 }

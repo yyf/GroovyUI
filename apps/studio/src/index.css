@@ -3099,6 +3099,87 @@ body {
   gap: 10px;
 }
 
+.node-helper__text-compare-meta {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.node-helper__text-compare-refnote {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.node-helper__text-compare-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.node-helper__text-compare-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border-rule);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg)) 88%, transparent);
+}
+
+.node-helper__text-compare-line-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.node-helper__text-compare-words {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.node-helper__text-diff {
+  display: inline;
+  margin-right: 0.35em;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.node-helper__text-diff--equal {
+  color: var(--text);
+}
+
+.node-helper__text-diff--replace {
+  background: color-mix(in srgb, #c47a2a 28%, transparent);
+  color: var(--text);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, #c47a2a 55%, transparent);
+}
+
+.node-helper__text-diff--delete {
+  background: color-mix(in srgb, #b33a3a 22%, transparent);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.node-helper__text-diff--insert {
+  background: color-mix(in srgb, #2f7a4a 24%, transparent);
+  color: var(--text);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, #2f7a4a 50%, transparent);
+}
+
+.node-helper__text-diff--empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .node-helper__compare-header {
   display: flex;
   align-items: center;
@@ -4756,6 +4837,20 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-secondary);
+  line-height: 1.3;
+}
+
+.groovy-node__model-hint {
+  margin: 2px 0 0;
+  padding: 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
   line-height: 1.3;
 }
 
