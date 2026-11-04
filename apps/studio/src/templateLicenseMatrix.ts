@@ -134,6 +134,19 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "asr-benchmark-wer-cer",
+    title: "ASR Benchmark — WER / CER",
+    models: "kokoro-82m, whisper-small-en, whisper-large-v3-turbo",
+    licenses:
+      "kokoro-82m: Apache-2.0; whisper-small-en: MIT; whisper-large-v3-turbo: MIT",
+    impact: "Med",
+    cluster: "Compare / eval",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
     id: "video-to-audio",
     title: "Video to Audio",
     models: "diff-foley (default)",

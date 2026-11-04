@@ -49,6 +49,7 @@ describe("templatesVisibleInUi", () => {
     bundled("modular-generative-rack"),
     bundled("rave-timbre-transfer"),
     bundled("compare-whisper-sizes"),
+    bundled("asr-benchmark-wer-cer"),
     bundled("script-to-vo-master"),
     bundled("neural-modular-rack"),
     bundled("self-playing-neural-rack"),
@@ -67,6 +68,7 @@ describe("templatesVisibleInUi", () => {
     // Sorted by display title (default title = id), not STANDARD_BUNDLED order.
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5-sft",
+      "asr-benchmark-wer-cer",
       "empty-canvas",
       "hello-groovy",
       "isolate-vocals-to-transcribe",
@@ -113,6 +115,7 @@ describe("templatesVisibleInUi", () => {
       "ace-step-1.5",
       "ace-step-1.5-sft",
       "ambisonic-trajectory-demo",
+      "asr-benchmark-wer-cer",
       "authenticity-check",
       "compare-stemmers",
       "compare-whisper-sizes",
@@ -321,10 +324,15 @@ describe("isNodeVisibleInStudio", () => {
     expect(STANDARD_MODE_NODE_TYPES).toContain("VoiceConvert");
     expect(STANDARD_MODE_NODE_TYPES).toContain("TranslateText");
     expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateAudio");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("Benchmark");
     expect(STANDARD_MODE_NODE_TYPES).toContain("Video2Audio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("SaveVideo");
+  });
+
+  it("places asr-benchmark-wer-cer in Compare", () => {
+    expect(domainIdForTemplate("asr-benchmark-wer-cer")).toBe("compare");
   });
 
   it("shows all node types in studio dev mode", () => {

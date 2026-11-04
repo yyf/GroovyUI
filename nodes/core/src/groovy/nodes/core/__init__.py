@@ -1,3 +1,4 @@
+from groovy.nodes.core.benchmark import Benchmark
 from groovy.nodes.core.nodes import (
     LoadAudio,
     Mix,
@@ -14,6 +15,7 @@ from groovy.nodes.core.nodes import (
 )
 
 __all__ = [
+    "Benchmark",
     "LoadAudio",
     "Mix",
     "MuxVideo",
