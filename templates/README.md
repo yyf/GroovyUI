@@ -16,4 +16,6 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | ACE-Step 1.5 SFT | [ace-step-1.5-sft.groovy.json](ace-step-1.5-sft.groovy.json) | `ace-step-1.5-sft` (MIT; prefer NVIDIA CUDA) |
 | Video to Audio | [video-to-audio.groovy.json](video-to-audio.groovy.json) | `diff-foley` (default; experimental — CUDA testing) |
 
+Featured-only (⌘⇧D): Trailer Bumper — Music + SFX Layers ([layered-music-sfx.groovy.json](layered-music-sfx.groovy.json)) — Community / NC `stable-audio-open-small` ×2 → Mix.
+
 Sample assets: `assets/samples/` (`podcast_denoise_demo.wav`, `stem_separation_demo.wav`, `video480p.mov`).

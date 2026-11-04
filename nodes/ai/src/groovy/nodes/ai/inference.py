@@ -1013,7 +1013,14 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
                 7.0
                 if model_id in ("stable-audio-open-1.0", "ace-step-1.5-sft")
                 else 1.0
-                if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo")
+                if model_id
+                in (
+                    "ace-step-1.5",
+                    "ace-step-1.5-2b-turbo",
+                    "stable-audio-open-small",
+                    "stable-audio-3-small-music",
+                    "stable-audio-3-small-sfx",
+                )
                 else 3.0
             ),
         ),
@@ -1024,6 +1031,13 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
             (
                 15.0
                 if model_id in ("ace-step-1.5", "ace-step-1.5-sft", "ace-step-1.5-2b-turbo")
+                else 8.0
+                if model_id
+                in (
+                    "stable-audio-open-small",
+                    "stable-audio-3-small-music",
+                    "stable-audio-3-small-sfx",
+                )
                 else 10.0
             ),
         ),
@@ -1034,7 +1048,14 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
                 50
                 if model_id == "ace-step-1.5-sft"
                 else 8
-                if model_id in ("ace-step-1.5", "ace-step-1.5-2b-turbo")
+                if model_id
+                in (
+                    "ace-step-1.5",
+                    "ace-step-1.5-2b-turbo",
+                    "stable-audio-open-small",
+                    "stable-audio-3-small-music",
+                    "stable-audio-3-small-sfx",
+                )
                 else 100
             ),
         ),
@@ -1406,6 +1427,8 @@ def generate_audio_waveform(
         inference_stub_enabled,
         musicgen_small_available,
         stable_audio_available,
+        stable_audio_3_available,
+        stable_audio_small_available,
     )
 
     _ = reference_pcm
@@ -1447,6 +1470,56 @@ def generate_audio_waveform(
         return sa_generate(
             prompt,
             sample_rate=sample_rate,
+            seconds_total=seconds_total,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            negative_prompt=negative_prompt,
+            seed=seed,
+        )
+
+    if model_id == "stable-audio-open-small":
+        if inference_stub_enabled():
+            return _generate_audio_stub(
+                prompt, sample_rate=sample_rate, midi=midi, model_id=model_id, seed=effective_stub
+            )
+        if not stable_audio_small_available():
+            raise RuntimeError(
+                "Stable Audio Open Small inference is not installed. "
+                "Install stable-audio-open-small from Model Browser (Cmd+K) "
+                "(requires stable-audio-tools + torch; accept the HF model license and set a token)."
+            )
+        from groovy.nodes.ai.backends.stable_audio_small_runner import (
+            generate_from_text as sa_small_generate,
+        )
+
+        return sa_small_generate(
+            prompt,
+            sample_rate=sample_rate,
+            seconds_total=seconds_total,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            seed=seed,
+        )
+
+    if model_id in ("stable-audio-3-small-music", "stable-audio-3-small-sfx"):
+        if inference_stub_enabled():
+            return _generate_audio_stub(
+                prompt, sample_rate=sample_rate, midi=midi, model_id=model_id, seed=effective_stub
+            )
+        if not stable_audio_3_available():
+            raise RuntimeError(
+                "Stable Audio 3 inference is not installed. "
+                f"Install {model_id} from Model Browser (Cmd+K) "
+                "(requires stable-audio-3 + torch; accept the HF Community license + Gemma ToU)."
+            )
+        from groovy.nodes.ai.backends.stable_audio_3_runner import (
+            generate_from_text as sa3_generate,
+        )
+
+        return sa3_generate(
+            prompt,
+            sample_rate=sample_rate,
+            model_id=model_id,
             seconds_total=seconds_total,
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,

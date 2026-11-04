@@ -22,6 +22,7 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("prompt-modular-synth")).toBe(true);
     expect(isCommerciallyCleared("tts-emotion-edit")).toBe(true);
     expect(isCommerciallyCleared("ace-step-1.5-sft")).toBe(true);
+    expect(isCommerciallyCleared("layered-music-sfx")).toBe(false);
     expect(isCommerciallyCleared("stable-audio")).toBe(false);
   });
 
@@ -30,6 +31,7 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("stem-separation")).toBe(false);
     expect(isCommerciallyCleared("ace-step-1.5")).toBe(false);
     expect(isCommerciallyCleared("video-to-audio")).toBe(false);
+    expect(isCommerciallyCleared("layered-music-sfx")).toBe(false);
   });
 
   it("summarizes clearance counts for the public set", () => {

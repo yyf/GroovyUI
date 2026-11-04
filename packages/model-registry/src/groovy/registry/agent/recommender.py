@@ -179,6 +179,8 @@ def catalog_score(model: ModelManifest, query: str) -> int:
 
 
 def _card(manifest: ModelManifest, state) -> dict[str, Any]:
+    from groovy.registry.compute import resolve_compute
+
     return {
         "id": manifest.id,
         "name": manifest.name,
@@ -193,4 +195,6 @@ def _card(manifest: ModelManifest, state) -> dict[str, Any]:
         "install_progress": state.progress,
         "install_error": state.error,
         "dev_stub": manifest.install.dev_stub,
+        "compute": manifest.compute.model_dump(),
+        "compute_resolved": resolve_compute(manifest),
     }

@@ -7,8 +7,15 @@
       "trust": "verified",
       "name": "DeepFilterNet v3",
       "description": "Speech denoising for podcasts and dialogue cleanup.",
-      "task_types": ["denoise"],
-      "tags": ["denoise", "podcast", "cleanup", "speech"],
+      "task_types": [
+        "denoise"
+      ],
+      "tags": [
+        "denoise",
+        "podcast",
+        "cleanup",
+        "speech"
+      ],
       "author": "Rikorose",
       "license": {
         "spdx": "MIT",
@@ -18,15 +25,34 @@
       },
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 50,
-      "compatible_nodes": ["Denoise"],
+      "compatible_nodes": [
+        "Denoise"
+      ],
       "install": {
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "torchaudio", "version": ">=2.0.0" },
-          { "package": "DeepFilterNet-py312", "version": ">=0.5.7" },
-          { "package": "deepfilterlib", "version": "==0.5.6" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "DeepFilterNet-py312",
+            "version": ">=0.5.7"
+          },
+          {
+            "package": "deepfilterlib",
+            "version": "==0.5.6"
+          }
         ],
-        "verify_imports": ["torch", "torchaudio", "df.enhance", "libdf"],
+        "verify_imports": [
+          "torch",
+          "torchaudio",
+          "df.enhance",
+          "libdf"
+        ],
         "dev_stub": false
       },
       "inference_params": [
@@ -39,13 +65,35 @@
           "description": "Denoising blend (0 = dry, 1 = full noise reduction)."
         }
       ],
-      "architecture_notes": "DeepFilterNet: ERB + Deep Filtering stages on STFT features → enhanced waveform.",
+      "architecture_notes": "DeepFilterNet: ERB + Deep Filtering stages on STFT features \u2192 enhanced waveform.",
       "internal_connections": [
-        { "from": "noisy audio", "to": "ERB encoder", "label": "STFT / ERB" },
-        { "from": "ERB encoder", "to": "DF decoder", "label": "deep filtering" },
-        { "from": "DF decoder", "to": "enhanced audio", "label": "iSTFT" }
+        {
+          "from": "noisy audio",
+          "to": "ERB encoder",
+          "label": "STFT / ERB"
+        },
+        {
+          "from": "ERB encoder",
+          "to": "DF decoder",
+          "label": "deep filtering"
+        },
+        {
+          "from": "DF decoder",
+          "to": "enhanced audio",
+          "label": "iSTFT"
+        }
       ],
-      "similar_models": ["whisper-small-en"]
+      "similar_models": [
+        "whisper-small-en"
+      ],
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "CPU / CUDA \u00b7 ~1 GB"
+      }
     },
     {
       "id": "demucs-v4",
@@ -53,8 +101,15 @@
       "trust": "verified",
       "name": "Demucs v4",
       "description": "Music source separation into vocals, drums, bass, and other.",
-      "task_types": ["separation"],
-      "tags": ["stems", "music", "vocals", "demucs"],
+      "task_types": [
+        "separation"
+      ],
+      "tags": [
+        "stems",
+        "music",
+        "vocals",
+        "demucs"
+      ],
       "author": "Meta",
       "license": {
         "spdx": "MIT",
@@ -64,13 +119,24 @@
       },
       "vram_gb_estimate": 4,
       "download_size_mb_estimate": 100,
-      "compatible_nodes": ["SeparateStems"],
+      "compatible_nodes": [
+        "SeparateStems"
+      ],
       "install": {
         "python_deps": [
-          { "package": "demucs", "version": ">=4.0.0" },
-          { "package": "torch", "version": ">=2.0.0" }
+          {
+            "package": "demucs",
+            "version": ">=4.0.0"
+          },
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          }
         ],
-        "verify_imports": ["demucs.apply", "torch"],
+        "verify_imports": [
+          "demucs.apply",
+          "torch"
+        ],
         "dev_stub": false
       },
       "inference_params": [
@@ -80,7 +146,7 @@
           "default": 1,
           "min": 0,
           "max": 5,
-          "description": "Random shift passes — higher improves quality but slows render."
+          "description": "Random shift passes \u2014 higher improves quality but slows render."
         },
         {
           "name": "overlap",
@@ -105,16 +171,52 @@
           "description": "Split long files into segments during separation."
         }
       ],
-      "architecture_notes": "Hybrid Demucs / htdemucs-family: encoder → bottleneck → decoder with stem heads (vocals, drums, bass, other).",
+      "architecture_notes": "Hybrid Demucs / htdemucs-family: encoder \u2192 bottleneck \u2192 decoder with stem heads (vocals, drums, bass, other).",
       "internal_connections": [
-        { "from": "mix", "to": "encoder", "label": "waveform" },
-        { "from": "encoder", "to": "decoder", "label": "latents" },
-        { "from": "decoder", "to": "vocals", "label": "stem" },
-        { "from": "decoder", "to": "drums", "label": "stem" },
-        { "from": "decoder", "to": "bass", "label": "stem" },
-        { "from": "decoder", "to": "other", "label": "stem" }
+        {
+          "from": "mix",
+          "to": "encoder",
+          "label": "waveform"
+        },
+        {
+          "from": "encoder",
+          "to": "decoder",
+          "label": "latents"
+        },
+        {
+          "from": "decoder",
+          "to": "vocals",
+          "label": "stem"
+        },
+        {
+          "from": "decoder",
+          "to": "drums",
+          "label": "stem"
+        },
+        {
+          "from": "decoder",
+          "to": "bass",
+          "label": "stem"
+        },
+        {
+          "from": "decoder",
+          "to": "other",
+          "label": "stem"
+        }
       ],
-      "similar_models": ["demucs-v4-ht", "uvr-mdx-net", "spleeter-2stems"]
+      "similar_models": [
+        "demucs-v4-ht",
+        "uvr-mdx-net",
+        "spleeter-2stems"
+      ],
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "CPU / CUDA \u00b7 ~4 GB"
+      }
     },
     {
       "id": "demucs-v4-ht",
@@ -122,8 +224,14 @@
       "trust": "verified",
       "name": "Demucs v4 (htdemucs)",
       "description": "Hybrid Transformer Demucs checkpoint for stem separation.",
-      "task_types": ["separation"],
-      "tags": ["stems", "demucs", "htdemucs"],
+      "task_types": [
+        "separation"
+      ],
+      "tags": [
+        "stems",
+        "demucs",
+        "htdemucs"
+      ],
       "author": "Meta",
       "license": {
         "spdx": "MIT",
@@ -133,11 +241,21 @@
       },
       "vram_gb_estimate": 4,
       "download_size_mb_estimate": 100,
-      "compatible_nodes": ["SeparateStems"],
+      "compatible_nodes": [
+        "SeparateStems"
+      ],
       "install": {
         "dev_stub": false,
-        "python_deps": [{ "package": "demucs", "version": ">=4.0.0" }],
-        "verify_imports": ["demucs.apply", "torch"]
+        "python_deps": [
+          {
+            "package": "demucs",
+            "version": ">=4.0.0"
+          }
+        ],
+        "verify_imports": [
+          "demucs.apply",
+          "torch"
+        ]
       },
       "inference_params": [
         {
@@ -146,7 +264,7 @@
           "default": 1,
           "min": 0,
           "max": 5,
-          "description": "Random shift passes — higher improves quality but slows render."
+          "description": "Random shift passes \u2014 higher improves quality but slows render."
         },
         {
           "name": "overlap",
@@ -171,7 +289,10 @@
           "description": "Split long files into segments during separation."
         }
       ],
-      "similar_models": ["demucs-v4", "uvr-mdx-net"]
+      "similar_models": [
+        "demucs-v4",
+        "uvr-mdx-net"
+      ]
     },
     {
       "id": "whisper-large-v3-turbo",
@@ -179,8 +300,15 @@
       "trust": "verified",
       "name": "Whisper Large v3 Turbo",
       "description": "Fast multilingual speech-to-text transcription.",
-      "task_types": ["stt"],
-      "tags": ["transcribe", "whisper", "subtitles", "stt"],
+      "task_types": [
+        "stt"
+      ],
+      "tags": [
+        "transcribe",
+        "whisper",
+        "subtitles",
+        "stt"
+      ],
       "author": "OpenAI",
       "license": {
         "spdx": "MIT",
@@ -190,11 +318,20 @@
       },
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 1600,
-      "compatible_nodes": ["WhisperSTT"],
+      "compatible_nodes": [
+        "WhisperSTT"
+      ],
       "install": {
         "dev_stub": false,
-        "python_deps": [{ "package": "faster-whisper", "version": ">=1.0.0" }],
-        "verify_imports": ["faster_whisper"]
+        "python_deps": [
+          {
+            "package": "faster-whisper",
+            "version": ">=1.0.0"
+          }
+        ],
+        "verify_imports": [
+          "faster_whisper"
+        ]
       },
       "inference_params": [
         {
@@ -212,13 +349,35 @@
           "description": "Sampling temperature (0 = greedy decode)."
         }
       ],
-      "architecture_notes": "Whisper (faster-whisper): audio → 16 kHz mel → encoder → decoder → text tokens.",
+      "architecture_notes": "Whisper (faster-whisper): audio \u2192 16 kHz mel \u2192 encoder \u2192 decoder \u2192 text tokens.",
       "internal_connections": [
-        { "from": "audio", "to": "mel encoder", "label": "16 kHz features" },
-        { "from": "mel encoder", "to": "decoder", "label": "cross-attn" },
-        { "from": "decoder", "to": "transcript", "label": "tokens → text" }
+        {
+          "from": "audio",
+          "to": "mel encoder",
+          "label": "16 kHz features"
+        },
+        {
+          "from": "mel encoder",
+          "to": "decoder",
+          "label": "cross-attn"
+        },
+        {
+          "from": "decoder",
+          "to": "transcript",
+          "label": "tokens \u2192 text"
+        }
       ],
-      "similar_models": ["whisper-small-en"]
+      "similar_models": [
+        "whisper-small-en"
+      ],
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "CPU / CUDA \u00b7 ~2 GB"
+      }
     },
     {
       "id": "whisper-small-en",
@@ -226,8 +385,15 @@
       "trust": "verified",
       "name": "Whisper Small EN",
       "description": "Lightweight English speech-to-text model.",
-      "task_types": ["stt"],
-      "tags": ["transcribe", "whisper", "english", "stt"],
+      "task_types": [
+        "stt"
+      ],
+      "tags": [
+        "transcribe",
+        "whisper",
+        "english",
+        "stt"
+      ],
       "author": "OpenAI",
       "license": {
         "spdx": "MIT",
@@ -237,11 +403,20 @@
       },
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 500,
-      "compatible_nodes": ["WhisperSTT"],
+      "compatible_nodes": [
+        "WhisperSTT"
+      ],
       "install": {
         "dev_stub": false,
-        "python_deps": [{ "package": "faster-whisper", "version": ">=1.0.0" }],
-        "verify_imports": ["faster_whisper"]
+        "python_deps": [
+          {
+            "package": "faster-whisper",
+            "version": ">=1.0.0"
+          }
+        ],
+        "verify_imports": [
+          "faster_whisper"
+        ]
       },
       "inference_params": [
         {
@@ -259,16 +434,35 @@
           "description": "Sampling temperature (0 = greedy decode)."
         }
       ],
-      "similar_models": ["whisper-large-v3-turbo"]
+      "similar_models": [
+        "whisper-large-v3-turbo"
+      ],
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "CPU / CUDA \u00b7 ~1 GB"
+      }
     },
     {
       "id": "pyannote-diarization-3.1",
       "status": "published",
       "trust": "verified",
       "name": "Pyannote Diarization 3.1",
-      "description": "Speaker diarization for meetings and podcasts. Pair with Whisper via DiarizeTranscribe. HF gated — accept license + HF_TOKEN.",
-      "task_types": ["diarization", "speaker-diarization"],
-      "tags": ["diarization", "pyannote", "speakers", "meeting", "podcast"],
+      "description": "Speaker diarization for meetings and podcasts. Pair with Whisper via DiarizeTranscribe. HF gated \u2014 accept license + HF_TOKEN.",
+      "task_types": [
+        "diarization",
+        "speaker-diarization"
+      ],
+      "tags": [
+        "diarization",
+        "pyannote",
+        "speakers",
+        "meeting",
+        "podcast"
+      ],
       "author": "pyannote",
       "license": {
         "spdx": "MIT",
@@ -278,13 +472,24 @@
       },
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 200,
-      "compatible_nodes": ["DiarizeTranscribe"],
+      "compatible_nodes": [
+        "DiarizeTranscribe"
+      ],
       "install": {
         "dev_stub": true,
-        "python_deps": [{ "package": "pyannote.audio", "version": ">=3.1.0" }],
-        "verify_imports": ["pyannote.audio"]
+        "python_deps": [
+          {
+            "package": "pyannote.audio",
+            "version": ">=3.1.0"
+          }
+        ],
+        "verify_imports": [
+          "pyannote.audio"
+        ]
       },
-      "similar_models": ["whisper-large-v3-turbo"]
+      "similar_models": [
+        "whisper-large-v3-turbo"
+      ]
     },
     {
       "id": "f5-tts-base",
@@ -292,8 +497,15 @@
       "trust": "verified",
       "name": "F5-TTS Base",
       "description": "Multilingual voice clone from a short reference clip.",
-      "task_types": ["tts"],
-      "tags": ["tts", "voice-clone", "speech", "dubbing"],
+      "task_types": [
+        "tts"
+      ],
+      "tags": [
+        "tts",
+        "voice-clone",
+        "speech",
+        "dubbing"
+      ],
       "author": "SWivid",
       "license": {
         "spdx": "CC-BY-NC-4.0",
@@ -303,22 +515,45 @@
       },
       "vram_gb_estimate": 6,
       "download_size_mb_estimate": 1300,
-      "compatible_nodes": ["TTS"],
+      "compatible_nodes": [
+        "TTS"
+      ],
       "install": {
         "dev_stub": false,
-        "python_deps": [{ "package": "f5-tts", "version": ">=1.0.0" }],
-        "verify_imports": ["f5_tts"]
+        "python_deps": [
+          {
+            "package": "f5-tts",
+            "version": ">=1.0.0"
+          }
+        ],
+        "verify_imports": [
+          "f5_tts"
+        ]
       },
-      "similar_models": ["cosyvoice-300m", "gpt-sovits-v2", "kokoro-82m"]
+      "similar_models": [
+        "cosyvoice-300m",
+        "gpt-sovits-v2",
+        "kokoro-82m"
+      ]
     },
     {
       "id": "kokoro-82m",
       "status": "published",
       "trust": "verified",
       "name": "Kokoro 82M",
-      "description": "Lightweight Apache-2.0 multilingual TTS (en/zh/es/fr/ja/…). Mandarin uses language=zh + voice zf_xiaobei (needs misaki[zh]).",
-      "task_types": ["tts"],
-      "tags": ["tts", "kokoro", "speech", "commercial", "voiceover", "multilingual", "chinese"],
+      "description": "Lightweight Apache-2.0 multilingual TTS (en/zh/es/fr/ja/\u2026). Mandarin uses language=zh + voice zf_xiaobei (needs misaki[zh]).",
+      "task_types": [
+        "tts"
+      ],
+      "tags": [
+        "tts",
+        "kokoro",
+        "speech",
+        "commercial",
+        "voiceover",
+        "multilingual",
+        "chinese"
+      ],
       "author": "hexgrad",
       "license": {
         "spdx": "Apache-2.0",
@@ -328,26 +563,52 @@
       },
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 350,
-      "compatible_nodes": ["TTS"],
+      "compatible_nodes": [
+        "TTS"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "kokoro", "version": ">=0.9.0" },
-          { "package": "misaki[zh]", "version": ">=0.4.0" },
-          { "package": "ordered-set", "version": ">=4.1.0" },
-          { "package": "jieba", "version": ">=0.42.1" },
-          { "package": "pypinyin", "version": ">=0.51.0" },
-          { "package": "pypinyin-dict", "version": ">=0.9.0" },
-          { "package": "cn2an", "version": ">=0.5.22" }
+          {
+            "package": "kokoro",
+            "version": ">=0.9.0"
+          },
+          {
+            "package": "misaki[zh]",
+            "version": ">=0.4.0"
+          },
+          {
+            "package": "ordered-set",
+            "version": ">=4.1.0"
+          },
+          {
+            "package": "jieba",
+            "version": ">=0.42.1"
+          },
+          {
+            "package": "pypinyin",
+            "version": ">=0.51.0"
+          },
+          {
+            "package": "pypinyin-dict",
+            "version": ">=0.9.0"
+          },
+          {
+            "package": "cn2an",
+            "version": ">=0.5.22"
+          }
         ],
-        "verify_imports": ["kokoro", "misaki"]
+        "verify_imports": [
+          "kokoro",
+          "misaki"
+        ]
       },
       "inference_params": [
         {
           "name": "language",
           "type": "STRING",
           "default": "en",
-          "description": "ISO 639-1 (en, zh, es, fr, ja, …). Mandarin = zh."
+          "description": "ISO 639-1 (en, zh, es, fr, ja, \u2026). Mandarin = zh."
         },
         {
           "name": "voice",
@@ -356,7 +617,20 @@
           "description": "Optional Kokoro voice (e.g. zf_xiaobei). Empty = language default."
         }
       ],
-      "similar_models": ["cosyvoice-300m", "f5-tts-base", "voxcpm2", "xtts-v2"]
+      "similar_models": [
+        "cosyvoice-300m",
+        "f5-tts-base",
+        "voxcpm2",
+        "xtts-v2"
+      ],
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "CPU / CUDA \u00b7 ~1 GB"
+      }
     },
     {
       "id": "voxcpm2",
@@ -364,8 +638,20 @@
       "trust": "verified",
       "name": "VoxCPM2",
       "description": "OpenBMB tokenizer-free diffusion TTS (2B): 30 languages, 48 kHz, voice design from text, optional clone from reference. Apache-2.0 commercial-ready. Install pulls the voxcpm package; weights download from Hugging Face on first real inference (~8 GB VRAM).",
-      "task_types": ["tts", "voice-design", "voice-clone"],
-      "tags": ["tts", "voxcpm", "voice-design", "voice-clone", "multilingual", "speech", "commercial"],
+      "task_types": [
+        "tts",
+        "voice-design",
+        "voice-clone"
+      ],
+      "tags": [
+        "tts",
+        "voxcpm",
+        "voice-design",
+        "voice-clone",
+        "multilingual",
+        "speech",
+        "commercial"
+      ],
       "author": "OpenBMB",
       "license": {
         "spdx": "Apache-2.0",
@@ -375,14 +661,24 @@
       },
       "vram_gb_estimate": 8,
       "download_size_mb_estimate": 4500,
-      "compatible_nodes": ["TTS"],
+      "compatible_nodes": [
+        "TTS"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "voxcpm", "version": ">=1.0.0" },
-          { "package": "soundfile", "version": ">=0.12.0" }
+          {
+            "package": "voxcpm",
+            "version": ">=1.0.0"
+          },
+          {
+            "package": "soundfile",
+            "version": ">=0.12.0"
+          }
         ],
-        "verify_imports": ["voxcpm"]
+        "verify_imports": [
+          "voxcpm"
+        ]
       },
       "inference_params": [
         {
@@ -402,7 +698,11 @@
           "description": "Diffusion sampling steps (lower = faster)."
         }
       ],
-      "similar_models": ["kokoro-82m", "f5-tts-base", "cosyvoice-300m"]
+      "similar_models": [
+        "kokoro-82m",
+        "f5-tts-base",
+        "cosyvoice-300m"
+      ]
     },
     {
       "id": "step-audio-editx",
@@ -410,8 +710,23 @@
       "trust": "verified",
       "name": "Step-Audio-EditX",
       "description": "StepFun 3B RL audio editor: emotion / speaking-style / speed / paralinguistic edits on an existing take (also zero-shot clone). Apache-2.0. Apple Silicon: real path via mlx-speech (Python 3.13 sidecar + ~4 GB MLX weights, first run downloads). CUDA Linux: upstream Step-Audio-EditX + vLLM (~12 GB VRAM).",
-      "task_types": ["speech-edit", "emotion-edit", "style-edit", "tts"],
-      "tags": ["speech-edit", "emotion", "style", "paralinguistic", "stepfun", "voice", "commercial", "mlx", "apple-silicon"],
+      "task_types": [
+        "speech-edit",
+        "emotion-edit",
+        "style-edit",
+        "tts"
+      ],
+      "tags": [
+        "speech-edit",
+        "emotion",
+        "style",
+        "paralinguistic",
+        "stepfun",
+        "voice",
+        "commercial",
+        "mlx",
+        "apple-silicon"
+      ],
       "author": "StepFun",
       "license": {
         "spdx": "Apache-2.0",
@@ -422,18 +737,45 @@
       },
       "vram_gb_estimate": 12,
       "download_size_mb_estimate": 8000,
-      "compatible_nodes": ["VoiceConvert"],
+      "compatible_nodes": [
+        "VoiceConvert"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "torchaudio", "version": ">=2.0.0" },
-          { "package": "transformers", "version": ">=4.40.0" },
-          { "package": "huggingface_hub", "version": ">=0.20.0" },
-          { "package": "librosa", "version": ">=0.10.0" },
-          { "package": "soundfile", "version": ">=0.12.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.40.0"
+          },
+          {
+            "package": "huggingface_hub",
+            "version": ">=0.20.0"
+          },
+          {
+            "package": "librosa",
+            "version": ">=0.10.0"
+          },
+          {
+            "package": "soundfile",
+            "version": ">=0.12.0"
+          }
         ],
-        "verify_imports": ["torch", "torchaudio", "transformers", "huggingface_hub", "librosa", "soundfile"]
+        "verify_imports": [
+          "torch",
+          "torchaudio",
+          "transformers",
+          "huggingface_hub",
+          "librosa",
+          "soundfile"
+        ]
       },
       "inference_params": [
         {
@@ -455,7 +797,20 @@
           "description": "Transcript of the input audio (required for emotion/style/speed)."
         }
       ],
-      "similar_models": ["openvoice-v2", "rvc-v2-base", "voxcpm2"]
+      "similar_models": [
+        "openvoice-v2",
+        "rvc-v2-base",
+        "voxcpm2"
+      ],
+      "compute": {
+        "runtimes": [
+          "mlx",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "Apple Silicon (MLX) / CUDA \u00b7 ~4 GB MLX or ~12 GB VRAM",
+        "memory_note": "~4 GB MLX (Mac) \u00b7 ~12 GB VRAM (CUDA)"
+      }
     },
     {
       "id": "cosyvoice-300m",
@@ -463,8 +818,14 @@
       "trust": "verified",
       "name": "CosyVoice 300M",
       "description": "Commercial-friendly multilingual TTS.",
-      "task_types": ["tts"],
-      "tags": ["tts", "commercial", "speech"],
+      "task_types": [
+        "tts"
+      ],
+      "tags": [
+        "tts",
+        "commercial",
+        "speech"
+      ],
       "author": "FunAudioLLM",
       "license": {
         "spdx": "Apache-2.0",
@@ -474,9 +835,16 @@
       },
       "vram_gb_estimate": 4,
       "download_size_mb_estimate": 2000,
-      "compatible_nodes": ["TTS"],
-      "install": { "dev_stub": true },
-      "similar_models": ["f5-tts-base", "gpt-sovits-v2"]
+      "compatible_nodes": [
+        "TTS"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "f5-tts-base",
+        "gpt-sovits-v2"
+      ]
     },
     {
       "id": "rvc-v2-base",
@@ -484,8 +852,14 @@
       "trust": "verified",
       "name": "RVC v2",
       "description": "Real-time voice conversion and timbre transfer.",
-      "task_types": ["conversion"],
-      "tags": ["rvc", "voice-convert", "conversion"],
+      "task_types": [
+        "conversion"
+      ],
+      "tags": [
+        "rvc",
+        "voice-convert",
+        "conversion"
+      ],
       "author": "RVC Project",
       "license": {
         "spdx": "MIT",
@@ -495,18 +869,35 @@
       },
       "vram_gb_estimate": 4,
       "download_size_mb_estimate": 250,
-      "compatible_nodes": ["VoiceConvert"],
-      "install": { "dev_stub": true },
-      "similar_models": ["openvoice-v2"]
+      "compatible_nodes": [
+        "VoiceConvert"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "openvoice-v2"
+      ]
     },
     {
       "id": "rave-v1",
       "status": "published",
       "trust": "verified",
       "name": "RAVE v1",
-      "description": "Realtime Audio Variational autoEncoder (IRCAM ACIDS) for neural resynthesis and timbre transfer. Installs the ACIDS Studio OnLine Ordinario (fast) TorchScript checkpoint (~41MB) via Hugging Face mirror. CC-BY-NC — non-commercial use only.",
-      "task_types": ["timbre-transfer", "neural-synthesis", "conversion"],
-      "tags": ["rave", "vae", "timbre", "neural-synth", "ircam", "acids"],
+      "description": "Realtime Audio Variational autoEncoder (IRCAM ACIDS) for neural resynthesis and timbre transfer. Installs the ACIDS Studio OnLine Ordinario (fast) TorchScript checkpoint (~41MB) via Hugging Face mirror. CC-BY-NC \u2014 non-commercial use only.",
+      "task_types": [
+        "timbre-transfer",
+        "neural-synthesis",
+        "conversion"
+      ],
+      "tags": [
+        "rave",
+        "vae",
+        "timbre",
+        "neural-synth",
+        "ircam",
+        "acids"
+      ],
       "author": "IRCAM ACIDS",
       "license": {
         "spdx": "CC-BY-NC-4.0",
@@ -516,11 +907,20 @@
       },
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 45,
-      "compatible_nodes": ["TimbreTransfer"],
+      "compatible_nodes": [
+        "TimbreTransfer"
+      ],
       "install": {
         "dev_stub": false,
-        "python_deps": [{ "package": "torch", "version": ">=2.0.0" }],
-        "verify_imports": ["torch"],
+        "python_deps": [
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          }
+        ],
+        "verify_imports": [
+          "torch"
+        ],
         "weights": [
           {
             "url": "https://huggingface.co/AEmotionStudio/rave-models/resolve/main/sol_ordinario_fast.ts",
@@ -543,7 +943,9 @@
           "description": "Reconstruction fidelity vs latent compactness (1 = faithful encode/decode)."
         }
       ],
-      "similar_models": ["rvc-v2-base"]
+      "similar_models": [
+        "rvc-v2-base"
+      ]
     },
     {
       "id": "uvr-mdx-net",
@@ -551,8 +953,15 @@
       "trust": "verified",
       "name": "UVR MDX-Net",
       "description": "Lightweight vocal/instrument separation alternative to Demucs.",
-      "task_types": ["separation"],
-      "tags": ["stems", "uvr", "vocals", "separation"],
+      "task_types": [
+        "separation"
+      ],
+      "tags": [
+        "stems",
+        "uvr",
+        "vocals",
+        "separation"
+      ],
       "author": "UVR",
       "license": {
         "spdx": "MIT",
@@ -562,9 +971,16 @@
       },
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 600,
-      "compatible_nodes": ["SeparateStems"],
-      "install": { "dev_stub": true },
-      "similar_models": ["demucs-v4", "spleeter-2stems"]
+      "compatible_nodes": [
+        "SeparateStems"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "demucs-v4",
+        "spleeter-2stems"
+      ]
     },
     {
       "id": "spleeter-2stems",
@@ -572,8 +988,15 @@
       "trust": "verified",
       "name": "Spleeter 2-stems",
       "description": "Fast 2-stem vocal separation for quick previews.",
-      "task_types": ["separation"],
-      "tags": ["stems", "spleeter", "vocals", "fast"],
+      "task_types": [
+        "separation"
+      ],
+      "tags": [
+        "stems",
+        "spleeter",
+        "vocals",
+        "fast"
+      ],
       "author": "Deezer",
       "license": {
         "spdx": "MIT",
@@ -583,9 +1006,16 @@
       },
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 120,
-      "compatible_nodes": ["SeparateStems"],
-      "install": { "dev_stub": true },
-      "similar_models": ["uvr-mdx-net", "demucs-v4"]
+      "compatible_nodes": [
+        "SeparateStems"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "uvr-mdx-net",
+        "demucs-v4"
+      ]
     },
     {
       "id": "basic-pitch",
@@ -593,8 +1023,15 @@
       "trust": "verified",
       "name": "Basic Pitch",
       "description": "Monophonic audio-to-MIDI transcription for vocals and melody.",
-      "task_types": ["audio-to-midi"],
-      "tags": ["midi", "transcribe", "basic-pitch", "monophonic"],
+      "task_types": [
+        "audio-to-midi"
+      ],
+      "tags": [
+        "midi",
+        "transcribe",
+        "basic-pitch",
+        "monophonic"
+      ],
       "author": "Spotify",
       "license": {
         "spdx": "Apache-2.0",
@@ -604,19 +1041,46 @@
       },
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 30,
-      "compatible_nodes": ["AudioToMIDI"],
+      "compatible_nodes": [
+        "AudioToMIDI"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "onnxruntime", "version": ">=1.17.0" },
-          { "package": "librosa", "version": ">=0.10.0" },
-          { "package": "mir_eval", "version": ">=0.7.0" },
-          { "package": "resampy", "version": ">=0.4.0" },
-          { "package": "pretty-midi", "version": ">=0.2.10" },
-          { "package": "soundfile", "version": ">=0.12.0" },
-          { "package": "basic-pitch", "version": "==0.4.0", "no_deps": true }
+          {
+            "package": "onnxruntime",
+            "version": ">=1.17.0"
+          },
+          {
+            "package": "librosa",
+            "version": ">=0.10.0"
+          },
+          {
+            "package": "mir_eval",
+            "version": ">=0.7.0"
+          },
+          {
+            "package": "resampy",
+            "version": ">=0.4.0"
+          },
+          {
+            "package": "pretty-midi",
+            "version": ">=0.2.10"
+          },
+          {
+            "package": "soundfile",
+            "version": ">=0.12.0"
+          },
+          {
+            "package": "basic-pitch",
+            "version": "==0.4.0",
+            "no_deps": true
+          }
         ],
-        "verify_imports": ["basic_pitch.note_creation", "onnxruntime"]
+        "verify_imports": [
+          "basic_pitch.note_creation",
+          "onnxruntime"
+        ]
       },
       "inference_params": [
         {
@@ -666,7 +1130,14 @@
           "description": "Merge overlapping notes into single monophonic melody."
         }
       ],
-      "similar_models": []
+      "similar_models": [],
+      "compute": {
+        "runtimes": [
+          "cpu"
+        ],
+        "requires_cuda": false,
+        "label": "CPU (ONNX) \u00b7 ~1 GB"
+      }
     },
     {
       "id": "rawnet2-asvspoof",
@@ -674,8 +1145,16 @@
       "trust": "verified",
       "name": "RawNet2 ASVspoof",
       "description": "Spoof and deepfake speech detection (dev stub until weights verified).",
-      "task_types": ["deepfake-detection", "spoof-detection"],
-      "tags": ["deepfake", "spoof", "authenticity", "asvspoof"],
+      "task_types": [
+        "deepfake-detection",
+        "spoof-detection"
+      ],
+      "tags": [
+        "deepfake",
+        "spoof",
+        "authenticity",
+        "asvspoof"
+      ],
       "author": "ASVspoof",
       "license": {
         "spdx": "TBD",
@@ -685,8 +1164,12 @@
       },
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 100,
-      "compatible_nodes": ["DeepfakeDetect"],
-      "install": { "dev_stub": true },
+      "compatible_nodes": [
+        "DeepfakeDetect"
+      ],
+      "install": {
+        "dev_stub": true
+      },
       "inference_params": [
         {
           "name": "threshold",
@@ -704,9 +1187,18 @@
       "status": "published",
       "trust": "verified",
       "name": "AudioSeal 16-bit",
-      "description": "Meta AudioSeal localized audio watermarking — generator and detector checkpoints (MIT).",
-      "task_types": ["watermark-embed", "watermark-detect"],
-      "tags": ["watermark", "audioseal", "meta", "authenticity", "perception"],
+      "description": "Meta AudioSeal localized audio watermarking \u2014 generator and detector checkpoints (MIT).",
+      "task_types": [
+        "watermark-embed",
+        "watermark-detect"
+      ],
+      "tags": [
+        "watermark",
+        "audioseal",
+        "meta",
+        "authenticity",
+        "perception"
+      ],
       "author": "Meta FAIR",
       "license": {
         "spdx": "MIT",
@@ -716,13 +1208,21 @@
       },
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 120,
-      "compatible_nodes": ["EmbedWatermark", "DetectWatermark"],
+      "compatible_nodes": [
+        "EmbedWatermark",
+        "DetectWatermark"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "audioseal", "version": ">=0.1.6" }
+          {
+            "package": "audioseal",
+            "version": ">=0.1.6"
+          }
         ],
-        "verify_imports": ["audioseal"]
+        "verify_imports": [
+          "audioseal"
+        ]
       },
       "inference_params": [
         {
@@ -758,8 +1258,15 @@
       "trust": "verified",
       "name": "MusicGen Melody Small",
       "description": "Conditional music generation from transcribed MIDI melody plus text prompt (facebook/musicgen-melody).",
-      "task_types": ["midi-to-audio"],
-      "tags": ["musicgen", "melody", "midi-to-audio", "generation"],
+      "task_types": [
+        "midi-to-audio"
+      ],
+      "tags": [
+        "musicgen",
+        "melody",
+        "midi-to-audio",
+        "generation"
+      ],
       "author": "Meta",
       "license": {
         "spdx": "CC-BY-NC-4.0",
@@ -769,17 +1276,39 @@
       },
       "vram_gb_estimate": 4,
       "download_size_mb_estimate": 2400,
-      "compatible_nodes": ["MIDIToAudio"],
+      "compatible_nodes": [
+        "MIDIToAudio"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "torchaudio", "version": ">=2.0.0" },
-          { "package": "transformers", "version": ">=4.40.0" },
-          { "package": "accelerate", "version": ">=0.28.0" },
-          { "package": "pretty-midi", "version": ">=0.2.10" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.40.0"
+          },
+          {
+            "package": "accelerate",
+            "version": ">=0.28.0"
+          },
+          {
+            "package": "pretty-midi",
+            "version": ">=0.2.10"
+          }
         ],
-        "verify_imports": ["transformers", "torch", "torchaudio", "pretty_midi"]
+        "verify_imports": [
+          "transformers",
+          "torch",
+          "torchaudio",
+          "pretty_midi"
+        ]
       },
       "inference_params": [
         {
@@ -796,7 +1325,7 @@
           "default": 1.0,
           "min": 0.0,
           "max": 1.0,
-          "description": "Weight for MIDI→synth conditioner. Set 0 when wiring Demucs vocals to reference_audio (HF path)."
+          "description": "Weight for MIDI\u2192synth conditioner. Set 0 when wiring Demucs vocals to reference_audio (HF path)."
         },
         {
           "name": "reference_weight",
@@ -823,7 +1352,9 @@
           "description": "Sampling temperature. ~0.7 is a good MusicGen Melody default; 0 = greedy (often noisier); 1.0+ gets hissy."
         }
       ],
-      "similar_models": ["ace-step-1.5"]
+      "similar_models": [
+        "ace-step-1.5"
+      ]
     },
     {
       "id": "musicgen-small",
@@ -831,8 +1362,15 @@
       "trust": "verified",
       "name": "MusicGen Small",
       "description": "Text-conditioned music generation (facebook/musicgen-small).",
-      "task_types": ["music-generation", "generation"],
-      "tags": ["musicgen", "generation", "text-to-music"],
+      "task_types": [
+        "music-generation",
+        "generation"
+      ],
+      "tags": [
+        "musicgen",
+        "generation",
+        "text-to-music"
+      ],
       "author": "Meta",
       "license": {
         "spdx": "CC-BY-NC-4.0",
@@ -842,15 +1380,29 @@
       },
       "vram_gb_estimate": 4,
       "download_size_mb_estimate": 2400,
-      "compatible_nodes": ["GenerateAudio"],
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "transformers", "version": ">=4.40.0" },
-          { "package": "accelerate", "version": ">=0.28.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.40.0"
+          },
+          {
+            "package": "accelerate",
+            "version": ">=0.28.0"
+          }
         ],
-        "verify_imports": ["transformers", "torch"]
+        "verify_imports": [
+          "transformers",
+          "torch"
+        ]
       },
       "inference_params": [
         {
@@ -878,7 +1430,12 @@
           "description": "Sampling temperature (0 = deterministic)."
         }
       ],
-      "similar_models": ["musicgen-melody-small", "stable-audio-open-1.0", "ace-step-1.5", "ace-step-1.5-2b-turbo"]
+      "similar_models": [
+        "musicgen-melody-small",
+        "stable-audio-open-1.0",
+        "ace-step-1.5",
+        "ace-step-1.5-2b-turbo"
+      ]
     },
     {
       "id": "stable-audio-open-1.0",
@@ -886,8 +1443,18 @@
       "trust": "verified",
       "name": "Stable Audio Open 1.0",
       "description": "Text-to-audio / music generation (stabilityai/stable-audio-open-1.0). Accept the HF license and set a token in Settings for first download.",
-      "task_types": ["music-generation", "generation", "sfx"],
-      "tags": ["stable-audio", "generation", "text-to-music", "sfx", "stability"],
+      "task_types": [
+        "music-generation",
+        "generation",
+        "sfx"
+      ],
+      "tags": [
+        "stable-audio",
+        "generation",
+        "text-to-music",
+        "sfx",
+        "stability"
+      ],
       "author": "Stability AI",
       "license": {
         "spdx": "LicenseRef-StabilityAI-Community",
@@ -897,19 +1464,46 @@
       },
       "vram_gb_estimate": 8,
       "download_size_mb_estimate": 4500,
-      "compatible_nodes": ["GenerateAudio"],
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "torchaudio", "version": ">=2.0.0" },
-          { "package": "diffusers", "version": ">=0.30.0" },
-          { "package": "transformers", "version": ">=4.40.0" },
-          { "package": "accelerate", "version": ">=0.28.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" },
-          { "package": "torchsde", "version": ">=0.2.6" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "diffusers",
+            "version": ">=0.30.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.40.0"
+          },
+          {
+            "package": "accelerate",
+            "version": ">=0.28.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          },
+          {
+            "package": "torchsde",
+            "version": ">=0.2.6"
+          }
         ],
-        "verify_imports": ["diffusers", "torch", "torchsde"]
+        "verify_imports": [
+          "diffusers",
+          "torch",
+          "torchsde"
+        ]
       },
       "inference_params": [
         {
@@ -943,7 +1537,452 @@
           "description": "Concepts to avoid in the generation."
         }
       ],
-      "similar_models": ["musicgen-small", "musicgen-melody-small", "ace-step-1.5", "ace-step-1.5-2b-turbo"]
+      "similar_models": [
+        "stable-audio-3-small-music",
+        "stable-audio-3-small-sfx",
+        "stable-audio-open-small",
+        "musicgen-small",
+        "ace-step-1.5-2b-turbo"
+      ],
+      "compute": {
+        "runtimes": [
+          "cuda",
+          "cpu"
+        ],
+        "requires_cuda": false,
+        "label": "CUDA preferred \u00b7 ~8 GB VRAM"
+      }
+    },
+    {
+      "id": "stable-audio-3-small-music",
+      "status": "published",
+      "trust": "verified",
+      "name": "Stable Audio 3 Small Music",
+      "description": "CPU/MPS-friendly Stable Audio 3 music generator (stabilityai/stable-audio-3-small-music, ~433M). Up to ~120s @ 44.1 kHz stereo; ~8 steps. Installs stable-audio-3 from GitHub. Community license + Gemma ToU \u2014 accept on HF and set a token. Non-commercial by default.",
+      "task_types": [
+        "music-generation",
+        "generation"
+      ],
+      "tags": [
+        "stable-audio",
+        "stable-audio-3",
+        "generation",
+        "text-to-music",
+        "music",
+        "stability",
+        "small",
+        "cpu",
+        "mps"
+      ],
+      "author": "Stability AI",
+      "license": {
+        "spdx": "LicenseRef-StabilityAI-Community",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0,
+        "notes": "Also redistributes Gemma components under Gemma Terms of Use."
+      },
+      "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 3500,
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "einops",
+            "version": ">=0.8.0"
+          },
+          {
+            "package": "einops-exts",
+            "version": ">=0.0.4"
+          },
+          {
+            "package": "safetensors",
+            "version": ">=0.4.0"
+          },
+          {
+            "package": "huggingface_hub",
+            "version": ">=0.20.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.40.0"
+          },
+          {
+            "package": "soundfile",
+            "version": ">=0.12.0"
+          },
+          {
+            "package": "numpy",
+            "version": ">=1.24.0"
+          },
+          {
+            "package": "tqdm",
+            "version": ">=4.66.0"
+          },
+          {
+            "package": "stable-audio-3 @ git+https://github.com/Stability-AI/stable-audio-3.git",
+            "no_deps": true
+          }
+        ],
+        "verify_imports": [
+          "stable_audio_3",
+          "torch",
+          "einops"
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "seconds_total",
+          "type": "FLOAT",
+          "default": 8.0,
+          "min": 1.0,
+          "max": 120.0,
+          "description": "Output duration in seconds (model max ~120s)."
+        },
+        {
+          "name": "num_inference_steps",
+          "type": "INT",
+          "default": 8,
+          "min": 4,
+          "max": 32,
+          "description": "Diffusion steps (post-trained Small is tuned for ~8)."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "CFG scale (post-trained Small defaults to 1.0)."
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "default": "Low quality, harsh distortion.",
+          "description": "Concepts to avoid."
+        }
+      ],
+      "similar_models": [
+        "stable-audio-3-small-sfx",
+        "stable-audio-open-1.0",
+        "ace-step-1.5-sft"
+      ],
+      "compute": {
+        "runtimes": [
+          "mps",
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "Apple Silicon (MPS) / CPU / CUDA \u00b7 ~2 GB"
+      }
+    },
+    {
+      "id": "stable-audio-3-small-sfx",
+      "status": "published",
+      "trust": "verified",
+      "name": "Stable Audio 3 Small SFX",
+      "description": "CPU/MPS-friendly Stable Audio 3 sound-effects generator (stabilityai/stable-audio-3-small-sfx, ~433M). Up to ~120s @ 44.1 kHz stereo; ~8 steps. Installs stable-audio-3 from GitHub. Community license + Gemma ToU \u2014 accept on HF and set a token. Non-commercial by default.",
+      "task_types": [
+        "sfx",
+        "generation"
+      ],
+      "tags": [
+        "stable-audio",
+        "stable-audio-3",
+        "generation",
+        "sfx",
+        "foley",
+        "stability",
+        "small",
+        "cpu",
+        "mps"
+      ],
+      "author": "Stability AI",
+      "license": {
+        "spdx": "LicenseRef-StabilityAI-Community",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0,
+        "notes": "Also redistributes Gemma components under Gemma Terms of Use."
+      },
+      "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 3500,
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "einops",
+            "version": ">=0.8.0"
+          },
+          {
+            "package": "einops-exts",
+            "version": ">=0.0.4"
+          },
+          {
+            "package": "safetensors",
+            "version": ">=0.4.0"
+          },
+          {
+            "package": "huggingface_hub",
+            "version": ">=0.20.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.40.0"
+          },
+          {
+            "package": "soundfile",
+            "version": ">=0.12.0"
+          },
+          {
+            "package": "numpy",
+            "version": ">=1.24.0"
+          },
+          {
+            "package": "tqdm",
+            "version": ">=4.66.0"
+          },
+          {
+            "package": "stable-audio-3 @ git+https://github.com/Stability-AI/stable-audio-3.git",
+            "no_deps": true
+          }
+        ],
+        "verify_imports": [
+          "stable_audio_3",
+          "torch",
+          "einops"
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "seconds_total",
+          "type": "FLOAT",
+          "default": 8.0,
+          "min": 1.0,
+          "max": 120.0,
+          "description": "Output duration in seconds (model max ~120s)."
+        },
+        {
+          "name": "num_inference_steps",
+          "type": "INT",
+          "default": 8,
+          "min": 4,
+          "max": 32,
+          "description": "Diffusion steps (post-trained Small is tuned for ~8)."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "CFG scale (post-trained Small defaults to 1.0)."
+        },
+        {
+          "name": "negative_prompt",
+          "type": "STRING",
+          "default": "Low quality, harsh distortion, music, melody.",
+          "description": "Concepts to avoid (keep SFX non-musical)."
+        }
+      ],
+      "similar_models": [
+        "stable-audio-3-small-music",
+        "stable-audio-open-1.0",
+        "diff-foley"
+      ],
+      "compute": {
+        "runtimes": [
+          "mps",
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "Apple Silicon (MPS) / CPU / CUDA \u00b7 ~2 GB"
+      }
+    },
+    {
+      "id": "stable-audio-open-small",
+      "status": "published",
+      "trust": "verified",
+      "name": "Stable Audio Open Small",
+      "description": "Smallest Stability AI local text-to-audio pack (stabilityai/stable-audio-open-small) via stable-audio-tools. Up to ~11s stereo @ 44.1 kHz; ~8 steps. Accept the HF Community license and set a token in Settings. Non-commercial by default \u2014 see stability.ai/license for commercial terms. Install uses no_deps + modern PyWavelets (upstream pins PyWavelets==1.4.1 which fails on Python 3.12).",
+      "task_types": [
+        "music-generation",
+        "generation",
+        "sfx"
+      ],
+      "tags": [
+        "stable-audio",
+        "generation",
+        "text-to-music",
+        "sfx",
+        "stability",
+        "small",
+        "local"
+      ],
+      "author": "Stability AI",
+      "license": {
+        "spdx": "LicenseRef-StabilityAI-Community",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 5000,
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "PyWavelets",
+            "version": ">=1.5.0"
+          },
+          {
+            "package": "einops",
+            "version": ">=0.7.0"
+          },
+          {
+            "package": "einops-exts",
+            "version": ">=0.0.4"
+          },
+          {
+            "package": "safetensors",
+            "version": ">=0.4.0"
+          },
+          {
+            "package": "scipy",
+            "version": ">=1.10.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          },
+          {
+            "package": "soxr",
+            "version": ">=0.3.0"
+          },
+          {
+            "package": "huggingface_hub",
+            "version": ">=0.20.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.40.0"
+          },
+          {
+            "package": "torchsde",
+            "version": ">=0.2.6"
+          },
+          {
+            "package": "alias-free-torch",
+            "version": "==0.0.6"
+          },
+          {
+            "package": "v-diffusion-pytorch",
+            "version": "==0.0.2"
+          },
+          {
+            "package": "vector-quantize-pytorch",
+            "version": ">=1.14.0"
+          },
+          {
+            "package": "nnAudio",
+            "version": ">=0.3.0"
+          },
+          {
+            "package": "dill",
+            "version": ">=0.3.0"
+          },
+          {
+            "package": "importlib-resources",
+            "version": ">=5.12.0"
+          },
+          {
+            "package": "stable-audio-tools",
+            "version": ">=0.0.16",
+            "no_deps": true
+          }
+        ],
+        "verify_imports": [
+          "stable_audio_tools",
+          "torch",
+          "einops",
+          "pywt"
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "seconds_total",
+          "type": "FLOAT",
+          "default": 8.0,
+          "min": 1.0,
+          "max": 11.0,
+          "description": "Output duration in seconds (model max ~11s)."
+        },
+        {
+          "name": "num_inference_steps",
+          "type": "INT",
+          "default": 8,
+          "min": 4,
+          "max": 32,
+          "description": "Diffusion steps (Small is tuned for ~8 with pingpong)."
+        },
+        {
+          "name": "guidance_scale",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 15.0,
+          "description": "CFG scale (Small defaults to 1.0)."
+        }
+      ],
+      "similar_models": [
+        "stable-audio-3-small-music",
+        "stable-audio-3-small-sfx",
+        "stable-audio-open-1.0",
+        "musicgen-small"
+      ],
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "CPU / CUDA \u00b7 ~4 GB"
+      }
     },
     {
       "id": "ace-step-1.5",
@@ -951,8 +1990,17 @@
       "trust": "verified",
       "name": "ACE-Step 1.5",
       "description": "Open text-to-music with optional lyrics (ACE-Step/acestep-v15-xl-turbo-diffusers). Larger XL turbo (~11GB). For lighter demos prefer ace-step-1.5-2b-turbo (~6.3GB). MIT weights; ~8 steps. Prefer NVIDIA CUDA.",
-      "task_types": ["music-generation", "generation"],
-      "tags": ["ace-step", "generation", "text-to-music", "lyrics", "dit"],
+      "task_types": [
+        "music-generation",
+        "generation"
+      ],
+      "tags": [
+        "ace-step",
+        "generation",
+        "text-to-music",
+        "lyrics",
+        "dit"
+      ],
       "author": "ACE-Step",
       "license": {
         "spdx": "MIT",
@@ -962,17 +2010,37 @@
       },
       "vram_gb_estimate": 12,
       "download_size_mb_estimate": 10000,
-      "compatible_nodes": ["GenerateAudio"],
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "diffusers", "version": ">=0.39.0" },
-          { "package": "transformers", "version": ">=4.45.0" },
-          { "package": "accelerate", "version": ">=0.28.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "diffusers",
+            "version": ">=0.39.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.45.0"
+          },
+          {
+            "package": "accelerate",
+            "version": ">=0.28.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          }
         ],
-        "verify_imports": ["diffusers", "torch"]
+        "verify_imports": [
+          "diffusers",
+          "torch"
+        ]
       },
       "inference_params": [
         {
@@ -981,7 +2049,7 @@
           "default": 15.0,
           "min": 10.0,
           "max": 120.0,
-          "description": "Output duration in seconds (hero demos: 15–30; model supports longer)."
+          "description": "Output duration in seconds (hero demos: 15\u201330; model supports longer)."
         },
         {
           "name": "num_inference_steps",
@@ -1006,16 +2074,40 @@
           "description": "Optional structured lyrics (e.g. [verse] / [chorus]). Empty = instrumental-leaning."
         }
       ],
-      "similar_models": ["musicgen-small", "stable-audio-open-1.0", "ace-step-1.5-2b-turbo", "ace-step-1.5-sft"]
+      "similar_models": [
+        "musicgen-small",
+        "stable-audio-open-1.0",
+        "ace-step-1.5-2b-turbo",
+        "ace-step-1.5-sft"
+      ],
+      "compute": {
+        "runtimes": [
+          "cuda"
+        ],
+        "requires_cuda": true,
+        "label": "CUDA preferred \u00b7 ~12 GB VRAM"
+      }
     },
     {
       "id": "ace-step-1.5-sft",
       "status": "published",
       "trust": "verified",
       "name": "ACE-Step 1.5 SFT",
-      "description": "Supervised fine-tuned ACE-Step 1.5 Diffusers pack (Runware/acestep-v15-sft-diffusers, ~2B / ~6.3GB). Not guidance-distilled — use ~50 steps and guidance_scale≈7. Lighter than XL SFT for demos/Mac; still prefers NVIDIA CUDA (CPU float32 is slow and RAM-heavy). MIT-class weights.",
-      "task_types": ["music-generation", "generation"],
-      "tags": ["ace-step", "generation", "text-to-music", "lyrics", "dit", "sft", "cfg", "2b"],
+      "description": "Supervised fine-tuned ACE-Step 1.5 Diffusers pack (Runware/acestep-v15-sft-diffusers, ~2B / ~6.3GB). Not guidance-distilled \u2014 use ~50 steps and guidance_scale\u22487. Prefer NVIDIA CUDA. On Mac/CPU, real inference needs ~12 GB available (free/reclaimable) RAM \u2014 not total installed \u2014 or Render refuses; use Settings \u2192 Inference \u2192 Stub to explore the patch. MIT-class weights.",
+      "task_types": [
+        "music-generation",
+        "generation"
+      ],
+      "tags": [
+        "ace-step",
+        "generation",
+        "text-to-music",
+        "lyrics",
+        "dit",
+        "sft",
+        "cfg",
+        "2b"
+      ],
       "author": "ACE-Step",
       "license": {
         "spdx": "MIT",
@@ -1025,17 +2117,37 @@
       },
       "vram_gb_estimate": 8,
       "download_size_mb_estimate": 6300,
-      "compatible_nodes": ["GenerateAudio"],
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "diffusers", "version": ">=0.39.0" },
-          { "package": "transformers", "version": ">=4.45.0" },
-          { "package": "accelerate", "version": ">=0.28.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "diffusers",
+            "version": ">=0.39.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.45.0"
+          },
+          {
+            "package": "accelerate",
+            "version": ">=0.28.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          }
         ],
-        "verify_imports": ["diffusers", "torch"]
+        "verify_imports": [
+          "diffusers",
+          "torch"
+        ]
       },
       "inference_params": [
         {
@@ -1044,7 +2156,7 @@
           "default": 15.0,
           "min": 10.0,
           "max": 120.0,
-          "description": "Output duration in seconds (demos: 15–30)."
+          "description": "Output duration in seconds (demos: 15\u201330)."
         },
         {
           "name": "num_inference_steps",
@@ -1060,7 +2172,7 @@
           "default": 7.0,
           "min": 1.0,
           "max": 15.0,
-          "description": "CFG / APG strength (SFT supports guidance; try 5–9)."
+          "description": "CFG / APG strength (SFT supports guidance; try 5\u20139)."
         },
         {
           "name": "lyrics",
@@ -1069,16 +2181,40 @@
           "description": "Optional structured lyrics (e.g. [verse] / [chorus]). Empty = instrumental-leaning."
         }
       ],
-      "similar_models": ["ace-step-1.5", "ace-step-1.5-2b-turbo", "musicgen-small", "stable-audio-open-1.0"]
+      "similar_models": [
+        "ace-step-1.5",
+        "ace-step-1.5-2b-turbo",
+        "musicgen-small",
+        "stable-audio-open-1.0"
+      ],
+      "compute": {
+        "runtimes": [
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "CUDA preferred \u00b7 Mac CPU needs ~12 GB free RAM",
+        "memory_note": "~6.3 GB weights; Mac CPU needs ~12 GB available RAM (hostile on 16 GB laptops)"
+      }
     },
     {
       "id": "ace-step-1.5-2b-turbo",
       "status": "published",
       "trust": "verified",
       "name": "ACE-Step 1.5 2B Turbo",
-      "description": "Smallest ACE-Step 1.5 Diffusers pack for demos (~6.3GB; Runware/acestep-v15-turbo-diffusers — 2B turbo DiT, ~8 steps, optional lyrics). Prefer this over XL on limited disk/VRAM. MIT-class ACE-Step weights.",
-      "task_types": ["music-generation", "generation"],
-      "tags": ["ace-step", "generation", "text-to-music", "lyrics", "dit", "turbo", "2b"],
+      "description": "Smallest ACE-Step 1.5 Diffusers pack for demos (~6.3GB; Runware/acestep-v15-turbo-diffusers \u2014 2B turbo DiT, ~8 steps, optional lyrics). Prefer this over XL on limited disk/VRAM. MIT-class ACE-Step weights.",
+      "task_types": [
+        "music-generation",
+        "generation"
+      ],
+      "tags": [
+        "ace-step",
+        "generation",
+        "text-to-music",
+        "lyrics",
+        "dit",
+        "turbo",
+        "2b"
+      ],
       "author": "ACE-Step",
       "license": {
         "spdx": "MIT",
@@ -1088,17 +2224,37 @@
       },
       "vram_gb_estimate": 8,
       "download_size_mb_estimate": 6300,
-      "compatible_nodes": ["GenerateAudio"],
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "diffusers", "version": ">=0.39.0" },
-          { "package": "transformers", "version": ">=4.45.0" },
-          { "package": "accelerate", "version": ">=0.28.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "diffusers",
+            "version": ">=0.39.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.45.0"
+          },
+          {
+            "package": "accelerate",
+            "version": ">=0.28.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          }
         ],
-        "verify_imports": ["diffusers", "torch"]
+        "verify_imports": [
+          "diffusers",
+          "torch"
+        ]
       },
       "inference_params": [
         {
@@ -1107,7 +2263,7 @@
           "default": 15.0,
           "min": 10.0,
           "max": 120.0,
-          "description": "Output duration in seconds (demos: 15–30)."
+          "description": "Output duration in seconds (demos: 15\u201330)."
         },
         {
           "name": "num_inference_steps",
@@ -1132,7 +2288,19 @@
           "description": "Optional structured lyrics (e.g. [verse] / [chorus]). Empty = instrumental-leaning."
         }
       ],
-      "similar_models": ["ace-step-1.5", "ace-step-1.5-sft", "musicgen-small", "stable-audio-open-1.0"]
+      "similar_models": [
+        "ace-step-1.5",
+        "ace-step-1.5-sft",
+        "musicgen-small",
+        "stable-audio-open-1.0"
+      ],
+      "compute": {
+        "runtimes": [
+          "cuda"
+        ],
+        "requires_cuda": true,
+        "label": "CUDA preferred \u00b7 ~6 GB VRAM"
+      }
     },
     {
       "id": "diffsinger-opencpop",
@@ -1140,8 +2308,16 @@
       "trust": "verified",
       "name": "DiffSinger OpenCPOP",
       "description": "Singing voice synthesis from MIDI melody and lyrics (dev stub).",
-      "task_types": ["singing-synthesis", "midi-to-audio"],
-      "tags": ["diffsinger", "singing", "vocal", "midi"],
+      "task_types": [
+        "singing-synthesis",
+        "midi-to-audio"
+      ],
+      "tags": [
+        "diffsinger",
+        "singing",
+        "vocal",
+        "midi"
+      ],
       "author": "DiffSinger",
       "license": {
         "spdx": "MIT",
@@ -1151,8 +2327,12 @@
       },
       "vram_gb_estimate": 4,
       "download_size_mb_estimate": 800,
-      "compatible_nodes": ["SingFromMIDI"],
-      "install": { "dev_stub": true },
+      "compatible_nodes": [
+        "SingFromMIDI"
+      ],
+      "install": {
+        "dev_stub": true
+      },
       "similar_models": []
     },
     {
@@ -1161,8 +2341,19 @@
       "trust": "verified",
       "name": "Diff-Foley",
       "description": "Synchronized video-to-audio Foley (luosiallen/Diff-Foley, NeurIPS 2023). Code Apache-2.0; weights MIT on Hugging Face (SimianLuo/Diff-Foley). Commercial-friendly V2A (~16 kHz). Install pulls Python deps; ~6GB checkpoints download on first real inference.",
-      "task_types": ["video-to-audio", "sfx"],
-      "tags": ["diff-foley", "video-to-audio", "foley", "sfx", "sync", "generation", "commercial-ok"],
+      "task_types": [
+        "video-to-audio",
+        "sfx"
+      ],
+      "tags": [
+        "diff-foley",
+        "video-to-audio",
+        "foley",
+        "sfx",
+        "sync",
+        "generation",
+        "commercial-ok"
+      ],
       "author": "Simian Luo et al.",
       "license": {
         "spdx": "MIT",
@@ -1174,18 +2365,43 @@
       },
       "vram_gb_estimate": 12,
       "download_size_mb_estimate": 6100,
-      "compatible_nodes": ["Video2Audio"],
+      "compatible_nodes": [
+        "Video2Audio"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "torchaudio", "version": ">=2.0.0" },
-          { "package": "omegaconf", "version": ">=2.1.0" },
-          { "package": "librosa", "version": ">=0.9.0" },
-          { "package": "soundfile", "version": ">=0.12.0" },
-          { "package": "einops", "version": ">=0.6.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "omegaconf",
+            "version": ">=2.1.0"
+          },
+          {
+            "package": "librosa",
+            "version": ">=0.9.0"
+          },
+          {
+            "package": "soundfile",
+            "version": ">=0.12.0"
+          },
+          {
+            "package": "einops",
+            "version": ">=0.6.0"
+          }
         ],
-        "verify_imports": ["torch", "librosa", "soundfile", "omegaconf"]
+        "verify_imports": [
+          "torch",
+          "librosa",
+          "soundfile",
+          "omegaconf"
+        ]
       },
       "inference_params": [
         {
@@ -1214,16 +2430,31 @@
         }
       ],
       "similar_models": [],
-      "architecture_notes": "Video2Audio backend (video-conditioned; text prompt ignored). Stage1 CAVP + Stage2 LDM + Griffin-Lim @ 16 kHz. Research notebook pipeline; runner clones luosiallen/Diff-Foley and pulls HF ckpts on first real inference."
+      "architecture_notes": "Video2Audio backend (video-conditioned; text prompt ignored). Stage1 CAVP + Stage2 LDM + Griffin-Lim @ 16 kHz. Research notebook pipeline; runner clones luosiallen/Diff-Foley and pulls HF ckpts on first real inference.",
+      "compute": {
+        "runtimes": [
+          "cuda"
+        ],
+        "requires_cuda": true,
+        "label": "CUDA required \u00b7 ~6 GB VRAM"
+      }
     },
     {
       "id": "demucs-v4-objects",
       "status": "published",
       "trust": "verified",
-      "name": "Demucs v4 → Objects",
+      "name": "Demucs v4 \u2192 Objects",
       "description": "Stem separation mapped to spatial objects (aliases demucs-v4 weights).",
-      "task_types": ["scene-to-objects", "stem-separation"],
-      "tags": ["demucs", "stems", "oba", "spatial"],
+      "task_types": [
+        "scene-to-objects",
+        "stem-separation"
+      ],
+      "tags": [
+        "demucs",
+        "stems",
+        "oba",
+        "spatial"
+      ],
       "author": "Meta",
       "license": {
         "spdx": "MIT",
@@ -1233,9 +2464,15 @@
       },
       "vram_gb_estimate": 6,
       "download_size_mb_estimate": 100,
-      "compatible_nodes": ["SeparateToObjects"],
-      "install": { "dev_stub": true },
-      "similar_models": ["demucs-v4"]
+      "compatible_nodes": [
+        "SeparateToObjects"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "demucs-v4"
+      ]
     },
     {
       "id": "object-placement-heuristic",
@@ -1243,8 +2480,14 @@
       "trust": "verified",
       "name": "Heuristic Object Placer",
       "description": "Spread spatial objects across the azimuth field without GPU.",
-      "task_types": ["object-placement"],
-      "tags": ["placement", "spatial", "heuristic"],
+      "task_types": [
+        "object-placement"
+      ],
+      "tags": [
+        "placement",
+        "spatial",
+        "heuristic"
+      ],
       "author": "GroovyUI",
       "license": {
         "spdx": "MIT",
@@ -1254,8 +2497,12 @@
       },
       "vram_gb_estimate": 0,
       "download_size_mb_estimate": 0,
-      "compatible_nodes": ["ObjectPlacement"],
-      "install": { "dev_stub": true },
+      "compatible_nodes": [
+        "ObjectPlacement"
+      ],
+      "install": {
+        "dev_stub": true
+      },
       "similar_models": []
     },
     {
@@ -1263,9 +2510,18 @@
       "status": "published",
       "trust": "verified",
       "name": "Helix v0.7 FOA Upmix",
-      "description": "Neural mono/stereo → first-order Ambisonics (FOA WXYZ SN3D) with trajectory conditioning. Public weights: huggingface.co/soundsol/helix-v0.7 (CC BY 4.0). Stub path uses DSP FOA encode along authored XYZ.",
-      "task_types": ["object-upmix", "ambisonic-upmix"],
-      "tags": ["helix", "ambisonics", "foa", "upmix", "spatial"],
+      "description": "Neural mono/stereo \u2192 first-order Ambisonics (FOA WXYZ SN3D) with trajectory conditioning. Public weights: huggingface.co/soundsol/helix-v0.7 (CC BY 4.0). Stub path uses DSP FOA encode along authored XYZ.",
+      "task_types": [
+        "object-upmix",
+        "ambisonic-upmix"
+      ],
+      "tags": [
+        "helix",
+        "ambisonics",
+        "foa",
+        "upmix",
+        "spatial"
+      ],
       "author": "SoundSol",
       "license": {
         "spdx": "CC-BY-4.0",
@@ -1275,10 +2531,14 @@
       },
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 10,
-      "compatible_nodes": ["AmbisonicUpmix"],
-      "install": { "dev_stub": true },
+      "compatible_nodes": [
+        "AmbisonicUpmix"
+      ],
+      "install": {
+        "dev_stub": true
+      },
       "similar_models": [],
-      "architecture_notes": "UNet1D + FiLM position conditioning → 4ch FOA. Studio stub encodes mono along the TRAJECTORY XYZ path."
+      "architecture_notes": "UNet1D + FiLM position conditioning \u2192 4ch FOA. Studio stub encodes mono along the TRAJECTORY XYZ path."
     },
     {
       "id": "dcase-seld-foa-multiaccdoa",
@@ -1286,8 +2546,18 @@
       "trust": "community",
       "name": "DCASE FOA Multi-ACCDOA SELD",
       "description": "Extract listener-relative XYZ DOA trajectories from FOA Ambisonics (Multi-ACCDOA). Based on DCASE SELD baselines (github.com/partha2409/DCASE2024_seld_baseline). Stub path uses FOA active-intensity DOA.",
-      "task_types": ["object-placement", "trajectory-extract"],
-      "tags": ["seld", "doa", "ambisonics", "foa", "trajectory", "spatial"],
+      "task_types": [
+        "object-placement",
+        "trajectory-extract"
+      ],
+      "tags": [
+        "seld",
+        "doa",
+        "ambisonics",
+        "foa",
+        "trajectory",
+        "spatial"
+      ],
       "author": "DCASE / Tampere",
       "license": {
         "spdx": "MIT",
@@ -1297,19 +2567,35 @@
       },
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 50,
-      "compatible_nodes": ["AmbisonicTrajectoryExtract"],
-      "install": { "dev_stub": true },
-      "similar_models": ["object-placement-heuristic"],
-      "architecture_notes": "CRNN + MHSA Multi-ACCDOA head → per-frame Cartesian XYZ. Stub uses intensity-vector DOA from W/X/Y/Z."
+      "compatible_nodes": [
+        "AmbisonicTrajectoryExtract"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "object-placement-heuristic"
+      ],
+      "architecture_notes": "CRNN + MHSA Multi-ACCDOA head \u2192 per-frame Cartesian XYZ. Stub uses intensity-vector DOA from W/X/Y/Z."
     },
     {
       "id": "stereo2spatial-v2-binaural",
       "status": "published",
       "trust": "verified",
       "name": "Stereo2Spatial v2 Binaural",
-      "description": "Neural stereo/mono → binaural headphones at 48 kHz (francislabounty/stereo2spatial-v2-binaural, Apache-2.0). SpatialDiT waveform flow (~1.1GB). Stub path (Inference=Stub or missing weights) uses Bauer crossfeed.",
-      "task_types": ["binaural-render", "object-render"],
-      "tags": ["binaural", "hrtf", "headphones", "spatial", "immersive", "stereo2spatial"],
+      "description": "Neural stereo/mono \u2192 binaural headphones at 48 kHz (francislabounty/stereo2spatial-v2-binaural, Apache-2.0). SpatialDiT waveform flow (~1.1GB). Stub path (Inference=Stub or missing weights) uses Bauer crossfeed.",
+      "task_types": [
+        "binaural-render",
+        "object-render"
+      ],
+      "tags": [
+        "binaural",
+        "hrtf",
+        "headphones",
+        "spatial",
+        "immersive",
+        "stereo2spatial"
+      ],
       "author": "Francis Labounty",
       "license": {
         "spdx": "Apache-2.0",
@@ -1319,18 +2605,33 @@
       },
       "vram_gb_estimate": 6,
       "download_size_mb_estimate": 1100,
-      "compatible_nodes": ["BinauralRender"],
+      "compatible_nodes": [
+        "BinauralRender"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
           {
             "package": "stereo2spatial[legacy-vae] @ git+https://github.com/francislabountyjr/stereo2spatial.git"
           },
-          { "package": "torch", "version": ">=2.1.0" },
-          { "package": "torchaudio", "version": ">=2.1.0" },
-          { "package": "safetensors", "version": ">=0.4.0" }
+          {
+            "package": "torch",
+            "version": ">=2.1.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.1.0"
+          },
+          {
+            "package": "safetensors",
+            "version": ">=0.4.0"
+          }
         ],
-        "verify_imports": ["stereo2spatial", "torch", "safetensors"],
+        "verify_imports": [
+          "stereo2spatial",
+          "torch",
+          "safetensors"
+        ],
         "weights": [
           {
             "url": "https://huggingface.co/francislabounty/stereo2spatial-v2-binaural/resolve/main/config.json",
@@ -1342,8 +2643,10 @@
           }
         ]
       },
-      "similar_models": ["hrtf-binaural-v0"],
-      "architecture_notes": "SpatialDiT waveform → 2ch binaural FL/FR. Install pulls HF bundle; Inference=Stub keeps CI on crossfeed."
+      "similar_models": [
+        "hrtf-binaural-v0"
+      ],
+      "architecture_notes": "SpatialDiT waveform \u2192 2ch binaural FL/FR. Install pulls HF bundle; Inference=Stub keeps CI on crossfeed."
     },
     {
       "id": "hrtf-binaural-v0",
@@ -1351,8 +2654,18 @@
       "trust": "verified",
       "name": "HRTF Binaural v0 (stub)",
       "description": "Deterministic Bauer crossfeed binaural stand-in. No applicable open neural model without attribution yet; stereo2spatial-v2 remains optional (Apache-2.0).",
-      "task_types": ["binaural-render", "object-render"],
-      "tags": ["binaural", "hrtf", "headphones", "spatial", "immersive", "stub"],
+      "task_types": [
+        "binaural-render",
+        "object-render"
+      ],
+      "tags": [
+        "binaural",
+        "hrtf",
+        "headphones",
+        "spatial",
+        "immersive",
+        "stub"
+      ],
       "author": "GroovyUI",
       "license": {
         "spdx": "MIT",
@@ -1362,9 +2675,15 @@
       },
       "vram_gb_estimate": 0,
       "download_size_mb_estimate": 0,
-      "compatible_nodes": ["BinauralRender"],
-      "install": { "dev_stub": true },
-      "similar_models": ["stereo2spatial-v2-binaural"],
+      "compatible_nodes": [
+        "BinauralRender"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "stereo2spatial-v2-binaural"
+      ],
       "architecture_notes": "CI stub: crossfeed + contralateral HF shelf."
     },
     {
@@ -1372,9 +2691,20 @@
       "status": "published",
       "trust": "verified",
       "name": "Stereo2Spatial v1 (7.1.4)",
-      "description": "Neural stereo/mono → Dolby Atmos 7.1.4 bed (12ch) at 48 kHz (francislabounty/stereo2spatial-v1, Apache-2.0). SpatialDiT + EAR-VAE (~2.1GB). Stub path uses mid/side height bleed.",
-      "task_types": ["object-upmix", "channel-upmix"],
-      "tags": ["atmos", "7.1.4", "upmix", "immersive", "spatial", "bed", "stereo2spatial"],
+      "description": "Neural stereo/mono \u2192 Dolby Atmos 7.1.4 bed (12ch) at 48 kHz (francislabounty/stereo2spatial-v1, Apache-2.0). SpatialDiT + EAR-VAE (~2.1GB). Stub path uses mid/side height bleed.",
+      "task_types": [
+        "object-upmix",
+        "channel-upmix"
+      ],
+      "tags": [
+        "atmos",
+        "7.1.4",
+        "upmix",
+        "immersive",
+        "spatial",
+        "bed",
+        "stereo2spatial"
+      ],
       "author": "Francis Labounty",
       "license": {
         "spdx": "Apache-2.0",
@@ -1384,18 +2714,33 @@
       },
       "vram_gb_estimate": 8,
       "download_size_mb_estimate": 2100,
-      "compatible_nodes": ["SpatialUpmix"],
+      "compatible_nodes": [
+        "SpatialUpmix"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
           {
             "package": "stereo2spatial[legacy-vae] @ git+https://github.com/francislabountyjr/stereo2spatial.git"
           },
-          { "package": "torch", "version": ">=2.1.0" },
-          { "package": "torchaudio", "version": ">=2.1.0" },
-          { "package": "safetensors", "version": ">=0.4.0" }
+          {
+            "package": "torch",
+            "version": ">=2.1.0"
+          },
+          {
+            "package": "torchaudio",
+            "version": ">=2.1.0"
+          },
+          {
+            "package": "safetensors",
+            "version": ">=0.4.0"
+          }
         ],
-        "verify_imports": ["stereo2spatial", "torch", "safetensors"],
+        "verify_imports": [
+          "stereo2spatial",
+          "torch",
+          "safetensors"
+        ],
         "weights": [
           {
             "url": "https://huggingface.co/francislabounty/stereo2spatial-v1/resolve/main/config.json",
@@ -1415,17 +2760,31 @@
           }
         ]
       },
-      "similar_models": ["stereo-atmos-bed-v0", "helix-v0.7"],
-      "architecture_notes": "Legacy SpatialDiT + EAR-VAE → FL FR FC LFE BL BR SL SR TFL TFR TBL TBR. Preview via ChannelConvert→stereo."
+      "similar_models": [
+        "stereo-atmos-bed-v0",
+        "helix-v0.7"
+      ],
+      "architecture_notes": "Legacy SpatialDiT + EAR-VAE \u2192 FL FR FC LFE BL BR SL SR TFL TFR TBL TBR. Preview via ChannelConvert\u2192stereo."
     },
     {
       "id": "stereo-atmos-bed-v0",
       "status": "published",
       "trust": "verified",
-      "name": "Stereo → Atmos Bed v0 (stub)",
-      "description": "Deterministic mid/side + height bleed → 7.1.4. No applicable open neural model without attribution yet; stereo2spatial-v1 remains optional (Apache-2.0).",
-      "task_types": ["object-upmix", "channel-upmix"],
-      "tags": ["atmos", "7.1.4", "upmix", "immersive", "spatial", "bed", "stub"],
+      "name": "Stereo \u2192 Atmos Bed v0 (stub)",
+      "description": "Deterministic mid/side + height bleed \u2192 7.1.4. No applicable open neural model without attribution yet; stereo2spatial-v1 remains optional (Apache-2.0).",
+      "task_types": [
+        "object-upmix",
+        "channel-upmix"
+      ],
+      "tags": [
+        "atmos",
+        "7.1.4",
+        "upmix",
+        "immersive",
+        "spatial",
+        "bed",
+        "stub"
+      ],
       "author": "GroovyUI",
       "license": {
         "spdx": "MIT",
@@ -1435,9 +2794,16 @@
       },
       "vram_gb_estimate": 0,
       "download_size_mb_estimate": 0,
-      "compatible_nodes": ["SpatialUpmix"],
-      "install": { "dev_stub": true },
-      "similar_models": ["stereo2spatial-v1", "helix-v0.7"],
+      "compatible_nodes": [
+        "SpatialUpmix"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "stereo2spatial-v1",
+        "helix-v0.7"
+      ],
       "architecture_notes": "CI stub: spreads L/R into bed channels."
     },
     {
@@ -1446,8 +2812,14 @@
       "trust": "verified",
       "name": "Groovy Verify Weights",
       "description": "Tiny bundled weights file for real install-path verification in CI (not a user-facing AI model).",
-      "task_types": ["verification"],
-      "tags": ["verify", "bundle", "ci"],
+      "task_types": [
+        "verification"
+      ],
+      "tags": [
+        "verify",
+        "bundle",
+        "ci"
+      ],
       "author": "GroovyUI",
       "license": {
         "spdx": "Apache-2.0",
@@ -1476,8 +2848,16 @@
       "trust": "verified",
       "name": "Groovy Signal Diff",
       "description": "Compare loudness, dynamics, duration, and waveform shape between two rendered clips.",
-      "task_types": ["audio-compare"],
-      "tags": ["compare", "ab", "loudness", "waveform", "analysis"],
+      "task_types": [
+        "audio-compare"
+      ],
+      "tags": [
+        "compare",
+        "ab",
+        "loudness",
+        "waveform",
+        "analysis"
+      ],
       "author": "GroovyUI",
       "license": {
         "spdx": "MIT",
@@ -1488,8 +2868,12 @@
       "vram_gb_estimate": 0,
       "download_size_mb_estimate": 0,
       "compatible_nodes": [],
-      "install": { "dev_stub": true },
-      "similar_models": ["whisper-ab-compare"]
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "whisper-ab-compare"
+      ]
     },
     {
       "id": "whisper-ab-compare",
@@ -1497,8 +2881,16 @@
       "trust": "verified",
       "name": "Whisper A/B Compare",
       "description": "Transcribe both clips and summarize spoken differences alongside signal metrics.",
-      "task_types": ["audio-compare"],
-      "tags": ["compare", "ab", "transcribe", "stt", "analysis"],
+      "task_types": [
+        "audio-compare"
+      ],
+      "tags": [
+        "compare",
+        "ab",
+        "transcribe",
+        "stt",
+        "analysis"
+      ],
       "author": "GroovyUI",
       "license": {
         "spdx": "MIT",
@@ -1509,17 +2901,34 @@
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 500,
       "compatible_nodes": [],
-      "install": { "dev_stub": true },
-      "similar_models": ["groovy-signal-diff", "whisper-large-v3-turbo", "whisper-small-en"]
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "groovy-signal-diff",
+        "whisper-large-v3-turbo",
+        "whisper-small-en"
+      ]
     },
     {
       "id": "seamless-m4t-v2-large",
       "status": "published",
       "trust": "verified",
       "name": "SeamlessM4T v2 Large",
-      "description": "Speech-to-speech translation for language localization (facebook/seamless-m4t-v2-large). Source dialogue → target-language speech. CC-BY-NC — non-commercial; attribution required. First Real download is multi‑GB.",
-      "task_types": ["speech-translation", "localization", "conversion"],
-      "tags": ["seamless", "s2st", "translation", "localization", "multilingual", "meta"],
+      "description": "Speech-to-speech translation for language localization (facebook/seamless-m4t-v2-large). Source dialogue \u2192 target-language speech. CC-BY-NC \u2014 non-commercial; attribution required. First Real download is multi\u2011GB.",
+      "task_types": [
+        "speech-translation",
+        "localization",
+        "conversion"
+      ],
+      "tags": [
+        "seamless",
+        "s2st",
+        "translation",
+        "localization",
+        "multilingual",
+        "meta"
+      ],
       "author": "Meta",
       "license": {
         "spdx": "CC-BY-NC-4.0",
@@ -1529,16 +2938,33 @@
       },
       "vram_gb_estimate": 12,
       "download_size_mb_estimate": 9000,
-      "compatible_nodes": ["SpeechTranslate"],
+      "compatible_nodes": [
+        "SpeechTranslate"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "transformers", "version": ">=4.42.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" },
-          { "package": "accelerate", "version": ">=0.28.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.42.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          },
+          {
+            "package": "accelerate",
+            "version": ">=0.28.0"
+          }
         ],
-        "verify_imports": ["transformers", "torch"]
+        "verify_imports": [
+          "transformers",
+          "torch"
+        ]
       },
       "inference_params": [
         {
@@ -1559,14 +2985,26 @@
           "default": 0,
           "min": 0,
           "max": 199,
-          "description": "Vocoder speaker id (0–199). Not source-voice clone; try other IDs if gender/timbre is off. No official gender map from Meta."
+          "description": "Vocoder speaker id (0\u2013199). Not source-voice clone; try other IDs if gender/timbre is off. No official gender map from Meta."
         }
       ],
-      "architecture_notes": "SeamlessM4T v2: speech → multilingual encoder → speech decoder (S2ST) for localization.",
+      "architecture_notes": "SeamlessM4T v2: speech \u2192 multilingual encoder \u2192 speech decoder (S2ST) for localization.",
       "internal_connections": [
-        { "from": "source speech", "to": "encoder", "label": "16 kHz features" },
-        { "from": "encoder", "to": "speech decoder", "label": "tgt_lang" },
-        { "from": "speech decoder", "to": "translated speech", "label": "waveform" }
+        {
+          "from": "source speech",
+          "to": "encoder",
+          "label": "16 kHz features"
+        },
+        {
+          "from": "encoder",
+          "to": "speech decoder",
+          "label": "tgt_lang"
+        },
+        {
+          "from": "speech decoder",
+          "to": "translated speech",
+          "label": "waveform"
+        }
       ],
       "similar_models": []
     },
@@ -1575,9 +3013,19 @@
       "status": "published",
       "trust": "verified",
       "name": "M2M100 418M",
-      "description": "Many-to-many text translation across ~100 languages (facebook/m2m100_418M). MIT — commercial OK. Mac-friendly default for TranslateText after Whisper.",
-      "task_types": ["text-translation", "localization"],
-      "tags": ["translation", "text-mt", "m2m100", "multilingual", "commercial", "meta"],
+      "description": "Many-to-many text translation across ~100 languages (facebook/m2m100_418M). MIT \u2014 commercial OK. Mac-friendly default for TranslateText after Whisper.",
+      "task_types": [
+        "text-translation",
+        "localization"
+      ],
+      "tags": [
+        "translation",
+        "text-mt",
+        "m2m100",
+        "multilingual",
+        "commercial",
+        "meta"
+      ],
       "author": "Meta",
       "license": {
         "spdx": "MIT",
@@ -1587,46 +3035,87 @@
       },
       "vram_gb_estimate": 2,
       "download_size_mb_estimate": 1900,
-      "compatible_nodes": ["TranslateText"],
+      "compatible_nodes": [
+        "TranslateText"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "transformers", "version": ">=4.36.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.36.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          }
         ],
-        "verify_imports": ["transformers", "torch", "sentencepiece"]
+        "verify_imports": [
+          "transformers",
+          "torch",
+          "sentencepiece"
+        ]
       },
       "inference_params": [
         {
           "name": "src_lang",
           "type": "STRING",
           "default": "en",
-          "description": "Source language (ISO 639-1: en, es, fr, …)."
+          "description": "Source language (ISO 639-1: en, es, fr, \u2026)."
         },
         {
           "name": "tgt_lang",
           "type": "STRING",
           "default": "zh",
-          "description": "Target language (ISO 639-1: zh, en, es, fr, …)."
+          "description": "Target language (ISO 639-1: zh, en, es, fr, \u2026)."
         }
       ],
-      "architecture_notes": "M2M100 encoder-decoder: source text + forced_bos target lang id → translated text.",
+      "architecture_notes": "M2M100 encoder-decoder: source text + forced_bos target lang id \u2192 translated text.",
       "internal_connections": [
-        { "from": "source text", "to": "encoder", "label": "src_lang" },
-        { "from": "encoder", "to": "decoder", "label": "forced_bos tgt" },
-        { "from": "decoder", "to": "translated text", "label": "tokens" }
+        {
+          "from": "source text",
+          "to": "encoder",
+          "label": "src_lang"
+        },
+        {
+          "from": "encoder",
+          "to": "decoder",
+          "label": "forced_bos tgt"
+        },
+        {
+          "from": "decoder",
+          "to": "translated text",
+          "label": "tokens"
+        }
       ],
-      "similar_models": ["madlad400-3b-mt", "opus-mt-en-es", "opus-mt-en-fr"]
+      "similar_models": [
+        "madlad400-3b-mt",
+        "opus-mt-en-es",
+        "opus-mt-en-fr"
+      ]
     },
     {
       "id": "madlad400-3b-mt",
       "status": "published",
       "trust": "verified",
       "name": "MADLAD-400 3B MT",
-      "description": "Broad multilingual text translation (google/madlad400-3b-mt), 400+ languages. Apache-2.0 — commercial OK. Heavier than M2M100; better coverage.",
-      "task_types": ["text-translation", "localization"],
-      "tags": ["translation", "text-mt", "madlad", "multilingual", "commercial", "google"],
+      "description": "Broad multilingual text translation (google/madlad400-3b-mt), 400+ languages. Apache-2.0 \u2014 commercial OK. Heavier than M2M100; better coverage.",
+      "task_types": [
+        "text-translation",
+        "localization"
+      ],
+      "tags": [
+        "translation",
+        "text-mt",
+        "madlad",
+        "multilingual",
+        "commercial",
+        "google"
+      ],
       "author": "Google",
       "license": {
         "spdx": "Apache-2.0",
@@ -1636,16 +3125,34 @@
       },
       "vram_gb_estimate": 8,
       "download_size_mb_estimate": 12000,
-      "compatible_nodes": ["TranslateText"],
+      "compatible_nodes": [
+        "TranslateText"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "transformers", "version": ">=4.36.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" },
-          { "package": "accelerate", "version": ">=0.28.0" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.36.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          },
+          {
+            "package": "accelerate",
+            "version": ">=0.28.0"
+          }
         ],
-        "verify_imports": ["transformers", "torch", "sentencepiece"]
+        "verify_imports": [
+          "transformers",
+          "torch",
+          "sentencepiece"
+        ]
       },
       "inference_params": [
         {
@@ -1658,25 +3165,51 @@
           "name": "tgt_lang",
           "type": "STRING",
           "default": "zh",
-          "description": "Target language (ISO 639-1: zh, en, es, fr, …) applied as <2xx> prefix."
+          "description": "Target language (ISO 639-1: zh, en, es, fr, \u2026) applied as <2xx> prefix."
         }
       ],
       "architecture_notes": "T5-style MADLAD: prepend <2xx> target code to source text, then generate translation.",
       "internal_connections": [
-        { "from": "source text", "to": "encoder", "label": "<2tgt> + text" },
-        { "from": "encoder", "to": "decoder", "label": "cross-attn" },
-        { "from": "decoder", "to": "translated text", "label": "tokens" }
+        {
+          "from": "source text",
+          "to": "encoder",
+          "label": "<2tgt> + text"
+        },
+        {
+          "from": "encoder",
+          "to": "decoder",
+          "label": "cross-attn"
+        },
+        {
+          "from": "decoder",
+          "to": "translated text",
+          "label": "tokens"
+        }
       ],
-      "similar_models": ["m2m100-418m", "opus-mt-en-es", "opus-mt-en-fr"]
+      "similar_models": [
+        "m2m100-418m",
+        "opus-mt-en-es",
+        "opus-mt-en-fr"
+      ]
     },
     {
       "id": "opus-mt-en-es",
       "status": "published",
       "trust": "verified",
-      "name": "Opus-MT EN→ES",
-      "description": "Fast English→Spanish text translation (Helsinki-NLP/opus-mt-en-es). CC-BY-4.0 — commercial OK with attribution. Fixed language pair.",
-      "task_types": ["text-translation", "localization"],
-      "tags": ["translation", "text-mt", "opus-mt", "en-es", "commercial", "helsinki"],
+      "name": "Opus-MT EN\u2192ES",
+      "description": "Fast English\u2192Spanish text translation (Helsinki-NLP/opus-mt-en-es). CC-BY-4.0 \u2014 commercial OK with attribution. Fixed language pair.",
+      "task_types": [
+        "text-translation",
+        "localization"
+      ],
+      "tags": [
+        "translation",
+        "text-mt",
+        "opus-mt",
+        "en-es",
+        "commercial",
+        "helsinki"
+      ],
       "author": "Helsinki-NLP",
       "license": {
         "spdx": "CC-BY-4.0",
@@ -1687,47 +3220,91 @@
       },
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 300,
-      "compatible_nodes": ["TranslateText"],
+      "compatible_nodes": [
+        "TranslateText"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "transformers", "version": ">=4.36.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" },
-          { "package": "sacremoses", "version": ">=0.0.53" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.36.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          },
+          {
+            "package": "sacremoses",
+            "version": ">=0.0.53"
+          }
         ],
-        "verify_imports": ["transformers", "torch", "sentencepiece"]
+        "verify_imports": [
+          "transformers",
+          "torch",
+          "sentencepiece"
+        ]
       },
       "inference_params": [
         {
           "name": "src_lang",
           "type": "STRING",
           "default": "en",
-          "description": "Fixed EN→ES model; src/tgt widgets are informational."
+          "description": "Fixed EN\u2192ES model; src/tgt widgets are informational."
         },
         {
           "name": "tgt_lang",
           "type": "STRING",
           "default": "es",
-          "description": "Fixed EN→ES model; src/tgt widgets are informational."
+          "description": "Fixed EN\u2192ES model; src/tgt widgets are informational."
         }
       ],
-      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng→spa).",
+      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng\u2192spa).",
       "internal_connections": [
-        { "from": "English text", "to": "encoder", "label": "tokens" },
-        { "from": "encoder", "to": "decoder", "label": "cross-attn" },
-        { "from": "decoder", "to": "Spanish text", "label": "tokens" }
+        {
+          "from": "English text",
+          "to": "encoder",
+          "label": "tokens"
+        },
+        {
+          "from": "encoder",
+          "to": "decoder",
+          "label": "cross-attn"
+        },
+        {
+          "from": "decoder",
+          "to": "Spanish text",
+          "label": "tokens"
+        }
       ],
-      "similar_models": ["opus-mt-en-fr", "m2m100-418m", "madlad400-3b-mt"]
+      "similar_models": [
+        "opus-mt-en-fr",
+        "m2m100-418m",
+        "madlad400-3b-mt"
+      ]
     },
     {
       "id": "opus-mt-en-fr",
       "status": "published",
       "trust": "verified",
-      "name": "Opus-MT EN→FR",
-      "description": "Fast English→French text translation (Helsinki-NLP/opus-mt-en-fr). CC-BY-4.0 — commercial OK with attribution. Fixed language pair.",
-      "task_types": ["text-translation", "localization"],
-      "tags": ["translation", "text-mt", "opus-mt", "en-fr", "commercial", "helsinki"],
+      "name": "Opus-MT EN\u2192FR",
+      "description": "Fast English\u2192French text translation (Helsinki-NLP/opus-mt-en-fr). CC-BY-4.0 \u2014 commercial OK with attribution. Fixed language pair.",
+      "task_types": [
+        "text-translation",
+        "localization"
+      ],
+      "tags": [
+        "translation",
+        "text-mt",
+        "opus-mt",
+        "en-fr",
+        "commercial",
+        "helsinki"
+      ],
       "author": "Helsinki-NLP",
       "license": {
         "spdx": "CC-BY-4.0",
@@ -1738,38 +3315,72 @@
       },
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 300,
-      "compatible_nodes": ["TranslateText"],
+      "compatible_nodes": [
+        "TranslateText"
+      ],
       "install": {
         "dev_stub": false,
         "python_deps": [
-          { "package": "torch", "version": ">=2.0.0" },
-          { "package": "transformers", "version": ">=4.36.0" },
-          { "package": "sentencepiece", "version": ">=0.2.0" },
-          { "package": "sacremoses", "version": ">=0.0.53" }
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.36.0"
+          },
+          {
+            "package": "sentencepiece",
+            "version": ">=0.2.0"
+          },
+          {
+            "package": "sacremoses",
+            "version": ">=0.0.53"
+          }
         ],
-        "verify_imports": ["transformers", "torch", "sentencepiece"]
+        "verify_imports": [
+          "transformers",
+          "torch",
+          "sentencepiece"
+        ]
       },
       "inference_params": [
         {
           "name": "src_lang",
           "type": "STRING",
           "default": "en",
-          "description": "Fixed EN→FR model; src/tgt widgets are informational."
+          "description": "Fixed EN\u2192FR model; src/tgt widgets are informational."
         },
         {
           "name": "tgt_lang",
           "type": "STRING",
           "default": "fr",
-          "description": "Fixed EN→FR model; src/tgt widgets are informational."
+          "description": "Fixed EN\u2192FR model; src/tgt widgets are informational."
         }
       ],
-      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng→fra).",
+      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng\u2192fra).",
       "internal_connections": [
-        { "from": "English text", "to": "encoder", "label": "tokens" },
-        { "from": "encoder", "to": "decoder", "label": "cross-attn" },
-        { "from": "decoder", "to": "French text", "label": "tokens" }
+        {
+          "from": "English text",
+          "to": "encoder",
+          "label": "tokens"
+        },
+        {
+          "from": "encoder",
+          "to": "decoder",
+          "label": "cross-attn"
+        },
+        {
+          "from": "decoder",
+          "to": "French text",
+          "label": "tokens"
+        }
       ],
-      "similar_models": ["opus-mt-en-es", "m2m100-418m", "madlad400-3b-mt"]
+      "similar_models": [
+        "opus-mt-en-es",
+        "m2m100-418m",
+        "madlad400-3b-mt"
+      ]
     }
   ]
 }

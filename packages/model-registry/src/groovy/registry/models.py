@@ -37,6 +37,21 @@ class InferenceParam(BaseModel):
     description: str = ""
 
 
+class ComputeInfo(BaseModel):
+    """Hardware affinity for Model Browser presets (Apple Silicon / CUDA / CPU).
+
+    ``runtimes`` uses short codes: ``cuda``, ``mlx``, ``mps``, ``cpu``.
+    Leave empty to let ``resolve_compute`` infer from tags / description / id.
+    """
+
+    runtimes: list[str] = Field(default_factory=list)
+    requires_cuda: bool = False
+    # Short card override, e.g. "Apple Silicon (MLX) · ~4 GB".
+    label: str | None = None
+    # Optional memory phrase when VRAM estimate is misleading (unified memory / MLX).
+    memory_note: str | None = None
+
+
 class ModelManifest(BaseModel):
     id: str
     status: str = "published"
@@ -59,6 +74,7 @@ class ModelManifest(BaseModel):
     architecture_notes: str | None = None
     # Free-form edges shown as-is, typically {"from": "...", "to": "...", "label": "..."}.
     internal_connections: list[dict[str, str]] = Field(default_factory=list)
+    compute: ComputeInfo = Field(default_factory=ComputeInfo)
 
 
 class InstallState(BaseModel):

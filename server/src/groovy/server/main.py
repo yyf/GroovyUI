@@ -1442,6 +1442,7 @@ def _installed_models_payload() -> dict[str, Any]:
 def _model_card(manifest) -> dict[str, Any]:
     state = _registry.store.get(manifest.id)
     from groovy.nodes.ai.inference_env import model_inference_ready
+    from groovy.registry.compute import resolve_compute
 
     return {
         **manifest.model_dump(),
@@ -1451,6 +1452,8 @@ def _model_card(manifest) -> dict[str, Any]:
         "dev_stub": manifest.install.dev_stub,
         "inference_ready": model_inference_ready(manifest.id, dev_stub=manifest.install.dev_stub),
         "install_complete": model_install_complete(manifest, state),
+        # Resolved affinity for Model Browser hardware presets / card labels.
+        "compute_resolved": resolve_compute(manifest),
     }
 
 
