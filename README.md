@@ -3,7 +3,7 @@
 [![ISMIR(LBD) 2026](https://img.shields.io/badge/ISMIR(LBD)-2026-111111?style=flat-square&labelColor=ff002b&color=111111)](https://ismir2026program.ismir.net/lbd_569.html#details)
 [![YouTube](https://img.shields.io/badge/YouTube-111111?style=flat-square&logo=youtube&logoColor=ff0000)](https://www.youtube.com/@OneSystemics)
 
-**Why GroovyUI?** Not a song button — additive AI audio you can patch, not a black box that finishes the take.
+**Why GroovyUI?** Not a song button — additive AI audio you can patch, not a black box that finishes the take — local, trust, and transparency.
 
 - **Use case:** first listen to what a model does on your material, then judge it against your spec.
 - **Where:** quick evaluation between raw model repos and production DAWs. Explore here; arrange elsewhere.
@@ -70,11 +70,17 @@ Experimental. APIs and UI will change. Expect rough edges on clean machines and 
 
 ## OS compatibility
 
-Primary smoke-test machine: **macOS Tahoe 26.3** (Apple Silicon). Use **Python 3.11**, keep Inference on **Real** for demos, and install models via **Cmd+K** / Model Browser when prompted.
+Use **Python 3.11**, keep Inference on **Real** for demos, and install models via **Cmd+K** / Model Browser when prompted. Some models need CUDA or other hardware; Mac CPU/MPS may be slow or unsupported depending on the backend.
 
-Video mux / PreviewVideo paths need **ffmpeg** on `PATH`. Some models need CUDA or other hardware; Mac CPU/MPS may be slow or unsupported depending on the backend.
-
-Linux is exercised in CI (stub inference). Windows is not a supported desktop target yet.
+```text
++--------------------------------+----------------------------------+
+| OS                             | Status                           |
++--------------------------------+----------------------------------+
+| macOS 26.3 (Apple Silicon)     | Tested. Runs on this machine.    |
+| Linux                          | Open                             |
+| Windows                        | Open                             |
++--------------------------------+----------------------------------+
+```
 
 ## Quick start
 
@@ -107,6 +113,8 @@ Or with [just](https://github.com/casey/just): `just install`, `just test`, `jus
 ## Cold machine
 
 Cold / clean machines take longer on first run — `uv` sync, Studio `npm install`, and especially **first model downloads** (minutes, multi‑GB disk). Models keep their own licenses (see Compliance).
+
+Video mux / PreviewVideo paths need **ffmpeg** on `PATH`.
 
 If a cold machine fails, check port `8188`/`5173` conflicts, disk space, Python version, and Compliance / Settings for tokens (`HF_TOKEN`) on gated weights.
 
