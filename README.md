@@ -60,6 +60,23 @@
       <sub>GroovyUI template — prompt modular synth</sub>
     </td>
   </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/E7ptLyn-NQU"><img src="https://img.youtube.com/vi/E7ptLyn-NQU/hqdefault.jpg" alt="GroovyUI template — music generation with ACE-Step 1.5 SFT" width="440" /></a><br />
+      <sub>GroovyUI template — music generation with ACE-Step 1.5 SFT</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/ULDvJlNXRio"><img src="https://img.youtube.com/vi/ULDvJlNXRio/hqdefault.jpg" alt="GroovyUI template — TTS with emotion editing" width="440" /></a><br />
+      <sub>GroovyUI template — TTS with emotion editing</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/VMxSQXCnYSs"><img src="https://img.youtube.com/vi/VMxSQXCnYSs/hqdefault.jpg" alt="GroovyUI template — A/B ASR models with WER/CER" width="440" /></a><br />
+      <sub>GroovyUI template — A/B ASR models with WER/CER</sub>
+    </td>
+    <td width="50%"></td>
+  </tr>
 </table>
 
 ---
