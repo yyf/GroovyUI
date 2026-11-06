@@ -190,6 +190,7 @@ def _card(manifest: ModelManifest, state) -> dict[str, Any]:
         "author": manifest.author,
         "license": manifest.license.model_dump(),
         "vram_gb_estimate": manifest.vram_gb_estimate,
+        "download_size_mb_estimate": manifest.download_size_mb_estimate,
         "compatible_nodes": manifest.compatible_nodes,
         "install_status": state.status,
         "install_progress": state.progress,

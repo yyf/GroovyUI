@@ -98,6 +98,18 @@ export type DiscoverModelResult = {
   source_url: string;
   suggested_compatible_nodes: string[];
   trust: "external";
+  /** Weight-only estimate from published safetensors, when Hub lists them. */
+  vram_gb_estimate?: number | null;
+  /** Repo size on Hugging Face, in megabytes, when the Hub lists it. */
+  download_mb_estimate?: number | null;
+  compute_resolved?: {
+    runtimes: string[];
+    requires_cuda: boolean;
+    presets: string[];
+    label: string;
+    vram_gb_estimate?: number;
+    memory_note?: string | null;
+  };
 };
 
 export type StudioSettings = {

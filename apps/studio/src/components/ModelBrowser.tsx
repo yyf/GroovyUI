@@ -11,6 +11,7 @@ import {
   removeModelInstall,
   searchModels,
   suggestWorkflows,
+  fetchSystemCapabilities,
 } from "../api";
 import type {
   AgentPlan,
@@ -35,6 +36,7 @@ import {
   matchesComputePreset,
   type ComputePreset,
 } from "../modelCompute";
+import { hostSnapshotLine, modelResourceFit, unavailableResourceRows, type HostResources, type ResourceFit } from "../modelFit";
 
 function openModelRequestIssue(
   prefill: Parameters<typeof buildModelRequestIssueUrl>[0],
@@ -85,6 +87,16 @@ function normalizeBrowserMode(
 
 function isDraftModel(model: ModelCard): boolean {
   return model.status === "draft" || model.trust === "draft" || model.install_status === "draft";
+}
+
+function discoverMatchesHardware(
+  entry: DiscoverModelResult,
+  preset: ComputePreset,
+): boolean {
+  if (!preset || preset === "any") return true;
+  const presets = entry.compute_resolved?.presets ?? [];
+  if (!presets.length) return true;
+  return presets.includes(preset);
 }
 
 function filterDiscoverResults(
@@ -159,6 +171,105 @@ function modelNeedsReinstall(model: ModelCard): boolean {
   return model.install_status === "ready" && !model.dev_stub && model.inference_ready === false;
 }
 
+function hostFromCapabilities(machine: {
+  ram_available_gb: number | null;
+  vram_available_gb: number | null;
+  disk_free_mb: number;
+  torch_cuda_available: boolean;
+}): HostResources {
+  return {
+    ramAvailableGb: machine.ram_available_gb,
+    vramAvailableGb: machine.vram_available_gb,
+    diskFreeMb: machine.disk_free_mb,
+    cuda: machine.torch_cuda_available,
+  };
+}
+
+function DiscoverResourceFit({
+  entry,
+  host,
+}: {
+  entry: DiscoverModelResult;
+  host: HostResources | null;
+}) {
+  const gb = entry.vram_gb_estimate;
+  const repoMb = entry.download_mb_estimate;
+  const hasRepo = repoMb != null && repoMb > 0;
+  const hasWeights = gb != null && gb > 0;
+  if (!hasRepo && !hasWeights) {
+    return (
+      <div className="model-fit" aria-label="Weight size not listed on Hugging Face">
+        {unavailableResourceRows().map((row) => (
+          <ResourceFitRow key={row.key} row={row} />
+        ))}
+      </div>
+    );
+  }
+  const rows = modelResourceFit(
+    {
+      vramGb: hasWeights ? gb : hasRepo ? repoMb / 1024 : null,
+      downloadMb: hasRepo ? repoMb : hasWeights ? gb * 1024 : null,
+      requiresCuda: entry.compute_resolved?.requires_cuda,
+      runtimes: entry.compute_resolved?.runtimes,
+      approximate: true,
+      downloadApproximate: !hasRepo,
+    },
+    host,
+  );
+  if (!rows.length) return null;
+  return (
+    <div className="model-fit" aria-label="This machine versus estimated weight size">
+      {rows.map((row) => (
+        <ResourceFitRow key={row.key} row={row} />
+      ))}
+    </div>
+  );
+}
+
+function ModelResourceFit({ model, host }: { model: ModelCard; host: HostResources | null }) {
+  const rows = modelResourceFit(
+    {
+      vramGb: model.vram_gb_estimate,
+      downloadMb: model.download_size_mb_estimate,
+      requiresCuda: model.compute_resolved?.requires_cuda,
+      runtimes: model.compute_resolved?.runtimes,
+    },
+    host,
+  );
+  if (!rows.length) return null;
+  return (
+    <div className="model-fit" aria-label="This machine versus model requirements">
+      {rows.map((row) => (
+        <ResourceFitRow key={row.key} row={row} />
+      ))}
+    </div>
+  );
+}
+
+function ResourceFitRow({ row }: { row: ResourceFit }) {
+  const tone = row.fits === false ? "over" : row.fits === true ? "ok" : "unknown";
+  const width = row.percent == null ? 0 : Math.min(100, row.percent);
+  return (
+    <div className={`model-fit__row model-fit__row--${tone}`}>
+      <div className="model-fit__head">
+        <span className="model-fit__label">{row.label}</span>
+        <span className="model-fit__summary" title={row.summary}>
+          {row.unavailable
+            ? "N/A"
+            : `${row.approximate ? `${row.needLabel} est. weights` : `${row.needLabel} need`} · ${row.haveLabel}${
+                row.percentLabel ? ` · ${row.percentLabel}` : ""
+              }`}
+        </span>
+      </div>
+      {row.percent != null || row.unavailable ? (
+        <div className="model-fit__track" aria-hidden>
+          <div className="model-fit__bar" style={{ width: `${width}%` }} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function modelCardStatus(model: ModelCard, live?: ModelInstallState): string {
   const status = live?.status ?? model.install_status;
   if (status === "ready" && modelNeedsReinstall(model)) {
@@ -216,6 +327,7 @@ export default function ModelBrowser({
   const [unknownRequiredIds, setUnknownRequiredIds] = useState<string[]>([]);
   const [installingAllRequired, setInstallingAllRequired] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [host, setHost] = useState<HostResources | null>(null);
   const installStopRef = useRef(false);
 
   const requiredModelIds = launch?.requiredModelIds ?? [];
@@ -240,6 +352,21 @@ export default function ModelBrowser({
   }, [open, launch, initialMode]);
 
   const effectiveNodeFilter = filterNodeType ?? launch?.filterNodeType ?? null;
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetchSystemCapabilities()
+      .then((caps) => {
+        if (!cancelled) setHost(hostFromCapabilities(caps.machine));
+      })
+      .catch(() => {
+        if (!cancelled) setHost(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -831,37 +958,55 @@ export default function ModelBrowser({
                 ) : null}
               </div>
             ) : null}
-            <input
-              className="model-browser__search"
-              placeholder={
-                mode === "plan"
-                  ? "Describe the task, then press Enter — e.g. commercial podcast denoise"
-                  : mode === "workflow"
-                  ? "Deterministic match — e.g. denoise podcast then normalize"
-                  : mode === "discover"
-                      ? "Search Hugging Face — e.g. denoise podcast whisper demucs"
-                      : "Search or describe a task — e.g. denoise, stems, commercial podcast cleanup…"
-              }
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (mode !== "plan") return;
-                if (event.key !== "Enter" && event.code !== "Enter" && event.code !== "NumpadEnter") {
-                  return;
+            <div className="model-browser__search-row">
+              {mode !== "workflow" ? (
+                <label className="model-browser__filter-select model-browser__search-task">
+                  <span className="model-browser__sr">Task</span>
+                  <select
+                    value={taskType}
+                    onChange={(event) => setTaskType(event.target.value)}
+                    aria-label="Task filter"
+                  >
+                    {TASK_FILTERS.map((filter) => (
+                      <option key={filter.value} value={filter.value}>
+                        {filter.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <input
+                className="model-browser__search"
+                placeholder={
+                  mode === "plan"
+                    ? "Describe the task, then press Enter — e.g. commercial podcast denoise"
+                    : mode === "workflow"
+                    ? "Deterministic match — e.g. denoise podcast then normalize"
+                    : mode === "discover"
+                        ? "Search Hugging Face — e.g. denoise podcast whisper demucs"
+                        : "Search or describe a task — e.g. denoise, stems, commercial podcast cleanup…"
                 }
-                if (event.nativeEvent.isComposing || event.repeat) return;
-                event.preventDefault();
-                event.stopPropagation();
-                const prompt = event.currentTarget.value.trim();
-                setPlanSubmittedQuery(prompt || null);
-                if (!prompt) {
-                  setAgentPlan(null);
-                  return;
-                }
-                setPlanSubmitNonce((n) => n + 1);
-              }}
-              autoFocus
-            />
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (mode !== "plan") return;
+                  if (event.key !== "Enter" && event.code !== "Enter" && event.code !== "NumpadEnter") {
+                    return;
+                  }
+                  if (event.nativeEvent.isComposing || event.repeat) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const prompt = event.currentTarget.value.trim();
+                  setPlanSubmittedQuery(prompt || null);
+                  if (!prompt) {
+                    setAgentPlan(null);
+                    return;
+                  }
+                  setPlanSubmitNonce((n) => n + 1);
+                }}
+                autoFocus
+              />
+            </div>
             <div className="model-browser__filters">
               {mode === "workflow" ? (
                 <p className="model-browser__hint">
@@ -869,65 +1014,72 @@ export default function ModelBrowser({
                 </p>
               ) : (
                 <>
-                  <label className="model-browser__filter-select">
-                    Task
-                    <select
-                      value={taskType}
-                      onChange={(event) => setTaskType(event.target.value)}
-                      aria-label="Task filter"
-                    >
-                      {TASK_FILTERS.map((filter) => (
-                        <option key={filter.value} value={filter.value}>
-                          {filter.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="model-browser__filter-check">
-                    <input
-                      type="checkbox"
-                      checked={commercialOnly}
-                      onChange={(event) => setCommercialOnly(event.target.checked)}
-                    />
-                    {mode === "discover" ? "Commercial OK only" : "Commercial OK"}
-                  </label>
-                  {mode === "search" || mode === "plan" ? (
-                    <div
-                      className="model-browser__compute-presets"
-                      role="radiogroup"
-                      aria-label="Hardware preset"
-                    >
-                      <span className="model-browser__compute-presets-label">Hardware</span>
-                      <div className="model-browser__compute-presets-row">
-                        {COMPUTE_PRESETS.map((preset) => {
-                          const selected = computePreset === preset.value;
-                          return (
-                            <button
-                              key={preset.value}
-                              type="button"
-                              role="radio"
-                              aria-checked={selected}
-                              title={preset.hint}
-                              className={`model-browser__compute-preset${
-                                selected ? " model-browser__compute-preset--active" : ""
-                              }`}
-                              onClick={() => setComputePreset(preset.value)}
-                            >
-                              {preset.label}
-                            </button>
-                          );
-                        })}
+                  <fieldset className="model-browser__filter-group model-browser__filter-group--license">
+                    <legend>License</legend>
+                    <label className="model-browser__filter-check">
+                      <input
+                        type="checkbox"
+                        checked={commercialOnly}
+                        onChange={(event) => setCommercialOnly(event.target.checked)}
+                      />
+                      Commercial OK
+                    </label>
+                  </fieldset>
+                  <fieldset className="model-browser__filter-group model-browser__filter-group--hardware">
+                      <legend>Hardware</legend>
+                      <p
+                        className="model-browser__host"
+                        title={
+                          mode === "discover"
+                            ? "Free resources on this machine. Hugging Face cards estimate weight size from published safetensors when listed."
+                            : "Free resources on this machine right now"
+                        }
+                      >
+                        {hostSnapshotLine(host)}
+                      </p>
+                      <div
+                        className="model-browser__compute-presets"
+                        role="radiogroup"
+                        aria-label="Hardware preset"
+                      >
+                        <div className="model-browser__compute-presets-row">
+                          {COMPUTE_PRESETS.map((preset) => {
+                            const selected = computePreset === preset.value;
+                            return (
+                              <button
+                                key={preset.value}
+                                type="button"
+                                role="radio"
+                                aria-checked={selected}
+                                title={preset.hint}
+                                className={`model-browser__compute-preset${
+                                  selected ? " model-browser__compute-preset--active" : ""
+                                }`}
+                                onClick={() => setComputePreset(preset.value)}
+                              >
+                                {preset.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="model-browser__request-link model-browser__request-blank"
-                    title="Opens a blank model-request issue — paste any Hugging Face (or allowlisted) model URL"
-                    onClick={() => openModelRequestIssue({})}
-                  >
-                    File GitHub request
-                  </button>
+                      {mode === "discover" ? (
+                        <p className="model-browser__host-note">
+                          RAM uses the published weight size. Disk uses the Hub repo size when Hugging Face lists it. Unknown hardware stays listed.
+                        </p>
+                      ) : null}
+                  </fieldset>
+                  <fieldset className="model-browser__filter-group model-browser__filter-group--request">
+                    <legend>Catalog</legend>
+                    <button
+                      type="button"
+                      className="model-browser__request-link model-browser__request-blank"
+                      title="Opens a blank model-request issue — paste any Hugging Face (or allowlisted) model URL"
+                      onClick={() => openModelRequestIssue({})}
+                    >
+                      File GitHub request
+                    </button>
+                  </fieldset>
                   {mode === "plan" ? (
                     <div className="model-browser__llm-options" role="radiogroup" aria-label="LLM options">
                       <p className="model-browser__llm-options-label">LLM for model picks</p>
@@ -1073,6 +1225,7 @@ export default function ModelBrowser({
                             {action.public_name ? `${action.public_name} → ${model.id}` : model.id}
                           </span>
                         </div>
+                        <ModelResourceFit model={model} host={host} />
                         <p className="model-card__desc">{model.description}</p>
                         <p className="model-card__rationale">{action.rationale}</p>
                         <div className="model-card__meta">
@@ -1166,7 +1319,7 @@ export default function ModelBrowser({
                       No Hugging Face models matched — try another task filter or search term.
                     </p>
                   ) : null}
-                  {discoverResults.map((entry) => {
+                  {discoverResults.filter((entry) => discoverMatchesHardware(entry, computePreset)).map((entry) => {
                     const badge = licenseBadge({
                       spdx: entry.license.spdx,
                       commercial_ok: entry.license.commercial_ok ?? false,
@@ -1179,12 +1332,21 @@ export default function ModelBrowser({
                           <strong>{entry.name}</strong>
                           <span className="pill pill--neutral">external</span>
                         </div>
+                        <DiscoverResourceFit entry={entry} host={host} />
                         <p className="model-card__desc">{entry.description}</p>
                         <div className="model-card__meta">
                           <span className={badge.className}>{badge.label}</span>
                           {entry.author ? <span>{entry.author}</span> : null}
                           {updated ? <span>Updated {updated}</span> : null}
                           {entry.downloads != null ? <span>{entry.downloads.toLocaleString()} downloads</span> : null}
+                          {entry.compute_resolved?.label ? (
+                            <span
+                              className={computePillClass(entry.compute_resolved)}
+                              title={entry.compute_resolved.memory_note ?? entry.compute_resolved.label}
+                            >
+                              {entry.compute_resolved.label}
+                            </span>
+                          ) : null}
                         </div>
                         {entry.suggested_compatible_nodes.length > 0 ? (
                           <p className="model-card__nodes">Nodes: {entry.suggested_compatible_nodes.join(", ")}</p>
@@ -1284,6 +1446,7 @@ export default function ModelBrowser({
                                 : status}
                           </span>
                         </div>
+                        <ModelResourceFit model={model} host={host} />
                         <p className="model-card__desc">{model.description}</p>
                         {rationale ? <p className="model-card__rationale">{rationale}</p> : null}
                         <div className="model-card__meta">
@@ -1342,6 +1505,7 @@ export default function ModelBrowser({
                 </button>
               </header>
               <p className="model-browser__detail-id">{detailModel.id}</p>
+              <ModelResourceFit model={detailModel} host={host} />
               {detailModel.author ? <p className="model-browser__detail-meta">Author: {detailModel.author}</p> : null}
               <p className="model-card__desc">{detailModel.description}</p>
               <div className="model-card__meta">
