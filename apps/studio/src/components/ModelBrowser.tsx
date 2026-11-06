@@ -1025,8 +1025,7 @@ export default function ModelBrowser({
                       Commercial OK
                     </label>
                   </fieldset>
-                  {mode !== "workflow" ? (
-                    <fieldset className="model-browser__filter-group model-browser__filter-group--hardware">
+                  <fieldset className="model-browser__filter-group model-browser__filter-group--hardware">
                       <legend>Hardware</legend>
                       <p
                         className="model-browser__host"
@@ -1069,8 +1068,7 @@ export default function ModelBrowser({
                           RAM uses the published weight size. Disk uses the Hub repo size when Hugging Face lists it. Unknown hardware stays listed.
                         </p>
                       ) : null}
-                    </fieldset>
-                  ) : null}
+                  </fieldset>
                   <fieldset className="model-browser__filter-group model-browser__filter-group--request">
                     <legend>Catalog</legend>
                     <button

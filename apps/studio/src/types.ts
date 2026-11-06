@@ -107,7 +107,7 @@ export type DiscoverModelResult = {
     requires_cuda: boolean;
     presets: string[];
     label: string;
-    vram_gb_estimate?: number | null;
+    vram_gb_estimate?: number;
     memory_note?: string | null;
   };
 };
