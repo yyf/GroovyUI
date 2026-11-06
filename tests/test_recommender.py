@@ -17,6 +17,7 @@ def test_recommender_podcast_denoise(tmp_path) -> None:
     top = result["results"][0]
     assert top["model"]["id"]
     assert top["rationale"]
+    assert "download_size_mb_estimate" in top["model"]
 
 
 def test_recommender_stem_separation(tmp_path) -> None:

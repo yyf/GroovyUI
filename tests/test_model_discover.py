@@ -7,7 +7,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from groovy.registry.agent.curator import draft_from_discover, save_discover_draft
-from groovy.registry.discover import discover_models
+from groovy.registry.discover import (
+    compute_from_hf_tags,
+    discover_models,
+    weight_bytes_from_safetensors,
+)
 
 SAMPLE_HF = [
     {
@@ -21,6 +25,42 @@ SAMPLE_HF = [
         "cardData": {"license": "MIT", "description": "Speech denoising model."},
     }
 ]
+
+
+def test_weight_bytes_use_published_dtypes() -> None:
+    # 1000 fp16 params → 2000 bytes. Unknown dtype falls back to 2 bytes.
+    assert weight_bytes_from_safetensors({"parameters": {"F16": 1000}}) == 2000
+    assert weight_bytes_from_safetensors({"parameters": {"F32": 1000}}) == 4000
+    assert weight_bytes_from_safetensors({"total": 1000}) == 2000
+    assert weight_bytes_from_safetensors(None) is None
+
+
+def test_compute_from_tags_marks_coreml_as_apple() -> None:
+    resolved = compute_from_hf_tags(["coreml", "whisperkit"], "coreml", vram_gb=0.4)
+    assert "apple" in resolved["presets"]
+    assert "cuda" not in resolved["presets"]
+    assert resolved["vram_gb_estimate"] == 0.4
+
+
+def test_discover_models_estimates_weight_size() -> None:
+    payload = [
+        {
+            **SAMPLE_HF[0],
+            "library_name": "pytorch",
+            "safetensors": {"parameters": {"F16": 1_073_741_824}},
+        }
+    ]
+    entry = discover_models("podcast", task_type="denoise", fetch_json=lambda _url: payload)[0]
+    assert entry["vram_gb_estimate"] == 2.0
+    assert "cuda" in entry["compute_resolved"]["presets"]
+    assert "est. weights" in entry["compute_resolved"]["label"]
+
+
+def test_repo_storage_fills_disk_and_memory_when_weights_are_unlisted() -> None:
+    payload = [{**SAMPLE_HF[0], "usedStorage": 500 * 1024 * 1024}]
+    entry = discover_models("podcast", task_type="denoise", fetch_json=lambda _url: payload)[0]
+    assert entry["download_mb_estimate"] == 500.0
+    assert entry["vram_gb_estimate"] == round(500 / 1024, 2)
 
 
 def test_discover_models_normalizes_hf_payload() -> None:

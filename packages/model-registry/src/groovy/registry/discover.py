@@ -150,6 +150,105 @@ def _display_name(model_id: str) -> str:
     return model_id.split("/")[-1].replace("-", " ").strip() or model_id
 
 
+# Bytes per parameter for safetensors dtype names Hugging Face publishes.
+_DTYPE_BYTES: dict[str, float] = {
+    "F64": 8,
+    "F32": 4,
+    "F16": 2,
+    "BF16": 2,
+    "I64": 8,
+    "I32": 4,
+    "I16": 2,
+    "I8": 1,
+    "U8": 1,
+    "I4": 0.5,
+    "U4": 0.5,
+    "Q8": 1,
+    "Q6": 0.75,
+    "Q5": 0.625,
+    "Q4": 0.5,
+}
+
+
+def weight_bytes_from_safetensors(safetensors: Any) -> int | None:
+    """Published weight footprint. Unknown dtypes assume fp16 (2 bytes)."""
+    if not isinstance(safetensors, dict):
+        return None
+    parameters = safetensors.get("parameters")
+    if isinstance(parameters, dict) and parameters:
+        total = 0.0
+        for dtype, count in parameters.items():
+            try:
+                n = float(count)
+            except (TypeError, ValueError):
+                continue
+            total += n * _DTYPE_BYTES.get(str(dtype).upper(), 2.0)
+        return int(total) if total > 0 else None
+    total = safetensors.get("total")
+    try:
+        params = int(total)
+    except (TypeError, ValueError):
+        return None
+    if params <= 0:
+        return None
+    return params * 2
+
+
+def compute_from_hf_tags(
+    tags: list[str],
+    library_name: str | None,
+    *,
+    vram_gb: float | None,
+) -> dict[str, Any]:
+    """Coarse hardware hint from Hub tags. Empty presets means unknown — keep the card."""
+    blob = " ".join([library_name or "", *tags]).lower()
+    runtimes: list[str] = []
+
+    def add(name: str) -> None:
+        if name not in runtimes:
+            runtimes.append(name)
+
+    if any(token in blob for token in ("mlx", "coreml", "whisperkit")):
+        add("mlx")
+    if any(token in blob for token in ("gguf", "onnx", "ctranslate2", "openvino")):
+        add("cpu")
+    if any(token in blob for token in ("pytorch", "transformers", "jax", "tensorflow", "safetensors")):
+        add("cuda")
+        add("cpu")
+    if "mlx" in runtimes and "cpu" not in runtimes:
+        add("cpu")
+
+    requires_cuda = "cuda" in runtimes and "cpu" not in runtimes and "mlx" not in runtimes
+    presets: list[str] = []
+    if "mlx" in runtimes:
+        presets.append("apple")
+    elif "cpu" in runtimes and not requires_cuda:
+        presets.append("apple")
+    if "cuda" in runtimes or requires_cuda:
+        presets.append("cuda")
+    if "cpu" in runtimes and not requires_cuda:
+        presets.append("cpu")
+
+    if vram_gb and vram_gb > 0:
+        label = f"~{vram_gb:g} GB est. weights"
+    elif presets:
+        label = " / ".join(presets)
+    else:
+        label = "Hardware unknown"
+    return {
+        "runtimes": runtimes,
+        "requires_cuda": requires_cuda,
+        "presets": presets,
+        "label": label,
+        "vram_gb_estimate": vram_gb,
+        "memory_note": (
+            "Estimated from published safetensors dtypes, weights only."
+            if vram_gb
+            else None
+        ),
+    }
+
+
 def _normalize_hf_item(item: dict[str, Any], *, task_filter: str | None) -> dict[str, Any]:
     model_id = str(item.get("id") or "")
     if not model_id:
@@ -161,13 +260,30 @@ def _normalize_hf_item(item: dict[str, Any], *, task_filter: str | None) -> dict
     if not description:
         description = f"Hugging Face model {model_id}"
     description = re.sub(r"\s+", " ", description)[:280]
+    tags = [str(tag) for tag in (item.get("tags") or [])[:12]]
+    nbytes = weight_bytes_from_safetensors(item.get("safetensors"))
+    try:
+        storage_bytes = int(item.get("usedStorage") or 0)
+    except (TypeError, ValueError):
+        storage_bytes = 0
+    if storage_bytes < 0:
+        storage_bytes = 0
+    if nbytes:
+        vram_gb = round(nbytes / (1024**3), 2)
+    elif storage_bytes > 0:
+        vram_gb = round(storage_bytes / (1024**3), 2)
+    else:
+        vram_gb = None
+    download_mb = round(storage_bytes / (1024**2), 1) if storage_bytes > 0 else None
+    library = item.get("library_name")
+    library_name = str(library) if isinstance(library, str) else None
     return {
         "external_id": f"hf:{model_id}",
         "name": _display_name(model_id),
         "author": author,
         "description": description,
         "task_types": task_types,
-        "tags": [str(tag) for tag in (item.get("tags") or [])[:8]],
+        "tags": tags[:8],
         "license": _license_from_item(item),
         "updated_at": item.get("lastModified") or item.get("createdAt"),
         "downloads": int(item.get("downloads") or 0),
@@ -175,7 +291,103 @@ def _normalize_hf_item(item: dict[str, Any], *, task_filter: str | None) -> dict
         "source_url": f"https://huggingface.co/{model_id}",
         "suggested_compatible_nodes": _compatible_nodes(task_types),
         "trust": "external",
+        "vram_gb_estimate": vram_gb,
+        "download_mb_estimate": download_mb,
+        "compute_resolved": compute_from_hf_tags(
+            tags,
+            library_name,
+            vram_gb=vram_gb,
+        ),
     }
+
+
+def _fetch_hf_json(
+    url: str,
+    *,
+    hf_token: str | None,
+    fetch_json: Any | None,
+) -> Any:
+    if fetch_json is not None:
+        return fetch_json(url)
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    if hf_token:
+        request.add_header("Authorization", f"Bearer {hf_token}")
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise DiscoverError(f"Hugging Face search failed ({exc.code})") from exc
+    except urllib.error.URLError as exc:
+        raise DiscoverError(f"Hugging Face search unavailable: {exc.reason}") from exc
+
+
+def _merge_safetensors(payload: Any, search_url: str, *, hf_token: str | None) -> None:
+    """Second Hub call: `expand=safetensors` drops other fields, so merge by id."""
+    if not isinstance(payload, list):
+        return
+    joiner = "&" if "?" in search_url else "?"
+    try:
+        extra = _fetch_hf_json(
+            f"{search_url}{joiner}expand=safetensors",
+            hf_token=hf_token,
+            fetch_json=None,
+        )
+    except DiscoverError:
+        return
+    if not isinstance(extra, list):
+        return
+    by_id = {
+        str(item.get("id")): item.get("safetensors")
+        for item in extra
+        if isinstance(item, dict) and item.get("id") and item.get("safetensors")
+    }
+    for item in payload:
+        if not isinstance(item, dict) or item.get("safetensors"):
+            continue
+        found = by_id.get(str(item.get("id") or ""))
+        if found:
+            item["safetensors"] = found
+
+
+def _merge_used_storage(payload: Any, *, hf_token: str | None) -> None:
+    """Repo byte size lives on the model endpoint, not the search list."""
+    if not isinstance(payload, list):
+        return
+    ids = [
+        str(item.get("id"))
+        for item in payload
+        if isinstance(item, dict) and item.get("id") and not item.get("usedStorage")
+    ]
+    if not ids:
+        return
+    from concurrent.futures import ThreadPoolExecutor
+
+    def fetch_one(model_id: str) -> tuple[str, int | None]:
+        quoted = urllib.parse.quote(model_id, safe="/")
+        try:
+            data = _fetch_hf_json(
+                f"{HF_MODELS_API}/{quoted}",
+                hf_token=hf_token,
+                fetch_json=None,
+            )
+        except DiscoverError:
+            return model_id, None
+        if not isinstance(data, dict):
+            return model_id, None
+        try:
+            value = int(data.get("usedStorage") or 0)
+        except (TypeError, ValueError):
+            return model_id, None
+        return model_id, value if value > 0 else None
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        found = dict(pool.map(fetch_one, ids))
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        value = found.get(str(item.get("id") or ""))
+        if value:
+            item["usedStorage"] = value
 
 
 def discover_models(
@@ -202,19 +414,10 @@ def discover_models(
     if host not in ALLOWED_HOSTS:
         raise DiscoverError(f"Discover host not allowlisted: {host}")
 
+    payload = _fetch_hf_json(url, hf_token=hf_token, fetch_json=fetch_json)
     if fetch_json is None:
-        request = urllib.request.Request(url, headers={"Accept": "application/json"})
-        if hf_token:
-            request.add_header("Authorization", f"Bearer {hf_token}")
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            raise DiscoverError(f"Hugging Face search failed ({exc.code})") from exc
-        except urllib.error.URLError as exc:
-            raise DiscoverError(f"Hugging Face search unavailable: {exc.reason}") from exc
-    else:
-        payload = fetch_json(url)
+        _merge_safetensors(payload, url, hf_token=hf_token)
+        _merge_used_storage(payload, hf_token=hf_token)
 
     if not isinstance(payload, list):
         raise DiscoverError("Unexpected Hugging Face response")
