@@ -21,16 +21,13 @@
   <img src="assets/media/creative-agent-1.gif" alt="GroovyUI creative agent: patch generation and creative tab exploration" width="960" />
 </p>
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="assets/media/model-browser-spec-estimation.gif" alt="GroovyUI Model Browser: this machine versus model RAM and disk, in Search and Discover" width="440" />
-    </td>
-    <td align="center" width="50%">
-      <img src="assets/media/ab-stem-compare.gif" alt="GroovyUI stem A/B: Demucs versus Open-Unmix with Inspector pairwise metrics" width="440" />
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="assets/media/model-browser-spec-estimation.gif" alt="GroovyUI Model Browser: this machine versus model RAM and disk, in Search and Discover" width="960" />
+</p>
+
+<p align="center">
+  <img src="assets/media/ab-stem-compare.gif" alt="GroovyUI stem A/B: Demucs versus Open-Unmix with Inspector pairwise metrics" width="960" />
+</p>
 
 ---
 
