@@ -1052,6 +1052,18 @@ export type AbComparePcmStats = {
   max_sample_diff: number;
   rms_residual: number;
   snr_db: number | null;
+  /** Pairwise SDR with A as reference (dB) — similarity, not quality vs ground truth. */
+  sdr_db?: number | null;
+  /** Pairwise SI-SDR with A as reference (dB) — similarity, not quality vs ground truth. */
+  si_sdr_db?: number | null;
+  /** Mel-spectrogram cosine similarity (1 = identical). */
+  mel_cosine?: number | null;
+  /** Mean frame log-spectral distance (lower = closer). */
+  log_spectral_distance?: number | null;
+  /** Spectral centroid B − A (Hz). */
+  spectral_centroid_delta_hz?: number | null;
+  /** High-band (>4 kHz) energy share B − A. */
+  hf_energy_delta?: number | null;
   changed_sample_pct: number;
   duration_delta_sec: number;
 };

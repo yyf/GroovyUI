@@ -368,7 +368,12 @@ def separate_stems_audio(
     segment: float = 0.0,
     split: bool = True,
 ) -> dict[str, np.ndarray]:
-    from groovy.nodes.ai.inference_env import demucs_available, inference_stub_enabled
+    from groovy.nodes.ai.inference_env import (
+        demucs_available,
+        inference_stub_enabled,
+        openunmix_available,
+        spleeter_available,
+    )
 
     if model_id in MODEL_ID_TO_DEMUCS:
         if demucs_available() and not inference_stub_enabled():
@@ -390,25 +395,67 @@ def separate_stems_audio(
             "then install demucs-v4 from Model Browser (Cmd+K)."
         )
 
+    if model_id in MODEL_ID_TO_OPENUNMIX:
+        if openunmix_available() and not inference_stub_enabled():
+            from groovy.nodes.ai.backends.openunmix_runner import separate_pcm_to_stems
+
+            return separate_pcm_to_stems(pcm, sample_rate=sample_rate, model_id=model_id)
+        if inference_stub_enabled():
+            return _separate_stems_stub(pcm, model_id=model_id)
+        raise RuntimeError(
+            "Open-Unmix inference is not installed. Install openunmix-umx from Model Browser "
+            "(Cmd+K) — PyTorch, works on Mac without TensorFlow."
+        )
+
+    if model_id in MODEL_ID_TO_SPLEETER:
+        if spleeter_available() and not inference_stub_enabled():
+            from groovy.nodes.ai.backends.spleeter_runner import separate_pcm_to_stems
+
+            return separate_pcm_to_stems(pcm, sample_rate=sample_rate, model_id=model_id)
+        if inference_stub_enabled():
+            return _separate_stems_stub(pcm, model_id=model_id)
+        raise RuntimeError(
+            "Spleeter needs TensorFlow + Python <3.12 — not supported in this venv. "
+            "Install openunmix-umx or demucs-v4 from Model Browser for Real stems, "
+            "or enable Stub for UI demos."
+        )
+
     return _separate_stems_stub(pcm, model_id=model_id)
 
 
 MODEL_ID_TO_DEMUCS = {"demucs-v4", "demucs-v4-ht"}
+MODEL_ID_TO_OPENUNMIX = {"openunmix-umx"}
+MODEL_ID_TO_SPLEETER = {"spleeter-2stems"}
 
 
 def _separate_stems_stub(pcm: np.ndarray, *, model_id: str) -> dict[str, np.ndarray]:
-    _ = model_id
     if pcm.ndim == 1:
         pcm = pcm.reshape(1, -1)
     mono = pcm.mean(axis=0)
-    harmonic = median_filter(mono, size=31)
-    percussive = mono - harmonic
-    stem_mono = {
-        "vocals": harmonic * 0.85,
-        "drums": percussive,
-        "bass": harmonic * 0.35,
-        "other": harmonic * 0.15,
-    }
+    # Distinct stubs so Demucs vs Open-Unmix / Spleeter A/B still shows measurable SDR under Stub.
+    if model_id in MODEL_ID_TO_SPLEETER:
+        vocals = median_filter(mono, size=51) * 0.9
+        other = mono - vocals * 0.65
+        silence = np.zeros_like(mono)
+        stem_mono = {"vocals": vocals, "drums": silence, "bass": silence, "other": other}
+    elif model_id in MODEL_ID_TO_OPENUNMIX:
+        harmonic = median_filter(mono, size=41)
+        residual = mono - harmonic * 0.8
+        stem_mono = {
+            "vocals": harmonic * 0.75,
+            "drums": residual * 0.9,
+            "bass": harmonic * 0.25,
+            "other": residual * 0.35,
+        }
+    else:
+        harmonic = median_filter(mono, size=31)
+        percussive = mono - harmonic
+        stem_mono = {
+            "vocals": harmonic * 0.85,
+            "drums": percussive,
+            "bass": harmonic * 0.35,
+            "other": harmonic * 0.15,
+        }
     return {
         name: np.tile(wave, (pcm.shape[0], 1)) for name, wave in stem_mono.items()
     }

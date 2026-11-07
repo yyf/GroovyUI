@@ -27,6 +27,7 @@ import {
   jobOutputAtSlot,
   meterDisplayText,
   resolveIoChannelLabel,
+  stemSeparationCompareMeta,
   textCompareLooksLikeReference,
   wiredInputSupersedesWidget,
   wiredInputsForNode,
@@ -188,9 +189,10 @@ export default function NodeHelper({
     }
   }, [node?.id, node?.type]);
 
-  const subgraphWide =
+  const inspectorWide =
     showStudioSettings ||
     showTemplateLicenses ||
+    showCompare ||
     (Boolean(node) &&
       !showCompare &&
       !selectedLink &&
@@ -198,9 +200,9 @@ export default function NodeHelper({
       tab === "subgraph");
 
   useEffect(() => {
-    onSubgraphActiveChange?.(subgraphWide);
+    onSubgraphActiveChange?.(inspectorWide);
     return () => onSubgraphActiveChange?.(false);
-  }, [subgraphWide, onSubgraphActiveChange]);
+  }, [inspectorWide, onSubgraphActiveChange]);
 
   useEffect(() => {
     if (!node) {
@@ -1343,6 +1345,10 @@ function ComparePanel({
   const labelB = b ? `${b.node.type} · ${b.node.id}` : "B";
   const legendA = a ? a.node.type : "A";
   const legendB = b ? b.node.type : "B";
+  const stemMeta = useMemo(
+    () => (a && b ? stemSeparationCompareMeta(workflow, a.node.id, b.node.id) : null),
+    [a?.node.id, b?.node.id, workflow],
+  );
   const channelA = a
     ? resolveIoChannelLabel(
         workflow,
@@ -1396,14 +1402,15 @@ function ComparePanel({
         question: question.trim() || undefined,
       });
       setResult(analysis);
-      setResultTab("summary");
+      // Stem A/B: land on Metrics so SDR / SI-SDR are visible immediately.
+      setResultTab(stemMeta ? "metrics" : "summary");
     } catch (err) {
       setResult(null);
       setError(err instanceof Error ? err.message : "Analysis failed");
     } finally {
       setAnalyzing(false);
     }
-  }, [a, b, labelA, labelB, modelId, question]);
+  }, [a, b, labelA, labelB, modelId, question, stemMeta]);
 
   if (!a || !b) {
     return (
@@ -1651,6 +1658,7 @@ function ComparePanel({
                 comparison={result.comparison}
                 labelA={legendA}
                 labelB={legendB}
+                stemSeparation={stemMeta}
               />
             </div>
           )}

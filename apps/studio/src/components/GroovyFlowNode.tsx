@@ -29,7 +29,7 @@ export type GroovyNodeData = {
   issue?: string;
   /** Live render hint (e.g. model download on a slow AI hop). */
   activityLabel?: string;
-  /** Minimal top-right chip: live phase (`rendering`) or share of job time (`42%`). */
+  /** Minimal top-right chip: live phase (`rendering`) or pipeline-time share (`42%`). */
   cornerLabel?: string;
   /** Truncated TEXT output shown on-node (Preview / Whisper / Prompt). */
   previewText?: string;

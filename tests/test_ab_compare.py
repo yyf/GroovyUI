@@ -37,6 +37,47 @@ def test_compare_pcm_detects_processing(tmp_path: Path) -> None:
     stats = compare_pcm(clean.reshape(1, -1), noisy.reshape(1, -1))
     assert stats["identical"] is False
     assert stats["max_sample_diff"] > 0.01
+    assert stats["sdr_db"] is not None and stats["sdr_db"] < 40
+    assert stats["si_sdr_db"] is not None and stats["si_sdr_db"] < 40
+
+
+def test_compare_pcm_si_sdr_ignores_gain() -> None:
+    sr = 48000
+    t = np.linspace(0, 0.5, int(sr * 0.5), endpoint=False)
+    ref = 0.2 * np.sin(2 * np.pi * 440 * t)
+    louder = ref * 3.0
+    stats = compare_pcm(ref.reshape(1, -1), louder.reshape(1, -1))
+    assert stats["identical"] is False
+    assert stats["si_sdr_db"] is not None and stats["si_sdr_db"] > 40
+    assert stats["sdr_db"] is not None and stats["sdr_db"] < stats["si_sdr_db"]
+
+
+def test_compare_pcm_pairwise_spectral_no_gt() -> None:
+    from groovy.executor.ab_compare import compare_pcm_with_rate
+
+    sr = 48000
+    t = np.linspace(0, 1.0, sr, endpoint=False)
+    low = 0.2 * np.sin(2 * np.pi * 220 * t)
+    high = 0.2 * np.sin(2 * np.pi * 1760 * t)
+    stats = compare_pcm_with_rate(
+        low.reshape(1, -1),
+        high.reshape(1, -1),
+        sample_rate_a=sr,
+        sample_rate_b=sr,
+    )
+    assert stats["mel_cosine"] is not None and stats["mel_cosine"] < 0.99
+    assert stats["log_spectral_distance"] is not None and stats["log_spectral_distance"] > 0.05
+    assert stats["spectral_centroid_delta_hz"] is not None
+    assert abs(stats["spectral_centroid_delta_hz"]) > 500
+    assert stats["hf_energy_delta"] is not None
+    identical = compare_pcm_with_rate(
+        low.reshape(1, -1),
+        low.reshape(1, -1),
+        sample_rate_a=sr,
+        sample_rate_b=sr,
+    )
+    assert identical["mel_cosine"] == 1.0
+    assert identical["log_spectral_distance"] == 0.0
 
 
 def test_analyze_signal_pair_detects_level_change(tmp_path: Path) -> None:

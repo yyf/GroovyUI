@@ -1528,6 +1528,46 @@ export function textCompareLooksLikeReference(workflow: Workflow, nodeId: string
   });
 }
 
+/** Walk inlet links (bounded) for the nearest upstream node of a given type. */
+export function findUpstreamNodeOfType(
+  workflow: Workflow,
+  nodeId: string,
+  nodeType: string,
+  depth = 0,
+): WorkflowNode | null {
+  if (depth > 24) return null;
+  const node = workflow.nodes.find((item) => item.id === nodeId);
+  if (!node) return null;
+  if (node.type === nodeType) return node;
+  for (const link of workflow.links) {
+    if (link.to[0] !== nodeId) continue;
+    const found = findUpstreamNodeOfType(workflow, link.from[0], nodeType, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
+export type StemSeparationCompareMeta = {
+  modelA: string | null;
+  modelB: string | null;
+};
+
+/** True when both A/B sides are SeparateStems (or Previews fed by them). */
+export function stemSeparationCompareMeta(
+  workflow: Workflow,
+  nodeIdA: string,
+  nodeIdB: string,
+): StemSeparationCompareMeta | null {
+  const stemA = findUpstreamNodeOfType(workflow, nodeIdA, "SeparateStems");
+  const stemB = findUpstreamNodeOfType(workflow, nodeIdB, "SeparateStems");
+  if (!stemA || !stemB) return null;
+  const modelOf = (node: WorkflowNode) => {
+    const value = node.widgets?.model;
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  };
+  return { modelA: modelOf(stemA), modelB: modelOf(stemB) };
+}
+
 export function listDistinctChainHops(
   workflow: Workflow,
   outputs?: Record<string, JobOutput>,

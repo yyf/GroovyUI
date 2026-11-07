@@ -57,6 +57,7 @@ describe("templatesVisibleInUi", () => {
     bundled("instrumental-tts-dub"),
     bundled("melody-to-modular-synth"),
     bundled("compare-stemmers"),
+    bundled("demucs-vs-openunmix"),
     bundled("stem-lyrics-to-ace"),
   ];
 
@@ -69,6 +70,7 @@ describe("templatesVisibleInUi", () => {
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5-sft",
       "asr-benchmark-wer-cer",
+      "demucs-vs-openunmix",
       "empty-canvas",
       "hello-groovy",
       "isolate-vocals-to-transcribe",
@@ -119,6 +121,7 @@ describe("templatesVisibleInUi", () => {
       "authenticity-check",
       "compare-stemmers",
       "compare-whisper-sizes",
+      "demucs-vs-openunmix",
       "extract-lyrics-to-music-with-ace-step",
       "hello-groovy",
       "instrumental-tts-dub",
@@ -333,6 +336,10 @@ describe("isNodeVisibleInStudio", () => {
 
   it("places asr-benchmark-wer-cer in Compare", () => {
     expect(domainIdForTemplate("asr-benchmark-wer-cer")).toBe("compare");
+  });
+
+  it("places demucs-vs-openunmix in Compare", () => {
+    expect(domainIdForTemplate("demucs-vs-openunmix")).toBe("compare");
   });
 
   it("shows all node types in studio dev mode", () => {

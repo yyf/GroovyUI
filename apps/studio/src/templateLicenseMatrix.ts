@@ -147,6 +147,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "demucs-vs-openunmix",
+    title: "Demucs vs Open-Unmix — Stem A/B",
+    models: "demucs-v4, openunmix-umx",
+    licenses: "demucs-v4: MIT; openunmix-umx: MIT",
+    impact: "Med",
+    cluster: "Compare / eval",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
     id: "video-to-audio",
     title: "Video to Audio",
     models: "diff-foley (default)",

@@ -64,7 +64,7 @@ class SeparateStems(GroovyNode):
     DETERMINISTIC = False
     run_in_worker = True
     PROVENANCE_CLASS = "ai_transformed"
-    COMPATIBLE_MODELS = ["demucs-v4", "demucs-v4-ht"]
+    COMPATIBLE_MODELS = ["demucs-v4", "demucs-v4-ht", "openunmix-umx", "spleeter-2stems"]
     RETURN_TYPES = ("AUDIO", "AUDIO", "AUDIO", "AUDIO")
     OUTPUT_NAMES = ("vocals", "drums", "bass", "other")
 

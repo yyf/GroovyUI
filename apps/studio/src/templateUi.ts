@@ -8,6 +8,7 @@ import type { TemplateListItem } from "./api";
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5-sft",
   "asr-benchmark-wer-cer",
+  "demucs-vs-openunmix",
   "empty-canvas",
   "hello-groovy",
   "tab-creative-grow",
@@ -27,6 +28,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "watermark-embed-detect",
   "asr-benchmark-wer-cer",
   "compare-stemmers",
+  "demucs-vs-openunmix",
   "compare-whisper-sizes",
   "empty-canvas",
   "extract-lyrics-to-music-with-ace-step",
@@ -114,6 +116,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "isolate-vocals-to-transcribe-translate": "speech",
   "compare-whisper-sizes": "compare",
   "asr-benchmark-wer-cer": "compare",
+  "demucs-vs-openunmix": "compare",
   "sample-verify": "compare",
   "ab-compare-demo": "compare",
 
