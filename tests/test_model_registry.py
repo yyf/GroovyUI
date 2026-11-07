@@ -60,6 +60,16 @@ def test_deepfilterlib_rejects_python_312_plus(monkeypatch: pytest.MonkeyPatch) 
         installer_mod._run_pip_install("deepfilterlib==0.5.6")
 
 
+def test_spleeter_rejects_python_312_plus(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Ver:
+        major = 3
+        minor = 12
+
+    monkeypatch.setattr(installer_mod.sys, "version_info", _Ver())
+    with pytest.raises(RuntimeError, match="openunmix-umx"):
+        installer_mod._run_pip_install("spleeter>=2.4.0")
+
+
 def test_run_pip_install_prefers_uv(monkeypatch: pytest.MonkeyPatch) -> None:
     from groovy.registry import installer as installer_mod
 

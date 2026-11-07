@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   AI_DOWNLOAD_HINT_MS,
   aiNodePhaseLabel,
-  aiNodeTimingPercents,
+  nodeTimingPercents,
   nodeStatusOnProgress,
   slowAiDownloadLabel,
 } from "./renderActivity";
@@ -106,18 +106,25 @@ describe("aiNodePhaseLabel", () => {
   });
 });
 
-describe("aiNodeTimingPercents", () => {
-  it("shares job time across AI nodes", () => {
+describe("nodeTimingPercents", () => {
+  it("shares all timed node time so chips sum to 100%", () => {
+    // Include core + AI hops; ignore wall-clock padding in total_ms.
     expect(
-      aiNodeTimingPercents({ n1: 250, n2: 750, n3: 1000 }, 2000, ["n1", "n2"]),
-    ).toEqual({ n1: "13%", n2: "38%" });
+      nodeTimingPercents({ n1: 250, n2: 750, n3: 1000 }, 2500, ["n1", "n2", "n3"]),
+    ).toEqual({ n1: "13%", n2: "37%", n3: "50%" });
   });
 
   it("falls back to summing timings when total is missing", () => {
-    expect(aiNodeTimingPercents({ a: 1, b: 3 }, undefined, ["a", "b"])).toEqual({
+    expect(nodeTimingPercents({ a: 1, b: 3 }, undefined, ["a", "b"])).toEqual({
       a: "25%",
       b: "75%",
     });
+  });
+
+  it("rounds with largest remainder so percents sum to 100", () => {
+    const labels = nodeTimingPercents({ a: 1, b: 1, c: 1 }, undefined, ["a", "b", "c"]);
+    const sum = Object.values(labels).reduce((acc, label) => acc + Number.parseInt(label, 10), 0);
+    expect(sum).toBe(100);
   });
 });
 

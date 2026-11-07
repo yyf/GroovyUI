@@ -57,6 +57,18 @@ def _suggested_fixes(error: str, manifest: ModelManifest | None) -> list[str]:
         fixes.append("Dev stub install should succeed — restart the API server and retry.")
     if "failed to install" in lowered or "pip install" in lowered:
         fixes.append("Retry install from Model Browser (Cmd+K).")
+    if "pywavelets" in lowered or "pywt" in lowered:
+        fixes.append(
+            "Upstream stable-audio-tools pins PyWavelets==1.4.1 (no Python 3.12 wheel). "
+            "Retry install — GroovyUI installs PyWavelets>=1.5 then stable-audio-tools with --no-deps."
+        )
+    if "spleeter" in lowered or "tensorflow" in lowered:
+        fixes.append(
+            "Spleeter needs TensorFlow + Python <3.12 — skip it on this Mac/venv. "
+            "Install openunmix-umx (PyTorch 4-stem) or demucs-v4 instead."
+        )
+        if manifest and manifest.id == "spleeter-2stems":
+            fixes.append("Open template Demucs vs Open-Unmix for a Mac-real stem A/B.")
     if "inference runtime not ready" in lowered or "runtime not ready" in lowered or "not importable" in lowered:
         fixes.append("Reinstall from Model Browser (Cmd+K) to pull Python inference deps.")
     if not fixes:

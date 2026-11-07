@@ -35,25 +35,58 @@ export function aiNodePhaseLabel(input: {
   return "rendering";
 }
 
-/** Share of total job time for AI nodes only (shown after render completes). */
+/**
+ * Bottleneck gauge for every timed node after a completed render.
+ *
+ * Denominator is the sum of those node timings (full pipeline account), so chips
+ * sum to 100%. Wall-clock `totalMs` is only a fallback when the sum is empty.
+ * Largest-remainder rounding keeps displayed integers exact.
+ */
+export function nodeTimingPercents(
+  timings: Record<string, number> | undefined,
+  totalMs: number | undefined,
+  nodeIds: Iterable<string>,
+): Record<string, string> {
+  if (!timings) return {};
+  const entries: Array<{ id: string; ms: number }> = [];
+  for (const id of nodeIds) {
+    const raw = timings[id];
+    if (raw == null) continue;
+    entries.push({ id, ms: Math.max(0, raw) });
+  }
+  if (entries.length === 0) return {};
+
+  const timedSum = entries.reduce((sum, row) => sum + row.ms, 0);
+  const denom = timedSum > 0 ? timedSum : totalMs != null && totalMs > 0 ? totalMs : 0;
+  if (denom <= 0) return {};
+
+  const exact = entries.map((row) => (100 * row.ms) / denom);
+  const floors = exact.map((value) => Math.floor(value));
+  let remainder = 100 - floors.reduce((sum, value) => sum + value, 0);
+  const byFrac = exact
+    .map((value, index) => ({ index, frac: value - floors[index]! }))
+    .sort((a, b) => b.frac - a.frac);
+  const percents = [...floors];
+  for (let i = 0; i < remainder; i++) {
+    const slot = byFrac[i]?.index;
+    if (slot == null) break;
+    percents[slot] = (percents[slot] ?? 0) + 1;
+  }
+
+  const out: Record<string, string> = {};
+  entries.forEach((row, index) => {
+    out[row.id] = `${percents[index] ?? 0}%`;
+  });
+  return out;
+}
+
+/** @deprecated Use {@link nodeTimingPercents} — kept for call-site compatibility. */
 export function aiNodeTimingPercents(
   timings: Record<string, number> | undefined,
   totalMs: number | undefined,
-  aiNodeIds: Iterable<string>,
+  nodeIds: Iterable<string>,
 ): Record<string, string> {
-  if (!timings) return {};
-  const denom =
-    totalMs != null && totalMs > 0
-      ? totalMs
-      : Object.values(timings).reduce((sum, ms) => sum + Math.max(0, ms), 0);
-  if (denom <= 0) return {};
-  const out: Record<string, string> = {};
-  for (const id of aiNodeIds) {
-    const ms = timings[id];
-    if (ms == null) continue;
-    out[id] = `${Math.round((100 * Math.max(0, ms)) / denom)}%`;
-  }
-  return out;
+  return nodeTimingPercents(timings, totalMs, nodeIds);
 }
 
 /** Only the active node stays `running`; the previous hop is marked cached. */

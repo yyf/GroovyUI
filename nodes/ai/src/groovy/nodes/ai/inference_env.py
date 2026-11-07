@@ -98,6 +98,25 @@ def demucs_available() -> bool:
         return False
 
 
+def spleeter_available() -> bool:
+    try:
+        import spleeter.separator  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def openunmix_available() -> bool:
+    try:
+        import openunmix.predict  # noqa: F401
+        import torch  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def deepfilternet_available() -> bool:
     from groovy.nodes.ai.deepfilter_compat import deepfilternet_available as _available
 
@@ -236,6 +255,8 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "basic-pitch": basic_pitch_available,
     "demucs-v4": demucs_available,
     "demucs-v4-ht": demucs_available,
+    "spleeter-2stems": spleeter_available,
+    "openunmix-umx": openunmix_available,
     "musicgen-melody-small": musicgen_melody_available,
     "musicgen-small": musicgen_small_available,
     "stable-audio-open-1.0": stable_audio_available,

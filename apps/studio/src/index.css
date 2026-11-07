@@ -1383,9 +1383,8 @@ body {
 }
 
 .side-panel--right.side-panel--open.side-panel--wide {
-  /* Room for inputs | model | outputs without crushing the subgraph canvas;
-     Studio settings and Template licenses also open wide for readable copy. */
-  flex: 0 0 min(540px, 46vw);
+  /* Room for A/B metrics tables, subgraph ports, settings, and license copy. */
+  flex: 0 0 min(620px, 52vw);
 }
 
 .side-panel__tab {
@@ -3451,6 +3450,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.node-helper__compare {
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .node-helper__compare-meta,
@@ -3735,7 +3741,98 @@ body {
 .compare-metrics {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.compare-metrics__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-rule);
+}
+
+.compare-metrics__section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.compare-metrics__section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.compare-metrics__section-title {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.compare-metrics__section-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.compare-readouts--stem {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .compare-readouts--stem {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.compare-stem-meta {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-rule);
+  background: var(--bg-recessed);
+  min-width: 0;
+}
+
+.compare-stem-meta__row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  padding: 7px 8px;
+  border-top: 1px solid var(--border-rule);
+  min-width: 0;
+}
+
+.compare-stem-meta__row:first-child {
+  border-top: none;
+}
+
+.compare-stem-meta__row dt {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.compare-stem-meta__row dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .compare-plot,

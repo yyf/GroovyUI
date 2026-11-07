@@ -206,6 +206,7 @@
       ],
       "similar_models": [
         "demucs-v4-ht",
+        "openunmix-umx",
         "uvr-mdx-net",
         "spleeter-2stems"
       ],
@@ -987,7 +988,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Spleeter 2-stems",
-      "description": "Fast 2-stem vocal separation for quick previews.",
+      "description": "Deezer 2-stem vocal / accompaniment (TensorFlow). Not installable on Python 3.12+ (GroovyUI Mac default) — use openunmix-umx or demucs-v4 for Real stems. Stub path still works for UI demos.",
       "task_types": [
         "separation"
       ],
@@ -1010,11 +1011,89 @@
         "SeparateStems"
       ],
       "install": {
-        "dev_stub": true
+        "python_deps": [
+          {
+            "package": "spleeter",
+            "version": ">=2.4.0"
+          }
+        ],
+        "verify_imports": [
+          "spleeter.separator"
+        ],
+        "dev_stub": false
+      },
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "cuda"
+        ],
+        "requires_cuda": false,
+        "label": "CPU / CUDA \u00b7 TF \u00b7 needs Python <3.12"
       },
       "similar_models": [
-        "uvr-mdx-net",
-        "demucs-v4"
+        "openunmix-umx",
+        "demucs-v4",
+        "uvr-mdx-net"
+      ]
+    },
+    {
+      "id": "openunmix-umx",
+      "status": "published",
+      "trust": "verified",
+      "name": "Open-Unmix (UMX)",
+      "description": "PyTorch music source separation (vocals, drums, bass, other). Mac-friendly Demucs peer for stem A/B — no TensorFlow.",
+      "task_types": [
+        "separation"
+      ],
+      "tags": [
+        "stems",
+        "openunmix",
+        "umx",
+        "vocals",
+        "music"
+      ],
+      "author": "SigSep",
+      "license": {
+        "spdx": "MIT",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0
+      },
+      "vram_gb_estimate": 2,
+      "download_size_mb_estimate": 150,
+      "compatible_nodes": [
+        "SeparateStems"
+      ],
+      "install": {
+        "python_deps": [
+          {
+            "package": "openunmix",
+            "version": ">=1.3.0"
+          },
+          {
+            "package": "torch",
+            "version": ">=2.0.0"
+          }
+        ],
+        "verify_imports": [
+          "openunmix.predict",
+          "torch"
+        ],
+        "dev_stub": false
+      },
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "cuda",
+          "mps"
+        ],
+        "requires_cuda": false,
+        "label": "CPU / CUDA / MPS \u00b7 PyTorch \u00b7 ~2 GB"
+      },
+      "similar_models": [
+        "demucs-v4",
+        "spleeter-2stems",
+        "demucs-v4-ht"
       ]
     },
     {

@@ -103,8 +103,8 @@ import {
 import { isAiNodeType } from "./nodeKinds";
 import {
   aiNodePhaseLabel,
-  aiNodeTimingPercents,
   nodeStatusOnProgress,
+  nodeTimingPercents,
   slowAiDownloadLabel,
 } from "./renderActivity";
 import type { JobState, ModelBrowserLaunch, NodeRenderStatus, NodeSchema, Workflow } from "./types";
@@ -338,28 +338,26 @@ export default function App() {
     });
   }, [workflow, currentNode, nodeSchemas, running, lastProgressAt, renderTick]);
 
-  const aiCornerLabels = useMemo(() => {
+  const nodeCornerLabels = useMemo(() => {
     if (!workflow) return {} as Record<string, string>;
-    const aiIds = workflow.nodes
-      .filter((node) => isAiNodeType(node.type, nodeSchemas[node.type]?.category))
-      .map((node) => node.id);
+    const allIds = workflow.nodes.map((node) => node.id);
     if (running) {
       const labels: Record<string, string> = {};
-      for (const id of aiIds) {
-        const node = workflow.nodes.find((item) => item.id === id);
+      for (const node of workflow.nodes) {
+        const isAi = isAiNodeType(node.type, nodeSchemas[node.type]?.category);
         const phase = aiNodePhaseLabel({
-          isCurrent: id === currentNode,
+          isCurrent: node.id === currentNode,
           running,
-          isAi: true,
+          isAi,
           message: renderMessage,
           staleMs: lastProgressAt ? renderTick - lastProgressAt : 0,
         });
-        if (phase && node) labels[id] = phase;
+        if (phase) labels[node.id] = phase;
       }
       return labels;
     }
     if (lastJob?.status === "completed" && lastJob.node_timings_ms) {
-      return aiNodeTimingPercents(lastJob.node_timings_ms, lastJob.total_ms, aiIds);
+      return nodeTimingPercents(lastJob.node_timings_ms, lastJob.total_ms, allIds);
     }
     return {};
   }, [
@@ -386,7 +384,7 @@ export default function App() {
     );
     return nodes.map((node) => {
       if (node.type !== "groovy") return node;
-      const cornerLabel = aiCornerLabels[node.id];
+      const cornerLabel = nodeCornerLabels[node.id];
       const activityLabel =
         node.id === currentNode && downloadHint ? downloadHint : undefined;
       if (!cornerLabel && !activityLabel) return node;
@@ -409,7 +407,7 @@ export default function App() {
     channelLayouts,
     currentNode,
     downloadHint,
-    aiCornerLabels,
+    nodeCornerLabels,
   ]);
 
   useEffect(() => {

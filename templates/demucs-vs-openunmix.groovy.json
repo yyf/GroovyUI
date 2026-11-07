@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a1b2c3d4-e5f6-4789-a012-demucsopenunmix",
+  "metadata": {
+    "title": "Demucs vs Open-Unmix — Stem A/B",
+    "author": "groovy",
+    "description": "Same mix → Demucs v4 ∥ Open-Unmix UMX. Preview each vocals hop, then drag-select the two Previews for Inspector A/B (loudness, waveform, pairwise SDR/SI-SDR, mel cosine, LSD). Install demucs-v4 and openunmix-umx.",
+    "tags": [
+      "ai",
+      "stems",
+      "compare",
+      "ab",
+      "demucs",
+      "openunmix",
+      "eval",
+      "sdr"
+    ],
+    "created_at": "2026-11-07T00:00:00Z",
+    "modified_at": "2026-11-07T00:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": { "x": -360, "y": 80 },
+      "widgets": {
+        "text": "Demucs vs Open-Unmix — Stem A/B\n\nLoadAudio → Demucs v4 ∥ Open-Unmix.\nPreview = vocals only.\n\nDrag-select both Previews → Analyze:\nloudness · waveform · pairwise SDR/SI-SDR\n· mel cosine · LSD (no ground truth).\n\nMIT · Play = cached PCM."
+      }
+    },
+    {
+      "id": "n1",
+      "type": "LoadAudio",
+      "pos": { "x": 0, "y": 200 },
+      "widgets": {
+        "path": "assets/samples/stem_separation_demo.wav"
+      }
+    },
+    {
+      "id": "n2",
+      "type": "SeparateStems",
+      "pos": { "x": 280, "y": 40 },
+      "widgets": {
+        "model": "demucs-v4",
+        "shifts": 1,
+        "overlap": 0.25,
+        "segment": 0,
+        "split": true
+      }
+    },
+    {
+      "id": "n3",
+      "type": "SeparateStems",
+      "pos": { "x": 280, "y": 360 },
+      "widgets": {
+        "model": "openunmix-umx",
+        "shifts": 1,
+        "overlap": 0.25,
+        "segment": 0,
+        "split": true
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Preview",
+      "pos": { "x": 560, "y": 40 },
+      "widgets": {}
+    },
+    {
+      "id": "n5",
+      "type": "Preview",
+      "pos": { "x": 560, "y": 360 },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n2", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": ["n1", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n2", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": ["n3", 0],
+      "to": ["n5", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 0.8,
+    "pan": { "x": 120, "y": 40 }
+  }
+}

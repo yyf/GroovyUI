@@ -98,6 +98,156 @@ def compare_waveform_peaks(peaks_a: list[float], peaks_b: list[float]) -> dict[s
     }
 
 
+def _sdr_db(reference: np.ndarray, estimate: np.ndarray) -> float | None:
+    """Scale-dependent SDR (dB): A is reference, B is estimate."""
+    if reference.size == 0 or estimate.size == 0:
+        return None
+    ref_energy = float(np.sum(np.square(reference)))
+    err_energy = float(np.sum(np.square(estimate - reference)))
+    if ref_energy <= 0:
+        return None
+    return float(10.0 * np.log10(ref_energy / max(err_energy, 1e-12)))
+
+
+def _si_sdr_db(reference: np.ndarray, estimate: np.ndarray) -> float | None:
+    """Scale-invariant SDR (dB): A is reference, B is estimate after projection."""
+    if reference.size == 0 or estimate.size == 0:
+        return None
+    ref = reference - float(np.mean(reference))
+    est = estimate - float(np.mean(estimate))
+    ref_energy = float(np.sum(np.square(ref)))
+    if ref_energy <= 0:
+        return None
+    scale = float(np.sum(ref * est)) / ref_energy
+    target = scale * ref
+    noise = est - target
+    target_energy = float(np.sum(np.square(target)))
+    noise_energy = float(np.sum(np.square(noise)))
+    if target_energy <= 0:
+        return None
+    return float(10.0 * np.log10(target_energy / max(noise_energy, 1e-12)))
+
+
+def _hz_to_mel(hz: np.ndarray | float) -> np.ndarray | float:
+    return 2595.0 * np.log10(1.0 + np.asarray(hz, dtype=np.float64) / 700.0)
+
+
+def _mel_to_hz(mel: np.ndarray | float) -> np.ndarray | float:
+    return 700.0 * (10.0 ** (np.asarray(mel, dtype=np.float64) / 2595.0) - 1.0)
+
+
+def _mel_filterbank(sample_rate: int, n_fft: int, n_mels: int = 64) -> np.ndarray:
+    """Triangular HTK-style mel filterbank (n_mels × n_freqs)."""
+    n_freqs = n_fft // 2 + 1
+    f_max = sample_rate / 2.0
+    mels = np.linspace(_hz_to_mel(0.0), _hz_to_mel(f_max), n_mels + 2)
+    hz = _mel_to_hz(mels)
+    bins = np.floor((n_fft + 1) * hz / sample_rate).astype(int)
+    bins = np.clip(bins, 0, n_freqs - 1)
+    weights = np.zeros((n_mels, n_freqs), dtype=np.float64)
+    for i in range(n_mels):
+        left, center, right = int(bins[i]), int(bins[i + 1]), int(bins[i + 2])
+        if center <= left:
+            center = min(left + 1, n_freqs - 1)
+        if right <= center:
+            right = min(center + 1, n_freqs - 1)
+        for j in range(left, center):
+            weights[i, j] = (j - left) / max(center - left, 1)
+        for j in range(center, right):
+            weights[i, j] = (right - j) / max(right - center, 1)
+    return weights
+
+
+def _stft_magnitude(mono: np.ndarray, sample_rate: int, *, n_fft: int = 2048, hop: int = 512) -> np.ndarray:
+    from scipy import signal
+
+    _freqs, _times, zxx = signal.stft(
+        mono.astype(np.float64),
+        fs=sample_rate,
+        nperseg=n_fft,
+        noverlap=n_fft - hop,
+        boundary=None,
+    )
+    return np.abs(zxx)
+
+
+def _spectral_centroid_hz(mag: np.ndarray, sample_rate: int) -> float:
+    n_freqs = mag.shape[0]
+    freqs = np.linspace(0.0, sample_rate / 2.0, n_freqs)
+    power = np.square(mag)
+    frame_energy = np.sum(power, axis=0) + 1e-12
+    centroids = np.sum(freqs[:, None] * power, axis=0) / frame_energy
+    weights = frame_energy / np.sum(frame_energy)
+    return float(np.sum(centroids * weights))
+
+
+def _band_energy_ratio(mag: np.ndarray, sample_rate: int, lo_hz: float, hi_hz: float) -> float:
+    n_freqs = mag.shape[0]
+    freqs = np.linspace(0.0, sample_rate / 2.0, n_freqs)
+    mask = (freqs >= lo_hz) & (freqs < hi_hz)
+    total = float(np.sum(np.square(mag))) + 1e-12
+    return float(np.sum(np.square(mag[mask]))) / total
+
+
+def compare_pairwise_spectral(
+    pcm_a: np.ndarray,
+    pcm_b: np.ndarray,
+    *,
+    sample_rate: int,
+) -> dict[str, float | None]:
+    """No-GT pairwise stem/estimate metrics (A↔B similarity / timbre delta).
+
+    Classic BSS Eval SDR vs ground truth is unavailable without a reference stem.
+    These measure how differently two model outputs sound — the common A/B case.
+    """
+    empty = {
+        "mel_cosine": None,
+        "log_spectral_distance": None,
+        "spectral_centroid_delta_hz": None,
+        "hf_energy_delta": None,
+    }
+    a = _mono(pcm_a)
+    b = _mono(pcm_b)
+    n = min(len(a), len(b))
+    if n < 2048 or sample_rate <= 0:
+        return empty
+    a = a[:n]
+    b = b[:n]
+    try:
+        mag_a = _stft_magnitude(a, sample_rate)
+        mag_b = _stft_magnitude(b, sample_rate)
+    except Exception:
+        return empty
+    frames = min(mag_a.shape[1], mag_b.shape[1])
+    if frames < 1:
+        return empty
+    mag_a = mag_a[:, :frames]
+    mag_b = mag_b[:, :frames]
+
+    # Log-spectral distance (dB): mean frame RMSE of log10 magnitude spectra.
+    log_a = np.log10(mag_a + 1e-8)
+    log_b = np.log10(mag_b + 1e-8)
+    lsd = float(np.mean(np.sqrt(np.mean(np.square(log_a - log_b), axis=0))))
+
+    fb = _mel_filterbank(sample_rate, n_fft=2048, n_mels=64)
+    mel_a = np.log10(fb @ mag_a + 1e-8).ravel()
+    mel_b = np.log10(fb @ mag_b + 1e-8).ravel()
+    denom = float(np.linalg.norm(mel_a) * np.linalg.norm(mel_b))
+    mel_cosine = float(np.dot(mel_a, mel_b) / denom) if denom > 0 else None
+
+    centroid_delta = _spectral_centroid_hz(mag_b, sample_rate) - _spectral_centroid_hz(mag_a, sample_rate)
+    # High-band share (>4 kHz) often rises with bleed/artifacts on vocal stems.
+    hf_a = _band_energy_ratio(mag_a, sample_rate, 4000.0, sample_rate / 2.0)
+    hf_b = _band_energy_ratio(mag_b, sample_rate, 4000.0, sample_rate / 2.0)
+
+    return {
+        "mel_cosine": None if mel_cosine is None else round(mel_cosine, 4),
+        "log_spectral_distance": round(lsd, 4),
+        "spectral_centroid_delta_hz": round(centroid_delta, 1),
+        "hf_energy_delta": round(hf_b - hf_a, 4),
+    }
+
+
 def compare_pcm(pcm_a: np.ndarray, pcm_b: np.ndarray) -> dict[str, Any]:
     a = _mono(pcm_a)
     b = _mono(pcm_b)
@@ -109,6 +259,12 @@ def compare_pcm(pcm_a: np.ndarray, pcm_b: np.ndarray) -> dict[str, Any]:
             "max_sample_diff": 0.0,
             "rms_residual": 0.0,
             "snr_db": None,
+            "sdr_db": None,
+            "si_sdr_db": None,
+            "mel_cosine": None,
+            "log_spectral_distance": None,
+            "spectral_centroid_delta_hz": None,
+            "hf_energy_delta": None,
             "changed_sample_pct": 0.0,
             "duration_delta_frames": len(b) - len(a),
         }
@@ -127,6 +283,12 @@ def compare_pcm(pcm_a: np.ndarray, pcm_b: np.ndarray) -> dict[str, Any]:
         "max_sample_diff": max_sample_diff,
         "rms_residual": rms_residual,
         "snr_db": snr_db,
+        "sdr_db": 100.0 if identical else _sdr_db(a_aligned, b_aligned),
+        "si_sdr_db": 100.0 if identical else _si_sdr_db(a_aligned, b_aligned),
+        "mel_cosine": None,
+        "log_spectral_distance": None,
+        "spectral_centroid_delta_hz": None,
+        "hf_energy_delta": None,
         "changed_sample_pct": round(changed_sample_pct, 2),
         "duration_delta_frames": len(b) - len(a),
     }
@@ -143,6 +305,14 @@ def compare_pcm_with_rate(
     frames_delta = stats.pop("duration_delta_frames")
     rate = sample_rate_a or sample_rate_b or 48000
     stats["duration_delta_sec"] = round(frames_delta / rate, 3)
+    spectral = compare_pairwise_spectral(pcm_a, pcm_b, sample_rate=rate)
+    if stats.get("identical"):
+        stats["mel_cosine"] = 1.0
+        stats["log_spectral_distance"] = 0.0
+        stats["spectral_centroid_delta_hz"] = 0.0
+        stats["hf_energy_delta"] = 0.0
+    else:
+        stats.update(spectral)
     return stats
 
 
@@ -227,6 +397,30 @@ def collect_difference_bullets(comparison: dict[str, Any]) -> list[str]:
         bullets.append(f"Max sample delta is {pcm['max_sample_diff']:.4f} ({pcm['changed_sample_pct']:.1f}% of samples changed).")
     if pcm.get("snr_db") is not None and pcm["snr_db"] < 45:
         bullets.append(f"Residual SNR is {pcm['snr_db']:.1f} dB — waveforms diverge audibly.")
+    if pcm.get("si_sdr_db") is not None and pcm["si_sdr_db"] < 20:
+        bullets.append(
+            f"Pairwise SI-SDR is {pcm['si_sdr_db']:.1f} dB (A↔B, not vs ground truth) — estimates diverge after gain matching."
+        )
+    elif pcm.get("sdr_db") is not None and pcm["sdr_db"] < 20:
+        bullets.append(
+            f"Pairwise SDR is {pcm['sdr_db']:.1f} dB (A↔B, not vs ground truth) — residual energy between estimates is high."
+        )
+    if pcm.get("mel_cosine") is not None and pcm["mel_cosine"] < 0.92:
+        bullets.append(
+            f"Mel cosine is {pcm['mel_cosine']:.3f} — spectral shape of A and B differs (1 = identical)."
+        )
+    if pcm.get("log_spectral_distance") is not None and pcm["log_spectral_distance"] >= 0.15:
+        bullets.append(
+            f"Log-spectral distance is {pcm['log_spectral_distance']:.3f} — frequency content diverges."
+        )
+    if pcm.get("spectral_centroid_delta_hz") is not None and abs(pcm["spectral_centroid_delta_hz"]) >= 200:
+        bullets.append(
+            f"Spectral centroid differs by {pcm['spectral_centroid_delta_hz']:+.0f} Hz — brightness / timbre shift."
+        )
+    if pcm.get("hf_energy_delta") is not None and abs(pcm["hf_energy_delta"]) >= 0.03:
+        bullets.append(
+            f"High-band energy share differs by {pcm['hf_energy_delta']:+.3f} — possible bleed / artifact difference."
+        )
 
     wf = comparison["waveform"]
     if wf["mean_abs_diff"] >= 0.08:
@@ -268,6 +462,18 @@ def build_signal_facts(
         f"Sample comparison: max delta {pcm['max_sample_diff']:.6f}, "
         f"{pcm['changed_sample_pct']:.1f}% samples changed"
     )
+    if pcm.get("sdr_db") is not None:
+        facts.append(f"Pairwise SDR (A↔B, not GT): {pcm['sdr_db']:.1f} dB")
+    if pcm.get("si_sdr_db") is not None:
+        facts.append(f"Pairwise SI-SDR (A↔B, not GT): {pcm['si_sdr_db']:.1f} dB")
+    if pcm.get("mel_cosine") is not None:
+        facts.append(f"Mel cosine (A↔B): {pcm['mel_cosine']:.3f}")
+    if pcm.get("log_spectral_distance") is not None:
+        facts.append(f"Log-spectral distance (A↔B): {pcm['log_spectral_distance']:.3f}")
+    if pcm.get("spectral_centroid_delta_hz") is not None:
+        facts.append(f"Spectral centroid Δ: {pcm['spectral_centroid_delta_hz']:+.0f} Hz")
+    if pcm.get("hf_energy_delta") is not None:
+        facts.append(f"HF energy share Δ (>4 kHz): {pcm['hf_energy_delta']:+.3f}")
     wf = comparison["waveform"]
     facts.append(
         f"Waveform shape: correlation {wf['correlation']:.2f}, "

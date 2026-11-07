@@ -272,6 +272,14 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "required_outputs": (("n4", "AUDIO"), ("n5", "AUDIO")),
         "spot_check": "ab_compare",
     },
+    "demucs-vs-openunmix": {
+        "sample_path": "assets/samples/stem_separation_demo.wav",
+        "expect_stems_node": "n2",
+        "expect_stem_keys": frozenset({"vocals", "drums", "bass", "other"}),
+        "models": ("demucs-v4", "openunmix-umx"),
+        "required_outputs": (("n4", "AUDIO"), ("n5", "AUDIO")),
+        "spot_check": "ab_compare",
+    },
     "stem-lyrics-to-ace": {
         "sample_path": "assets/samples/stem_separation_demo.wav",
         "expect_stems_node": "n2",

@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import type { AbCompareClip, AbCompareComparison } from "../api";
+import type { StemSeparationCompareMeta } from "../workflow";
 
 type Props = {
   clipA: AbCompareClip;
@@ -6,6 +8,7 @@ type Props = {
   comparison: AbCompareComparison;
   labelA: string;
   labelB: string;
+  stemSeparation?: StemSeparationCompareMeta | null;
 };
 
 function resample(peaks: number[], width: number): number[] {
@@ -26,6 +29,11 @@ function fmtSigned(value: number, digits = 1, unit = ""): string {
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function fmtDb(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "—";
+  return `${value.toFixed(1)} dB`;
 }
 
 /** Bipolar meter: center = 0, left = negative (A louder/longer), right = positive (B). */
@@ -171,39 +179,142 @@ function Readout({ label, value, hint }: { label: string; value: string; hint?: 
   );
 }
 
-export default function CompareMetricsViz({ clipA, clipB, comparison, labelA, labelB }: Props) {
+function MetricsSection({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="compare-metrics__section">
+      <header className="compare-metrics__section-head">
+        <h4 className="compare-metrics__section-title">{title}</h4>
+        {hint ? <p className="compare-metrics__section-hint">{hint}</p> : null}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+export default function CompareMetricsViz({
+  clipA,
+  clipB,
+  comparison,
+  labelA,
+  labelB,
+  stemSeparation = null,
+}: Props) {
   const { waveform, pcm } = comparison;
-  const snr =
-    pcm.snr_db == null || Number.isNaN(pcm.snr_db)
-      ? "—"
-      : `${pcm.snr_db.toFixed(1)} dB`;
+  const snr = fmtDb(pcm.snr_db);
+  const sdr = fmtDb(pcm.sdr_db);
+  const siSdr = fmtDb(pcm.si_sdr_db);
+  const stemLabel =
+    stemSeparation?.modelA || stemSeparation?.modelB
+      ? [stemSeparation.modelA ?? "A", stemSeparation.modelB ?? "B"].join(" ∥ ")
+      : null;
 
   return (
     <div className="compare-metrics">
-      <ResidualPlot peaksA={clipA.peaks} peaksB={clipB.peaks} />
-      <LevelBars clipA={clipA} clipB={clipB} labelA={labelA} labelB={labelB} />
+      <MetricsSection title="Loudness" hint="Peak / RMS / integrated loudness deltas (B − A)">
+        <LevelBars clipA={clipA} clipB={clipB} labelA={labelA} labelB={labelB} />
+        <div className="compare-meters">
+          <DeltaMeter label="Peak Δ" value={comparison.peak_delta_db} unit=" dB" scale={6} />
+          <DeltaMeter label="RMS Δ" value={comparison.rms_delta_db} unit=" dB" scale={6} />
+          <DeltaMeter label="LUFS Δ" value={comparison.lufs_delta} unit=" LU" scale={6} />
+          <DeltaMeter label="Dur Δ" value={comparison.duration_delta_sec} unit=" s" scale={1} />
+        </div>
+      </MetricsSection>
 
-      <div className="compare-meters">
-        <DeltaMeter label="Peak Δ" value={comparison.peak_delta_db} unit=" dB" scale={6} />
-        <DeltaMeter label="RMS Δ" value={comparison.rms_delta_db} unit=" dB" scale={6} />
-        <DeltaMeter label="LUFS Δ" value={comparison.lufs_delta} unit=" LU" scale={6} />
-        <DeltaMeter label="Dur Δ" value={comparison.duration_delta_sec} unit=" s" scale={1} />
-      </div>
+      <MetricsSection title="Waveform" hint="Aligned envelope residual and sample-level drift">
+        <ResidualPlot peaksA={clipA.peaks} peaksB={clipB.peaks} />
+        <div className="compare-readouts">
+          <Readout label="Corr" value={waveform.correlation.toFixed(3)} hint="Waveform peak correlation" />
+          <Readout label="SNR" value={snr} hint="Signal-to-residual ratio (aligned)" />
+          <Readout
+            label="Changed"
+            value={`${pcm.changed_sample_pct.toFixed(1)}%`}
+            hint="Share of samples with |Δ| > 1e-5"
+          />
+          <Readout
+            label="Max Δ"
+            value={pcm.max_sample_diff.toExponential(1)}
+            hint="Maximum absolute sample difference"
+          />
+        </div>
+      </MetricsSection>
 
-      <div className="compare-readouts">
-        <Readout label="Corr" value={waveform.correlation.toFixed(3)} hint="Waveform peak correlation" />
-        <Readout label="SNR" value={snr} hint="Signal-to-residual ratio (aligned)" />
-        <Readout
-          label="Changed"
-          value={`${pcm.changed_sample_pct.toFixed(1)}%`}
-          hint="Share of samples with |Δ| > 1e-5"
-        />
-        <Readout
-          label="Max Δ"
-          value={pcm.max_sample_diff.toExponential(1)}
-          hint="Maximum absolute sample difference"
-        />
-      </div>
+      <MetricsSection
+        title={stemSeparation ? "Stem separation (no ground truth)" : "Pairwise similarity (no ground truth)"}
+        hint={
+          stemSeparation
+            ? `Comparing two model estimates${stemLabel ? ` · ${stemLabel}` : ""}. These measure A↔B agreement — not BSS Eval quality vs a true stem.`
+            : "A↔B agreement only — not quality vs a ground-truth reference."
+        }
+      >
+        <div className="compare-readouts compare-readouts--stem">
+          <Readout
+            label="SDR"
+            value={sdr}
+            hint="Pairwise SDR (A as ref). Higher = B closer to A. Not museval vs ground truth."
+          />
+          <Readout
+            label="SI-SDR"
+            value={siSdr}
+            hint="Pairwise scale-invariant SDR. Higher = closer after gain match. Not vs ground truth."
+          />
+          <Readout
+            label="Mel cos"
+            value={
+              pcm.mel_cosine == null || Number.isNaN(pcm.mel_cosine)
+                ? "—"
+                : pcm.mel_cosine.toFixed(3)
+            }
+            hint="Mel-spectrogram cosine (1 = identical timbre/shape). Common no-GT A/B distance proxy."
+          />
+          <Readout
+            label="LSD"
+            value={
+              pcm.log_spectral_distance == null || Number.isNaN(pcm.log_spectral_distance)
+                ? "—"
+                : pcm.log_spectral_distance.toFixed(3)
+            }
+            hint="Log-spectral distance (lower = closer). Frequency-content disagreement between estimates."
+          />
+          <Readout
+            label="Centroid Δ"
+            value={
+              pcm.spectral_centroid_delta_hz == null || Number.isNaN(pcm.spectral_centroid_delta_hz)
+                ? "—"
+                : `${pcm.spectral_centroid_delta_hz >= 0 ? "+" : ""}${pcm.spectral_centroid_delta_hz.toFixed(0)} Hz`
+            }
+            hint="Spectral centroid B − A. Brightness / timbre shift between stem estimates."
+          />
+          <Readout
+            label="HF Δ"
+            value={
+              pcm.hf_energy_delta == null || Number.isNaN(pcm.hf_energy_delta)
+                ? "—"
+                : `${pcm.hf_energy_delta >= 0 ? "+" : ""}${pcm.hf_energy_delta.toFixed(3)}`
+            }
+            hint="High-band (>4 kHz) energy share B − A. Often rises with bleed or artifacts on vocals."
+          />
+        </div>
+        {stemSeparation ? (
+          <dl className="compare-stem-meta">
+            <div className="compare-stem-meta__row">
+              <dt>A model</dt>
+              <dd>{stemSeparation.modelA ?? "—"}</dd>
+            </div>
+            <div className="compare-stem-meta__row">
+              <dt>B model</dt>
+              <dd>{stemSeparation.modelB ?? "—"}</dd>
+            </div>
+          </dl>
+        ) : null}
+      </MetricsSection>
 
       <div className="compare-metrics__footer">
         <span>

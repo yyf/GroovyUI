@@ -307,6 +307,17 @@ def _run_pip_install(
             "uv sync --all-packages --group dev. "
             "Source builds need Rust/cargo and are not supported for cold installs."
         )
+    # Deezer Spleeter pins TensorFlow==2.12.1 and declares Python <3.12. On 3.12+
+    # (GroovyUI default on modern Macs) the resolver only sees ancient TF builds.
+    if package_name in {"spleeter", "tensorflow"} and (
+        py_major > 3 or (py_major == 3 and py_minor >= 12)
+    ):
+        raise RuntimeError(
+            "Spleeter needs TensorFlow + Python <3.12 (PyPI: python_requires <3.12). "
+            f"This venv is Python {py_major}.{py_minor}. "
+            "For Real stem A/B on Mac install openunmix-umx (PyTorch) or demucs-v4 "
+            "from Model Browser — not spleeter-2stems."
+        )
 
     if shutil.which("uv"):
         # uv-managed venvs do not ship pip; uv pip targets the active interpreter.
@@ -396,6 +407,11 @@ def _human_error(error: str) -> str:
             return (
                 "DeepFilterNet needs Python 3.11 (deepfilterlib has no 3.12+ wheel). "
                 "Recreate the venv with: uv venv --python 3.11 && uv sync --all-packages --group dev"
+            )
+        if "spleeter" in lowered or "tensorflow" in lowered:
+            return (
+                "Spleeter/TensorFlow need Python <3.12 — not supported in this venv. "
+                "Install openunmix-umx or demucs-v4 for Real stem separation on Mac."
             )
         return "Python dependency install failed — retry from Model Browser (Cmd+K)."
     if "inference runtime not ready" in lowered or "not importable after install" in lowered:

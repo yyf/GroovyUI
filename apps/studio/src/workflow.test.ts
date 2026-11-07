@@ -32,6 +32,7 @@ import {
   resolveNodeListenId,
   resolveComparePair,
   resolveNodeTextOutput,
+  stemSeparationCompareMeta,
   textCompareLooksLikeReference,
   nodeModelHint,
   resolveRenderAllTargets,
@@ -1289,6 +1290,30 @@ describe("resolveNodeListenId", () => {
     expect(textCompareLooksLikeReference(workflow, "n8")).toBe(true);
     expect(textCompareLooksLikeReference(workflow, "n6")).toBe(false);
     expect(textCompareLooksLikeReference(workflow, "n1")).toBe(true);
+  });
+
+  it("detects SeparateStems upstream for stem A/B meta", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "LoadAudio", widgets: { path: "x.wav" } },
+        { id: "n2", type: "SeparateStems", widgets: { model: "demucs-v4" } },
+        { id: "n3", type: "SeparateStems", widgets: { model: "openunmix-umx" } },
+        { id: "n4", type: "Preview", widgets: {} },
+        { id: "n5", type: "Preview", widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
+        { id: "l2", from: ["n1", 0], to: ["n3", 0], type: "AUDIO" },
+        { id: "l3", from: ["n2", 0], to: ["n4", 0], type: "AUDIO" },
+        { id: "l4", from: ["n3", 0], to: ["n5", 0], type: "AUDIO" },
+      ],
+    };
+    expect(stemSeparationCompareMeta(workflow, "n4", "n5")).toEqual({
+      modelA: "demucs-v4",
+      modelB: "openunmix-umx",
+    });
+    expect(stemSeparationCompareMeta(workflow, "n4", "n1")).toBeNull();
   });
 
   it("resolves STEMS bundle slots for listen", () => {
