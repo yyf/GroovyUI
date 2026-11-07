@@ -23,6 +23,7 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("tts-emotion-edit")).toBe(true);
     expect(isCommerciallyCleared("ace-step-1.5-sft")).toBe(true);
     expect(isCommerciallyCleared("asr-benchmark-wer-cer")).toBe(true);
+    expect(isCommerciallyCleared("demucs-vs-openunmix")).toBe(true);
     expect(isCommerciallyCleared("layered-music-sfx")).toBe(false);
     expect(isCommerciallyCleared("stable-audio")).toBe(false);
   });
