@@ -69,8 +69,17 @@ const GENERATIVE_NODE_TYPES = new Set([
   "Video2Audio",
 ]);
 
-/** Pin exploration controls (model → prompt-like → seed) above the rest of Config. */
-const EXPLORATION_WIDGET_ORDER = ["model", "prompt", "text", "lyrics_text", "lyrics", "seed"];
+/** Pin exploration controls (model → prompt-like → LoRA → seed) above the rest of Config. */
+const EXPLORATION_WIDGET_ORDER = [
+  "model",
+  "prompt",
+  "text",
+  "lyrics_text",
+  "lyrics",
+  "lora",
+  "lora_scale",
+  "seed",
+];
 
 type Tab = "config" | "subgraph" | "inputs" | "outputs" | "provenance";
 
@@ -2376,6 +2385,8 @@ function widgetLabel(name: string, nodeType: string): string {
     if (name === "prompt" || (name === "text" && nodeType !== "SingFromMIDI")) return "Prompt";
     if (name === "text" && nodeType === "SingFromMIDI") return "Lyrics";
     if (name === "lyrics" || name === "lyrics_text") return "Lyrics";
+    if (name === "lora") return "LoRA adapter";
+    if (name === "lora_scale") return "LoRA scale";
     if (name === "seed") return "Seed";
     if (name === "model") return "Model";
   }
@@ -2399,6 +2410,9 @@ function promptPlaceholder(widgetName: string, nodeType: string): string | undef
   if (widgetName === "text" && nodeType === "SingFromMIDI") return "type the lyrics.";
   if (widgetName === "lyrics" || widgetName === "lyrics_text") {
     return "optional lyrics ([verse] / [chorus]); empty = instrumental.";
+  }
+  if (widgetName === "lora") {
+    return "adapter id from Model Browser (e.g. ace-step-cny-lora); blank = base only.";
   }
   return undefined;
 }

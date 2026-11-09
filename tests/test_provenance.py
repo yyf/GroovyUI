@@ -46,6 +46,21 @@ def project_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
+def test_disclosure_summary_labels_lora_adapters() -> None:
+    chain = [
+        {
+            "contribution": {"class": "ai_generated"},
+            "models": [
+                {"registry_id": "ace-step-1.5-2b-turbo", "role": "base"},
+                {"registry_id": "ace-step-cny-lora", "role": "adapter", "lora_scale": 0.85},
+            ],
+        }
+    ]
+    text = disclosure_summary(chain)
+    assert "ace-step-1.5-2b-turbo" in text
+    assert "ace-step-cny-lora (LoRA ×0.85)" in text
+
+
 def test_provenance_chain_has_parents(project_dir: Path) -> None:
     workflow = Workflow.model_validate(json.loads(TEMPLATE.read_text()))
     for node in workflow.nodes:

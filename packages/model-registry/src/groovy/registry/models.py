@@ -67,6 +67,10 @@ class ModelManifest(BaseModel):
     # None means the catalog cannot estimate without network access.
     download_size_mb_estimate: float | None = None
     compatible_nodes: list[str] = Field(default_factory=list)
+    # When set, this card is a LoRA/adapter for the listed base model ids (e.g. ace-step-1.5-sft).
+    adapter_for: list[str] = Field(default_factory=list)
+    # Hub repo for adapters / weight packs resolved at inference (e.g. ACE-Step/...-LoRA).
+    hf_repo: str | None = None
     install: InstallSpec = Field(default_factory=InstallSpec)
     similar_models: list[str] = Field(default_factory=list)
     inference_params: list[InferenceParam] = Field(default_factory=list)

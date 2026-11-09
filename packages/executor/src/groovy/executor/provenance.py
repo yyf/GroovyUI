@@ -185,11 +185,22 @@ def build_record(
     models: list[dict[str, Any]] = []
     model_id = widgets.get("model")
     if model_id:
-        model = {"registry_id": str(model_id)}
+        model = {"registry_id": str(model_id), "role": "base"}
         if model_metadata:
             model.update(model_metadata)
             model["registry_id"] = str(model_id)
+            model["role"] = "base"
         models.append(model)
+    lora_id = widgets.get("lora")
+    if isinstance(lora_id, str) and lora_id.strip():
+        adapter: dict[str, Any] = {
+            "registry_id": lora_id.strip(),
+            "role": "adapter",
+        }
+        scale = widgets.get("lora_scale")
+        if isinstance(scale, (int, float)):
+            adapter["lora_scale"] = float(scale)
+        models.append(adapter)
 
     parents = [
         {
@@ -307,8 +318,16 @@ def disclosure_summary(chain: list[dict[str, Any]]) -> str:
     for item in chain:
         for model in item.get("models") or []:
             mid = model.get("registry_id") or model.get("id")
-            if mid:
-                models.append(str(mid))
+            if not mid:
+                continue
+            label = str(mid)
+            if model.get("role") == "adapter":
+                scale = model.get("lora_scale")
+                if isinstance(scale, (int, float)):
+                    label = f"{label} (LoRA ×{float(scale):g})"
+                else:
+                    label = f"{label} (LoRA)"
+            models.append(label)
     parts: list[str] = []
     if "ai_generated" in classes:
         parts.append("This output includes AI-generated audio")

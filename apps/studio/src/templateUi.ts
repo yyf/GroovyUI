@@ -7,6 +7,7 @@ import type { TemplateListItem } from "./api";
  */
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5-sft",
+  "ace-step-dual-lora-ab",
   "asr-benchmark-wer-cer",
   "demucs-vs-openunmix",
   "empty-canvas",
@@ -23,6 +24,8 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5",
   "ace-step-1.5-sft",
+  "ace-step-lora-demo",
+  "ace-step-dual-lora-ab",
   "ambisonic-trajectory-demo",
   "authenticity-check",
   "watermark-embed-detect",
@@ -141,6 +144,8 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "layered-music-sfx": "generate",
   "ace-step-1.5": "generate",
   "ace-step-1.5-sft": "generate",
+  "ace-step-lora-demo": "compare",
+  "ace-step-dual-lora-ab": "compare",
   "video-to-audio": "generate",
   "extract-lyrics-to-music-with-ace-step": "generate",
   "transcribe-and-regenerate": "generate",

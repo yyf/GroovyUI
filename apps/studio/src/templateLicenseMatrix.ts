@@ -134,6 +134,19 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "ace-step-dual-lora-ab",
+    title: "ACE-Step Dual LoRA A/B",
+    models: "ace-step-1.5-2b-turbo, ace-step-cny-lora, ace-step-ambient-lora",
+    licenses:
+      "ace-step-1.5-2b-turbo: MIT; ace-step-cny-lora: NC research; ace-step-ambient-lora: community (verify)",
+    impact: "Med",
+    cluster: "Compare / LoRA",
+    commercial: "Not safe",
+    conference: "Demo OK (disclose NC adapters)",
+    final: "Conference / exploration only",
+    tone: "nc",
+  },
+  {
     id: "asr-benchmark-wer-cer",
     title: "ASR Benchmark — WER / CER",
     models: "kokoro-82m, whisper-small-en, whisper-large-v3-turbo",

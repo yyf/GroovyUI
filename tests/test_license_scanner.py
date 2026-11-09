@@ -16,6 +16,48 @@ from groovy.schema.models import Link, NodeInstance, Workflow, WorkflowMetadata
 register_all()
 
 
+def test_license_scan_flags_nc_lora_adapter(tmp_path: Path) -> None:
+    registry = ModelRegistry(tmp_path)
+    workflow = Workflow(
+        schema_version="1.0.0",
+        groovy_version="0.1.0",
+        id="lora-license-scan",
+        metadata=WorkflowMetadata(title="LoRA NC scan"),
+        nodes=[
+            NodeInstance(
+                id="n1",
+                type="GenerateAudio",
+                widgets={
+                    "model": "ace-step-1.5-2b-turbo",
+                    "lora": "ace-step-cny-lora",
+                    "lora_scale": 0.85,
+                    "prompt": "festive",
+                },
+            )
+        ],
+        links=[],
+    )
+    result = scan_workflow_licenses(workflow, registry)
+    assert result["scan_ok"] is False
+    assert any(
+        flag["code"] == "NC_MODEL" and flag.get("model_id") == "ace-step-cny-lora"
+        for flag in result["flags"]
+    )
+    assert any(
+        row.get("component_id") == "ace-step-cny-lora" and row.get("role") == "adapter"
+        for row in result["license_rows"]
+    )
+    assert any(
+        row.get("component_id") == "ace-step-1.5-2b-turbo" and row.get("role") == "base"
+        for row in result["license_rows"]
+    )
+    lora_swaps = [
+        s for s in result["swap_suggestions"] if s.get("widget") == "lora"
+    ]
+    assert lora_swaps
+    assert lora_swaps[0]["alternatives"][0]["model_id"] == ""
+
+
 def test_license_scan_flags_nc_model(tmp_path: Path) -> None:
     registry = ModelRegistry(tmp_path)
     workflow = Workflow(

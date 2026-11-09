@@ -2275,17 +2275,37 @@ export default function App() {
   );
 
   const handleApplyModelSwap = useCallback(
-    (nodeId: string, modelId: string) => {
-      updateWidget(nodeId, "model", modelId);
+    (nodeId: string, modelId: string, widget = "model") => {
+      updateWidget(nodeId, widget, modelId);
       if (!complianceFastPath) setComplianceOpen(false);
-      setStatus(`Swapped ${nodeId} model → ${modelId}`);
+      const label = widget === "lora" ? (modelId ? `LoRA → ${modelId}` : "LoRA cleared") : `model → ${modelId}`;
+      setStatus(`Swapped ${nodeId} ${label}`);
     },
     [complianceFastPath, updateWidget],
   );
 
   const handleApplyModelSwaps = useCallback(
-    (swaps: Array<{ nodeId: string; modelId: string }>) => {
-      setWorkflow((prev) => (prev ? applyModelSwaps(prev, swaps) : prev));
+    (swaps: Array<{ nodeId: string; modelId: string; widget?: string }>) => {
+      setWorkflow((prev) => {
+        if (!prev) return prev;
+        let next = prev;
+        for (const swap of swaps) {
+          const widget = swap.widget ?? "model";
+          if (widget === "model") {
+            next = applyModelSwaps(next, [{ nodeId: swap.nodeId, modelId: swap.modelId }]);
+          } else {
+            next = {
+              ...next,
+              nodes: next.nodes.map((node) =>
+                node.id === swap.nodeId
+                  ? { ...node, widgets: { ...node.widgets, [widget]: swap.modelId } }
+                  : node,
+              ),
+            };
+          }
+        }
+        return next;
+      });
       setNodeStatus((prev) => {
         const next = { ...prev };
         for (const swap of swaps) next[swap.nodeId] = "stale";

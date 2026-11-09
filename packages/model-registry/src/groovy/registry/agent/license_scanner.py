@@ -8,6 +8,7 @@ from groovy.registry.catalog import ModelCatalog
 from groovy.registry.compliance import summarize_compliance
 from groovy.registry.models import ModelManifest
 from groovy.registry.preflight import estimate_workflow_preflight
+from groovy.registry.workflow_models import iter_node_model_refs
 from groovy.schema.models import Workflow
 
 
@@ -17,129 +18,176 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
     swap_suggestions: list[dict[str, Any]] = []
 
     for node in workflow.nodes:
-        model_id = node.widgets.get("model")
-        if not model_id:
-            continue
-        manifest = registry.catalog.get(str(model_id))
-        if not manifest:
-            flags.append(
-                {
-                    "node_id": node.id,
-                    "node_type": node.type,
-                    "severity": "warning",
-                    "code": "UNKNOWN_MODEL",
-                    "message": f"Unknown model reference: {model_id}",
-                    "explain": (
-                        f"Node {node.id} ({node.type}) points at `{model_id}`, which is not in the "
-                        "local registry. Install or pick a published model before commercial review."
-                    ),
-                }
-            )
-            continue
-        spdx_upper = manifest.license.spdx.upper()
-        share_alike = "-SA-" in spdx_upper or spdx_upper.endswith("-SA")
-        if manifest.license.attribution_required:
-            flags.append(
-                {
-                    "node_id": node.id,
-                    "node_type": node.type,
-                    "severity": "info",
-                    "code": "ATTRIBUTION_REQUIRED",
-                    "message": f"{manifest.name} requires attribution ({manifest.license.spdx}).",
-                    "explain": (
-                        f"Keep {manifest.name} if you can credit the author in deliverables. "
-                        "Apply a commercial-OK swap below only when you need attribution-free shipping."
-                    ),
-                    "model_id": manifest.id,
-                }
-            )
-        if share_alike:
-            flags.append(
-                {
-                    "node_id": node.id,
-                    "node_type": node.type,
-                    "severity": "warning",
-                    "code": "SHARE_ALIKE",
-                    "message": f"{manifest.name} has share-alike obligations ({manifest.license.spdx}).",
-                    "explain": (
-                        f"{manifest.name} may require sharing derivatives under similar terms. "
-                        "Swap to a permissive commercial-OK model if that does not fit your release."
-                    ),
-                    "model_id": manifest.id,
-                }
-            )
-        if not manifest.license.commercial_ok:
-            flags.append(
-                {
-                    "node_id": node.id,
-                    "node_type": node.type,
-                    "severity": "error",
-                    "code": "NC_MODEL",
-                    "message": (
-                        f"{manifest.name} ({manifest.license.spdx}) is not cleared for commercial use."
-                    ),
-                    "explain": (
-                        f"`{manifest.id}` on {node.type} is fine for exploration, but not for paid/"
-                        "client deliverables under the catalog license flag. Choose Apply on a "
-                        "socket-compatible alternative (install still required), or browse Search "
-                        "with Commercial only."
-                    ),
-                    "model_id": manifest.id,
-                }
-            )
-        needs_permissive_alternative = (
-            not manifest.license.commercial_ok
-            or manifest.license.attribution_required
-            or share_alike
-        )
-        if not needs_permissive_alternative:
-            continue
-        alternatives = _commercial_alternatives(registry.catalog, manifest, node.type)
-        task = manifest.task_types[0] if manifest.task_types else node.type
-        if alternatives:
-            swap_suggestions.append(
-                {
-                    "node_id": node.id,
-                    "node_type": node.type,
-                    "widget": "model",
-                    "current_model_id": manifest.id,
-                    "current_license": manifest.license.spdx,
-                    "alternatives": alternatives,
-                    "rationale": f"Commercial-friendly alternatives for {task}",
-                    "explain": (
-                        f"These models list `{node.type}` in compatible_nodes and are marked "
-                        "commercial_ok. Apply only updates the widget — you still Install from "
-                        "Model Browser before Render."
-                    ),
-                }
-            )
-        else:
-            swap_suggestions.append(
-                {
-                    "node_id": node.id,
-                    "node_type": node.type,
-                    "widget": "model",
-                    "current_model_id": manifest.id,
-                    "current_license": manifest.license.spdx,
-                    "alternatives": [],
-                    "rationale": f"No socket-safe commercial peer for {node.type}",
-                    "explain": (
-                        f"No published commercial-OK model currently lists `{node.type}`. "
-                        "Open Search with Commercial only to search the catalog, or keep "
-                        "this node for non-commercial exploration."
-                    ),
-                    "browse_hint": {
+        for ref in iter_node_model_refs(node):
+            model_id = ref["model_id"]
+            widget = ref["widget"]
+            role = ref["role"]
+            is_adapter = role == "adapter"
+            manifest = registry.catalog.get(model_id)
+            if not manifest:
+                flags.append(
+                    {
+                        "node_id": node.id,
                         "node_type": node.type,
-                        "commercial_only": True,
-                        "query": task,
-                        "mode": "search",
-                    },
-                }
+                        "severity": "warning",
+                        "code": "UNKNOWN_MODEL",
+                        "message": (
+                            f"Unknown LoRA adapter reference: {model_id}"
+                            if is_adapter
+                            else f"Unknown model reference: {model_id}"
+                        ),
+                        "explain": (
+                            f"Node {node.id} ({node.type}) `{widget}` points at `{model_id}`, which is "
+                            "not in the local registry. Install a published card, or clear the adapter "
+                            "before commercial review."
+                            if is_adapter
+                            else (
+                                f"Node {node.id} ({node.type}) points at `{model_id}`, which is not in the "
+                                "local registry. Install or pick a published model before commercial review."
+                            )
+                        ),
+                        "model_id": model_id,
+                        "widget": widget,
+                        "role": role,
+                    }
+                )
+                if is_adapter:
+                    swap_suggestions.append(_clear_lora_suggestion(node, model_id, "unknown"))
+                continue
+            spdx_upper = manifest.license.spdx.upper()
+            share_alike = "-SA-" in spdx_upper or spdx_upper.endswith("-SA")
+            label = f"{manifest.name} (LoRA)" if is_adapter else manifest.name
+            if manifest.license.attribution_required:
+                flags.append(
+                    {
+                        "node_id": node.id,
+                        "node_type": node.type,
+                        "severity": "info",
+                        "code": "ATTRIBUTION_REQUIRED",
+                        "message": f"{label} requires attribution ({manifest.license.spdx}).",
+                        "explain": (
+                            f"Keep {label} if you can credit the author in deliverables. "
+                            + (
+                                "Clear the LoRA widget when attribution-free shipping is required."
+                                if is_adapter
+                                else "Apply a commercial-OK swap below only when you need attribution-free shipping."
+                            )
+                        ),
+                        "model_id": manifest.id,
+                        "widget": widget,
+                        "role": role,
+                    }
+                )
+            if share_alike:
+                flags.append(
+                    {
+                        "node_id": node.id,
+                        "node_type": node.type,
+                        "severity": "warning",
+                        "code": "SHARE_ALIKE",
+                        "message": f"{label} has share-alike obligations ({manifest.license.spdx}).",
+                        "explain": (
+                            f"{label} may require sharing derivatives under similar terms. "
+                            + (
+                                "Clear the LoRA adapter if that does not fit your release."
+                                if is_adapter
+                                else "Swap to a permissive commercial-OK model if that does not fit your release."
+                            )
+                        ),
+                        "model_id": manifest.id,
+                        "widget": widget,
+                        "role": role,
+                    }
+                )
+            if not manifest.license.commercial_ok:
+                flags.append(
+                    {
+                        "node_id": node.id,
+                        "node_type": node.type,
+                        "severity": "error",
+                        "code": "NC_MODEL",
+                        "message": (
+                            f"{label} ({manifest.license.spdx}) is not cleared for commercial use."
+                        ),
+                        "explain": (
+                            (
+                                f"LoRA `{manifest.id}` on {node.type} is fine for exploration, but not for "
+                                "paid/client deliverables. Clear the LoRA adapter widget to keep the base "
+                                "model alone, or keep for non-commercial use."
+                            )
+                            if is_adapter
+                            else (
+                                f"`{manifest.id}` on {node.type} is fine for exploration, but not for paid/"
+                                "client deliverables under the catalog license flag. Choose Apply on a "
+                                "socket-compatible alternative (install still required), or browse Search "
+                                "with Commercial only."
+                            )
+                        ),
+                        "model_id": manifest.id,
+                        "widget": widget,
+                        "role": role,
+                    }
+                )
+            needs_permissive_alternative = (
+                not manifest.license.commercial_ok
+                or manifest.license.attribution_required
+                or share_alike
             )
+            if not needs_permissive_alternative:
+                continue
+            if is_adapter:
+                swap_suggestions.append(
+                    _clear_lora_suggestion(node, manifest.id, manifest.license.spdx)
+                )
+                continue
+            alternatives = _commercial_alternatives(registry.catalog, manifest, node.type)
+            task = manifest.task_types[0] if manifest.task_types else node.type
+            if alternatives:
+                swap_suggestions.append(
+                    {
+                        "node_id": node.id,
+                        "node_type": node.type,
+                        "widget": "model",
+                        "current_model_id": manifest.id,
+                        "current_license": manifest.license.spdx,
+                        "alternatives": alternatives,
+                        "rationale": f"Commercial-friendly alternatives for {task}",
+                        "explain": (
+                            f"These models list `{node.type}` in compatible_nodes and are marked "
+                            "commercial_ok. Apply only updates the widget — you still Install from "
+                            "Model Browser before Render."
+                        ),
+                    }
+                )
+            else:
+                swap_suggestions.append(
+                    {
+                        "node_id": node.id,
+                        "node_type": node.type,
+                        "widget": "model",
+                        "current_model_id": manifest.id,
+                        "current_license": manifest.license.spdx,
+                        "alternatives": [],
+                        "rationale": f"No socket-safe commercial peer for {node.type}",
+                        "explain": (
+                            f"No published commercial-OK model currently lists `{node.type}`. "
+                            "Open Search with Commercial only to search the catalog, or keep "
+                            "this node for non-commercial exploration."
+                        ),
+                        "browse_hint": {
+                            "node_type": node.type,
+                            "commercial_only": True,
+                            "query": task,
+                            "mode": "search",
+                        },
+                    }
+                )
 
     optimization_swaps: list[dict[str, Any]] = []
-    optimized_nodes = {
-        swap["node_id"] for swap in swap_suggestions if swap.get("alternatives")
+    optimized_keys = {
+        (swap["node_id"], swap.get("widget", "model"))
+        for swap in swap_suggestions
+        if swap.get("alternatives")
     }
     for swap in swap_suggestions:
         if not swap["alternatives"]:
@@ -149,6 +197,7 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
             {
                 "node_id": swap["node_id"],
                 "node_type": swap["node_type"],
+                "widget": swap.get("widget", "model"),
                 "from_model_id": swap["current_model_id"],
                 "to_model_id": preferred["model_id"],
                 "to_model_name": preferred["name"],
@@ -164,12 +213,14 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
             "message": flag["message"],
             "explain": flag.get("explain"),
             "next_step": (
-                "Open Model Browser → Search with Commercial only, or keep for non-commercial use."
+                "Clear the LoRA adapter for commercial use, or keep for non-commercial exploration."
+                if flag.get("role") == "adapter"
+                else "Open Model Browser → Search with Commercial only, or keep for non-commercial use."
             ),
         }
         for flag in flags
         if flag["code"] in {"NC_MODEL", "UNKNOWN_MODEL", "SHARE_ALIKE"}
-        and flag["node_id"] not in optimized_nodes
+        and (flag["node_id"], flag.get("widget", "model")) not in optimized_keys
     ]
 
     return {
@@ -185,6 +236,34 @@ def scan_workflow_licenses(workflow: Workflow, registry: Any) -> dict[str, Any]:
         "preflight": estimate_workflow_preflight(workflow, registry),
         "scan_ok": len([f for f in flags if f["severity"] == "error"]) == 0,
         "agent": "license_scanner_v1",
+    }
+
+
+def _clear_lora_suggestion(node: Any, current_id: str, current_license: str) -> dict[str, Any]:
+    return {
+        "node_id": node.id,
+        "node_type": node.type,
+        "widget": "lora",
+        "current_model_id": current_id,
+        "current_license": current_license,
+        "alternatives": [
+            {
+                "model_id": "",
+                "name": "Clear LoRA (base model only)",
+                "license_spdx": "n/a",
+                "attribution_required": False,
+                "license_confidence": 1.0,
+                "vram_gb_estimate": 0,
+                "download_size_mb_estimate": 0,
+                "task_types": [],
+                "rationale": "Remove the adapter for commercial-safe base-only renders",
+            }
+        ],
+        "rationale": "LoRA adapters are licensed separately from the base model",
+        "explain": (
+            "Apply clears the GenerateAudio LoRA adapter widget. The base model license still "
+            "applies — re-check Compliance after clearing."
+        ),
     }
 
 

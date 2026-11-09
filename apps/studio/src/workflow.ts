@@ -359,22 +359,60 @@ export function promptWidgetSnippet(node: WorkflowNode, maxLen = 140): string | 
   return truncatePreviewText(text, maxLen);
 }
 
+/** Short label for canvas LoRA hints (ace-step-cny-lora → cny). */
+export function shortLoraHint(lora: string): string {
+  let value = lora.trim();
+  if (!value) return "base";
+  if (value.includes("/")) {
+    const leaf = value.split("/").filter(Boolean).pop();
+    if (leaf) value = leaf;
+  }
+  value = value.replace(/^ace-step-/i, "").replace(/-lora$/i, "");
+  return value || "lora";
+}
+
+function nodeLoraWidget(node: WorkflowNode): string {
+  const raw = node.widgets.lora;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
 /**
- * When 2+ nodes share a type (e.g. two WhisperSTT), show the model widget so
- * duplicates are distinguishable on the canvas.
+ * When 2+ nodes share a type (e.g. two WhisperSTT / GenerateAudio), show the
+ * model (and LoRA when peers share a base but differ by adapter) so duplicates
+ * are distinguishable on the canvas at a glance.
  */
 export function nodeModelHint(workflow: Workflow, node: WorkflowNode, maxLen = 36): string | null {
   const raw = node.widgets.model;
   if (typeof raw !== "string") return null;
   const model = raw.trim();
   if (!model) return null;
-  const sameTypeCount = workflow.nodes.reduce(
-    (count, item) => (item.type === node.type ? count + 1 : count),
-    0,
+  const peers = workflow.nodes.filter((item) => item.type === node.type);
+  if (peers.length < 2) return null;
+
+  const peerModels = new Set(
+    peers
+      .map((item) => (typeof item.widgets.model === "string" ? item.widgets.model.trim() : ""))
+      .filter(Boolean),
   );
-  if (sameTypeCount < 2) return null;
-  if (model.length <= maxLen) return model;
-  return `${model.slice(0, Math.max(1, maxLen - 1))}…`;
+  const peerLoras = new Set(peers.map((item) => nodeLoraWidget(item)));
+  const modelsDiffer = peerModels.size > 1;
+  const lorasDiffer = peerLoras.size > 1;
+  const lora = nodeLoraWidget(node);
+
+  let hint = model;
+  if (lorasDiffer || lora) {
+    // Same base + different adapters (dual LoRA A/B): lead with LoRA when models match.
+    if (!modelsDiffer && lorasDiffer) {
+      hint = `${model} · ${shortLoraHint(lora)}`;
+    } else if (lora) {
+      hint = `${model} · ${shortLoraHint(lora)}`;
+    } else if (lorasDiffer) {
+      hint = `${model} · base`;
+    }
+  }
+
+  if (hint.length <= maxLen) return hint;
+  return `${hint.slice(0, Math.max(1, maxLen - 1))}…`;
 }
 
 /**
