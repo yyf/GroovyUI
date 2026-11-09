@@ -2382,6 +2382,177 @@
       }
     },
     {
+      "id": "ace-step-cny-lora",
+      "status": "published",
+      "trust": "verified",
+      "name": "ACE-Step CNY LoRA",
+      "description": "Official ACE-Step 1.5 Chinese New Year folk / festive LoRA (ACE-Step/ACE-Step-v1.5-chinese-new-year-LoRA). Attach on GenerateAudio via the lora widget (base: ace-step-1.5 / sft / 2b-turbo). Research / non-commercial per upstream card — not for paid release without clearance.",
+      "task_types": [
+        "music-generation",
+        "adapter"
+      ],
+      "tags": [
+        "ace-step",
+        "lora",
+        "adapter",
+        "folk",
+        "chinese"
+      ],
+      "author": "ACE-Step",
+      "license": {
+        "spdx": "LicenseRef-ACE-Step-LoRA-NC",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 0.85,
+        "notes": "Upstream LoRA card: experimental / academic exchange; commercial use prohibited."
+      },
+      "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 80,
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
+      "adapter_for": [
+        "ace-step-1.5",
+        "ace-step-1.5-sft",
+        "ace-step-1.5-2b-turbo"
+      ],
+      "hf_repo": "ACE-Step/ACE-Step-v1.5-chinese-new-year-LoRA",
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "peft",
+            "version": ">=0.10.0"
+          },
+          {
+            "package": "diffusers",
+            "version": ">=0.42.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=5.22.0"
+          },
+          {
+            "package": "safetensors",
+            "version": ">=0.4.0"
+          }
+        ],
+        "verify_imports": [
+          "peft",
+          "diffusers"
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "lora_scale",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.5,
+          "description": "Adapter strength on GenerateAudio (0 = base only, 1 = full LoRA; use 1.0 for clear A/B demos)."
+        }
+      ],
+      "similar_models": [
+        "ace-step-ambient-lora",
+        "ace-step-1.5-2b-turbo",
+        "ace-step-1.5-sft",
+        "ace-step-1.5"
+      ],
+      "compute": {
+        "runtimes": [
+          "cuda",
+          "cpu"
+        ],
+        "requires_cuda": false,
+        "label": "Adapter \u00b7 needs ACE-Step base \u00b7 CUDA preferred"
+      }
+    },
+    {
+      "id": "ace-step-ambient-lora",
+      "status": "published",
+      "trust": "verified",
+      "name": "ACE-Step Ambient Dream LoRA",
+      "description": "Community ACE-Step 1.5 ambient / pad LoRA (DisturbingTheField/ACE-Step-v1.5-ambient_dream1-LoRA). Trigger word ambient_dream1 in prompts. Attach on GenerateAudio via the lora widget (base: ace-step-1.5 / sft / 2b-turbo). Community card — verify license before commercial use.",
+      "task_types": [
+        "music-generation",
+        "adapter"
+      ],
+      "tags": [
+        "ace-step",
+        "lora",
+        "adapter",
+        "ambient",
+        "instrumental"
+      ],
+      "author": "DisturbingTheField",
+      "license": {
+        "spdx": "LicenseRef-Community-Adapter",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 0.5,
+        "notes": "Community PEFT adapter; confirm upstream card before commercial release."
+      },
+      "vram_gb_estimate": 1,
+      "download_size_mb_estimate": 90,
+      "compatible_nodes": [
+        "GenerateAudio"
+      ],
+      "adapter_for": [
+        "ace-step-1.5",
+        "ace-step-1.5-sft",
+        "ace-step-1.5-2b-turbo"
+      ],
+      "hf_repo": "DisturbingTheField/ACE-Step-v1.5-ambient_dream1-LoRA",
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "peft",
+            "version": ">=0.10.0"
+          },
+          {
+            "package": "diffusers",
+            "version": ">=0.42.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=5.22.0"
+          },
+          {
+            "package": "safetensors",
+            "version": ">=0.4.0"
+          }
+        ],
+        "verify_imports": [
+          "peft",
+          "diffusers"
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "lora_scale",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.5,
+          "description": "Adapter strength on GenerateAudio (0 = base only, 1 = full LoRA; use 1.0 for clear A/B demos)."
+        }
+      ],
+      "similar_models": [
+        "ace-step-cny-lora",
+        "ace-step-1.5-2b-turbo",
+        "ace-step-1.5-sft"
+      ],
+      "compute": {
+        "runtimes": [
+          "cuda",
+          "cpu"
+        ],
+        "requires_cuda": false,
+        "label": "Adapter \u00b7 needs ACE-Step base \u00b7 CUDA preferred"
+      }
+    },
+    {
       "id": "diffsinger-opencpop",
       "status": "published",
       "trust": "verified",

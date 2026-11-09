@@ -226,6 +226,10 @@ export type ModelCard = {
   vram_gb_estimate: number;
   download_size_mb_estimate?: number | null;
   compatible_nodes: string[];
+  /** When set, this card is a LoRA/adapter for the listed base model ids. */
+  adapter_for?: string[];
+  /** Hugging Face org/name for adapter weights resolved at inference. */
+  hf_repo?: string | null;
   install_status: string;
   install_progress?: number;
   install_error?: string | null;
@@ -303,6 +307,8 @@ export type ComplianceSummary = {
     component: string;
     component_id?: string;
     kind: string;
+    /** base model vs LoRA adapter when kind=model */
+    role?: string;
     license_spdx: string;
     commercial_ok: boolean;
     attribution_required?: boolean;
@@ -354,6 +360,7 @@ export type LicenseScanSummary = ComplianceSummary & {
     swaps: Array<{
       node_id: string;
       node_type: string;
+      widget?: string;
       from_model_id: string;
       to_model_id: string;
       to_model_name: string;
@@ -438,7 +445,7 @@ export type ProvenanceEntry = {
   chain: Array<{
     contribution?: { class?: string; disclosure_label?: string };
     node?: { node_id?: string; node_type?: string };
-    models?: Array<{ registry_id?: string }>;
+    models?: Array<{ registry_id?: string; role?: string; lora_scale?: number }>;
   }>;
   disclosure: string;
 };

@@ -106,3 +106,33 @@ def test_missing_models_for_workflow(tmp_path: Path) -> None:
     )
     missing = missing_models_for_workflow(workflow, registry.catalog, registry.store)
     assert any(entry["model_id"] == "demucs-v4" and entry["reason"] == "not_installed" for entry in missing)
+
+
+def test_missing_models_includes_lora_adapters(tmp_path: Path) -> None:
+    registry = ModelRegistry(tmp_path)
+    workflow = Workflow.model_validate(
+        {
+            "schema_version": "1.0.0",
+            "groovy_version": "0.1.0",
+            "id": "wf-lora-missing",
+            "metadata": {"title": "LoRA missing"},
+            "nodes": [
+                {
+                    "id": "n1",
+                    "type": "GenerateAudio",
+                    "pos": {"x": 0, "y": 0},
+                    "widgets": {
+                        "model": "ace-step-1.5-2b-turbo",
+                        "lora": "ace-step-cny-lora",
+                    },
+                }
+            ],
+            "links": [],
+            "groups": [],
+        }
+    )
+    missing = missing_models_for_workflow(workflow, registry.catalog, registry.store)
+    ids = {entry["model_id"] for entry in missing}
+    assert "ace-step-1.5-2b-turbo" in ids
+    assert "ace-step-cny-lora" in ids
+    assert any(entry.get("role") == "adapter" for entry in missing if entry["model_id"] == "ace-step-cny-lora")

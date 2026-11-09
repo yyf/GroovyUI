@@ -1,0 +1,174 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "b7c8d9e0-f1a2-4b3c-9d0e-acesteplora01",
+  "metadata": {
+    "title": "ACE-Step LoRA A/B",
+    "author": "groovy",
+    "description": "Same prompt → ACE-Step 2B Turbo base ∥ same base + CNY LoRA (GenerateAudio lora / lora_scale widgets). Drag-select both Previews for Inspector A/B. Install ace-step-1.5-2b-turbo and ace-step-cny-lora. LoRA is research / non-commercial — not for paid release without clearance. Prefer CUDA.",
+    "tags": [
+      "featured",
+      "generation",
+      "ace-step",
+      "lora",
+      "adapter",
+      "compare",
+      "ab",
+      "turbo",
+      "nc"
+    ],
+    "created_at": "2026-11-07T00:00:00Z",
+    "modified_at": "2026-11-07T00:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-lora",
+      "type": "Note",
+      "pos": {
+        "x": -380,
+        "y": 80
+      },
+      "widgets": {
+        "text": "ACE-Step LoRA A/B\n\nSame Prompt → GenerateAudio ×2:\n· top = base turbo (lora blank)\n· bottom = + ace-step-cny-lora\n\nLoRA lives on GenerateAudio widgets\n(lora id + lora_scale) — not a node.\nInstall base + LoRA from Model Browser.\n\nNC LoRA · Play = cached PCM."
+      }
+    },
+    {
+      "id": "n0",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 200
+      },
+      "widgets": {
+        "text": "festive Chinese New Year celebration with traditional folk instruments, warm gongs and joyful melody",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 280,
+        "y": 40
+      },
+      "widgets": {
+        "model": "ace-step-1.5-2b-turbo",
+        "prompt": "festive Chinese New Year celebration with traditional folk instruments, warm gongs and joyful melody",
+        "lyrics_text": "",
+        "lora": "",
+        "lora_scale": 1.0,
+        "seed": 42,
+        "seconds_total": 20.0,
+        "num_inference_steps": 12,
+        "guidance_scale": 1.0
+      }
+    },
+    {
+      "id": "n2",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 280,
+        "y": 360
+      },
+      "widgets": {
+        "model": "ace-step-1.5-2b-turbo",
+        "prompt": "festive Chinese New Year celebration with traditional folk instruments, warm gongs and joyful melody",
+        "lyrics_text": "",
+        "lora": "ace-step-cny-lora",
+        "lora_scale": 1.0,
+        "seed": 42,
+        "seconds_total": 20.0,
+        "num_inference_steps": 12,
+        "guidance_scale": 1.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Normalize",
+      "pos": {
+        "x": 560,
+        "y": 40
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Normalize",
+      "pos": {
+        "x": 560,
+        "y": 360
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Preview",
+      "pos": {
+        "x": 820,
+        "y": 40
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n6",
+      "type": "Preview",
+      "pos": {
+        "x": 820,
+        "y": 360
+      },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "l0a",
+      "from": ["n0", 0],
+      "to": ["n1", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l0b",
+      "from": ["n0", 0],
+      "to": ["n2", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": ["n2", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n3", 0],
+      "to": ["n5", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": ["n4", 0],
+      "to": ["n6", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 0.85,
+    "pan": {
+      "x": 80,
+      "y": 20
+    }
+  }
+}

@@ -29,6 +29,10 @@
   <img src="assets/media/ab-stem-compare.gif" alt="GroovyUI stem A/B: Demucs versus Open-Unmix with Inspector pairwise metrics" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/ab-lora-adapters.gif" alt="GroovyUI ACE-Step LoRA A/B: dual adapters on GenerateAudio with canvas compare" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -82,6 +86,12 @@
     <td align="center" width="50%">
       <a href="https://youtu.be/fDPWM_DFRGY"><img src="https://img.youtube.com/vi/fDPWM_DFRGY/hqdefault.jpg" alt="GroovyUI template — Demucs vs Open-Unmix stem A/B" width="440" /></a><br />
       <sub>GroovyUI template — Demucs vs Open-Unmix stem A/B</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/KoK0AvcXFEE"><img src="https://img.youtube.com/vi/KoK0AvcXFEE/hqdefault.jpg" alt="GroovyUI template — A/B ACE-Step LoRA adapters with compliance disclosure" width="440" /></a><br />
+      <sub>GroovyUI template — A/B ACE-Step LoRA adapters with compliance disclosure</sub>
     </td>
   </tr>
 </table>
@@ -151,6 +161,8 @@ Install template models from Model Browser before first real Render. Without the
 | TTS with Emotion Editing | `step-audio-editx` (Apache-2.0) | CUDA Linux | Upstream Step + **vLLM** (~12 GB VRAM).<br>Not a Mac path. |
 | ACE-Step 1.5 SFT | `ace-step-1.5-sft` (MIT) | CUDA | ~**6.3 GB** Diffusers 2B SFT pack; ~50 steps + CFG guidance. |
 | ACE-Step 1.5 SFT | `ace-step-1.5-sft` (MIT) | CPU / Mac | Same download; float32 CPU inference is slow and memory-heavy. |
+| ACE-Step LoRA A/B (⌘⇧D) | `ace-step-1.5-2b-turbo` + `ace-step-cny-lora` (NC) | CUDA | Base ∥ LoRA via GenerateAudio `lora` / `lora_scale`; research LoRA — not commercial-safe. |
+| ACE-Step Dual LoRA A/B | turbo + `ace-step-cny-lora` ∥ `ace-step-ambient-lora` | CUDA | Experimental: same prompt/seed, two adapters; A/B Previews. NC / community — not commercial-safe. |
 
 ## License
 

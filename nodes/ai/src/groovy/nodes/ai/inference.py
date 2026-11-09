@@ -1109,8 +1109,13 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
         negative_prompt=str(kwargs.get("negative_prompt") or "Low quality."),
         # lyrics TEXT inlet (when wired) or lyrics_text / legacy lyrics STRING widget.
         lyrics=str(kwargs.get("lyrics") or kwargs.get("lyrics_text") or ""),
+        lora=str(kwargs.get("lora") or "").strip(),
+        lora_scale=float_param(kwargs, "lora_scale", 1.0),
         seed=optional_seed(kwargs),
-        stub_seed=seed_param(kwargs, fallback=prompt),
+        stub_seed=seed_param(
+            kwargs,
+            fallback=f"{prompt}|{str(kwargs.get('lora') or '').strip()}|{float_param(kwargs, 'lora_scale', 1.0)}",
+        ),
     )
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="GenerateAudio")
     cache.write_audio(out_buffer, pcm)
@@ -1466,6 +1471,8 @@ def generate_audio_waveform(
     num_inference_steps: int = 100,
     negative_prompt: str = "Low quality.",
     lyrics: str = "",
+    lora: str = "",
+    lora_scale: float = 1.0,
     seed: int | None = None,
     stub_seed: int | None = None,
 ) -> np.ndarray:
@@ -1595,6 +1602,8 @@ def generate_audio_waveform(
             num_inference_steps=num_inference_steps,
             guidance_scale=guidance_scale,
             lyrics=lyrics,
+            lora=lora,
+            lora_scale=lora_scale,
             seed=seed,
         )
 

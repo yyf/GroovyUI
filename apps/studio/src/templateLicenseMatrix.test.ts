@@ -24,6 +24,7 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("ace-step-1.5-sft")).toBe(true);
     expect(isCommerciallyCleared("asr-benchmark-wer-cer")).toBe(true);
     expect(isCommerciallyCleared("demucs-vs-openunmix")).toBe(true);
+    expect(isCommerciallyCleared("ace-step-dual-lora-ab")).toBe(false);
     expect(isCommerciallyCleared("layered-music-sfx")).toBe(false);
     expect(isCommerciallyCleared("stable-audio")).toBe(false);
   });
@@ -42,8 +43,8 @@ describe("templateLicenseMatrix", () => {
     expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(
       summary.total,
     );
-    expect(summary.commercialSafe).toBe(STANDARD_BUNDLED_TEMPLATE_IDS.length);
-    expect(summary.conferenceOnly).toBe(0);
+    expect(summary.commercialSafe).toBe(STANDARD_BUNDLED_TEMPLATE_IDS.length - 1);
+    expect(summary.conferenceOnly).toBe(1);
     expect(summary.caution).toBe(0);
   });
 });

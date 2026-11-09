@@ -62,8 +62,8 @@ type Props = {
     query?: string;
     mode?: "search" | "recommend"; // recommend → Search (merged)
   }) => void;
-  onApplyModelSwap?: (nodeId: string, modelId: string) => void;
-  onApplyModelSwaps?: (swaps: Array<{ nodeId: string; modelId: string }>) => void;
+  onApplyModelSwap?: (nodeId: string, modelId: string, widget?: string) => void;
+  onApplyModelSwaps?: (swaps: Array<{ nodeId: string; modelId: string; widget?: string }>) => void;
   fastPath?: boolean;
   /** ⌘⇧D studio dev mode — reveals Authenticity tab. */
   studioDevMode?: boolean;
@@ -351,6 +351,7 @@ export default function ComplianceDrawer({
                           optimizationPlan.swaps.map((swap) => ({
                             nodeId: swap.node_id,
                             modelId: swap.to_model_id,
+                            widget: swap.widget ?? "model",
                           })),
                         )
                       }
@@ -426,18 +427,26 @@ export default function ComplianceDrawer({
                   <h4>Chain preflight</h4>
                   {workflow.nodes.map((node) => {
                     const modelId =
-                      typeof node.widgets.model === "string" ? node.widgets.model : null;
+                      typeof node.widgets.model === "string" ? node.widgets.model.trim() || null : null;
+                    const loraId =
+                      typeof node.widgets.lora === "string" ? node.widgets.lora.trim() || null : null;
                     const modelRow = modelId
                       ? license.license_rows.find(
                           (row) => row.kind === "model" && row.component_id === modelId,
                         )
                       : null;
+                    const loraRow = loraId
+                      ? license.license_rows.find(
+                          (row) => row.kind === "model" && row.component_id === loraId,
+                        )
+                      : null;
                     const nodeRow = license.license_rows.find(
                       (row) => row.kind === "node" && row.component_id === node.id,
                     );
-                    const flagged = modelId != null && modelRow?.commercial_ok === false;
-                    const swap = license.swap_suggestions.find((entry) => entry.node_id === node.id);
-                    const alternatives = swap?.alternatives ?? [];
+                    const flagged =
+                      (modelId != null && modelRow?.commercial_ok === false) ||
+                      (loraId != null && loraRow?.commercial_ok === false);
+                    const swaps = license.swap_suggestions.filter((entry) => entry.node_id === node.id);
                     return (
                       <div
                         key={node.id}
@@ -448,62 +457,88 @@ export default function ComplianceDrawer({
                           <span className="node-helper__mono"> {node.id}</span>
                         </div>
                         <div className="compliance-chain__badges">
-                          <span className={`pill ${flagged ? "pill--warning" : "pill--ready"}`}>
+                          <span
+                            className={`pill ${modelRow?.commercial_ok === false ? "pill--warning" : "pill--ready"}`}
+                          >
                             {modelRow?.license_spdx ?? nodeRow?.license_spdx ?? "Unknown license"}
                           </span>
+                          {loraRow ? (
+                            <span
+                              className={`pill ${loraRow.commercial_ok === false ? "pill--warning" : "pill--ready"}`}
+                              title="LoRA adapter license"
+                            >
+                              LoRA · {loraRow.license_spdx}
+                            </span>
+                          ) : null}
                         </div>
                         <small>
                           {modelId ? `Model: ${modelId}` : "Built-in node; no model install required"}
+                          {loraId ? ` · LoRA: ${loraId}` : null}
                         </small>
-                        {flagged ? (
-                          <div className="compliance-chain__swap">
-                            <span className="compliance-chain__swap-label">
-                              Not cleared for commercial use — choose a cleared alternative:
-                            </span>
-                            {alternatives.length > 0 ? (
-                              <div className="compliance-chain__alts">
-                                {alternatives.map((alt) => (
-                                  <button
-                                    key={alt.model_id}
-                                    type="button"
-                                    className="compliance-chain__alt"
-                                    title={`Replace ${modelId} with ${alt.model_id} (${alt.license_spdx})`}
-                                    disabled={fastPathBusy || !onApplyModelSwap}
-                                    onClick={() => onApplyModelSwap?.(node.id, alt.model_id)}
-                                  >
-                                    <span className="compliance-chain__alt-name">{alt.name}</span>
-                                    <span className="compliance-chain__alt-license">{alt.license_spdx}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="compliance-chain__no-alt">
-                                No cleared offline model for this node yet.
-                                {swap?.explain ? ` ${swap.explain}` : ""}
-                              </span>
-                            )}
-                            {onBrowseModels ? (
-                              <button
-                                type="button"
-                                className="compliance-chain__online"
-                                disabled={fastPathBusy}
-                                onClick={() =>
-                                  onBrowseModels({
-                                    nodeType: swap?.browse_hint?.node_type ?? node.type,
-                                    commercialOnly: swap?.browse_hint?.commercial_only ?? true,
-                                    query:
-                                      swap?.browse_hint?.query ??
-                                      swap?.alternatives?.[0]?.task_types?.[0] ??
-                                      node.type,
-                                    mode: "search",
-                                  })
-                                }
-                              >
-                                Find online (cleared license) →
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null}
+                        {flagged
+                          ? swaps.map((swap) => {
+                              const alternatives = swap.alternatives ?? [];
+                              return (
+                                <div key={`${swap.node_id}-${swap.widget}`} className="compliance-chain__swap">
+                                  <span className="compliance-chain__swap-label">
+                                    {swap.widget === "lora"
+                                      ? "LoRA adapter not cleared for commercial use — clear or replace:"
+                                      : "Not cleared for commercial use — choose a cleared alternative:"}
+                                  </span>
+                                  {alternatives.length > 0 ? (
+                                    <div className="compliance-chain__alts">
+                                      {alternatives.map((alt) => (
+                                        <button
+                                          key={`${swap.widget}-${alt.model_id || "clear"}`}
+                                          type="button"
+                                          className="compliance-chain__alt"
+                                          title={
+                                            swap.widget === "lora" && !alt.model_id
+                                              ? "Clear LoRA adapter"
+                                              : `Replace ${swap.current_model_id} with ${alt.model_id} (${alt.license_spdx})`
+                                          }
+                                          disabled={fastPathBusy || !onApplyModelSwap}
+                                          onClick={() =>
+                                            onApplyModelSwap?.(node.id, alt.model_id, swap.widget)
+                                          }
+                                        >
+                                          <span className="compliance-chain__alt-name">{alt.name}</span>
+                                          <span className="compliance-chain__alt-license">
+                                            {alt.license_spdx}
+                                          </span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="compliance-chain__no-alt">
+                                      No cleared offline model for this node yet.
+                                      {swap.explain ? ` ${swap.explain}` : ""}
+                                    </span>
+                                  )}
+                                  {onBrowseModels && swap.widget !== "lora" ? (
+                                    <button
+                                      type="button"
+                                      className="compliance-chain__online"
+                                      disabled={fastPathBusy}
+                                      onClick={() =>
+                                        onBrowseModels({
+                                          nodeType: swap.browse_hint?.node_type ?? node.type,
+                                          commercialOnly: swap.browse_hint?.commercial_only ?? true,
+                                          query:
+                                            swap.browse_hint?.query ??
+                                            swap.alternatives?.[0]?.task_types?.[0] ??
+                                            node.type,
+                                          mode: "search",
+                                        })
+                                      }
+                                    >
+                                      Find online (cleared license) →
+                                    </button>
+                                  ) : null}
+                                </div>
+                              );
+                            })
+                          : null}
                       </div>
                     );
                   })}
@@ -531,25 +566,30 @@ export default function ComplianceDrawer({
               <section className="compliance-swaps">
                 <h3>Commercial-safe alternatives</h3>
                 {license.swap_suggestions.map((swap) => (
-                  <div key={swap.node_id} className="compliance-swap">
+                  <div key={`${swap.node_id}-${swap.widget}`} className="compliance-swap">
                     <p>
-                      <strong>{swap.node_type}</strong> ({swap.node_id}) uses{" "}
+                      <strong>{swap.node_type}</strong> ({swap.node_id}){" "}
+                      {swap.widget === "lora" ? "LoRA" : "model"}{" "}
                       <code>{swap.current_model_id}</code> ({swap.current_license})
                     </p>
                     {swap.explain ? <p className="compliance-hint">{swap.explain}</p> : null}
                     {swap.alternatives.length > 0 ? (
                       <ul className="node-helper__list">
                         {swap.alternatives.map((alt) => (
-                          <li key={alt.model_id}>
+                          <li key={`${swap.widget}-${alt.model_id || "clear"}`}>
                             {alt.name} — {alt.rationale || alt.license_spdx}
-                            <span className="node-helper__hint"> ({alt.model_id})</span>
+                            {alt.model_id ? (
+                              <span className="node-helper__hint"> ({alt.model_id})</span>
+                            ) : null}
                             {onApplyModelSwap ? (
                               <button
                                 type="button"
                                 className="compliance-swap__apply"
-                                onClick={() => onApplyModelSwap(swap.node_id, alt.model_id)}
+                                onClick={() =>
+                                  onApplyModelSwap(swap.node_id, alt.model_id, swap.widget)
+                                }
                               >
-                                Use
+                                {swap.widget === "lora" && !alt.model_id ? "Clear LoRA" : "Use"}
                               </button>
                             ) : null}
                           </li>
@@ -558,7 +598,7 @@ export default function ComplianceDrawer({
                     ) : (
                       <p className="compliance-hint">No socket-safe commercial peer in the catalog yet.</p>
                     )}
-                    {onBrowseModels ? (
+                    {onBrowseModels && swap.widget !== "lora" ? (
                       <button
                         type="button"
                         className="compliance-swap__browse"
@@ -584,6 +624,7 @@ export default function ComplianceDrawer({
               <thead>
                 <tr>
                   <th>Component</th>
+                  <th>Role</th>
                   <th>License</th>
                   <th>Commercial</th>
                 </tr>
@@ -592,6 +633,13 @@ export default function ComplianceDrawer({
                 {license.license_rows.map((row, i) => (
                   <tr key={`${row.component}-${i}`}>
                     <td>{row.component}</td>
+                    <td>
+                      {row.kind === "model"
+                        ? row.role === "adapter"
+                          ? "LoRA"
+                          : "Base"
+                        : row.kind}
+                    </td>
                     <td>{row.license_spdx}</td>
                     <td>{row.commercial_ok ? "Yes" : "No"}</td>
                   </tr>
@@ -662,6 +710,23 @@ export default function ComplianceDrawer({
                         <span className={`pill pill--${step.contribution?.class ?? "unknown"}`}>
                           {step.contribution?.class ?? "unknown"}
                         </span>
+                        {(step.models ?? []).length > 0 ? (
+                          <ul className="node-helper__list provenance-models">
+                            {(step.models ?? []).map((model, modelIdx) => {
+                              const id = model.registry_id ?? "unknown";
+                              const isLora = model.role === "adapter";
+                              const scale =
+                                typeof model.lora_scale === "number"
+                                  ? ` ×${model.lora_scale}`
+                                  : "";
+                              return (
+                                <li key={`${id}-${modelIdx}`}>
+                                  {isLora ? `LoRA: ${id}${scale}` : `Model: ${id}`}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : null}
                       </li>
                     ))}
                   </ol>

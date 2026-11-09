@@ -580,6 +580,24 @@ class GenerateAudio(GroovyNode):
                 "prompt": ("STRING", {"default": ""}),
                 # Local lyrics when the lyrics TEXT inlet is unwired (ACE-Step).
                 "lyrics_text": ("STRING", {"default": ""}),
+                # Optional LoRA / adapter registry id (ACE-Step first). Blank = base model only.
+                "lora": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": "Optional LoRA adapter id from Model Browser (e.g. ace-step-cny-lora).",
+                    },
+                ),
+                "lora_scale": (
+                    "FLOAT",
+                    {
+                        "default": 1.0,
+                        "min": 0.0,
+                        "max": 1.5,
+                        "step": 0.05,
+                        "description": "LoRA strength (0 = base only, 1 = full adapter).",
+                    },
+                ),
                 "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
             },
         }

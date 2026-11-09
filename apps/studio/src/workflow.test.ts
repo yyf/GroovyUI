@@ -35,6 +35,7 @@ import {
   stemSeparationCompareMeta,
   textCompareLooksLikeReference,
   nodeModelHint,
+  shortLoraHint,
   resolveRenderAllTargets,
   nodeHasListenableOutput,
   cachedStatusFromOutputs,
@@ -170,6 +171,46 @@ describe("nodeModelHint", () => {
     };
     expect(nodeModelHint(workflow, workflow.nodes[0]!)).toBeNull();
     expect(nodeModelHint(workflow, workflow.nodes[1]!)).toBe("whisper-small-en");
+  });
+
+  it("labels same-model GenerateAudio peers by LoRA at a glance", () => {
+    expect(shortLoraHint("ace-step-cny-lora")).toBe("cny");
+    expect(shortLoraHint("ace-step-ambient-lora")).toBe("ambient");
+    expect(shortLoraHint("")).toBe("base");
+
+    const dual: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        {
+          id: "n1",
+          type: "GenerateAudio",
+          widgets: { model: "ace-step-1.5-2b-turbo", lora: "ace-step-cny-lora" },
+        },
+        {
+          id: "n2",
+          type: "GenerateAudio",
+          widgets: { model: "ace-step-1.5-2b-turbo", lora: "ace-step-ambient-lora" },
+        },
+      ],
+    };
+    expect(nodeModelHint(dual, dual.nodes[0]!)).toBe("ace-step-1.5-2b-turbo · cny");
+    expect(nodeModelHint(dual, dual.nodes[1]!)).toBe("ace-step-1.5-2b-turbo · ambient");
+  });
+
+  it("marks blank LoRA as base when a peer has an adapter", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n1", type: "GenerateAudio", widgets: { model: "ace-step-1.5-2b-turbo", lora: "" } },
+        {
+          id: "n2",
+          type: "GenerateAudio",
+          widgets: { model: "ace-step-1.5-2b-turbo", lora: "ace-step-cny-lora" },
+        },
+      ],
+    };
+    expect(nodeModelHint(workflow, workflow.nodes[0]!)).toBe("ace-step-1.5-2b-turbo · base");
+    expect(nodeModelHint(workflow, workflow.nodes[1]!)).toBe("ace-step-1.5-2b-turbo · cny");
   });
 });
 

@@ -1,0 +1,177 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "c8d9e0f1-a2b3-4c5d-8e9f-dualoraab0001",
+  "metadata": {
+    "title": "ACE-Step Dual LoRA A/B",
+    "author": "groovy",
+    "description": "Experimental. Same prompt + seed → ACE-Step 2B Turbo with CNY LoRA ∥ Ambient Dream LoRA at full strength (lora_scale 1.0). Drag-select both Previews for Inspector A/B. Install ace-step-1.5-2b-turbo, ace-step-cny-lora, ace-step-ambient-lora. Adapters are research / community — not commercial-safe. Prefer CUDA (or Stub on Mac).",
+    "tags": [
+      "starter",
+      "featured",
+      "experimental",
+      "generation",
+      "ace-step",
+      "lora",
+      "adapter",
+      "compare",
+      "ab",
+      "turbo",
+      "ambient",
+      "nc"
+    ],
+    "created_at": "2026-11-09T00:00:00Z",
+    "modified_at": "2026-11-09T00:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-dual",
+      "type": "Note",
+      "pos": {
+        "x": -400,
+        "y": 60
+      },
+      "widgets": {
+        "text": "ACE-Step Dual LoRA A/B\n\n⚠ Experimental — LoRA on GenerateAudio.\n\nSame Prompt + seed + lora_scale 1.0 →\n· top = CNY (festive folk imprint)\n· bottom = Ambient (pads / dream trigger)\n\nOpen prompt so adapters diverge hard.\nSelect GenerateAudio → Exploration for LoRA.\n\nReal render: ~12 GB free RAM or CUDA.\nMac-tight? Settings → Inference → Stub.\n\nDrag-select both Previews → A/B.\nNC / community · Play = cached PCM."
+      }
+    },
+    {
+      "id": "n0",
+      "type": "Prompt",
+      "pos": {
+        "x": 0,
+        "y": 200
+      },
+      "widgets": {
+        "text": "ambient_dream1 simple instrumental melody, mid tempo, clear phrasing, no vocals",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 300,
+        "y": 40
+      },
+      "widgets": {
+        "model": "ace-step-1.5-2b-turbo",
+        "prompt": "ambient_dream1 simple instrumental melody, mid tempo, clear phrasing, no vocals",
+        "lyrics_text": "",
+        "lora": "ace-step-cny-lora",
+        "lora_scale": 1.0,
+        "seed": 42,
+        "seconds_total": 20.0,
+        "num_inference_steps": 12,
+        "guidance_scale": 1.0
+      }
+    },
+    {
+      "id": "n2",
+      "type": "GenerateAudio",
+      "pos": {
+        "x": 300,
+        "y": 360
+      },
+      "widgets": {
+        "model": "ace-step-1.5-2b-turbo",
+        "prompt": "ambient_dream1 simple instrumental melody, mid tempo, clear phrasing, no vocals",
+        "lyrics_text": "",
+        "lora": "ace-step-ambient-lora",
+        "lora_scale": 1.0,
+        "seed": 42,
+        "seconds_total": 20.0,
+        "num_inference_steps": 12,
+        "guidance_scale": 1.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Normalize",
+      "pos": {
+        "x": 580,
+        "y": 40
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n4",
+      "type": "Normalize",
+      "pos": {
+        "x": 580,
+        "y": 360
+      },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n5",
+      "type": "Preview",
+      "pos": {
+        "x": 840,
+        "y": 40
+      },
+      "widgets": {}
+    },
+    {
+      "id": "n6",
+      "type": "Preview",
+      "pos": {
+        "x": 840,
+        "y": 360
+      },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "l0a",
+      "from": ["n0", 0],
+      "to": ["n1", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l0b",
+      "from": ["n0", 0],
+      "to": ["n2", 0],
+      "type": "TEXT"
+    },
+    {
+      "id": "l1",
+      "from": ["n1", 0],
+      "to": ["n3", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l2",
+      "from": ["n2", 0],
+      "to": ["n4", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l3",
+      "from": ["n3", 0],
+      "to": ["n5", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l4",
+      "from": ["n4", 0],
+      "to": ["n6", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": [],
+  "view": {
+    "zoom": 0.85,
+    "pan": {
+      "x": 80,
+      "y": 20
+    }
+  }
+}

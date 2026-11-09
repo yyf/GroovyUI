@@ -44,11 +44,9 @@ def estimate_workflow_preflight(workflow: Workflow, registry: Any) -> dict[str, 
     runtime checks without claiming precise timings.
     """
 
-    model_ids: list[str] = []
-    for node in workflow.nodes:
-        model_id = node.widgets.get("model")
-        if isinstance(model_id, str) and model_id and model_id not in model_ids:
-            model_ids.append(model_id)
+    from groovy.registry.workflow_models import unique_workflow_model_ids
+
+    model_ids = unique_workflow_model_ids(workflow)
 
     known_download_mb = 0.0
     unknown_download_models: list[str] = []

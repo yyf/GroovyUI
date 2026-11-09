@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import pytest
+
 from groovy.nodes.ai.backends.ace_step_runner import (
+    LORA_HF_BY_ID,
     _hf_token_arg,
     _is_hf_access_denied,
     _raise_hf_load_error,
+    _refuse_cpu_if_low_ram,
+    _resolve_lora_repo,
     _sanitize_hf_error,
+    _unload_lora,
 )
 
 
@@ -51,3 +57,54 @@ def test_non_auth_load_error_keeps_hub_detail() -> None:
         assert "couldn't connect" in str(exc)
     else:
         raise AssertionError("expected RuntimeError")
+
+
+def test_refuse_cpu_low_ram_fails_fast(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GROOVY_ACE_STEP_ALLOW_LOW_RAM", raising=False)
+    monkeypatch.setenv("GROOVY_ACE_STEP_MIN_RAM_GB", "12")
+    monkeypatch.setattr(
+        "groovy.nodes.ai.backends.ace_step_runner._available_ram_gb",
+        lambda: 6.0,
+    )
+    with pytest.raises(RuntimeError, match="available RAM"):
+        _refuse_cpu_if_low_ram("Runware/acestep-v15-sft-diffusers")
+
+
+def test_refuse_cpu_allows_typical_macbook_headroom(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GROOVY_ACE_STEP_ALLOW_LOW_RAM", raising=False)
+    monkeypatch.delenv("GROOVY_ACE_STEP_MIN_RAM_GB", raising=False)
+    monkeypatch.setattr(
+        "groovy.nodes.ai.backends.ace_step_runner._available_ram_gb",
+        lambda: 13.2,
+    )
+    _refuse_cpu_if_low_ram("Runware/acestep-v15-sft-diffusers")
+
+
+def test_refuse_cpu_low_ram_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GROOVY_ACE_STEP_ALLOW_LOW_RAM", "1")
+    monkeypatch.setattr(
+        "groovy.nodes.ai.backends.ace_step_runner._available_ram_gb",
+        lambda: 2.0,
+    )
+    _refuse_cpu_if_low_ram("Runware/acestep-v15-sft-diffusers")
+
+
+def test_resolve_lora_repo_known_id_and_hub_path() -> None:
+    assert _resolve_lora_repo("ace-step-cny-lora") == LORA_HF_BY_ID["ace-step-cny-lora"]
+    assert _resolve_lora_repo("ace-step-ambient-lora") == LORA_HF_BY_ID["ace-step-ambient-lora"]
+    assert (
+        _resolve_lora_repo("ACE-Step/ACE-Step-v1.5-chinese-new-year-LoRA")
+        == "ACE-Step/ACE-Step-v1.5-chinese-new-year-LoRA"
+    )
+
+
+def test_resolve_lora_repo_unknown_raises() -> None:
+    with pytest.raises(RuntimeError, match="Unknown ACE-Step LoRA"):
+        _resolve_lora_repo("not-a-real-lora-id")
+
+
+def test_unload_lora_tolerates_missing_hooks() -> None:
+    class _Bare:
+        pass
+
+    _unload_lora(_Bare())  # no-op; must not raise

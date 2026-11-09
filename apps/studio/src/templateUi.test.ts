@@ -33,6 +33,8 @@ describe("templatesVisibleInUi", () => {
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
     bundled("ace-step-1.5-sft"),
+    bundled("ace-step-lora-demo"),
+    bundled("ace-step-dual-lora-ab"),
     bundled("ambisonic-trajectory-demo"),
     bundled("extract-lyrics-to-music-with-ace-step"),
     bundled("stable-audio"),
@@ -69,6 +71,7 @@ describe("templatesVisibleInUi", () => {
     // Sorted by display title (default title = id), not STANDARD_BUNDLED order.
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5-sft",
+      "ace-step-dual-lora-ab",
       "asr-benchmark-wer-cer",
       "demucs-vs-openunmix",
       "empty-canvas",
@@ -116,6 +119,8 @@ describe("templatesVisibleInUi", () => {
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
       "ace-step-1.5-sft",
+      "ace-step-dual-lora-ab",
+      "ace-step-lora-demo",
       "ambisonic-trajectory-demo",
       "asr-benchmark-wer-cer",
       "authenticity-check",
