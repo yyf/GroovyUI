@@ -265,6 +265,8 @@ export type NodeSchema = {
   description?: string;
   enriched?: boolean;
   provenance_class?: string;
+  /** True when the node inherits parent contribution (utility / I/O sinks). */
+  provenance_passthrough?: boolean;
   /** Offline frame-indexed audio bus (metadata; not an executor gate). */
   sample_accurate?: boolean;
   /** False for AI / stochastic hops — PCM may vary by seed/hardware. */

@@ -140,6 +140,7 @@ class GroovyNode:
             "sample_accurate": cls.SAMPLE_ACCURATE,
             "duration_locked": cls.DURATION_LOCKED,
             "provenance_class": cls.PROVENANCE_CLASS,
+            "provenance_passthrough": bool(cls.PROVENANCE_PASSTHROUGH),
         }
 
 
