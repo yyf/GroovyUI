@@ -33,6 +33,10 @@
   <img src="assets/media/ab-lora-adapters.gif" alt="GroovyUI ACE-Step LoRA A/B: dual adapters on GenerateAudio with canvas compare" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/contribution-mix.gif" alt="GroovyUI Contribution Mix: Human vs AI share in Compliance disclosure for your patch" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -92,6 +96,10 @@
     <td align="center" width="50%">
       <a href="https://youtu.be/KoK0AvcXFEE"><img src="https://img.youtube.com/vi/KoK0AvcXFEE/hqdefault.jpg" alt="GroovyUI template — A/B ACE-Step LoRA adapters with compliance disclosure" width="440" /></a><br />
       <sub>GroovyUI template — A/B ACE-Step LoRA adapters with compliance disclosure</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/NrLUUJQrS44"><img src="https://img.youtube.com/vi/NrLUUJQrS44/hqdefault.jpg" alt="GroovyUI — Contribution Mix disclosure for your patch" width="440" /></a><br />
+      <sub>GroovyUI — Contribution Mix disclosure for your patch</sub>
     </td>
   </tr>
 </table>
