@@ -172,6 +172,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "watermark-embed-detect",
+    title: "Watermark Embed and Detect",
+    models: "audioseal-16bit",
+    licenses: "audioseal-16bit: MIT",
+    impact: "Med",
+    cluster: "Trust / watermark",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
     id: "video-to-audio",
     title: "Video to Audio",
     models: "diff-foley (default)",

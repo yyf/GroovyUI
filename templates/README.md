@@ -17,6 +17,7 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | ASR Benchmark — WER / CER | [asr-benchmark-wer-cer.groovy.json](asr-benchmark-wer-cer.groovy.json) | `kokoro-82m` → `whisper-small-en` ∥ `whisper-large-v3-turbo`; drag-select transcript Previews for WER A/B |
 | Demucs vs Open-Unmix — Stem A/B | [demucs-vs-openunmix.groovy.json](demucs-vs-openunmix.groovy.json) | `demucs-v4` ∥ `openunmix-umx` vocals; A/B pairwise (no GT): loudness / waveform / SDR / SI-SDR / mel cosine / LSD |
 | ACE-Step Dual LoRA A/B | [ace-step-dual-lora-ab.groovy.json](ace-step-dual-lora-ab.groovy.json) | Experimental: turbo + `ace-step-cny-lora` ∥ `ace-step-ambient-lora` (NC / community); Inspector A/B |
+| Watermark Embed and Detect | [watermark-embed-detect.groovy.json](watermark-embed-detect.groovy.json) | `audioseal-16bit` (MIT) — EmbedWatermark → DetectWatermark |
 | Video to Audio | [video-to-audio.groovy.json](video-to-audio.groovy.json) | `diff-foley` (default; experimental — CUDA testing) |
 
 Featured-only (⌘⇧D):
