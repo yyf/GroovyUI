@@ -2787,6 +2787,7 @@ export default function App() {
         <ComplianceDrawer
           open={complianceOpen}
           workflow={workflow}
+          nodeSchemas={nodeSchemas}
           outputs={lastJob?.outputs}
           targetNodeId={selectedNodeId}
           onClose={() => setComplianceOpen(false)}

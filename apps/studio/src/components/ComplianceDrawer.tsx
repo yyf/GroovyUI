@@ -7,9 +7,11 @@ import {
   findMissingWorkflowModels,
 } from "../api";
 import type { FastPathRunResult } from "../fastPath";
+import { computeContributionMix } from "../contributionMix";
 import type {
   JobOutput,
   LicenseScanSummary,
+  NodeSchema,
   ProvenanceSummary,
   Workflow,
 } from "../types";
@@ -25,7 +27,7 @@ const TAB_DESCRIPTIONS: Record<Tab, string> = {
   authenticity:
     "Signals that content may be synthetic or unverified (sidecar checks, deepfake scores). Indicators only.",
   disclosure:
-    "Copy-ready wording for credits and AI disclosure when you share or publish this workflow’s output.",
+    "Contribution Mix from node types on this patch, plus copy-ready wording for credits and AI disclosure.",
 };
 
 export type ComplianceIntent = "commercial" | "evaluation";
@@ -53,6 +55,7 @@ export function fastPathBlockReason(
 type Props = {
   open: boolean;
   workflow: Workflow;
+  nodeSchemas?: Record<string, NodeSchema>;
   outputs?: Record<string, JobOutput>;
   targetNodeId?: string | null;
   onClose: () => void;
@@ -74,6 +77,7 @@ type Props = {
 export default function ComplianceDrawer({
   open,
   workflow,
+  nodeSchemas = {},
   outputs,
   targetNodeId,
   onClose,
@@ -102,6 +106,11 @@ export default function ComplianceDrawer({
     if (!outputs) return null;
     return authenticityReportId(workflow, outputs, targetNodeId);
   }, [outputs, targetNodeId, workflow]);
+
+  const contributionMix = useMemo(
+    () => computeContributionMix(workflow, nodeSchemas),
+    [workflow, nodeSchemas],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -232,6 +241,11 @@ export default function ComplianceDrawer({
       <aside className="compliance-drawer" onClick={(e) => e.stopPropagation()}>
         <header>
           <h2>Compliance</h2>
+          {contributionMix.label ? (
+            <span className="pill pill--contribution-mix" title="Contribution Mix from node types on this patch">
+              {contributionMix.label}
+            </span>
+          ) : null}
           {provenance?.contains_ai ? <span className="pill pill--warning">AI</span> : null}
           {overall?.label ? <span className={`pill pill--${overall.label}`}>{overall.label}</span> : null}
           <button
@@ -268,6 +282,26 @@ export default function ComplianceDrawer({
           </button>
         </nav>
         <p className="compliance-tab-blurb">{TAB_DESCRIPTIONS[tab]}</p>
+        {contributionMix.label ? (
+          <div className="contribution-mix contribution-mix--strip" aria-label="Contribution Mix">
+            <span className="contribution-mix__strip-label">Contribution Mix</span>
+            <strong className="contribution-mix__strip-value">{contributionMix.label}</strong>
+            <div
+              className="contribution-mix__bar contribution-mix__bar--strip"
+              role="img"
+              aria-label={contributionMix.label}
+            >
+              <span
+                className="contribution-mix__segment contribution-mix__segment--human"
+                style={{ width: `${contributionMix.humanPercent}%` }}
+              />
+              <span
+                className="contribution-mix__segment contribution-mix__segment--ai"
+                style={{ width: `${contributionMix.aiPercent}%` }}
+              />
+            </div>
+          </div>
+        ) : null}
         {tab === "license" && license ? (
           <div className="compliance-body">
             {fastPath ? (
@@ -779,6 +813,15 @@ export default function ComplianceDrawer({
         ) : null}
         {tab === "disclosure" ? (
           <div className="compliance-body">
+            <p className="compliance-hint">
+              Contribution Mix above is from provenance classes on this patch
+              {contributionMix.passthrough
+                ? ` (${contributionMix.passthrough} passthrough/utility node${
+                    contributionMix.passthrough === 1 ? "" : "s"
+                  } excluded)`
+                : ""}
+              . It is not an audio detection score.
+            </p>
             <p className="disclosure-text">{provenance?.focus_disclosure ?? "Render first to generate disclosure copy."}</p>
             <button type="button" onClick={copyDisclosure}>
               Copy disclosure

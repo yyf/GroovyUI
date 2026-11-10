@@ -26,3 +26,13 @@ def test_schema_exposes_expected_provenance_class() -> None:
     node_cls = get_node_class("Normalize")
     enriched = enrich_node_schema("Normalize", node_cls.describe())
     assert enriched["provenance_class"] == node_cls.PROVENANCE_CLASS
+    assert enriched["provenance_passthrough"] is bool(node_cls.PROVENANCE_PASSTHROUGH)
+
+
+def test_schema_exposes_provenance_passthrough_for_utility() -> None:
+    preview = get_node_class("Preview")
+    described = preview.describe()
+    assert described["provenance_passthrough"] is True
+    load = get_node_class("LoadAudio")
+    assert load.describe()["provenance_passthrough"] is False
+    assert load.describe()["provenance_class"] == "human_recorded"
