@@ -18,6 +18,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "podcast-denoise",
   "prompt-modular-synth",
   "tts-emotion-edit",
+  "watermark-embed-detect",
 ] as const;
 
 /** Bundled templates shown in the workflow template picker in studio dev mode. */
@@ -183,6 +184,8 @@ export const STANDARD_MODE_NODE_TYPES = [
   "Benchmark",
   "ControlCurve",
   "Denoise",
+  "DetectWatermark",
+  "EmbedWatermark",
   "GenerateAudio",
   "Granulate",
   "LoadAudio",

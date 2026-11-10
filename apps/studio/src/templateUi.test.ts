@@ -44,6 +44,7 @@ describe("templatesVisibleInUi", () => {
     bundled("karaoke-stems"),
     bundled("transcribe-and-regenerate"),
     bundled("authenticity-check"),
+    bundled("watermark-embed-detect"),
     bundled("isolate-vocals-to-transcribe"),
     bundled("isolate-vocals-to-transcribe-translate"),
     bundled("isolate-vocals-to-voice-convert"),
@@ -82,6 +83,7 @@ describe("templatesVisibleInUi", () => {
       "prompt-modular-synth",
       "tab-creative-grow",
       "tts-emotion-edit",
+      "watermark-embed-detect",
     ]);
   });
 
@@ -153,6 +155,7 @@ describe("templatesVisibleInUi", () => {
       "transcribe-dialogue",
       "tts-emotion-edit",
       "voice-cloning",
+      "watermark-embed-detect",
     ]);
   });
 
@@ -308,6 +311,10 @@ describe("groupBundledTemplatesByDomain", () => {
     expect(domainIdForTemplate("authenticity-check")).toBe("trust");
   });
 
+  it("places watermark-embed-detect in Trust", () => {
+    expect(domainIdForTemplate("watermark-embed-detect")).toBe("trust");
+  });
+
   it("places self-playing-neural-rack in Modular", () => {
     expect(domainIdForTemplate("self-playing-neural-rack")).toBe("modular");
   });
@@ -337,6 +344,8 @@ describe("isNodeVisibleInStudio", () => {
     expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("SaveVideo");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("EmbedWatermark");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("DetectWatermark");
   });
 
   it("places asr-benchmark-wer-cer in Compare", () => {

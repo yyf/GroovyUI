@@ -37,6 +37,10 @@
   <img src="assets/media/contribution-mix.gif" alt="GroovyUI Contribution Mix: Human vs AI share in Compliance disclosure for your patch" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/watermark-embed-detect.gif" alt="GroovyUI Watermark Embed and Detect: AudioSeal embed then detect on a speech patch" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -100,6 +104,12 @@
     <td align="center" width="50%">
       <a href="https://youtu.be/NrLUUJQrS44"><img src="https://img.youtube.com/vi/NrLUUJQrS44/hqdefault.jpg" alt="GroovyUI — Contribution Mix disclosure for your patch" width="440" /></a><br />
       <sub>GroovyUI — Contribution Mix disclosure for your patch</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/NQrJ4lN9GVo"><img src="https://img.youtube.com/vi/NQrJ4lN9GVo/hqdefault.jpg" alt="GroovyUI template — Watermark Embed and Detect with AudioSeal" width="440" /></a><br />
+      <sub>GroovyUI template — Watermark Embed and Detect with AudioSeal</sub>
     </td>
   </tr>
 </table>
