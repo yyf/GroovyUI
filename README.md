@@ -164,13 +164,15 @@ Or with [just](https://github.com/casey/just): `just install`, `just test`, `jus
 
 ## Cold machine
 
-Cold / clean machines take longer on first run — `uv` sync, Studio `npm install`, and especially **first model downloads** (minutes, multi‑GB disk). Models keep their own licenses (see Compliance).
+First run on a clean machine is slower: `uv` sync, Studio `npm install`, and especially **first model downloads** (minutes; multi‑GB disk). Model licenses stay with the weights — see **Compliance**.
 
-Video mux / PreviewVideo paths need **ffmpeg** on `PATH`.
+Also:
 
-If a cold machine fails, check port `8188`/`5173` conflicts, disk space, Python version, and Compliance / Settings for tokens (`HF_TOKEN`) on gated weights.
-
-Install template models from Model Browser before first real Render. Without the platform below (or CUDA where noted), use Settings → Inference → **Stub** for UI-only demos. Step on Apple Silicon needs `uv` on `PATH`; later runs reuse `.groovy/models/step-audio-editx/`.
+- **ffmpeg** on `PATH` for Video mux / PreviewVideo
+- Install template models from Model Browser before the first real **Render**
+- If the platform below (or CUDA where noted) is missing, use Settings → Inference → **Stub** for UI-only demos
+- On failure, check ports `8188` / `5173`, disk space, Python **3.11**, and `HF_TOKEN` in Compliance / Settings for gated weights
+- Step on Apple Silicon needs `uv` on `PATH`; later runs reuse `.groovy/models/step-audio-editx/`
 
 | Template | Model | Platform | First-run expectation |
 | --- | --- | --- | --- |
@@ -179,7 +181,7 @@ Install template models from Model Browser before first real Render. Without the
 | TTS with Emotion Editing | `step-audio-editx` (Apache-2.0) | CUDA Linux | Upstream Step + **vLLM** (~12 GB VRAM).<br>Not a Mac path. |
 | ACE-Step 1.5 SFT | `ace-step-1.5-sft` (MIT) | CUDA | ~**6.3 GB** Diffusers 2B SFT pack; ~50 steps + CFG guidance. |
 | ACE-Step 1.5 SFT | `ace-step-1.5-sft` (MIT) | CPU / Mac | Same download; float32 CPU inference is slow and memory-heavy. |
-| ACE-Step LoRA A/B (⌘⇧D) | `ace-step-1.5-2b-turbo` + `ace-step-cny-lora` (NC) | CUDA | Base ∥ LoRA via GenerateAudio `lora` / `lora_scale`; research LoRA — not commercial-safe. |
+| ACE-Step LoRA A/B | `ace-step-1.5-2b-turbo` + `ace-step-cny-lora` (NC) | CUDA | Base ∥ LoRA via GenerateAudio `lora` / `lora_scale`; research LoRA — not commercial-safe. |
 | ACE-Step Dual LoRA A/B | turbo + `ace-step-cny-lora` ∥ `ace-step-ambient-lora` | CUDA | Experimental: same prompt/seed, two adapters; A/B Previews. NC / community — not commercial-safe. |
 
 ## License
