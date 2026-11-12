@@ -354,11 +354,13 @@ def summarize_workflow_outputs(
         if not cache_id:
             continue
         chain = build_lineage_chain(cache, str(cache_id))
+        lineage = build_lineage_graph(cache, str(cache_id))
         entries.append(
             {
                 "node_id": node_id,
                 "cache_id": cache_id,
                 "chain": chain,
+                "lineage": lineage,
                 "disclosure": disclosure_summary(chain),
             }
         )

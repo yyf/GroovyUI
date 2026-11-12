@@ -81,6 +81,10 @@ def test_provenance_chain_has_parents(project_dir: Path) -> None:
     summary = summarize_workflow_outputs(executor.cache, result.outputs, target_node_id="n4")
     assert summary["contains_ai"] is True
     assert summary["focus_disclosure"]
+    focus = next(e for e in summary["entries"] if e["node_id"] == "n4")
+    assert focus["lineage"]["root_cache_id"] == preview_id
+    assert len(focus["lineage"]["nodes"]) >= 2
+    assert focus["lineage"]["edges"]
 
 
 def test_save_audio_writes_provenance_sidecar(project_dir: Path) -> None:

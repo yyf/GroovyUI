@@ -41,6 +41,10 @@
   <img src="assets/media/watermark-embed-detect.gif" alt="GroovyUI Watermark Embed and Detect: AudioSeal embed then detect on a speech patch" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/basic-provenance-visualizer.gif" alt="GroovyUI Provenance visualizer: rendered audio hop chain in Compliance" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -111,6 +115,10 @@
       <a href="https://youtu.be/NQrJ4lN9GVo"><img src="https://img.youtube.com/vi/NQrJ4lN9GVo/hqdefault.jpg" alt="GroovyUI template — Watermark Embed and Detect with AudioSeal" width="440" /></a><br />
       <sub>GroovyUI template — Watermark Embed and Detect with AudioSeal</sub>
     </td>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/k1AVkFr22wI"><img src="https://img.youtube.com/vi/k1AVkFr22wI/hqdefault.jpg" alt="GroovyUI — Provenance visualizer for your patch" width="440" /></a><br />
+      <sub>GroovyUI — Provenance visualizer for your patch</sub>
+    </td>
   </tr>
 </table>
 
@@ -119,6 +127,12 @@
 ## Status
 
 Experimental. APIs and UI will change. Expect rough edges on clean machines and first model installs.
+
+**Tab-to-grow** (select a node → **Tab**) is experimental. With an Anthropic API key in Settings → Plan / Claude (or `ANTHROPIC_API_KEY`), it uses Claude to suggest the next patch steps. Without a key, Tab grows the patch locally from the selected node’s minimal expand — no cloud call.
+
+**Contribution Mix** (Compliance) is currently a **node-count** of each hop’s provenance class on the patch (passthrough/utility nodes excluded) — e.g. prompts, notes, and normalize count as human; `GenerateAudio` counts as AI. It is **not** an audio detection score or “how much of the waveform is synthetic.” Better weighting (audio lineage, duration, generative vs edit hops) is an **open question**.
+
+**Provenance visualization** (Compliance → Provenance) appears after a render when cache / SaveAudio `provenance.json` lineage exists. It draws the **audio hop chain** source → output (branching DAGs when Mix merges paths), color-coded by contribution class, with a mix bar over those hops only — so it can disagree with Contribution Mix, which counts canvas nodes (including prompts/notes) that never appear in the audio lineage. Click a hop for models and ids. Not C2PA / Content Credentials unless you separately enable signing.
 
 ## OS compatibility
 
