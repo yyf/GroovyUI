@@ -441,14 +441,32 @@ export type BatchRenderResult = {
   }>;
 };
 
+export type ProvenanceLineageNode = {
+  cache_id: string;
+  content_hash?: string;
+  node?: { node_id?: string; node_type?: string };
+  contribution?: { class?: string; disclosure_label?: string };
+  models?: Array<{ registry_id?: string; role?: string; lora_scale?: number }>;
+  record_hash?: string;
+};
+
+export type ProvenanceLineage = {
+  root_cache_id: string;
+  nodes: ProvenanceLineageNode[];
+  edges: Array<{ from_cache_id: string; to_cache_id: string }>;
+};
+
 export type ProvenanceEntry = {
   node_id: string;
   cache_id: string;
   chain: Array<{
+    cache_id?: string;
     contribution?: { class?: string; disclosure_label?: string };
     node?: { node_id?: string; node_type?: string };
     models?: Array<{ registry_id?: string; role?: string; lora_scale?: number }>;
   }>;
+  /** Full branching DAG when available (from cache provenance records). */
+  lineage?: ProvenanceLineage;
   disclosure: string;
 };
 

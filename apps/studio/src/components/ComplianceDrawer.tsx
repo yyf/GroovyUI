@@ -16,6 +16,7 @@ import type {
   Workflow,
 } from "../types";
 import { authenticityReportId } from "../workflow";
+import ProvenanceVisualizer from "./ProvenanceVisualizer";
 
 type Tab = "license" | "provenance" | "authenticity" | "disclosure";
 
@@ -730,40 +731,47 @@ export default function ComplianceDrawer({
         {tab === "provenance" ? (
           <div className="compliance-body">
             {!provenance || provenance.entries.length === 0 ? (
-              <p className="compliance-hint">Render the workflow to populate provenance lineage per cache entry.</p>
+              <p className="compliance-hint">
+                Render the workflow to populate provenance.json lineage per cache entry.
+              </p>
             ) : (
               provenance.entries.map((entry) => (
                 <section key={entry.node_id} className="provenance-entry">
                   <h3>
-                    {entry.node_id} <span className="node-helper__mono">{entry.cache_id.slice(0, 8)}…</span>
+                    {entry.node_id}{" "}
+                    <span className="node-helper__mono">{entry.cache_id.slice(0, 8)}…</span>
                   </h3>
-                  <ol className="provenance-chain">
-                    {entry.chain.map((step, idx) => (
-                      <li key={`${step.node?.node_id ?? idx}-${idx}`}>
-                        <strong>{step.node?.node_type ?? "unknown"}</strong>
-                        <span className={`pill pill--${step.contribution?.class ?? "unknown"}`}>
-                          {step.contribution?.class ?? "unknown"}
-                        </span>
-                        {(step.models ?? []).length > 0 ? (
-                          <ul className="node-helper__list provenance-models">
-                            {(step.models ?? []).map((model, modelIdx) => {
-                              const id = model.registry_id ?? "unknown";
-                              const isLora = model.role === "adapter";
-                              const scale =
-                                typeof model.lora_scale === "number"
-                                  ? ` ×${model.lora_scale}`
-                                  : "";
-                              return (
-                                <li key={`${id}-${modelIdx}`}>
-                                  {isLora ? `LoRA: ${id}${scale}` : `Model: ${id}`}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ol>
+                  <ProvenanceVisualizer entry={entry} />
+                  <details className="provenance-entry__chain">
+                    <summary>Chain detail</summary>
+                    <ol className="provenance-chain">
+                      {entry.chain.map((step, idx) => (
+                        <li key={`${step.node?.node_id ?? idx}-${idx}`}>
+                          <strong>{step.node?.node_type ?? "unknown"}</strong>
+                          <span className={`pill pill--${step.contribution?.class ?? "unknown"}`}>
+                            {step.contribution?.class ?? "unknown"}
+                          </span>
+                          {(step.models ?? []).length > 0 ? (
+                            <ul className="node-helper__list provenance-models">
+                              {(step.models ?? []).map((model, modelIdx) => {
+                                const id = model.registry_id ?? "unknown";
+                                const isLora = model.role === "adapter";
+                                const scale =
+                                  typeof model.lora_scale === "number"
+                                    ? ` ×${model.lora_scale}`
+                                    : "";
+                                return (
+                                  <li key={`${id}-${modelIdx}`}>
+                                    {isLora ? `LoRA: ${id}${scale}` : `Model: ${id}`}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
                 </section>
               ))
             )}
