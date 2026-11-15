@@ -26,6 +26,7 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("demucs-vs-openunmix")).toBe(true);
     expect(isCommerciallyCleared("watermark-embed-detect")).toBe(true);
     expect(isCommerciallyCleared("ace-step-dual-lora-ab")).toBe(false);
+    expect(isCommerciallyCleared("text-to-video")).toBe(false);
     expect(isCommerciallyCleared("layered-music-sfx")).toBe(false);
     expect(isCommerciallyCleared("stable-audio")).toBe(false);
   });
@@ -44,8 +45,9 @@ describe("templateLicenseMatrix", () => {
     expect(summary.commercialSafe + summary.conferenceOnly + summary.caution).toBe(
       summary.total,
     );
-    expect(summary.commercialSafe).toBe(STANDARD_BUNDLED_TEMPLATE_IDS.length - 1);
-    expect(summary.conferenceOnly).toBe(1);
+    // ace-step-dual-lora-ab + text-to-video (LTX Community) are conference-only.
+    expect(summary.commercialSafe).toBe(STANDARD_BUNDLED_TEMPLATE_IDS.length - 2);
+    expect(summary.conferenceOnly).toBe(2);
     expect(summary.caution).toBe(0);
   });
 });
