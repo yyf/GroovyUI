@@ -22,6 +22,8 @@ _CUDA_ONLY_IDS = frozenset(
         "audio-flamingo-3",
         "ace-step-1.5",
         "ace-step-1.5-2b-turbo",
+        "wan-animate-2",
+        "minimax-h3",
     }
 )
 
@@ -31,6 +33,10 @@ _APPLE_IDS = frozenset(
         "step-audio-editx",
         "stable-audio-3-small-music",
         "stable-audio-3-small-sfx",
+        "ltx-video",
+        "ltx-2.3-q4",
+        "ltx-2.5",
+        "wan-2.2-ti2v-5b",
     }
 )
 
@@ -44,8 +50,11 @@ _CPU_FRIENDLY_IDS = frozenset(
         "stable-audio-open-small",
         "stable-audio-3-small-music",
         "stable-audio-3-small-sfx",
+        "ltx-video",
     }
 )
+
+# NOTE: ltx-2.3-q4 is Apple/MLX only (listed in _APPLE_IDS), not CPU-friendly.
 
 
 def _blob(manifest: ModelManifest) -> str:

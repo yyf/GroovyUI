@@ -69,7 +69,9 @@ const TASK_FILTERS = [
   { value: "voice-conversion", label: "Voice conversion" },
   { value: "audio-to-midi", label: "Audio to MIDI" },
   { value: "music-generation", label: "Music generation" },
+  { value: "text-to-video", label: "Text to video" },
   { value: "video-to-audio", label: "Video to audio" },
+  { value: "character-animation", label: "Character animation" },
   { value: "singing-synthesis", label: "Singing synthesis" },
   { value: "deepfake-detection", label: "Deepfake detection" },
   { value: "audio-compare", label: "A/B compare" },
@@ -1025,8 +1027,12 @@ export default function ModelBrowser({
                       Commercial OK
                     </label>
                   </fieldset>
-                  <fieldset className="model-browser__filter-group model-browser__filter-group--hardware">
+                      <fieldset className="model-browser__filter-group model-browser__filter-group--hardware">
                       <legend>Hardware</legend>
+                      <p className="model-browser__host-note">
+                        Search returns the full public catalog match. Narrow by machine with Any / Apple Silicon / CUDA /
+                        CPU.
+                      </p>
                       <p
                         className="model-browser__host"
                         title={

@@ -2597,6 +2597,7 @@
       ],
       "tags": [
         "diff-foley",
+        "video",
         "video-to-audio",
         "foley",
         "sfx",
@@ -2687,6 +2688,430 @@
         ],
         "requires_cuda": true,
         "label": "CUDA required \u00b7 ~6 GB VRAM"
+      }
+    },
+    {
+      "id": "ltx-2.3-q4",
+      "status": "published",
+      "trust": "verified",
+      "name": "LTX-2.3 Q4 (MLX Mac)",
+      "description": "Real Apple Silicon text-to-video for GenerateVideo via community ltx-2-mlx + dgrauet/ltx-2.3-mlx-q4. Distilled + --low-ram; target M1 Max 32 GB: 512\u00d7512, 2\u20133 s. First install downloads ~27 GB distilled slice (+ Gemma text encoder into HF cache). Run bash scripts/setup-ltx-mac.sh after freeing \u226530 GB disk. Not the ffmpeg path-demo.",
+      "task_types": [
+        "text-to-video",
+        "video-generation",
+        "generation"
+      ],
+      "tags": [
+        "ltx",
+        "ltx-2.3",
+        "video",
+        "text-to-video",
+        "t2v",
+        "generation",
+        "mlx",
+        "apple-silicon",
+        "mac",
+        "q4",
+        "low-vram",
+        "open-weights",
+        "lightricks"
+      ],
+      "author": "Lightricks / community MLX",
+      "license": {
+        "spdx": "LicenseRef-LTX-2.x-Community",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 0.85,
+        "notes": "LTX-2.x Community License on upstream weights; MLX conversion is community (dgrauet)."
+      },
+      "vram_gb_estimate": 16,
+      "download_size_mb_estimate": 27000,
+      "compatible_nodes": [
+        "GenerateVideo"
+      ],
+      "hf_repo": "dgrauet/ltx-2.3-mlx-q4",
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "mlx",
+            "version": ">=0.22.0"
+          },
+          {
+            "package": "huggingface_hub",
+            "version": ">=0.20.0"
+          },
+          {
+            "package": "safetensors",
+            "version": ">=0.4.0"
+          },
+          {
+            "package": "pillow",
+            "version": ">=10.0.0"
+          },
+          {
+            "package": "imageio",
+            "version": ">=2.34.0"
+          },
+          {
+            "package": "ltx-core-mlx @ git+https://github.com/dgrauet/ltx-2-mlx.git#subdirectory=packages/ltx-core-mlx"
+          },
+          {
+            "package": "ltx-pipelines-mlx @ git+https://github.com/dgrauet/ltx-2-mlx.git#subdirectory=packages/ltx-pipelines-mlx"
+          }
+        ],
+        "verify_imports": [
+          "mlx",
+          "huggingface_hub"
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "duration",
+          "type": "FLOAT",
+          "default": 2.0,
+          "min": 1.0,
+          "max": 8.0,
+          "description": "Clip length seconds (mapped to 8n+1 frames @ 24 fps; capped for 32 GB Macs)."
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "default": 512,
+          "min": 256,
+          "max": 768,
+          "description": "Width (snapped to 32). Keep 512 on 32 GB."
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "default": 512,
+          "min": 256,
+          "max": 768,
+          "description": "Height (snapped to 32). Keep 512 on 32 GB."
+        }
+      ],
+      "similar_models": [
+        "ltx-video",
+        "ltx-2.5",
+        "wan-2.2-ti2v-5b"
+      ],
+      "architecture_notes": "GenerateVideo Real path: ltx-2-mlx distilled + --low-ram. Weights download on first Real render / setup-ltx-mac.sh.",
+      "compute": {
+        "runtimes": [
+          "mlx",
+          "mps"
+        ],
+        "requires_cuda": false,
+        "label": "Apple Silicon MLX Q4 \u00b7 --low-ram \u00b7 ~27 GB disk",
+        "memory_note": "32 GB unified recommended; close other apps; 512p / 2\u20133 s"
+      }
+    },
+    {
+      "id": "ltx-video",
+      "status": "published",
+      "trust": "verified",
+      "name": "LTX-Video (MacBook path demo)",
+      "description": "Path-demo only for GenerateVideo (ffmpeg color plate + prompt text). Instant ~0 GB. For real Mac T2V use ltx-2.3-q4 after bash scripts/setup-ltx-mac.sh.",
+      "task_types": [
+        "text-to-video",
+        "video-generation",
+        "generation"
+      ],
+      "tags": [
+        "ltx-video",
+        "ltx",
+        "video",
+        "text-to-video",
+        "t2v",
+        "generation",
+        "mac",
+        "apple-silicon",
+        "lightweight",
+        "low-vram",
+        "stub",
+        "lightricks"
+      ],
+      "author": "Lightricks / GroovyUI",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.9,
+        "notes": "Stub path is local GroovyUI placeholder video. Upstream Lightricks/LTX-Video (when wired) is Apache-2.0 on Hugging Face."
+      },
+      "vram_gb_estimate": 0,
+      "download_size_mb_estimate": 0,
+      "compatible_nodes": [
+        "GenerateVideo"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "inference_params": [
+        {
+          "name": "duration",
+          "type": "FLOAT",
+          "default": 4.0,
+          "min": 1.0,
+          "max": 16.0,
+          "description": "Clip length in seconds (stub / runner)."
+        },
+        {
+          "name": "width",
+          "type": "INT",
+          "default": 640,
+          "min": 256,
+          "max": 1280,
+          "description": "Output width (even)."
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "default": 360,
+          "min": 256,
+          "max": 720,
+          "description": "Output height (even)."
+        },
+        {
+          "name": "num_steps",
+          "type": "INT",
+          "default": 30,
+          "min": 4,
+          "max": 50,
+          "description": "Diffusion / sampling steps (real runner)."
+        }
+      ],
+      "similar_models": [
+        "ltx-2.3-q4",
+        "ltx-2.5",
+        "wan-2.2-ti2v-5b"
+      ],
+      "architecture_notes": "GenerateVideo path-demo: ffmpeg color plate. Real Mac T2V is ltx-2.3-q4 (MLX).",
+      "compute": {
+        "runtimes": [
+          "mps",
+          "cpu"
+        ],
+        "requires_cuda": false,
+        "label": "Apple Silicon / CPU \u00b7 stub \u00b7 ~0 GB install",
+        "memory_note": "Stub only \u2014 no model weights; needs ffmpeg on PATH"
+      }
+    },
+    {
+      "id": "ltx-2.5",
+      "status": "published",
+      "trust": "verified",
+      "name": "LTX 2.5",
+      "description": "Open-weight Lightricks LTX-2.5 joint video+audio (HF). Public weights for GenerateVideo. CUDA Comfy path ~32 GB+ VRAM / 100 GB+ disk; Apple Silicon via community MLX packs (large unified memory). Runner wiring TBD \u2014 install is catalog/stub until Real path lands.",
+      "task_types": [
+        "text-to-video",
+        "video-generation",
+        "generation"
+      ],
+      "tags": [
+        "ltx-2.5",
+        "ltx",
+        "video",
+        "text-to-video",
+        "t2v",
+        "generation",
+        "open-weights",
+        "audio-video",
+        "mlx",
+        "apple-silicon",
+        "lightricks"
+      ],
+      "author": "Lightricks",
+      "license": {
+        "spdx": "LicenseRef-LTX-2.x-Community",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 0.85,
+        "notes": "LTX-2.x Community License \u2014 free below US$10M annual revenue; larger orgs need a paid license. Confirm current Lightricks card."
+      },
+      "vram_gb_estimate": 32,
+      "download_size_mb_estimate": 75000,
+      "compatible_nodes": [
+        "GenerateVideo"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "ltx-video",
+        "wan-2.2-ti2v-5b",
+        "minimax-h3"
+      ],
+      "architecture_notes": "Public open weights. Real GenerateVideo runner not wired yet (stub install for browse/filter).",
+      "compute": {
+        "runtimes": [
+          "cuda",
+          "mlx",
+          "mps"
+        ],
+        "requires_cuda": false,
+        "label": "CUDA 32 GB+ / Apple MLX (large RAM) \u00b7 ~75 GB disk",
+        "memory_note": "~32 GB+ VRAM CUDA or high unified memory MLX; int8 packs smaller but still large"
+      }
+    },
+    {
+      "id": "wan-2.2-ti2v-5b",
+      "status": "published",
+      "trust": "verified",
+      "name": "Wan 2.2 TI2V-5B",
+      "description": "Alibaba Wan 2.2 text/image-to-video 5B (Apache-2.0, HF Wan-AI). Public local weights for GenerateVideo. Official single-GPU path ~24 GB VRAM; Mac MLX community ports need high unified memory (~32\u201364 GB class). Not Wan 3.0 (API-only).",
+      "task_types": [
+        "text-to-video",
+        "video-generation",
+        "generation"
+      ],
+      "tags": [
+        "wan",
+        "wan-2.2",
+        "video",
+        "text-to-video",
+        "t2v",
+        "i2v",
+        "generation",
+        "open-weights",
+        "apache",
+        "mlx",
+        "apple-silicon",
+        "alibaba"
+      ],
+      "author": "Alibaba Wan-AI",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.95
+      },
+      "vram_gb_estimate": 24,
+      "download_size_mb_estimate": 34000,
+      "compatible_nodes": [
+        "GenerateVideo"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "ltx-2.5",
+        "wan-animate-2",
+        "ltx-video"
+      ],
+      "architecture_notes": "Open Wan 2.2 TI2V-5B. Real GenerateVideo runner not wired yet.",
+      "compute": {
+        "runtimes": [
+          "cuda",
+          "mlx",
+          "mps"
+        ],
+        "requires_cuda": false,
+        "label": "CUDA ~24 GB / Apple MLX (high RAM) \u00b7 ~34 GB disk",
+        "memory_note": "~24 GB VRAM CUDA; Mac MLX often needs 32\u201364 GB unified memory"
+      }
+    },
+    {
+      "id": "wan-animate-2",
+      "status": "published",
+      "trust": "verified",
+      "name": "Wan Animate 2",
+      "description": "Open-weight Wan-Animate-2 character animation (Apache-2.0, HF). Driving video + reference image \u2192 character motion. Public weights; multi-GPU recipes are heavy. Browse under video / animate; GenerateVideo-compatible catalog entry until a dedicated animate node ships.",
+      "task_types": [
+        "character-animation",
+        "video-generation",
+        "generation"
+      ],
+      "tags": [
+        "wan",
+        "wan-animate",
+        "animate",
+        "video",
+        "character-animation",
+        "generation",
+        "open-weights",
+        "apache",
+        "alibaba"
+      ],
+      "author": "Alibaba Wan-AI",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.95
+      },
+      "vram_gb_estimate": 40,
+      "download_size_mb_estimate": 28000,
+      "compatible_nodes": [
+        "GenerateVideo"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "wan-2.2-ti2v-5b",
+        "ltx-2.5"
+      ],
+      "architecture_notes": "Character animation open weights. Runner not wired; stub install for catalog/filter.",
+      "compute": {
+        "runtimes": [
+          "cuda"
+        ],
+        "requires_cuda": true,
+        "label": "CUDA required \u00b7 multi-GPU class \u00b7 ~28 GB disk",
+        "memory_note": "Official demos target multi-A800; not a Mac-min path"
+      }
+    },
+    {
+      "id": "minimax-h3",
+      "status": "published",
+      "trust": "verified",
+      "name": "MiniMax H3",
+      "description": "Open-weight MiniMax H3 omni video+audio (HF). Public weights for GenerateVideo / Comfy. Local Real path is datacenter-scale (e.g. multi-B200 recipes); not Mac-min. Commercial local outputs may need MiniMax commercial license.",
+      "task_types": [
+        "text-to-video",
+        "video-generation",
+        "generation"
+      ],
+      "tags": [
+        "minimax",
+        "h3",
+        "video",
+        "text-to-video",
+        "t2v",
+        "generation",
+        "open-weights",
+        "audio-video"
+      ],
+      "author": "MiniMax",
+      "license": {
+        "spdx": "LicenseRef-MiniMax",
+        "commercial_ok": false,
+        "attribution_required": true,
+        "confidence": 0.7,
+        "notes": "Open weights for local research; commercial use of local outputs may require MiniMax commercial license."
+      },
+      "vram_gb_estimate": 80,
+      "download_size_mb_estimate": 100000,
+      "compatible_nodes": [
+        "GenerateVideo"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "similar_models": [
+        "ltx-2.5",
+        "wan-2.2-ti2v-5b"
+      ],
+      "architecture_notes": "Open weights; Real runner not wired. Stub install for browse + hardware filter.",
+      "compute": {
+        "runtimes": [
+          "cuda"
+        ],
+        "requires_cuda": true,
+        "label": "CUDA datacenter-class \u00b7 ~100 GB disk",
+        "memory_note": "Official SGLang reference is multi-GPU; not Apple Silicon"
       }
     },
     {

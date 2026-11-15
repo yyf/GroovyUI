@@ -21,6 +21,7 @@ def register_all() -> None:
         DetectWatermark,
         MIDIToAudio,
         GenerateAudio,
+        GenerateVideo,
         SingFromMIDI,
         Video2Audio,
         SeparateToObjects,
@@ -604,6 +605,103 @@ class GenerateAudio(GroovyNode):
 
     def run(self, **kwargs):
         raise RuntimeError("GenerateAudio must run in AI worker subprocess")
+
+
+@register_node
+class GenerateVideo(GroovyNode):
+    """Text → VIDEO generation (T2V). Default: LTX-2.3 Q4 MLX on Apple Silicon."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    DURATION_LOCKED = False
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_generated"
+    COMPATIBLE_MODELS = [
+        "ltx-2.3-q4",
+        "ltx-video",
+        "ltx-2.5",
+        "wan-2.2-ti2v-5b",
+        "wan-animate-2",
+        "minimax-h3",
+    ]
+    RETURN_TYPES = ("VIDEO", "GENERATE_LOG")
+    OUTPUT_NAMES = ("video", "log")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (
+                    "MODEL_REF",
+                    {
+                        "default": "ltx-2.3-q4",
+                        "description": (
+                            "Text-to-video. Mac Real: ltx-2.3-q4 (MLX Q4). Path demo: ltx-video. "
+                            "Model Browser → search \"video\" → Hardware filter."
+                        ),
+                    },
+                ),
+            },
+            "optional": {
+                "text": ("TEXT",),
+                "image": ("IMAGE",),
+                "prompt": ("STRING", {"default": ""}),
+                "negative_prompt": ("STRING", {"default": ""}),
+                "duration": ("FLOAT", {"default": 2.0, "min": 1.0, "max": 8.0}),
+                "width": ("INT", {"default": 512, "min": 256, "max": 768}),
+                "height": ("INT", {"default": 512, "min": 256, "max": 768}),
+                "num_steps": (
+                    "INT",
+                    {
+                        "default": 8,
+                        "min": 4,
+                        "max": 50,
+                        "description": (
+                            "Denoising / sampling steps for the video diffusion process. "
+                            "More steps usually mean cleaner motion and finer detail, but "
+                            "longer generate time. On ltx-2.3-q4 Real (distilled), the "
+                            "pipeline uses a fixed ~8-step schedule — this control is "
+                            "kept for compatibility and is ignored by Stub plates."
+                        ),
+                    },
+                ),
+                "image_strength": (
+                    "FLOAT",
+                    {
+                        "default": 1.0,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "description": (
+                            "I2V only (0–1): how hard to lock frame 0 to the LoadImage still. "
+                            "1.0 = animate the photo; lower = let the prompt restyle more. "
+                            "Values above 1 are outside LTX’s range and can break conditioning."
+                        ),
+                    },
+                ),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+            },
+        }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [
+            {"name": "video", "type": "VIDEO"},
+            {
+                "name": "log",
+                "type": "GENERATE_LOG",
+                "description": (
+                    "Optional run log: prompt, reference image, timing, output file, "
+                    "model config, and hardware. Wire to SaveGenerateLog."
+                ),
+            },
+        ]
+        return schema
+
+    def run(self, **kwargs):
+        raise RuntimeError("GenerateVideo must run in AI worker subprocess")
 
 
 @register_node

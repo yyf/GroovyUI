@@ -116,6 +116,7 @@ import {
   connectNodes,
   addNodeToWorkflow,
   applyDroppedAudio,
+  applyDroppedImage,
   groupForSelection,
   formatJobError,
   layoutWorkflowNodes,
@@ -460,6 +461,7 @@ export default function App() {
     if (nondet.length === 0) return null;
     const generative = new Set([
       "GenerateAudio",
+      "GenerateVideo",
       "MIDIToAudio",
       "TTS",
       "SingFromMIDI",
@@ -1829,34 +1831,41 @@ export default function App() {
     [workflow, setWorkflow],
   );
 
-  const handleAudioDrop = useCallback(
+  const handleMediaDrop = useCallback(
     async (files: FileList | null) => {
       if (!files?.length || !workflow) return;
       const audioMatch = (entry: File) =>
         entry.type.startsWith("audio/") || /\.(wav|flac|mp3|ogg|mp4|m4a)$/i.test(entry.name);
-      const file = [...files].find(audioMatch);
+      const imageMatch = (entry: File) =>
+        entry.type.startsWith("image/") || /\.(png|jpe?g|webp|bmp|gif)$/i.test(entry.name);
+      const image = [...files].find(imageMatch);
+      const file = image ?? [...files].find(audioMatch);
       if (!file) {
-        setStatus("Drop an audio file (WAV, FLAC, MP3, OGG)");
+        setStatus("Drop an audio or image file");
         return;
       }
+      const isImage = Boolean(image && file === image);
       try {
-        setStatus("Uploading audio…");
+        setStatus(isImage ? "Uploading image…" : "Uploading audio…");
         const path = await uploadProjectAudio(file);
-        const stem = file.name.replace(/\.[^.]+$/, "");
-        const sidecar = [...files].find((entry) => entry.name === `${stem}.provenance.json`);
-        if (sidecar && path.startsWith("assets/uploads/")) {
-          await uploadProjectAudio(sidecar);
+        if (!isImage) {
+          const stem = file.name.replace(/\.[^.]+$/, "");
+          const sidecar = [...files].find((entry) => entry.name === `${stem}.provenance.json`);
+          if (sidecar && path.startsWith("assets/uploads/")) {
+            await uploadProjectAudio(sidecar);
+          }
         }
         setWorkflow((prev) => {
           if (!prev) return prev;
-          return applyDroppedAudio(prev, path);
+          return isImage ? applyDroppedImage(prev, path) : applyDroppedAudio(prev, path);
         });
         setNodeStatus((prev) => {
           const next = { ...prev };
+          const targetType = isImage ? "LoadImage" : "LoadAudio";
           for (const node of workflow.nodes) {
-            if (node.type === "LoadAudio") next[node.id] = "stale";
+            if (node.type === targetType) next[node.id] = "stale";
           }
-          const loadNode = workflow.nodes.find((node) => node.type === "LoadAudio");
+          const loadNode = workflow.nodes.find((node) => node.type === targetType);
           if (!loadNode) {
             next[`n${workflow.nodes.length + 1}`] = "stale";
           }
@@ -2510,10 +2519,10 @@ export default function App() {
             onDrop={(event) => {
               event.preventDefault();
               setDropHint(false);
-              void handleAudioDrop(event.dataTransfer.files);
+              void handleMediaDrop(event.dataTransfer.files);
             }}
           >
-            {dropHint ? <div className="canvas__drop-hint">Drop audio to load</div> : null}
+            {dropHint ? <div className="canvas__drop-hint">Drop audio or image to load</div> : null}
             <FpsMeter />
             {sampleAccuracyNote && !dropHint ? (
               <SampleAccuracyBadge note={sampleAccuracyNote} />

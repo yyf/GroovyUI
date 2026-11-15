@@ -33,6 +33,8 @@ from groovy.executor.project_paths import (
     media_path_fingerprint,
 )
 from groovy.executor.trajectory import TrajectoryBuffer
+from groovy.executor.generate_log import GenerateLogReport
+from groovy.executor.image import ImageClip
 from groovy.executor.video import VideoClip
 from groovy.executor.provenance import build_record, parent_refs, read_provenance
 from groovy.executor.signal_integrity import attach_signal_metadata
@@ -202,6 +204,11 @@ class Executor:
                         node_outputs[node_id] = result
                         outputs[node_id] = cached_output_meta
                         cache_hit = True
+                        # Older VIDEO/AUDIO cache hits may predate provenance sidecars —
+                        # backfill so Compliance / Node Helper lineage fills without Shift+R.
+                        self._backfill_missing_provenance(
+                            ctx, workflow, node, node_cls, result, kwargs
+                        )
                         node_timings_ms[node_id] = max(
                             0, int(round((time.perf_counter() - node_t0) * 1000))
                         )
@@ -314,12 +321,28 @@ class Executor:
                 total_ms=max(0, int(round((time.perf_counter() - job_t0) * 1000))),
             )
 
+    def _backfill_missing_provenance(
+        self,
+        ctx: JobContext,
+        workflow: Workflow,
+        node: NodeInstance,
+        node_cls: type,
+        result: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> None:
+        """Write provenance for cached AUDIO/VIDEO outputs that lack a sidecar."""
+        for item in result:
+            if isinstance(item, (AudioBuffer, VideoClip, ImageClip)):
+                if ctx.cache.read_provenance(item.id):
+                    continue
+                self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
+
     def _write_provenance(
         self,
         ctx: JobContext,
         workflow: Workflow,
         node: NodeInstance,
-        buffer: AudioBuffer,
+        buffer: AudioBuffer | VideoClip | ImageClip,
         kwargs: dict[str, Any],
         node_cls: type,
     ) -> None:
@@ -336,9 +359,13 @@ class Executor:
             sort_keys=True,
             separators=(",", ":"),
         )
+        if isinstance(buffer, (VideoClip, ImageClip)):
+            content_hash = buffer.ensure_content_hash(project_dir=ctx.cache.project_dir)
+        else:
+            content_hash = buffer.content_hash
         record = build_record(
             cache_id=buffer.id,
-            content_hash=buffer.content_hash,
+            content_hash=content_hash,
             node_id=node.id,
             node_type=node.type,
             widgets=dict(node.widgets),
@@ -404,6 +431,8 @@ class Executor:
                 result.append(self.cache.load_authenticity(item["authenticity_id"]))
             elif item.get("type") == "SAMPLE_CHECK" and item.get("sample_check_id"):
                 result.append(self.cache.load_sample_check(item["sample_check_id"]))
+            elif item.get("type") == "GENERATE_LOG" and item.get("generate_log_id"):
+                result.append(self.cache.load_generate_log(item["generate_log_id"]))
             elif item.get("type") == "AUTOMATION" and item.get("automation_id"):
                 result.append(self.cache.load_automation(item["automation_id"]))
             elif item.get("type") == "AMBISONICS" and item.get("ambisonics_id"):
@@ -417,6 +446,8 @@ class Executor:
                 result.append(self.cache.load_osc(item["osc_id"]))
             elif item.get("type") == "VIDEO" and item.get("video_id"):
                 result.append(self.cache.load_video(item["video_id"]))
+            elif item.get("type") == "IMAGE" and item.get("image_id"):
+                result.append(self.cache.load_image(item["image_id"]))
             elif item.get("type") == "TEXT":
                 result.append(str(item.get("text", "")))
             elif item.get("type") == "STRING" and item.get("path"):
@@ -456,6 +487,8 @@ class Executor:
     ) -> dict[str, Any] | None:
         if isinstance(item, SampleCheckReport):
             meta = {"type": "SAMPLE_CHECK", "sample_check_id": item.id}
+        elif isinstance(item, GenerateLogReport):
+            meta = {"type": "GENERATE_LOG", "generate_log_id": item.id}
         elif isinstance(item, AuthenticityReport):
             meta = {"type": "AUTHENTICITY", "authenticity_id": item.id}
         elif isinstance(item, MidiBuffer):
@@ -470,7 +503,25 @@ class Executor:
             meta = {"type": "TRAJECTORY", "trajectory_id": item.id}
         elif isinstance(item, OscBuffer):
             meta = {"type": "OSC", "osc_id": item.id}
+        elif isinstance(item, ImageClip):
+            if not (
+                getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
+                and ctx.cache.read_provenance(item.id)
+            ):
+                self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
+            meta = {
+                "type": "IMAGE",
+                "image_id": item.id,
+                "path": item.path,
+                "width": item.width,
+                "height": item.height,
+            }
         elif isinstance(item, VideoClip):
+            if not (
+                getattr(node_cls, "PROVENANCE_PASSTHROUGH", False)
+                and ctx.cache.read_provenance(item.id)
+            ):
+                self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
             meta = {
                 "type": "VIDEO",
                 "video_id": item.id,
@@ -533,6 +584,8 @@ class Executor:
                     "path": item,
                     "provenance_path": str(provenance_path).replace("\\", "/"),
                 }
+            elif node.type == "SaveGenerateLog":
+                meta = {"type": "STRING", "path": item}
             else:
                 meta = {"type": "TEXT", "text": item}
         else:
@@ -600,6 +653,8 @@ def _input_name(node_cls: type, index: int) -> str:
                 "OSC",
                 "TRAJECTORY",
                 "VIDEO",
+                "IMAGE",
+                "GENERATE_LOG",
             }:
                 names.append(name)
             elif socket_type == "FLOAT" and name in {"gain_a", "gain_b", "value"}:

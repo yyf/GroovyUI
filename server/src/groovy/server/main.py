@@ -183,7 +183,7 @@ class ModelSearchRequest(BaseModel):
 class ModelRecommendRequest(BaseModel):
     prompt: str
     commercial_ok: bool | None = None
-    max_results: int = 5
+    max_results: int = 40
     task_type: str | None = None
     node_type: str | None = None
     max_vram_gb: float | None = None

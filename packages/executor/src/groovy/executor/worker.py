@@ -130,6 +130,8 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
             out[key] = {"type": "STEMS", "stems_id": value.id}
         elif getattr(value, "socket_type", None) == "SAMPLE_CHECK" and hasattr(value, "id"):
             out[key] = {"type": "SAMPLE_CHECK", "sample_check_id": value.id}
+        elif getattr(value, "socket_type", None) == "GENERATE_LOG" and hasattr(value, "id"):
+            out[key] = {"type": "GENERATE_LOG", "generate_log_id": value.id}
         elif hasattr(value, "record") and hasattr(value, "id"):
             out[key] = {"type": "AUTHENTICITY", "authenticity_id": value.id}
         elif hasattr(value, "midi_kind") and hasattr(value, "id"):
@@ -147,6 +149,13 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
         elif hasattr(value, "id") and hasattr(value, "frame_count") and hasattr(value, "sample_rate"):
             out[key] = {"type": "AUDIO", "cache_id": value.id}
             out[f"{key}_id"] = value.id
+        elif (
+            hasattr(value, "id")
+            and hasattr(value, "path")
+            and type(value).__name__ == "ImageClip"
+        ):
+            out[key] = {"type": "IMAGE", "image_id": value.id}
+            out[f"{key}_id"] = value.id
         else:
             out[key] = value
     if "audio" in kwargs and hasattr(kwargs["audio"], "id"):
@@ -157,6 +166,8 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
         out["midi_id"] = kwargs["midi"].id
     if "reference_audio" in kwargs and hasattr(kwargs["reference_audio"], "id"):
         out["audio_id"] = kwargs["reference_audio"].id
+    if "image" in kwargs and hasattr(kwargs["image"], "id"):
+        out["image_id"] = kwargs["image"].id
     if "ambisonics" in kwargs and hasattr(kwargs["ambisonics"], "id"):
         out["ambisonics_id"] = kwargs["ambisonics"].id
     if "trajectory" in kwargs and hasattr(kwargs["trajectory"], "id"):

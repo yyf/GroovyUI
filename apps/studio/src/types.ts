@@ -290,12 +290,14 @@ export type JobOutput = {
   midi_id?: string;
   authenticity_id?: string;
   sample_check_id?: string;
+  generate_log_id?: string;
   automation_id?: string;
   ambisonics_id?: string;
   oba_id?: string;
   trajectory_id?: string;
   video_id?: string;
-  /** Source / muxed frame size when type === "VIDEO". */
+  image_id?: string;
+  /** Source / muxed frame size when type === "VIDEO" or "IMAGE". */
   width?: number;
   height?: number;
   source_video_path?: string;

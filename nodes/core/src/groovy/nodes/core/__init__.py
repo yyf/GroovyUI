@@ -1,6 +1,7 @@
 from groovy.nodes.core.benchmark import Benchmark
 from groovy.nodes.core.nodes import (
     LoadAudio,
+    LoadImage,
     Mix,
     MuxVideo,
     Normalize,
@@ -9,6 +10,7 @@ from groovy.nodes.core.nodes import (
     PreviewVideo,
     Resample,
     SaveAudio,
+    SaveGenerateLog,
     SaveVideo,
     Trim,
     register_all,
@@ -17,6 +19,7 @@ from groovy.nodes.core.nodes import (
 __all__ = [
     "Benchmark",
     "LoadAudio",
+    "LoadImage",
     "Mix",
     "MuxVideo",
     "Normalize",
@@ -25,6 +28,7 @@ __all__ = [
     "PreviewVideo",
     "Resample",
     "SaveAudio",
+    "SaveGenerateLog",
     "SaveVideo",
     "Trim",
     "register_all",

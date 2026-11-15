@@ -51,10 +51,12 @@ def register_all() -> None:
 
     _ = (
         LoadAudio,
+        LoadImage,
         SaveAudio,
         MuxVideo,
         PreviewVideo,
         SaveVideo,
+        SaveGenerateLog,
         Resample,
         Trim,
         Mix,
@@ -87,6 +89,68 @@ def register_all() -> None:
     register_modular_io()
     register_modular_synth()
     register_live_io()
+
+
+@register_node
+class LoadImage(GroovyNode):
+    """Load a project-relative still image (PNG/JPEG/WebP/…) for GenerateVideo I2V."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_CLASS = "human_recorded"
+    RETURN_TYPES = ("IMAGE",)
+    OUTPUT_NAMES = ("image",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                # Empty = optional I2V not armed (wire can stay connected for T2V).
+                "path": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": (
+                            "Optional project-relative image (e.g. assets/uploads/ref.png). "
+                            "Leave empty until you want a reference still for I2V."
+                        ),
+                    },
+                ),
+            },
+        }
+
+    def run(self, **kwargs) -> tuple:
+        from groovy.executor.image import ImageClip, is_image_path, probe_image_dimensions
+
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        path = str(kwargs.get("path") or "").strip()
+        # Empty path is intentional for optional I2V (e.g. text-to-video template):
+        # emit a no-op IMAGE so the wire can stay connected without failing T2V.
+        if not path:
+            clip = ImageClip.create("", source_node_type="LoadImage")
+            self._ctx.cache.write_image(clip)
+            return (clip,)
+        if not is_image_path(path):
+            raise ValueError(
+                f"LoadImage expects PNG/JPEG/WebP/BMP/GIF, got: {path}"
+            )
+        resolved, canonical_path = resolve_project_media_path(self._ctx.cache, path)
+        if not resolved.is_file():
+            raise FileNotFoundError(f"Image not found: {canonical_path}")
+        dims = probe_image_dimensions(resolved)
+        clip = ImageClip.create(
+            canonical_path,
+            source_node_type="LoadImage",
+            width=dims[0] if dims else None,
+            height=dims[1] if dims else None,
+        )
+        self._ctx.cache.write_image(clip)
+        return (clip,)
 
 
 @register_node
@@ -605,6 +669,88 @@ class SaveVideo(GroovyNode):
                 f"SaveVideo could not write video or provenance sidecar for {relative}: {exc}"
             ) from exc
         # Return project-relative path (under workspace / project dir) for studio reveal UX.
+        return (relative,)
+
+
+@register_node
+class SaveGenerateLog(GroovyNode):
+    """Write a GenerateVideo GENERATE_LOG report to the project exports folder (JSON)."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = False
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ("STRING",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"log": ("GENERATE_LOG",)},
+            "optional": {
+                "path": (
+                    "STRING",
+                    {
+                        "default": "exports",
+                        "description": "Folder under the project directory (e.g. exports/logs)",
+                    },
+                ),
+                "filename": (
+                    "STRING",
+                    {
+                        "default": "generate-video-log.json",
+                        "description": "Base file name; a UTC timestamp is appended when written",
+                    },
+                ),
+            },
+        }
+
+    @staticmethod
+    def _resolve_output_relative(path: str, filename: str) -> str:
+        folder = (path or "").strip().strip("/")
+        name = (filename or "").strip().lstrip("/")
+        if not name:
+            name = "generate-video-log.json"
+        if "/" in name and (not folder or folder == "exports"):
+            return name
+        if folder:
+            return f"{folder}/{name}"
+        return name
+
+    @staticmethod
+    def _timestamped_relative(relative: str, now: datetime | None = None) -> str:
+        instant = now or datetime.now(UTC)
+        stamp = instant.strftime("%Y%m%dT%H%M%S") + f"{instant.microsecond // 1000:03d}Z"
+        path = Path(relative)
+        suffix = path.suffix or ".json"
+        return str(path.with_name(f"{path.stem}-{stamp}{suffix}"))
+
+    def run(self, **kwargs) -> tuple[str]:
+        from groovy.executor.generate_log import GenerateLogReport
+
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        log_in = kwargs.get("log")
+        if not isinstance(log_in, GenerateLogReport):
+            raise TypeError(
+                "SaveGenerateLog needs GENERATE_LOG input (wire GenerateVideo.log)."
+            )
+        folder = str(kwargs.get("path", "exports"))
+        name = str(kwargs.get("filename", "generate-video-log.json"))
+        relative = self._resolve_output_relative(folder, name)
+        if not Path(relative).suffix:
+            relative = f"{relative}.json"
+        relative = self._timestamped_relative(relative).replace("\\", "/")
+        out_path = self._ctx.cache.resolve_project_path(relative)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            **log_in.record,
+            "exported_at": datetime.now(UTC).isoformat(),
+            "generate_log_id": log_in.id,
+            "export": {"path": relative, "node_type": "SaveGenerateLog"},
+        }
+        out_path.write_text(json.dumps(payload, indent=2) + "\n")
         return (relative,)
 
 

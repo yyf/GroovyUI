@@ -17,6 +17,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "isolate-vocals-to-transcribe-translate",
   "podcast-denoise",
   "prompt-modular-synth",
+  "text-to-video",
   "tts-emotion-edit",
   "watermark-embed-detect",
 ] as const;
@@ -60,6 +61,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "stem-separation",
   "tab-creative-grow",
   "text-to-music",
+  "text-to-video",
   "transcribe-and-diarize",
   "transcribe-and-regenerate",
   "transcribe-dialogue",
@@ -77,9 +79,9 @@ export const PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS = [
 export type TemplateDomainId =
   | "start"
   | "speech"
-  | "voice"
   | "stems"
   | "generate"
+  | "video"
   | "modular"
   | "immersive"
   | "compare"
@@ -93,15 +95,15 @@ export type TemplateDomain = {
 
 /** Picker domains — Hub/job-aligned, not phase numbers. */
 export const TEMPLATE_DOMAINS: readonly TemplateDomain[] = [
-  { id: "start", label: "Start" },
-  { id: "speech", label: "Speech & Podcast" },
-  { id: "voice", label: "Voice & VO" },
+  { id: "start", label: "Starter Templates" },
+  { id: "speech", label: "Podcast & Gaming VO" },
   { id: "stems", label: "Stems & Remix" },
   { id: "generate", label: "Generate Music" },
-  { id: "modular", label: "Modular" },
+  { id: "video", label: "Generate Video" },
+  { id: "modular", label: "Modular Synth" },
   { id: "immersive", label: "Immersive" },
-  { id: "compare", label: "Compare" },
-  { id: "trust", label: "Trust" },
+  { id: "compare", label: "A/B Compare" },
+  { id: "trust", label: "AI Trust" },
   { id: "other", label: "Other" },
 ] as const;
 
@@ -118,18 +120,18 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "denoise-diarize-transcribe": "speech",
   "isolate-vocals-to-transcribe": "speech",
   "isolate-vocals-to-transcribe-translate": "speech",
+  "tts-emotion-edit": "speech",
+  "voice-cloning": "speech",
+  "script-to-vo-master": "speech",
+  "localize-dialogue-a-to-b": "speech",
+  "instrumental-tts-dub": "speech",
+  "isolate-vocals-to-voice-convert": "speech",
   "compare-whisper-sizes": "compare",
   "asr-benchmark-wer-cer": "compare",
   "demucs-vs-openunmix": "compare",
   "sample-verify": "compare",
   "ab-compare-demo": "compare",
 
-  "voice-cloning": "voice",
-  "tts-emotion-edit": "voice",
-  "script-to-vo-master": "voice",
-  "localize-dialogue-a-to-b": "voice",
-  "instrumental-tts-dub": "voice",
-  "isolate-vocals-to-voice-convert": "voice",
   "prompt-modular-synth": "modular",
 
   "stem-separation": "stems",
@@ -147,9 +149,11 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "ace-step-1.5-sft": "generate",
   "ace-step-lora-demo": "compare",
   "ace-step-dual-lora-ab": "compare",
-  "video-to-audio": "generate",
   "extract-lyrics-to-music-with-ace-step": "generate",
   "transcribe-and-regenerate": "generate",
+
+  "text-to-video": "video",
+  "video-to-audio": "video",
 
   "modular-generative-rack": "modular",
   "melody-to-modular-synth": "modular",
@@ -187,8 +191,10 @@ export const STANDARD_MODE_NODE_TYPES = [
   "DetectWatermark",
   "EmbedWatermark",
   "GenerateAudio",
+  "GenerateVideo",
   "Granulate",
   "LoadAudio",
+  "LoadImage",
   "MuxVideo",
   "Normalize",
   "Note",
@@ -196,6 +202,7 @@ export const STANDARD_MODE_NODE_TYPES = [
   "PreviewVideo",
   "Prompt",
   "SaveAudio",
+  "SaveGenerateLog",
   "SaveVideo",
   "SeparateStems",
   "TranslateText",

@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "metadata": {
+    "title": "Text to Video",
+    "author": "groovy",
+    "description": "I2V demo: Fort-Zeelandia still + Pointillism prompt → GenerateVideo (ltx-2.3-q4 MLX) → PreviewVideo / SaveVideo + SaveGenerateLog. Image anchors frame 0; prompt steers style/motion. Apple Silicon Real: distilled Q4 + --low-ram. Run bash scripts/setup-ltx-mac.sh first (~27 GB).",
+    "tags": [
+      "featured",
+      "starter",
+      "generation",
+      "text-to-video",
+      "video",
+      "t2v",
+      "i2v"
+    ],
+    "created_at": "2026-11-14T00:00:00Z",
+    "modified_at": "2026-11-15T00:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": { "x": 0, "y": 460.0 },
+      "widgets": {
+        "text": "I2V: Fort-Zeelandia.png + prompt (ltx-2.3-q4)\nImage anchors frame 0; prompt steers style & motion (image_strength 0–1)\nnum_steps: distilled Real is fixed ~8 steps; more steps won’t apply on this model\n512×512 square vs landscape still = crop/letterbox — expect composition shift"
+      }
+    },
+    {
+      "id": "n0",
+      "type": "Prompt",
+      "pos": { "x": 0, "y": 40.0 },
+      "widgets": {
+        "text": "Regenerate the reference image using Pointillism technique for visual aesthetics and ambient city soundscape for sound design",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n-img",
+      "type": "LoadImage",
+      "pos": { "x": 0, "y": 220.0 },
+      "widgets": {
+        "path": "assets/samples/Fort-Zeelandia.png"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "GenerateVideo",
+      "pos": { "x": 280, "y": 40.0 },
+      "widgets": {
+        "model": "ltx-2.3-q4",
+        "prompt": "Regenerate the reference image using Pointillism technique for visual aesthetics and ambient city soundscape for sound design",
+        "negative_prompt": "",
+        "duration": 2.0,
+        "width": 512,
+        "height": 512,
+        "num_steps": 8,
+        "image_strength": 0.3,
+        "seed": 42
+      }
+    },
+    {
+      "id": "n2",
+      "type": "PreviewVideo",
+      "pos": { "x": 560, "y": 40.0 },
+      "widgets": {
+        "preview_width": 320,
+        "preview_height": 320
+      }
+    },
+    {
+      "id": "n3",
+      "type": "SaveVideo",
+      "pos": { "x": 920, "y": 40.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-video.mp4"
+      }
+    },
+    {
+      "id": "n-log",
+      "type": "SaveGenerateLog",
+      "pos": { "x": 560, "y": 320.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "generate-video-log.json"
+      }
+    }
+  ],
+  "links": [
+    { "id": "l0", "from": ["n0", 0], "to": ["n1", 0], "type": "TEXT" },
+    { "id": "l-img", "from": ["n-img", 0], "to": ["n1", 1], "type": "IMAGE" },
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "VIDEO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "VIDEO" },
+    { "id": "l-log", "from": ["n1", 1], "to": ["n-log", 0], "type": "GENERATE_LOG" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

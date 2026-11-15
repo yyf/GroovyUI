@@ -599,6 +599,32 @@ describe("workflowToFlowNodes", () => {
     ]);
   });
 
+  it("exposes LoadImage → GenerateVideo.image handles without schemas", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "n-img", type: "LoadImage", pos: { x: 0, y: 0 }, widgets: { path: "" } },
+        {
+          id: "n1",
+          type: "GenerateVideo",
+          pos: { x: 280, y: 0 },
+          widgets: { model: "ltx-2.3-q4", prompt: "ocean" },
+        },
+      ],
+      links: [{ id: "l-img", from: ["n-img", 0], to: ["n1", 1], type: "IMAGE" }],
+    };
+    const nodes = workflowToFlowNodes(workflow, {});
+    const load = nodes.find((node) => node.id === "n-img");
+    const gen = nodes.find((node) => node.id === "n1");
+    expect(load?.data.outputs?.[0]).toMatchObject({ type: "IMAGE", slot: 0 });
+    expect(gen?.data.inputs?.[0]).toMatchObject({ name: "text", type: "TEXT", slot: 0 });
+    expect(gen?.data.inputs?.[1]).toMatchObject({ name: "image", type: "IMAGE", slot: 1 });
+    const edges = workflowToFlowEdges(workflow);
+    expect(edges.map((e) => `${e.source}:${e.sourceHandle}->${e.target}:${e.targetHandle}`)).toEqual([
+      "n-img:0->n1:1",
+    ]);
+  });
+
   it("labels ChannelConvert sockets from layout widget", () => {
     const workflow: Workflow = {
       ...sampleWorkflow(),
@@ -829,6 +855,7 @@ describe("isWireableInput", () => {
     expect(isWireableInput({ type: "AUDIO" })).toBe(true);
     expect(isWireableInput({ type: "FLOAT", optional: true })).toBe(false);
     expect(isWireableInput({ type: "MIDI", optional: true })).toBe(true);
+    expect(isWireableInput({ type: "IMAGE", optional: true })).toBe(true);
   });
 
   it("treats model refs as widget-only", () => {

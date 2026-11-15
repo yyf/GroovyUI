@@ -20,6 +20,7 @@ const AI_NODE_TYPES = new Set([
   "DetectWatermark",
   "MIDIToAudio",
   "GenerateAudio",
+  "GenerateVideo",
   "SingFromMIDI",
   "Video2Audio",
   "SpeechTranslate",

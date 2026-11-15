@@ -1,6 +1,7 @@
 /**
  * Keep on-canvas PreviewVideo elements locked to the transport `<audio>` clock.
- * Space / transport Play·Pause·Seek is the master; in-node video is muted picture.
+ * When Space / transport is playing, it is the master and in-node video is muted picture.
+ * PreviewVideo also has a local play/scrub bar for clips with no transport audio (e.g. T2V).
  */
 
 const TRANSPORT_AUDIO = ".transport__audio";

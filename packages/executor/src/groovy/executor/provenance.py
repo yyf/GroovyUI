@@ -8,14 +8,16 @@ from typing import Any
 
 from groovy.executor.audio import AudioBuffer
 from groovy.executor.cache import CacheStore
+from groovy.executor.image import ImageClip
+from groovy.executor.video import VideoClip
 
 DISCLOSURE_LABELS = {
-    "human_recorded": "Contains human-recorded audio",
-    "human_edited": "Contains human-edited audio",
-    "ai_transformed": "Contains AI-processed or AI-transformed audio",
-    "ai_generated": "Contains AI-generated audio",
-    "mixed": "Contains a mix of human and AI audio contributions",
-    "unknown": "Audio provenance is unknown",
+    "human_recorded": "Contains human-recorded media",
+    "human_edited": "Contains human-edited media",
+    "ai_transformed": "Contains AI-processed or AI-transformed media",
+    "ai_generated": "Contains AI-generated media",
+    "mixed": "Contains a mix of human and AI media contributions",
+    "unknown": "Media provenance is unknown",
 }
 
 PROMPT_WIDGET_KEYS = {
@@ -148,6 +150,24 @@ def parent_refs(kwargs: dict[str, Any]) -> list[dict[str, str]]:
                     "cache_id": value.id,
                     "content_hash": value.content_hash or "",
                     "source_node": value.source_node or "",
+                    "source_node_type": value.source_node_type or "",
+                }
+            )
+        elif isinstance(value, VideoClip):
+            refs.append(
+                {
+                    "cache_id": value.id,
+                    "content_hash": value.content_hash or "",
+                    "source_node": "",
+                    "source_node_type": value.source_node_type or "",
+                }
+            )
+        elif isinstance(value, ImageClip):
+            refs.append(
+                {
+                    "cache_id": value.id,
+                    "content_hash": value.content_hash or "",
+                    "source_node": "",
                     "source_node_type": value.source_node_type or "",
                 }
             )
@@ -330,7 +350,7 @@ def disclosure_summary(chain: list[dict[str, Any]]) -> str:
             models.append(label)
     parts: list[str] = []
     if "ai_generated" in classes:
-        parts.append("This output includes AI-generated audio")
+        parts.append("This output includes AI-generated media")
     if "ai_transformed" in classes:
         parts.append("AI processing was applied to transform the source material")
     if "human_recorded" in classes:
@@ -339,7 +359,23 @@ def disclosure_summary(chain: list[dict[str, Any]]) -> str:
         parts.append("Some upstream provenance is unknown")
     if models:
         parts.append(f"Models used: {', '.join(dict.fromkeys(models))}")
-    return ". ".join(parts) + "." if parts else "Human-edited audio workflow."
+    return ". ".join(parts) + "." if parts else "Human-edited media workflow."
+
+
+def _output_provenance_id(output: dict[str, Any]) -> str | None:
+    """AUDIO uses cache_id; VIDEO/IMAGE use video_id / image_id (same sidecar key space)."""
+    for key in ("cache_id", "video_id", "image_id"):
+        value = output.get(key)
+        if value:
+            return str(value)
+    return None
+
+
+def _provenance_candidates(output: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten MULTI slots so VIDEO+GENERATE_LOG (etc.) still resolve provenance."""
+    if output.get("type") == "MULTI":
+        return [slot for slot in (output.get("outputs") or []) if isinstance(slot, dict)]
+    return [output]
 
 
 def summarize_workflow_outputs(
@@ -350,7 +386,11 @@ def summarize_workflow_outputs(
 ) -> dict[str, Any]:
     entries: list[dict[str, Any]] = []
     for node_id, output in outputs.items():
-        cache_id = output.get("cache_id")
+        cache_id = None
+        for candidate in _provenance_candidates(output):
+            cache_id = _output_provenance_id(candidate)
+            if cache_id:
+                break
         if not cache_id:
             continue
         chain = build_lineage_chain(cache, str(cache_id))

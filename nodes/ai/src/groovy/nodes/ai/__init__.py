@@ -9,6 +9,7 @@ from groovy.nodes.ai.nodes import (
     Denoise,
     DiarizeTranscribe,
     GenerateAudio,
+    GenerateVideo,
     MIDIToAudio,
     SeparateStems,
     SeparateToObjects,
@@ -46,6 +47,7 @@ __all__ = [
     "EmbedWatermark",
     "MIDIToAudio",
     "GenerateAudio",
+    "GenerateVideo",
     "SingFromMIDI",
     "Video2Audio",
 ]

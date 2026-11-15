@@ -278,7 +278,12 @@ export async function importComfyWorkflow(
   return res.json();
 }
 
+/** Upload audio or image into ``assets/uploads/`` (same project upload endpoint). */
 export async function uploadProjectAudio(file: File): Promise<string> {
+  return uploadProjectAsset(file);
+}
+
+export async function uploadProjectAsset(file: File): Promise<string> {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(`${API}/api/project/upload`, {
@@ -668,6 +673,7 @@ export async function recommendModels(
     task_type?: string;
     node_type?: string;
     max_vram_gb?: number;
+    max_results?: number;
   },
 ): Promise<{
   results: Array<{ model: ModelCard; rationale: string }>;
@@ -677,7 +683,7 @@ export async function recommendModels(
   const res = await fetch(`${API}/api/models/recommend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, ...filters }),
+    body: JSON.stringify({ prompt, max_results: 40, ...filters }),
   });
   if (!res.ok) {
     throw new Error(`Model recommend failed (${res.status})`);

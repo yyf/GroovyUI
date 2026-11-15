@@ -4882,10 +4882,18 @@ body {
   flex-shrink: 0;
   max-width: 100%;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .groovy-node__video--selected {
   border-color: var(--accent, #5b8def);
+}
+
+.groovy-node__video-frame {
+  position: relative;
+  flex-shrink: 0;
+  background: #0a0a0a;
 }
 
 .groovy-node__video-player {
@@ -4907,6 +4915,55 @@ body {
   text-transform: uppercase;
 }
 
+.groovy-node__video-transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: color-mix(in srgb, #0a0a0a 88%, var(--panel, #1a1a1a));
+  border-top: 1px solid var(--border-dim);
+  min-height: 28px;
+  box-sizing: border-box;
+}
+
+.groovy-node__video-play {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-tight);
+  background: transparent;
+  color: var(--text-primary, #eee);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.groovy-node__video-play:hover {
+  border-color: var(--accent, #5b8def);
+  color: var(--accent, #5b8def);
+}
+
+.groovy-node__video-scrub {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent, #5b8def);
+  cursor: pointer;
+}
+
+.groovy-node__video-time {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  min-width: 4.6em;
+  text-align: right;
+}
+
 .groovy-node__video-resize {
   position: absolute;
   right: 0;
@@ -4917,6 +4974,7 @@ body {
   background:
     linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.35) 50%) no-repeat;
   touch-action: none;
+  z-index: 1;
 }
 
 .groovy-node__socket-dot {

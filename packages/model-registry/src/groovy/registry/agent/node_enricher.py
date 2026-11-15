@@ -4,6 +4,18 @@ import re
 from typing import Any
 
 NODE_HINTS: dict[str, dict[str, Any]] = {
+    "LoadImage": {
+        "description": (
+            "Optional still for GenerateVideo I2V. Leave path empty for text-only; "
+            "choose a file or drop an image onto the canvas when you want a reference."
+        ),
+        "widgets": {
+            "path": (
+                "Optional. Project-relative image under assets/samples or assets/uploads. "
+                "Empty keeps the I2V wire without using a reference."
+            ),
+        },
+    },
     "LoadAudio": {
         "description": "Load a WAV or FLAC file from the project into the graph cache.",
         "inputs": {},
@@ -135,6 +147,53 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "negative_prompt": "Stable Audio: concepts to avoid.",
         },
     },
+    "GenerateVideo": {
+        "description": (
+            "Generate a short VIDEO clip from text (T2V) or text + optional reference image (I2V). "
+            "Second outlet is an optional GENERATE_LOG for SaveGenerateLog."
+        ),
+        "inputs": {
+            "text": "Prompt (TEXT). When wired, overrides the local prompt widget.",
+            "image": "Optional reference still from LoadImage (I2V on ltx-2.3-q4 Real).",
+        },
+        "outputs": {
+            "video": "Generated VIDEO clip (mp4).",
+            "log": (
+                "Optional GENERATE_LOG: prompt, reference image, timing, output file, "
+                "model config, hardware — wire to SaveGenerateLog."
+            ),
+        },
+        "widgets": {
+            "model": "Text-to-video model (default ltx-2.3-q4 on Apple Silicon). Browse Model Browser → search \"video\".",
+            "prompt": "Describe the video (used when the text inlet is unwired).",
+            "negative_prompt": "Concepts to avoid (model-dependent).",
+            "duration": "Clip length in seconds.",
+            "width": "Output width in pixels (even).",
+            "height": "Output height in pixels (even).",
+            "num_steps": (
+                "Denoising steps: more = finer detail / slower. "
+                "ltx-2.3-q4 Real (distilled) uses a fixed ~8-step schedule; Stub ignores this."
+            ),
+            "image_strength": (
+                "I2V only (0–1): 1.0 locks frame 0 to the LoadImage still; lower lets the prompt restyle. "
+                "Stay ≤1 — higher values are outside LTX’s range."
+            ),
+            "seed": "Random seed (−1 = random).",
+        },
+    },
+    "SaveGenerateLog": {
+        "description": (
+            "Export a GenerateVideo GENERATE_LOG as timestamped JSON "
+            "(behavior, performance, hardware)."
+        ),
+        "inputs": {
+            "log": "GENERATE_LOG from GenerateVideo.log.",
+        },
+        "widgets": {
+            "path": "Folder under the project (e.g. exports).",
+            "filename": "Base JSON name; a UTC timestamp is appended when written.",
+        },
+    },
     "Video2Audio": {
         "description": (
             "Generic video→audio node — Diff-Foley is used as the example default. "
@@ -226,8 +285,8 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         },
     },
     "PreviewVideo": {
-        "description": "Terminal sink for muxed VIDEO audition in Node Helper (HTML5 video player).",
-        "inputs": {"video": "VIDEO clip from MuxVideo (or SaveVideo upstream passthrough)."},
+        "description": "Terminal sink for VIDEO audition in Node Helper (HTML5 video player).",
+        "inputs": {"video": "VIDEO clip from GenerateVideo, MuxVideo, or SaveVideo upstream."},
     },
     "SaveVideo": {
         "description": "Copy a VIDEO clip into the project exports folder.",

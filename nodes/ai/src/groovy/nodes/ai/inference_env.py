@@ -240,6 +240,15 @@ def diff_foley_available() -> bool:
         return False
 
 
+def ltx_mlx_available() -> bool:
+    try:
+        from groovy.nodes.ai.backends.ltx_mlx_runner import available
+
+        return available()
+    except Exception:
+        return False
+
+
 def stereo2spatial_available() -> bool:
     try:
         import stereo2spatial  # noqa: F401
@@ -280,6 +289,7 @@ _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "opus-mt-en-es": text_mt_available,
     "opus-mt-en-fr": text_mt_available,
     "diff-foley": diff_foley_available,
+    "ltx-2.3-q4": ltx_mlx_available,
     "stereo2spatial-v2-binaural": stereo2spatial_available,
     "stereo2spatial-v1": stereo2spatial_available,
 }

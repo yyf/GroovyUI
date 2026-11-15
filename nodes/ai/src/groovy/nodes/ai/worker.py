@@ -17,6 +17,7 @@ from groovy.nodes.ai.inference import (
     run_denoise,
     run_diarize_transcribe,
     run_generate_audio,
+    run_generate_video,
     run_midi_to_audio,
     run_separate_stems,
     run_separate_to_objects,
@@ -52,6 +53,7 @@ HANDLERS = {
     "DetectWatermark": run_detect_watermark,
     "MIDIToAudio": run_midi_to_audio,
     "GenerateAudio": run_generate_audio,
+    "GenerateVideo": run_generate_video,
     "SingFromMIDI": run_sing_from_midi,
     "Video2Audio": run_video2audio,
 }
