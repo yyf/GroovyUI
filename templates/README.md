@@ -18,10 +18,11 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | Demucs vs Open-Unmix — Stem A/B | [demucs-vs-openunmix.groovy.json](demucs-vs-openunmix.groovy.json) | `demucs-v4` ∥ `openunmix-umx` vocals; A/B pairwise (no GT): loudness / waveform / SDR / SI-SDR / mel cosine / LSD |
 | ACE-Step Dual LoRA A/B | [ace-step-dual-lora-ab.groovy.json](ace-step-dual-lora-ab.groovy.json) | Experimental: turbo + `ace-step-cny-lora` ∥ `ace-step-ambient-lora` (NC / community); Inspector A/B |
 | Watermark Embed and Detect | [watermark-embed-detect.groovy.json](watermark-embed-detect.groovy.json) | `audioseal-16bit` (MIT) — EmbedWatermark → DetectWatermark |
-| Video to Audio | [video-to-audio.groovy.json](video-to-audio.groovy.json) | `diff-foley` (default; experimental — CUDA testing) |
+| Text to Video | [text-to-video.groovy.json](text-to-video.groovy.json) | `ltx-2.3-q4` (MLX Mac · ~27 GB; optional `LoadImage` I2V; path demo: `ltx-video`) |
 
 Featured-only (⌘⇧D):
 - Trailer Bumper — Music + SFX Layers ([layered-music-sfx.groovy.json](layered-music-sfx.groovy.json)) — Community / NC `stable-audio-open-small` ×2 → Mix.
 - ACE-Step LoRA A/B ([ace-step-lora-demo.groovy.json](ace-step-lora-demo.groovy.json)) — `ace-step-1.5-2b-turbo` base ∥ + `ace-step-cny-lora` (NC); GenerateAudio `lora` / `lora_scale` widgets.
+- Video to Audio ([video-to-audio.groovy.json](video-to-audio.groovy.json)) — `diff-foley` (hidden from picker; CUDA experimental).
 
 Sample assets: `assets/samples/` (`podcast_denoise_demo.wav`, `stem_separation_demo.wav`, `video480p.mov`).

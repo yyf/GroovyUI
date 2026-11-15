@@ -140,8 +140,8 @@ const PREVIEW_VIDEO_MIN_W = 120;
 const PREVIEW_VIDEO_MAX_W = 960;
 const PREVIEW_VIDEO_MIN_H = 68;
 const PREVIEW_VIDEO_MAX_H = 720;
-/** Title row + video top margin — keep in sync with GroovyFlowNode minHeight. */
-const PREVIEW_VIDEO_CHROME_H = 36;
+/** Title row + video top margin + local transport bar — keep in sync with GroovyFlowNode minHeight. */
+const PREVIEW_VIDEO_CHROME_H = 64;
 /**
  * Node horizontal chrome for PreviewVideo footprint.
  * Matches `.groovy-node` padding `8px 10px` + `1px` border each side (border-box).
@@ -502,6 +502,8 @@ const WIREABLE_INPUT_TYPES = new Set([
   "AUTHENTICITY",
   "SAMPLE_CHECK",
   "VIDEO",
+  "IMAGE",
+  "GENERATE_LOG",
 ]);
 
 /** Widget-only params — never auto-wired or shown as canvas handles. */
@@ -587,8 +589,8 @@ function placeholderOutputSockets(count: number): NodeSocketSpec[] {
   }));
 }
 
-/** Hardcoded sockets so TRAJECTORY handles exist even before /api/nodes schemas load. */
-const TRAJECTORY_NODE_SOCKET_FALLBACKS: Record<
+/** Hardcoded sockets so TRAJECTORY / VIDEO handles exist even before /api/nodes schemas load. */
+const NODE_SOCKET_FALLBACKS: Record<
   string,
   { inputs: NodeSocketSpec[]; outputs: NodeSocketSpec[] }
 > = {
@@ -621,12 +623,31 @@ const TRAJECTORY_NODE_SOCKET_FALLBACKS: Record<
       { name: "levels", type: "TEXT", slot: 1 },
     ],
   },
+  // Keep IMAGE↔GenerateVideo edges attachable before schema fetch (text-to-video template).
+  LoadImage: {
+    inputs: [],
+    outputs: [{ name: "image", type: "IMAGE", slot: 0 }],
+  },
+  GenerateVideo: {
+    inputs: [
+      { name: "text", type: "TEXT", optional: true, slot: 0 },
+      { name: "image", type: "IMAGE", optional: true, slot: 1 },
+    ],
+    outputs: [
+      { name: "video", type: "VIDEO", slot: 0 },
+      { name: "log", type: "GENERATE_LOG", slot: 1 },
+    ],
+  },
+  SaveGenerateLog: {
+    inputs: [{ name: "log", type: "GENERATE_LOG", slot: 0 }],
+    outputs: [{ name: "path", type: "STRING", slot: 0 }],
+  },
 };
 
 function fallbackSocketsForNode(
   nodeType: string,
 ): { inputs: NodeSocketSpec[]; outputs: NodeSocketSpec[] } | null {
-  return TRAJECTORY_NODE_SOCKET_FALLBACKS[nodeType] ?? null;
+  return NODE_SOCKET_FALLBACKS[nodeType] ?? null;
 }
 
 /** Preserve React Flow interaction state when syncing derived nodes from workflow. */
@@ -1247,6 +1268,7 @@ export type WiredInputRow = {
 /** When a socket is wired, these local widgets are ignored at render. */
 const WIRED_TEXT_SUPERSEDES_WIDGET: Record<string, Record<string, string | string[]>> = {
   GenerateAudio: { text: "prompt", lyrics: "lyrics_text" },
+  GenerateVideo: { text: "prompt" },
   Video2Audio: { text: "prompt" },
   MIDIToAudio: { text: "prompt" },
   SingFromMIDI: { lyrics: "text" },
@@ -2134,6 +2156,15 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
       width = 210;
       height = 100;
       break;
+    case "GenerateVideo":
+      // Named inlets (prompt + image) + video/log outlets need a taller body.
+      width = 210;
+      height = 128;
+      break;
+    case "SaveGenerateLog":
+      width = 210;
+      height = 96;
+      break;
     case "GenerateAudio":
       // Named inlets (prompt / midi / reference / lyrics) need a taller body.
       width = 210;
@@ -2443,6 +2474,30 @@ export function applyDroppedAudio(workflow: Workflow, path: string): Workflow {
     ...workflow,
     nodes: [
       { id, type: "LoadAudio", pos: { x: 40, y: 80 }, widgets: { path } },
+      ...workflow.nodes,
+    ],
+  };
+}
+
+export function setLoadImagePath(workflow: Workflow, nodeId: string, path: string): Workflow {
+  return {
+    ...workflow,
+    nodes: workflow.nodes.map((node) =>
+      node.id === nodeId ? { ...node, widgets: { ...node.widgets, path } } : node,
+    ),
+  };
+}
+
+export function applyDroppedImage(workflow: Workflow, path: string): Workflow {
+  const loadNode = workflow.nodes.find((node) => node.type === "LoadImage");
+  if (loadNode) {
+    return setLoadImagePath(workflow, loadNode.id, path);
+  }
+  const id = nextWorkflowNodeId(workflow);
+  return {
+    ...workflow,
+    nodes: [
+      { id, type: "LoadImage", pos: { x: 40, y: 200 }, widgets: { path } },
       ...workflow.nodes,
     ],
   };

@@ -14,7 +14,7 @@ import {
   fetchWaveform,
   projectMediaUrl,
   revealProjectPath,
-  uploadProjectAudio,
+  uploadProjectAsset,
   type AbCompareResult,
   type CacheSignalMetrics,
   type MeterEnvelopePayload,
@@ -63,6 +63,7 @@ import { resolveWidgetControl } from "../widgetControls";
 
 const GENERATIVE_NODE_TYPES = new Set([
   "GenerateAudio",
+  "GenerateVideo",
   "TTS",
   "MIDIToAudio",
   "SingFromMIDI",
@@ -225,11 +226,13 @@ export default function NodeHelper({
 
   useEffect(() => {
     const primary = jobOutputAtSlot(output, 0);
-    if (!primary?.cache_id) {
+    // AUDIO → cache_id; VIDEO → video_id (same provenance sidecar key space).
+    const provenanceId = primary?.cache_id ?? primary?.video_id ?? output?.cache_id ?? output?.video_id;
+    if (!provenanceId) {
       setProvenance(null);
       return;
     }
-    fetch(`${API}/api/cache/${primary.cache_id}/provenance`)
+    fetch(`${API}/api/cache/${provenanceId}/provenance`)
       .then((res) => (res.ok ? res.json() : null))
       .then(setProvenance)
       .catch(() => setProvenance(null));
@@ -514,7 +517,12 @@ export default function NodeHelper({
             type="button"
             className={tab === "provenance" ? "active" : ""}
             onClick={() => setTab("provenance")}
-            disabled={!jobOutputAtSlot(output, 0)?.cache_id && !output?.cache_id}
+            disabled={
+              !jobOutputAtSlot(output, 0)?.cache_id &&
+              !jobOutputAtSlot(output, 0)?.video_id &&
+              !output?.cache_id &&
+              !output?.video_id
+            }
           >
             Provenance
           </button>
@@ -779,6 +787,19 @@ export default function NodeHelper({
                 ) : null}
               </>
             ) : null}
+            {node.type === "SaveGenerateLog" ? (
+              <>
+                <p className="node-helper__hint">
+                  Writes GenerateVideo run metadata (prompt, reference image, timing, output file,
+                  model config, hardware) as JSON. Template:{" "}
+                  <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code>
+                  . A UTC timestamp is appended when rendered.
+                </p>
+                {output?.type === "STRING" && output.path ? (
+                  <SavedFileReveal path={output.path} label="Saved log" />
+                ) : null}
+              </>
+            ) : null}
             {node.type === "LoadAudio" ? (
               <p className="node-helper__hint">
                 Choose a file to upload into the project, or enter a project-relative path (e.g.{" "}
@@ -788,7 +809,8 @@ export default function NodeHelper({
             {schema.widgets.length === 0 &&
             modelParamRows.length === 0 &&
             node.type !== "SaveAudio" &&
-            node.type !== "SaveVideo" ? (
+            node.type !== "SaveVideo" &&
+            node.type !== "SaveGenerateLog" ? (
               <p className="node-helper__hint">No configurable parameters.</p>
             ) : null}
             {output?.text ? (
@@ -1948,6 +1970,8 @@ function OutputSnapshot({
       // VerifyProvenance / DeepfakeDetect / AuthenticitySummary
     } else if (socketType === "SAMPLE_CHECK" && output.type === "SAMPLE_CHECK") {
       // VerifySamples
+    } else if (socketType === "GENERATE_LOG" && output.type === "GENERATE_LOG") {
+      // GenerateVideo.log
     } else if (socketType === "TRAJECTORY" && output.type === "TRAJECTORY") {
       // TrajectoryAuthor / AmbisonicTrajectoryExtract
     } else if (socketType === "VIDEO" && output.type === "VIDEO") {
@@ -1970,6 +1994,17 @@ function OutputSnapshot({
           compact
           className="trajectory-panel--helper"
         />
+      ) : null}
+      {output.type === "GENERATE_LOG" || socketType === "GENERATE_LOG" ? (
+        output.generate_log_id ? (
+          <p className="node-helper__hint">
+            Run log cached (<code>{output.generate_log_id.slice(0, 8)}…</code>). Wire{" "}
+            <strong>SaveGenerateLog</strong> to export JSON (prompt, image, timing, output, config,
+            hardware).
+          </p>
+        ) : (
+          <p className="node-helper__hint">No generate log yet — render GenerateVideo.</p>
+        )
       ) : null}
       {output.type === "SAMPLE_CHECK" || socketType === "SAMPLE_CHECK" ? (
         sampleCheck ? (
@@ -2009,7 +2044,7 @@ function OutputSnapshot({
             className="node-helper__video-player"
           />
           <p className="node-helper__hint">
-            Transport / Space is master — PreviewVideo picture syncs to the waveform playhead.
+            On-node play/scrub on PreviewVideo; Space still drives picture when transport has audio.
           </p>
           <SavedFileReveal path={output.path} label="Cached clip" />
         </div>
@@ -2486,12 +2521,16 @@ function savePickerTypes(format: unknown): FilePickerAcceptType[] {
   return [{ description: "WAV audio", accept: { "audio/wav": [".wav"] } }];
 }
 
-function LoadAudioPathInput({
+function ProjectMediaPathInput({
   value,
   onChange,
+  accept,
+  placeholder,
 }: {
   value: unknown;
   onChange: (value: unknown) => void;
+  accept: string;
+  placeholder: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -2503,7 +2542,7 @@ function LoadAudioPathInput({
     setUploading(true);
     setUploadError(null);
     try {
-      const path = await uploadProjectAudio(file);
+      const path = await uploadProjectAsset(file);
       onChange(path);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
@@ -2518,13 +2557,13 @@ function LoadAudioPathInput({
       <input
         type="text"
         value={textValue}
-        placeholder="assets/uploads/recording.wav"
+        placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
       />
       <input
         ref={fileInputRef}
         type="file"
-        accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.opus,.mp4,.m4a,.aac"
+        accept={accept}
         className="node-helper__file-input-hidden"
         onChange={(e) => void handleFile(e.target.files?.[0])}
       />
@@ -2533,6 +2572,40 @@ function LoadAudioPathInput({
       </button>
       {uploadError ? <p className="node-helper__path-error">{uploadError}</p> : null}
     </div>
+  );
+}
+
+function LoadAudioPathInput({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  return (
+    <ProjectMediaPathInput
+      value={value}
+      onChange={onChange}
+      accept="audio/*,.wav,.flac,.aiff,.aif,.mp3,.ogg,.opus,.mp4,.m4a,.aac"
+      placeholder="assets/uploads/recording.wav"
+    />
+  );
+}
+
+function LoadImagePathInput({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  return (
+    <ProjectMediaPathInput
+      value={value}
+      onChange={onChange}
+      accept="image/*,.png,.jpg,.jpeg,.webp,.bmp,.gif"
+      placeholder="assets/uploads/reference.png"
+    />
   );
 }
 
@@ -2619,6 +2692,9 @@ function WidgetInput({
   if (nodeType === "LoadAudio" && spec.name === "path") {
     return <LoadAudioPathInput value={value} onChange={onChange} />;
   }
+  if (nodeType === "LoadImage" && spec.name === "path") {
+    return <LoadImagePathInput value={value} onChange={onChange} />;
+  }
   if (nodeType === "SaveAudio" && spec.name === "filename") {
     return (
       <SaveAudioFilenameInput
@@ -2626,6 +2702,26 @@ function WidgetInput({
         onChange={onChange}
         nodeWidgets={nodeWidgets}
         onMultiWidgetChange={onMultiWidgetChange}
+      />
+    );
+  }
+  if (nodeType === "SaveGenerateLog" && spec.name === "filename") {
+    return (
+      <SaveAudioFilenameInput
+        value={value}
+        onChange={onChange}
+        nodeWidgets={nodeWidgets}
+        onMultiWidgetChange={onMultiWidgetChange}
+      />
+    );
+  }
+  if (nodeType === "SaveGenerateLog" && spec.name === "path") {
+    return (
+      <ProjectMediaPathInput
+        value={value}
+        onChange={onChange}
+        accept=".json,application/json"
+        placeholder="exports"
       />
     );
   }

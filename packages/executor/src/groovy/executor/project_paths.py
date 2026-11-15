@@ -9,6 +9,7 @@ from groovy.executor.cache import CacheStore
 PATH_MEDIA_INPUT_NODE_TYPES = frozenset(
     {
         "LoadAudio",
+        "LoadImage",
         "LoadMIDI",
         "MuxVideo",
         "Video2Audio",
@@ -30,6 +31,12 @@ MEDIA_EXTENSIONS = {
     ".mov",
     ".webm",
     ".mkv",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".bmp",
+    ".gif",
 }
 
 

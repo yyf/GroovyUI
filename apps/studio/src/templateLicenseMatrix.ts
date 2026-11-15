@@ -184,6 +184,19 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "text-to-video",
+    title: "Text to Video",
+    models: "ltx-2.3-q4 (default); ltx-video path-demo",
+    licenses:
+      "ltx-2.3-q4: LTX-2.x Community (NC); ltx-video stub: Apache-2.0 path-demo only",
+    impact: "Med",
+    cluster: "Generate video",
+    commercial: "Not safe",
+    conference: "Demo OK (disclose LTX Community weights)",
+    final: "Conference / exploration only",
+    tone: "nc",
+  },
+  {
     id: "video-to-audio",
     title: "Video to Audio",
     models: "diff-foley (default)",

@@ -20,6 +20,7 @@ TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "Preview": "AUDIO",
     "PreviewVideo": "VIDEO",
     "SaveVideo": "STRING",
+    "SaveGenerateLog": "STRING",
     "WhisperSTT": "TEXT",
     "Benchmark": "TEXT",
     "TranslateText": "TEXT",
@@ -29,6 +30,26 @@ TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "AuthenticitySummary": "AUTHENTICITY",
     "MIDIOutDevice": "NONE",
 }
+
+_AUDIO_SAMPLE_SUFFIXES = frozenset({".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aiff", ".aif"})
+_BUNDLED_MEDIA_SUFFIXES = frozenset(
+    {
+        ".mov",
+        ".mp4",
+        ".webm",
+        ".mkv",
+        ".wav",
+        ".flac",
+        ".mp3",
+        ".m4a",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+        ".gif",
+        ".bmp",
+    }
+)
 
 MIDI_STUB_BYTES = (
     b"MThd\x00\x00\x00\x06\x00\x00\x00\x01\x00\x60MTrk\x00\x00\x00\x04\x00\xff\x2f\x00"
@@ -112,6 +133,12 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
         "sample_path": "assets/samples/video480p.mov",
         "models": ("diff-foley",),
         "required_outputs": (("n3", "AUDIO"), ("n6", "VIDEO"), ("n7", "STRING")),
+    },
+    "text-to-video": {
+        "fixture": "none",
+        "sample_path": "assets/samples/Fort-Zeelandia.png",
+        "models": ("ltx-2.3-q4",),
+        "required_outputs": (("n2", "VIDEO"), ("n3", "STRING"), ("n-log", "STRING")),
     },
     "ace-step-1.5": {
         "fixture": "none",
@@ -358,7 +385,7 @@ def _terminal_node_ids(workflow: Workflow) -> tuple[str, ...]:
 def _primary_terminal(workflow: Workflow, terminal_ids: tuple[str, ...]) -> str:
     by_id = {node.id: node for node in workflow.nodes}
     for node_id in terminal_ids:
-        if by_id[node_id].type == "Preview":
+        if by_id[node_id].type in {"Preview", "PreviewVideo"}:
             return node_id
     for node_id in terminal_ids:
         if by_id[node_id].type != "Note":
@@ -382,8 +409,10 @@ def _models_for_workflow(workflow: Workflow) -> tuple[str, ...]:
 
 
 def _default_sample_path(workflow: Workflow) -> str | None:
-    for node in workflow.nodes:
-        if node.type == "LoadAudio":
+    for node_type in ("LoadAudio", "LoadImage", "LoadVideo"):
+        for node in workflow.nodes:
+            if node.type != node_type:
+                continue
             path = node.widgets.get("path")
             if isinstance(path, str) and path.strip():
                 return path.strip()
@@ -410,7 +439,7 @@ def _default_required_outputs(
             if link.to[0] == terminal_node and link.type == "MIDI":
                 return ((link.from_[0], "MIDI"),)
         return ()
-    if terminal_output_type in {"AUDIO", "MIDI", "TEXT", "AUTHENTICITY"}:
+    if terminal_output_type in {"AUDIO", "MIDI", "TEXT", "AUTHENTICITY", "VIDEO", "STRING"}:
         return ((terminal_node, terminal_output_type),)
     return ((terminal_node, "AUDIO"),)
 
@@ -438,6 +467,9 @@ def build_template_spec(template_path: Path) -> TemplateIntegritySpec:
     midi_path = overrides.get("midi_path", _default_midi_path(workflow))
     fixture: FixtureKind = overrides.get("fixture", "surround_51" if template_id == "surround-downmix" else "tone")
     if sample_path is None:
+        fixture = "none"
+    elif "fixture" not in overrides and Path(sample_path).suffix.lower() not in _AUDIO_SAMPLE_SUFFIXES:
+        # Don't synthesize a tone WAV into a .png / .mov path from LoadImage / LoadVideo.
         fixture = "none"
     models = overrides.get("models") or _models_for_workflow(workflow)
     return TemplateIntegritySpec(
@@ -505,9 +537,9 @@ def prepare_template_project(project_dir: Path, spec: TemplateIntegritySpec) -> 
     elif spec.fixture == "tone" and spec.sample_path:
         _write_tone_wav(project_dir / spec.sample_path)
     elif spec.fixture == "none" and spec.sample_path:
-        # Copy bundled media (e.g. video480p.mov) when present so MuxVideo / Video2Audio resolve.
+        # Copy bundled media (e.g. video480p.mov, Fort-Zeelandia.png) when present.
         suffix = Path(spec.sample_path).suffix.lower()
-        if suffix in {".mov", ".mp4", ".webm", ".mkv", ".wav", ".flac", ".mp3", ".m4a"}:
+        if suffix in _BUNDLED_MEDIA_SUFFIXES:
             bundled = _repo_root() / "assets" / "samples" / Path(spec.sample_path).name
             dest = project_dir / spec.sample_path
             dest.parent.mkdir(parents=True, exist_ok=True)
@@ -538,8 +570,25 @@ def load_template_workflow(spec: TemplateIntegritySpec) -> Workflow:
     if path is None:
         raise FileNotFoundError(f"Template not found: {spec.template_id}")
     workflow = Workflow.model_validate(json.loads(path.read_text()))
+    sample_suffix = Path(spec.sample_path).suffix.lower() if spec.sample_path else ""
     for node in workflow.nodes:
-        if spec.sample_path and node.type == "LoadAudio":
+        if spec.sample_path and node.type == "LoadAudio" and sample_suffix in _AUDIO_SAMPLE_SUFFIXES:
+            node.widgets["path"] = spec.sample_path
+        if spec.sample_path and node.type == "LoadImage" and sample_suffix in {
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".webp",
+            ".gif",
+            ".bmp",
+        }:
+            node.widgets["path"] = spec.sample_path
+        if spec.sample_path and node.type == "LoadVideo" and sample_suffix in {
+            ".mov",
+            ".mp4",
+            ".webm",
+            ".mkv",
+        }:
             node.widgets["path"] = spec.sample_path
         if spec.midi_path and node.type == "LoadMIDI":
             node.widgets["path"] = spec.midi_path

@@ -1,6 +1,5 @@
 import { memo, useCallback, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { projectMediaUrl } from "../api";
 import { useAudition } from "../context/AuditionContext";
 import { usePreviewVideoSize } from "../context/PreviewVideoSizeContext";
 import { useTrajectoryEdit } from "../context/TrajectoryEditContext";
@@ -9,6 +8,7 @@ import { shortCanvasIssueLabel } from "../planModelSanitize";
 import { socketTypeColor } from "../socketTypes";
 import type { NodeRenderStatus } from "../types";
 import { lockPreviewVideoSize } from "../workflow";
+import { PreviewVideoTransport } from "./PreviewVideoTransport";
 import { TrajectoryAuthorPad } from "./TrajectoryPanel";
 
 export type NodeSocketSpec = {
@@ -100,9 +100,14 @@ function isGenericSocketName(name: string): boolean {
   );
 }
 
-/** Canvas inlet labels — keep schema names stable, show intent on GenerateAudio. */
+/** Canvas inlet labels — keep schema names stable, show intent on GenerateAudio / GenerateVideo. */
 function inletDisplayName(nodeLabel: string, socketName: string): string {
-  if (nodeLabel === "GenerateAudio" && socketName === "text") return "prompt";
+  if (
+    (nodeLabel === "GenerateAudio" || nodeLabel === "GenerateVideo") &&
+    socketName === "text"
+  ) {
+    return "prompt";
+  }
   return socketName;
 }
 
@@ -132,7 +137,10 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
   const minHeight = Math.max(
     nodeData.noteText != null ? Math.min(420, 48 + noteLineCount * 16) : 52,
     showAuthorPad ? 200 : nodeData.trajectoryId ? 160 : 0,
-    nodeData.previewVideoPath || nodeData.label === "PreviewVideo" ? videoH + 36 : 0,
+    // Title chrome (~36) + optional local transport bar (~28). Keep in sync with PREVIEW_VIDEO_CHROME_H.
+    nodeData.previewVideoPath || nodeData.label === "PreviewVideo"
+      ? videoH + (nodeData.previewVideoPath ? 64 : 36)
+      : 0,
     Math.max(inputs.length, outputs.length) * 24 + 20,
   );
 
@@ -302,31 +310,28 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
           </p>
         ) : null}
         {nodeData.label === "PreviewVideo" ? (
-          <div
-            className={`groovy-node__video nodrag nopan${selected ? " groovy-node__video--selected" : ""}`}
-            style={{ width: videoW, height: videoH }}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            {nodeData.previewVideoPath ? (
-              // Transport / Space is master clock — no local controls; video stays muted.
-              <video
-                key={nodeData.previewVideoPath}
-                playsInline
-                muted
-                preload="auto"
-                src={projectMediaUrl(nodeData.previewVideoPath)}
-                className="groovy-node__video-player"
-                title="Synced to transport (Space / Play)"
-              />
-            ) : (
-              <div className="groovy-node__video-placeholder">Render to preview</div>
-            )}
-            <span
-              className="groovy-node__video-resize"
-              title="Drag to scale (aspect locked)"
-              onPointerDown={onVideoResizePointerDown}
+          nodeData.previewVideoPath ? (
+            <PreviewVideoTransport
+              path={nodeData.previewVideoPath}
+              width={videoW}
+              height={videoH}
+              selected={selected}
+              onResizePointerDown={onVideoResizePointerDown}
             />
-          </div>
+          ) : (
+            <div
+              className={`groovy-node__video nodrag nopan${selected ? " groovy-node__video--selected" : ""}`}
+              style={{ width: videoW, height: videoH }}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <div className="groovy-node__video-placeholder">Render to preview</div>
+              <span
+                className="groovy-node__video-resize"
+                title="Drag to scale (aspect locked)"
+                onPointerDown={onVideoResizePointerDown}
+              />
+            </div>
+          )
         ) : null}
         {showAuthorPad && nodeData.trajectoryAuthorId && nodeData.trajectoryWidgets ? (
           <div

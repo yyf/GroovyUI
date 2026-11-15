@@ -45,6 +45,10 @@
   <img src="assets/media/basic-provenance-visualizer.gif" alt="GroovyUI Provenance visualizer: rendered audio hop chain in Compliance" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/generate-video.gif" alt="GroovyUI Text to Video: LoadImage I2V into GenerateVideo with PreviewVideo and SaveGenerateLog" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -119,6 +123,13 @@
       <a href="https://youtu.be/k1AVkFr22wI"><img src="https://img.youtube.com/vi/k1AVkFr22wI/hqdefault.jpg" alt="GroovyUI — Provenance visualizer for your patch" width="440" /></a><br />
       <sub>GroovyUI — Provenance visualizer for your patch</sub>
     </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/-65IzOqKUU8"><img src="https://img.youtube.com/vi/-65IzOqKUU8/hqdefault.jpg" alt="GroovyUI template — Text to Video with LoadImage I2V" width="440" /></a><br />
+      <sub>GroovyUI template — Text to Video with LoadImage I2V</sub>
+    </td>
+    <td align="center" width="50%"></td>
   </tr>
 </table>
 

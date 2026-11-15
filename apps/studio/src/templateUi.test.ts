@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   domainIdForTemplate,
+  FEATURED_BUNDLED_TEMPLATE_IDS,
   groupBundledTemplatesByDomain,
   isNodeVisibleInStudio,
+  STANDARD_BUNDLED_TEMPLATE_IDS,
   STANDARD_MODE_NODE_TYPES,
+  TEMPLATE_DOMAINS,
   templatesVisibleInUi,
 } from "./templateUi";
 import type { TemplateListItem } from "./api";
@@ -40,6 +43,7 @@ describe("templatesVisibleInUi", () => {
     bundled("stable-audio"),
     bundled("layered-music-sfx"),
     bundled("text-to-music"),
+    bundled("text-to-video"),
     bundled("video-to-audio"),
     bundled("karaoke-stems"),
     bundled("transcribe-and-regenerate"),
@@ -82,6 +86,7 @@ describe("templatesVisibleInUi", () => {
       "podcast-denoise",
       "prompt-modular-synth",
       "tab-creative-grow",
+      "text-to-video",
       "tts-emotion-edit",
       "watermark-embed-detect",
     ]);
@@ -150,6 +155,7 @@ describe("templatesVisibleInUi", () => {
       "stem-separation",
       "tab-creative-grow",
       "text-to-music",
+      "text-to-video",
       "transcribe-and-diarize",
       "transcribe-and-regenerate",
       "transcribe-dialogue",
@@ -249,6 +255,7 @@ describe("groupBundledTemplatesByDomain", () => {
         bundled("stem-separation", "Stem Separation"),
         bundled("text-to-music", "Text to Music"),
         bundled("voice-cloning", "Voice Cloning"),
+        bundled("tts-emotion-edit", "TTS Emotion Edit"),
         bundled("modular-generative-rack", "Modular Generative Rack"),
         bundled("compare-stemmers", "Compare Stemmers"),
         bundled("authenticity-check", "Authenticity Check"),
@@ -261,7 +268,6 @@ describe("groupBundledTemplatesByDomain", () => {
     expect(groups.map((g) => g.domain.id)).toEqual([
       "start",
       "speech",
-      "voice",
       "stems",
       "generate",
       "modular",
@@ -273,20 +279,36 @@ describe("groupBundledTemplatesByDomain", () => {
       "hello-groovy",
       "tab-creative-grow",
     ]);
-    expect(groups.find((g) => g.domain.id === "speech")?.templates.map((t) => t.id)).toEqual([
-      "podcast-denoise",
-    ]);
+    expect(groups.find((g) => g.domain.id === "speech")?.templates.map((t) => t.id).sort()).toEqual(
+      ["podcast-denoise", "tts-emotion-edit", "voice-cloning"].sort(),
+    );
     expect(groups.every((g) => g.templates.every((t) => t.source !== "user"))).toBe(true);
   });
 
-  it("places empty-canvas, hello-groovy, and tab-creative-grow in Start", () => {
+  it("places empty-canvas, hello-groovy, and tab-creative-grow in Starter Templates", () => {
     expect(domainIdForTemplate("empty-canvas")).toBe("start");
     expect(domainIdForTemplate("hello-groovy")).toBe("start");
     expect(domainIdForTemplate("tab-creative-grow")).toBe("start");
   });
 
-  it("places video-to-audio templates in Generate", () => {
-    expect(domainIdForTemplate("video-to-audio")).toBe("generate");
+  it("uses the renamed picker domain labels", () => {
+    const byId = Object.fromEntries(TEMPLATE_DOMAINS.map((d) => [d.id, d.label]));
+    expect(byId.start).toBe("Starter Templates");
+    expect(byId.speech).toBe("Podcast & Gaming VO");
+    expect(byId.video).toBe("Generate Video");
+    expect(byId.modular).toBe("Modular Synth");
+    expect(byId.compare).toBe("A/B Compare");
+    expect(byId.trust).toBe("AI Trust");
+    expect(TEMPLATE_DOMAINS.map((d) => d.id)).not.toContain("voice");
+  });
+
+  it("places tts-emotion-edit in Podcast & Gaming VO", () => {
+    expect(domainIdForTemplate("tts-emotion-edit")).toBe("speech");
+  });
+
+  it("places video templates in Generate Video", () => {
+    expect(domainIdForTemplate("text-to-video")).toBe("video");
+    expect(domainIdForTemplate("video-to-audio")).toBe("video");
   });
 
   it("puts unknown bundled ids in Other", () => {
@@ -332,6 +354,8 @@ describe("isNodeVisibleInStudio", () => {
   it("limits standard mode to ISMIR demo template nodes", () => {
     expect(isNodeVisibleInStudio("Denoise")).toBe(true);
     expect(isNodeVisibleInStudio("LoadAudio")).toBe(true);
+    expect(isNodeVisibleInStudio("LoadImage")).toBe(true);
+    expect(STANDARD_MODE_NODE_TYPES).toContain("LoadImage");
     expect(isNodeVisibleInStudio("Video2Audio")).toBe(true);
     expect(isNodeVisibleInStudio("GenerateAudio")).toBe(true);
     expect(isNodeVisibleInStudio("Mix")).toBe(false);
@@ -339,11 +363,15 @@ describe("isNodeVisibleInStudio", () => {
     expect(STANDARD_MODE_NODE_TYPES).toContain("VoiceConvert");
     expect(STANDARD_MODE_NODE_TYPES).toContain("TranslateText");
     expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateAudio");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("Benchmark");
     expect(STANDARD_MODE_NODE_TYPES).toContain("Video2Audio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("SaveVideo");
+    expect(domainIdForTemplate("text-to-video")).toBe("video");
+    expect(FEATURED_BUNDLED_TEMPLATE_IDS).toContain("text-to-video");
+    expect(STANDARD_BUNDLED_TEMPLATE_IDS).toContain("text-to-video");
     expect(STANDARD_MODE_NODE_TYPES).toContain("EmbedWatermark");
     expect(STANDARD_MODE_NODE_TYPES).toContain("DetectWatermark");
   });

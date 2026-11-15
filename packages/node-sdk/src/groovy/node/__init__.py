@@ -88,6 +88,8 @@ class GroovyNode:
                         "OSC",
                         "TRAJECTORY",
                         "VIDEO",
+                        "IMAGE",
+                        "GENERATE_LOG",
                     }:
                         input_sockets.append(
                             {

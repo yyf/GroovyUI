@@ -1122,6 +1122,112 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
     return [{"type": "AUDIO", "cache_id": out_buffer.id}]
 
 
+def run_generate_video(cache: CacheStore, kwargs: dict) -> list[dict]:
+    import time
+    from pathlib import Path
+
+    from groovy.executor.generate_log import (
+        GenerateLogReport,
+        image_file_info,
+        probe_hardware,
+        video_output_info,
+    )
+    from groovy.executor.media_io import probe_video_dimensions
+    from groovy.executor.video import VideoClip
+    from groovy.nodes.ai.model_params import float_param, int_param, optional_seed, seed_param
+
+    model_id = str(kwargs.get("model", "ltx-video"))
+    prompt = str(kwargs.get("text") or kwargs.get("prompt") or "a calm ocean at sunset")
+    duration = float_param(kwargs, "duration", 4.0)
+    width = int_param(kwargs, "width", 640)
+    height = int_param(kwargs, "height", 360)
+    num_steps = int_param(kwargs, "num_steps", 30)
+    negative_prompt = str(kwargs.get("negative_prompt") or "")
+    seed = optional_seed(kwargs)
+    stub_seed = seed_param(kwargs, fallback=prompt)
+
+    image_path: Path | None = None
+    image_rel: str | None = None
+    image_id = kwargs.get("image_id")
+    if image_id:
+        image = cache.load_image(str(image_id))
+        # Empty LoadImage path = optional I2V not armed; stay in T2V mode.
+        if str(getattr(image, "path", "") or "").strip():
+            image_rel = str(image.path)
+            image_path = cache.resolve_project_path(image.path)
+    image_strength = float_param(kwargs, "image_strength", 1.0)
+
+    t0 = time.perf_counter()
+    dest_path = generate_video_file(
+        prompt,
+        model_id=model_id,
+        duration=duration,
+        width=width,
+        height=height,
+        num_steps=num_steps,
+        negative_prompt=negative_prompt,
+        seed=seed,
+        stub_seed=stub_seed,
+        cache_dir=cache.cache_dir,
+        image_path=image_path,
+        image_strength=image_strength,
+    )
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    clip = VideoClip.create(
+        "",
+        source_node_type="GenerateVideo",
+        width=width,
+        height=height,
+    )
+    final = cache.cache_dir / f"{clip.id}.mp4"
+    if dest_path.resolve() != final.resolve():
+        dest_path.replace(final)
+    dims = probe_video_dimensions(final)
+    if dims:
+        clip.width, clip.height = dims
+    rel = str(final.relative_to(cache.project_dir)).replace("\\", "/")
+    clip.path = rel
+    cache.write_video(clip)
+
+    report = GenerateLogReport.create(
+        {
+            "node_type": "GenerateVideo",
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "reference_image": image_file_info(image_path, project_relative=image_rel),
+            "timing": {
+                "generate_ms": elapsed_ms,
+                "generate_s": round(elapsed_ms / 1000.0, 3),
+            },
+            "output": video_output_info(final, project_relative=rel),
+            "model_config": {
+                "model": model_id,
+                "duration_s": duration,
+                "width": width,
+                "height": height,
+                "num_steps": num_steps,
+                "image_strength": image_strength if image_path is not None else None,
+                "seed": seed if seed is not None else stub_seed,
+            },
+            "hardware": probe_hardware(),
+        }
+    )
+    cache.write_generate_log(report)
+    return [
+        {
+            "type": "VIDEO",
+            "video_id": clip.id,
+            "path": clip.path,
+            "width": clip.width,
+            "height": clip.height,
+        },
+        {
+            "type": "GENERATE_LOG",
+            "generate_log_id": report.id,
+        },
+    ]
+
+
 def run_video2audio(cache: CacheStore, kwargs: dict) -> list[dict]:
     from pathlib import Path
 
@@ -1613,6 +1719,107 @@ def generate_audio_waveform(
         )
 
     raise RuntimeError(f"Unsupported text-to-music model for real inference: {model_id}")
+
+
+def generate_video_file(
+    prompt: str,
+    *,
+    model_id: str,
+    duration: float = 4.0,
+    width: int = 640,
+    height: int = 360,
+    num_steps: int = 30,
+    negative_prompt: str = "",
+    seed: int | None = None,
+    stub_seed: int | None = None,
+    cache_dir,
+    image_path=None,
+    image_strength: float = 1.0,
+):
+    """Model-agnostic text → video file. Dispatch by registry ``model_id``."""
+    from pathlib import Path
+
+    from groovy.nodes.ai.inference_env import inference_stub_enabled
+
+    effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
+    out_dir = Path(cache_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tmp = out_dir / f"generate-video-{model_id.replace('/', '_')}-{effective_stub % 10_000}.mp4"
+    # Stub / path-demo ignore image_path (I2V is Real LTX only).
+    _ = image_path
+    _ = image_strength
+
+    # Path-demo plate (no weights).
+    if model_id == "ltx-video":
+        return _generate_video_stub(
+            prompt,
+            dest=tmp,
+            duration=duration,
+            width=width,
+            height=height,
+            seed=effective_stub,
+        )
+
+    if inference_stub_enabled():
+        return _generate_video_stub(
+            prompt,
+            dest=tmp,
+            duration=duration,
+            width=width,
+            height=height,
+            seed=effective_stub,
+        )
+
+    if model_id == "ltx-2.3-q4":
+        from groovy.nodes.ai.backends.ltx_mlx_runner import generate_mp4 as ltx_generate
+
+        return ltx_generate(
+            prompt,
+            dest=tmp,
+            duration=duration,
+            width=width,
+            height=height,
+            seed=seed if seed is not None else effective_stub,
+            negative_prompt=negative_prompt,
+            low_ram=True,
+            image_path=image_path,
+            image_strength=image_strength,
+        )
+
+    _ = num_steps
+    raise RuntimeError(
+        f"Real text-to-video inference is not wired for {model_id} yet. "
+        "On Apple Silicon try ltx-2.3-q4 (MLX Q4 + --low-ram) or ltx-video (path demo)."
+    )
+
+
+def _generate_video_stub(
+    prompt: str,
+    *,
+    dest,
+    duration: float,
+    width: int,
+    height: int,
+    seed: int = 0,
+):
+    """Local Mac/CI demo mp4 — prompt burned in when a system font is available."""
+    from groovy.executor.media_io import write_color_video
+
+    nudge = abs(int(seed)) % 16
+    prompt_nudge = (sum(ord(c) for c in prompt) % 16) if prompt else 0
+    # Vary hue slightly so prompt/seed changes are visible in PreviewVideo.
+    r = 0x10 + ((nudge * 9 + prompt_nudge * 5) % 0x60)
+    g = 0x18 + ((nudge * 7 + prompt_nudge * 3) % 0x50)
+    b = 0x28 + ((nudge * 11 + prompt_nudge * 7) % 0x70)
+    color = f"0x{r:02x}{g:02x}{b:02x}"
+    return write_color_video(
+        dest,
+        duration=duration,
+        width=width,
+        height=height,
+        color=color,
+        prompt=prompt,
+    )
 
 
 def video2audio_waveform(

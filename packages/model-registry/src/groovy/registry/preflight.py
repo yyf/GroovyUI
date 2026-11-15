@@ -30,6 +30,7 @@ _SECONDS_PER_MINUTE: dict[str, tuple[int, int]] = {
     "TTS": (5, 60),
     "MIDIToAudio": (30, 240),
     "GenerateAudio": (30, 240),
+    "GenerateVideo": (60, 600),
     # Real video-to-audio can run many minutes on first weight load (CPU/MPS/CUDA).
     "Video2Audio": (120, 3600),
     "SingFromMIDI": (30, 240),

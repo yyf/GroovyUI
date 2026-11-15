@@ -251,6 +251,84 @@ def mux_video_with_audio(
     return dest
 
 
+def _mac_demo_font() -> Path | None:
+    for candidate in (
+        Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+        Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
+        Path("/Library/Fonts/Arial.ttf"),
+        Path("/System/Library/Fonts/Helvetica.ttc"),
+    ):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _ffmpeg_drawtext_escape(text: str) -> str:
+    return (
+        text.replace("\\", "\\\\")
+        .replace(":", "\\:")
+        .replace("'", "\\'")
+        .replace("%", "%%")
+    )
+
+
+def write_color_video(
+    dest: Path,
+    *,
+    duration: float = 2.0,
+    width: int = 640,
+    height: int = 360,
+    color: str = "0x1a1a2e",
+    fps: int = 24,
+    prompt: str | None = None,
+) -> Path:
+    """Write a short H.264 mp4 (Mac T2V demo / CI stub).
+
+    This is **not** generative video — a solid plate plus on-screen prompt so the
+    GenerateVideo → PreviewVideo path is exercisable without GPU weights.
+    """
+    dest = dest.with_suffix(".mp4")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    seconds = max(0.5, min(float(duration), 30.0))
+    w = max(16, int(width) - (int(width) % 2))
+    h = max(16, int(height) - (int(height) % 2))
+    lavfi = f"color=c={color}:s={w}x{h}:d={seconds}:r={fps}"
+    args = ["-y", "-f", "lavfi", "-i", lavfi]
+    label = (prompt or "").strip() or "text to video"
+    font = _mac_demo_font()
+    if font is not None:
+        # Escape path for ffmpeg filtergraph (spaces / colons).
+        font_esc = str(font).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+        shown = label if len(label) <= 64 else f"{label[:63]}…"
+        title_size = max(13, min(22, w // 28))
+        body_size = max(12, min(26, w // 22))
+        # Two lines: clear "demo" banner + user prompt (not a greenscreen glitch).
+        draw = (
+            f"drawtext=fontfile={font_esc}:"
+            f"text='{_ffmpeg_drawtext_escape('Mac demo · not generative LTX')}':"
+            f"fontsize={title_size}:fontcolor=white:x=(w-text_w)/2:y=h*0.28:"
+            f"box=1:boxcolor=black@0.55:boxborderw=8,"
+            f"drawtext=fontfile={font_esc}:"
+            f"text='{_ffmpeg_drawtext_escape(shown)}':"
+            f"fontsize={body_size}:fontcolor=white:x=(w-text_w)/2:y=h*0.52:"
+            f"box=1:boxcolor=black@0.55:boxborderw=10"
+        )
+        args.extend(["-vf", draw])
+    args.extend(
+        [
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            str(dest),
+        ]
+    )
+    _run_ffmpeg(args)
+    return dest
+
+
 def probe_with_ffmpeg(path: Path) -> dict[str, Any]:
     """Minimal probe for ffmpeg-only containers (channels, rate, duration)."""
     from typing import Any
