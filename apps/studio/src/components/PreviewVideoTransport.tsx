@@ -80,11 +80,9 @@ export function PreviewVideoTransport({
     const video = videoRef.current;
     if (!video) return;
     const transport = document.querySelector<HTMLAudioElement>(".transport__audio");
-    const transportDriving = Boolean(transport && !transport.paused && !transport.ended);
-    if (transportDriving) {
-      // Hand control back to the global bar when it is already the master clock.
-      if (transport.paused) void transport.play().catch(() => {});
-      else transport.pause();
+    // When the global bar is already the master clock, toggle pauses it (not the video).
+    if (transport && !transport.paused && !transport.ended) {
+      transport.pause();
       return;
     }
     if (video.paused || video.ended) {
