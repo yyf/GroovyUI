@@ -126,8 +126,8 @@
   </tr>
   <tr>
     <td align="center" width="50%">
-      <a href="https://youtu.be/-65IzOqKUU8"><img src="https://img.youtube.com/vi/-65IzOqKUU8/hqdefault.jpg" alt="GroovyUI template — Text to Video with LoadImage I2V" width="440" /></a><br />
-      <sub>GroovyUI template — Text to Video with LoadImage I2V</sub>
+      <a href="https://youtu.be/-65IzOqKUU8"><img src="https://img.youtube.com/vi/-65IzOqKUU8/hqdefault.jpg" alt="GroovyUI template — video generation with LTX 2.3 Q4 (MLX Mac)" width="440" /></a><br />
+      <sub>GroovyUI template — video generation with LTX 2.3 Q4 (MLX Mac)</sub>
     </td>
     <td align="center" width="50%"></td>
   </tr>
