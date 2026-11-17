@@ -251,6 +251,69 @@ def mux_video_with_audio(
     return dest
 
 
+def strip_audio_from_video(video_path: Path, dest: Path) -> Path:
+    """Copy the video stream only into a silent mp4 (no audio track)."""
+    if not video_path.is_file():
+        raise FileNotFoundError(f"Video not found: {video_path}")
+    dest = dest.with_suffix(".mp4")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    _run_ffmpeg(
+        [
+            "-y",
+            "-i",
+            str(video_path),
+            "-map",
+            "0:v:0",
+            "-c:v",
+            "copy",
+            "-an",
+            "-movflags",
+            "+faststart",
+            str(dest),
+        ]
+    )
+    return dest
+
+
+def probe_video_duration_seconds(path: Path) -> float | None:
+    """Best-effort duration from ffprobe (format, else video stream)."""
+    if not ffprobe_available() or not path.is_file():
+        return None
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "quiet",
+            "-print_format",
+            "json",
+            "-show_format",
+            "-show_streams",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError:
+        return None
+    duration = float((payload.get("format") or {}).get("duration") or 0.0)
+    if duration > 0:
+        return duration
+    for stream in payload.get("streams") or []:
+        if stream.get("codec_type") != "video":
+            continue
+        try:
+            stream_dur = float(stream.get("duration") or 0.0)
+        except (TypeError, ValueError):
+            stream_dur = 0.0
+        if stream_dur > 0:
+            return stream_dur
+    return None
+
+
 def _mac_demo_font() -> Path | None:
     for candidate in (
         Path("/System/Library/Fonts/Supplemental/Arial.ttf"),

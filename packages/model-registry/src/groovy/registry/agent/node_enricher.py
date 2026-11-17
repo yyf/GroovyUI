@@ -134,14 +134,27 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "text": "Style / sound prompt (TEXT). When wired, overrides the local prompt widget.",
             "lyrics": "Optional lyrics (TEXT). ACE-Step: [verse] / [chorus]; leave empty for instrumental.",
             "midi": "Optional MIDI melody conditioning.",
-            "reference_audio": "Optional timbre/style reference clip.",
+            "reference_audio": (
+                "Optional source clip. ACE-Step Real: identity-preserving cover — "
+                "src_audio (structure) + reference timbre from this clip; prompt restyles. "
+                "Duration matches the source. MusicGen Melody uses MIDIToAudio instead."
+            ),
         },
         "widgets": {
             "model": "Text-to-audio model (MusicGen, Stable Audio Open / SA3 Small Music|SFX, or ACE-Step).",
-            "prompt": "Describe the sound you want to generate (used when the text inlet is unwired).",
+            "prompt": "Style / sound prompt when the text inlet is unwired.",
             "lyrics_text": "ACE-Step lyrics when the lyrics inlet is unwired; empty leans instrumental.",
+            "lora": "Optional LoRA adapter id from Model Browser (ACE-Step).",
+            "lora_scale": "LoRA strength (0 = base only, 1 = full adapter).",
+            "audio_cover_strength": (
+                "ACE-Step cover only (wire reference_audio). 1.0 keeps source identity; "
+                "lower values transfer more prompt style. Ignored without reference / non-ACE."
+            ),
             "seed": "Random seed (−1 = random). Same seed + prompt → repeatable output.",
-            "seconds_total": "Stable Audio / ACE-Step: output length in seconds.",
+            "seconds_total": (
+                "Target length in seconds. With reference_audio on ACE, duration follows the "
+                "source clip (seconds_total may extend, not shorten)."
+            ),
             "num_inference_steps": "Diffusion / flow steps (ACE-Step turbo ≈ 8; SFT ≈ 50).",
             "guidance_scale": "Prompt adherence strength (ignored on ACE-Step turbo; SFT uses CFG).",
             "negative_prompt": "Stable Audio: concepts to avoid.",
@@ -275,18 +288,37 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "text": "Text (e.g. Whisper transcript) shown on the node and in Node Helper.",
         },
     },
+    "LoadVideo": {
+        "description": "Load a project-relative video file into a VIDEO clip for SplitVideo / MuxVideo / PreviewVideo.",
+        "widgets": {
+            "path": "Project-relative video (mp4/mov/webm/mkv), e.g. assets/samples/video480p.mov.",
+        },
+    },
+    "SplitVideo": {
+        "description": "Split a VIDEO into a silent picture stream and its original AUDIO track (for rescore / remix graphs).",
+        "inputs": {
+            "video": "VIDEO from LoadVideo or GenerateVideo.",
+        },
+        "outputs": {
+            "video": "Silent VIDEO (video stream only).",
+            "audio": "Original AUDIO track (silence if the source had none).",
+        },
+    },
     "MuxVideo": {
-        "description": "Mux a source video file with generated AUDIO into a playable VIDEO clip (mp4).",
+        "description": "Mux a source VIDEO (or path) with generated AUDIO into a playable VIDEO clip (mp4).",
         "inputs": {
             "audio": "Generated or processed AUDIO to replace the source soundtrack.",
+            "video": "Optional silent/source VIDEO (e.g. SplitVideo). When wired, overrides the path widget.",
         },
         "widgets": {
-            "path": "Project-relative source video (video stream copied; audio replaced).",
+            "path": "Project-relative source video when the video inlet is unwired (video stream copied; audio replaced).",
         },
     },
     "PreviewVideo": {
         "description": "Terminal sink for VIDEO audition in Node Helper (HTML5 video player).",
-        "inputs": {"video": "VIDEO clip from GenerateVideo, MuxVideo, or SaveVideo upstream."},
+        "inputs": {
+            "video": "VIDEO clip from GenerateVideo, MuxVideo, SplitVideo, or LoadVideo upstream."
+        },
     },
     "SaveVideo": {
         "description": "Copy a VIDEO clip into the project exports folder.",

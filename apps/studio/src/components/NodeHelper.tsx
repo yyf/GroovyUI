@@ -55,7 +55,7 @@ import CompareSampleIntegrity, { SampleCheckFromReport } from "./CompareSampleIn
 import ControlCurvePreview, { syncPointsFromStartEnd } from "./ControlCurvePreview";
 import MatrixMixerPanel from "./MatrixMixerPanel";
 import ModelSubgraphPanel from "./ModelSubgraphPanel";
-import { ParamFader, ParamPot, ParamStepped, ParamSwitch } from "./ParamControls";
+import { ParamFader, ParamStepped, ParamSwitch } from "./ParamControls";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
 import WaveformMini from "./WaveformMini";
@@ -114,8 +114,10 @@ type Props = {
   onDisconnectPort?: (nodeId: string, direction: "in" | "out", slot: number) => void;
   /** Remove the currently selected canvas wire. */
   onDeleteLink?: (linkId: string) => void;
-  /** Widen Inspector while Subgraph tab is active. */
+  /** Widen Inspector (multi-param Config, Subgraph, compare, settings). */
   onSubgraphActiveChange?: (active: boolean) => void;
+  /** True while canvas rubber-band select is active — freeze width updates. */
+  selectionBusy?: boolean;
   onBrowseModel?: (nodeId: string, widgetName: string) => void;
   onAudition?: () => void;
   onCompareAudition?: (nodeId: string) => void;
@@ -157,6 +159,7 @@ export default function NodeHelper({
   onDisconnectPort,
   onDeleteLink,
   onSubgraphActiveChange,
+  selectionBusy = false,
   onBrowseModel,
   onAudition,
   onCompareAudition,
@@ -198,21 +201,6 @@ export default function NodeHelper({
       setTab("config");
     }
   }, [node?.id, node?.type]);
-
-  const inspectorWide =
-    showStudioSettings ||
-    showTemplateLicenses ||
-    showCompare ||
-    (Boolean(node) &&
-      !showCompare &&
-      !selectedLink &&
-      selectedNodes.length <= 1 &&
-      tab === "subgraph");
-
-  useEffect(() => {
-    onSubgraphActiveChange?.(inspectorWide);
-    return () => onSubgraphActiveChange?.(false);
-  }, [inspectorWide, onSubgraphActiveChange]);
 
   useEffect(() => {
     if (!node) {
@@ -311,6 +299,27 @@ export default function NodeHelper({
     const widgetNames = new Set(schema.widgets.map((widget) => widget.name));
     return modelParams.filter((param) => !widgetNames.has(param.name));
   }, [modelParams, schema, selectedModelId]);
+
+  const configParamCount = (schema?.widgets.length ?? 0) + modelParamRows.length;
+  const multiParamWide =
+    Boolean(node) &&
+    !showCompare &&
+    !selectedLink &&
+    selectedNodes.length <= 1 &&
+    (tab === "subgraph" || (tab === "config" && configParamCount >= 4));
+
+  const inspectorWide =
+    showStudioSettings || showTemplateLicenses || showCompare || multiParamWide;
+
+  useEffect(() => {
+    // Don't resize the Inspector mid-marquee — canvas flex jump breaks rubber-band hit testing.
+    if (selectionBusy) return;
+    onSubgraphActiveChange?.(inspectorWide);
+  }, [inspectorWide, onSubgraphActiveChange, selectionBusy]);
+
+  useEffect(() => {
+    return () => onSubgraphActiveChange?.(false);
+  }, [onSubgraphActiveChange]);
 
   if (showAbout) {
     return <AboutPanel />;
@@ -652,6 +661,13 @@ export default function NodeHelper({
                   >
                     <span>{widgetLabel(mergedWidget.name, node.type)}</span>
                     {mergedWidget.description ? <small className="node-helper__hint">{mergedWidget.description}</small> : null}
+                    {!mergedWidget.description &&
+                    node.type === "GenerateAudio" &&
+                    mergedWidget.name === "seed" ? (
+                      <small className="node-helper__hint">
+                        Random seed (−1 = random). Same seed + prompt → repeatable output.
+                      </small>
+                    ) : null}
                     {supersededBy ? (
                       <small className="node-helper__hint node-helper__hint--wired">
                         {node.type === "TrajectoryAuthor" &&
@@ -2679,6 +2695,142 @@ function SaveAudioFilenameInput({
   );
 }
 
+/** Seed: draft while typing; empty/−1 = random. Avoids forced −1 on every keystroke. */
+function SeedWidgetInput({
+  value,
+  onChange,
+  disabled,
+  min = -1,
+  max,
+}: {
+  value: unknown;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+  min?: number;
+  max?: number;
+}) {
+  const committed =
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.trunc(value)
+      : typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))
+        ? Math.trunc(Number(value))
+        : -1;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(() => String(committed));
+  const hi = typeof max === "number" && Number.isFinite(max) ? Math.trunc(max) : 2_147_483_647;
+
+  useEffect(() => {
+    if (!editing) setDraft(String(committed));
+  }, [committed, editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const raw = draft.trim().replace(/,/g, "");
+    if (!raw) {
+      onChange(-1);
+      return;
+    }
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) {
+      setDraft(String(committed));
+      return;
+    }
+    onChange(Math.min(hi, Math.max(min, parsed)));
+  };
+
+  return (
+    <div className="node-helper__seed">
+      <div className="node-helper__seed-row">
+        <div className="node-helper__seed-bound" title={`Minimum ${min}: random each render`}>
+          <span className="node-helper__seed-bound-tag">Min</span>
+          <span className="node-helper__seed-bound-value">{min}</span>
+          <span className="node-helper__seed-bound-hint">random</span>
+        </div>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={editing ? draft : String(committed)}
+          disabled={disabled}
+          aria-label="Seed"
+          spellCheck={false}
+          onFocus={() => {
+            setEditing(true);
+            setDraft(String(committed));
+          }}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              (e.currentTarget as HTMLInputElement).blur();
+            } else if (e.key === "Escape") {
+              e.preventDefault();
+              setEditing(false);
+              setDraft(String(committed));
+              (e.currentTarget as HTMLInputElement).blur();
+            }
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        />
+        <div className="node-helper__seed-bound" title={`Maximum ${hi}: largest fixed seed`}>
+          <span className="node-helper__seed-bound-tag">Max</span>
+          <span className="node-helper__seed-bound-value">{hi.toLocaleString("en-US")}</span>
+          <span className="node-helper__seed-bound-hint">fixed</span>
+        </div>
+      </div>
+      <p className="node-helper__seed-explain">
+        {committed < 0
+          ? "−1 = random: each Render picks a new take. Set a fixed integer (≥ 0) to lock the variation."
+          : "Fixed seed: same seed + same prompt/settings → repeatable output. Use −1 to randomize again."}
+      </p>
+    </div>
+  );
+}
+
+/** Plain-language Min/Max hints for Inspector faders (tuning onboarding). */
+function sliderBoundHints(
+  widgetName: string,
+  nodeType?: string,
+): { minHint: string; maxHint: string } {
+  switch (widgetName) {
+    case "guidance_scale":
+      return { minHint: "weaker prompt pull", maxHint: "stronger prompt pull" };
+    case "audio_cover_strength":
+      return { minHint: "more prompt style", maxHint: "keep source structure" };
+    case "num_inference_steps":
+      return { minHint: "faster, rougher", maxHint: "slower, cleaner" };
+    case "seconds_total":
+      return { minHint: "shortest clip", maxHint: "longest clip" };
+    case "lora_scale":
+      return { minHint: "base model only", maxHint: "strong LoRA" };
+    case "shifts":
+      return { minHint: "fastest", maxHint: "more quality passes" };
+    case "overlap":
+      return { minHint: "less overlap", maxHint: "more overlap" };
+    case "segment":
+      return { minHint: "model default (0)", maxHint: "longer segments" };
+    case "target_sample_rate":
+      return { minHint: "lower SR", maxHint: "higher SR" };
+    case "preview_width":
+    case "preview_height":
+      return { minHint: "smaller", maxHint: "larger" };
+    case "start_value":
+    case "end_value":
+      return { minHint: "lower level", maxHint: "higher level" };
+    case "frame_count":
+      return { minHint: "fewer frames", maxHint: "more frames" };
+    case "sample_rate":
+      return { minHint: "lower rate", maxHint: "higher rate" };
+    case "duration_sec":
+      return { minHint: "shorter", maxHint: "longer" };
+    default:
+      if (nodeType === "GenerateAudio" || nodeType === "GenerateVideo") {
+        return { minHint: "lower", maxHint: "higher" };
+      }
+      return { minHint: "lower", maxHint: "higher" };
+  }
+}
+
 function WidgetInput({
   spec,
   value,
@@ -2737,20 +2889,13 @@ function WidgetInput({
   }
 
   if (spec.name === "seed" && (spec.type === "INT" || spec.type === "FLOAT")) {
-    const display =
-      typeof value === "number" || typeof value === "string" ? String(value) : String(spec.default ?? -1);
     return (
-      <input
-        type="number"
-        value={display}
+      <SeedWidgetInput
+        value={value}
+        onChange={onChange}
         disabled={disabled}
         min={typeof spec.min === "number" ? spec.min : -1}
         max={typeof spec.max === "number" ? spec.max : undefined}
-        step={1}
-        onChange={(e) => {
-          const parsed = parseInt(e.target.value, 10);
-          onChange(Number.isFinite(parsed) ? parsed : -1);
-        }}
       />
     );
   }
@@ -2825,15 +2970,18 @@ function WidgetInput({
         ? value
         : Number(value ?? spec.default ?? control.min);
     const safe = Number.isFinite(numeric) ? numeric : control.min;
-    const Control = control.kind === "fader" ? ParamFader : ParamPot;
+    const bounds = sliderBoundHints(spec.name, nodeType);
+    // Always horizontal slider in Inspector (knobs remain for MatrixMixer / stepped dials).
     return (
-      <Control
+      <ParamFader
         value={safe}
         min={control.min}
         max={control.max}
         step={control.step}
         isInt={isInt}
         disabled={disabled}
+        minHint={bounds.minHint}
+        maxHint={bounds.maxHint}
         onChange={(next) => onChange(isInt ? Math.round(next) : next)}
       />
     );

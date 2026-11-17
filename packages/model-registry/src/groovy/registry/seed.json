@@ -65,7 +65,7 @@
           "description": "Denoising blend (0 = dry, 1 = full noise reduction)."
         }
       ],
-      "architecture_notes": "DeepFilterNet: ERB + Deep Filtering stages on STFT features \u2192 enhanced waveform.",
+      "architecture_notes": "DeepFilterNet: ERB + Deep Filtering stages on STFT features → enhanced waveform.",
       "internal_connections": [
         {
           "from": "noisy audio",
@@ -92,7 +92,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "CPU / CUDA \u00b7 ~1 GB"
+        "label": "CPU / CUDA · ~1 GB"
       }
     },
     {
@@ -146,7 +146,7 @@
           "default": 1,
           "min": 0,
           "max": 5,
-          "description": "Random shift passes \u2014 higher improves quality but slows render."
+          "description": "Random shift passes — higher improves quality but slows render."
         },
         {
           "name": "overlap",
@@ -171,7 +171,7 @@
           "description": "Split long files into segments during separation."
         }
       ],
-      "architecture_notes": "Hybrid Demucs / htdemucs-family: encoder \u2192 bottleneck \u2192 decoder with stem heads (vocals, drums, bass, other).",
+      "architecture_notes": "Hybrid Demucs / htdemucs-family: encoder → bottleneck → decoder with stem heads (vocals, drums, bass, other).",
       "internal_connections": [
         {
           "from": "mix",
@@ -216,7 +216,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "CPU / CUDA \u00b7 ~4 GB"
+        "label": "CPU / CUDA · ~4 GB"
       }
     },
     {
@@ -265,7 +265,7 @@
           "default": 1,
           "min": 0,
           "max": 5,
-          "description": "Random shift passes \u2014 higher improves quality but slows render."
+          "description": "Random shift passes — higher improves quality but slows render."
         },
         {
           "name": "overlap",
@@ -350,7 +350,7 @@
           "description": "Sampling temperature (0 = greedy decode)."
         }
       ],
-      "architecture_notes": "Whisper (faster-whisper): audio \u2192 16 kHz mel \u2192 encoder \u2192 decoder \u2192 text tokens.",
+      "architecture_notes": "Whisper (faster-whisper): audio → 16 kHz mel → encoder → decoder → text tokens.",
       "internal_connections": [
         {
           "from": "audio",
@@ -365,7 +365,7 @@
         {
           "from": "decoder",
           "to": "transcript",
-          "label": "tokens \u2192 text"
+          "label": "tokens → text"
         }
       ],
       "similar_models": [
@@ -377,7 +377,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "CPU / CUDA \u00b7 ~2 GB"
+        "label": "CPU / CUDA · ~2 GB"
       }
     },
     {
@@ -444,7 +444,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "CPU / CUDA \u00b7 ~1 GB"
+        "label": "CPU / CUDA · ~1 GB"
       }
     },
     {
@@ -452,7 +452,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Pyannote Diarization 3.1",
-      "description": "Speaker diarization for meetings and podcasts. Pair with Whisper via DiarizeTranscribe. HF gated \u2014 accept license + HF_TOKEN.",
+      "description": "Speaker diarization for meetings and podcasts. Pair with Whisper via DiarizeTranscribe. HF gated — accept license + HF_TOKEN.",
       "task_types": [
         "diarization",
         "speaker-diarization"
@@ -542,7 +542,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Kokoro 82M",
-      "description": "Lightweight Apache-2.0 multilingual TTS (en/zh/es/fr/ja/\u2026). Mandarin uses language=zh + voice zf_xiaobei (needs misaki[zh]).",
+      "description": "Lightweight Apache-2.0 multilingual TTS (en/zh/es/fr/ja/…). Mandarin uses language=zh + voice zf_xiaobei (needs misaki[zh]).",
       "task_types": [
         "tts"
       ],
@@ -609,7 +609,7 @@
           "name": "language",
           "type": "STRING",
           "default": "en",
-          "description": "ISO 639-1 (en, zh, es, fr, ja, \u2026). Mandarin = zh."
+          "description": "ISO 639-1 (en, zh, es, fr, ja, …). Mandarin = zh."
         },
         {
           "name": "voice",
@@ -630,7 +630,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "CPU / CUDA \u00b7 ~1 GB"
+        "label": "CPU / CUDA · ~1 GB"
       }
     },
     {
@@ -809,8 +809,8 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "Apple Silicon (MLX) / CUDA \u00b7 ~4 GB MLX or ~12 GB VRAM",
-        "memory_note": "~4 GB MLX (Mac) \u00b7 ~12 GB VRAM (CUDA)"
+        "label": "Apple Silicon (MLX) / CUDA · ~4 GB MLX or ~12 GB VRAM",
+        "memory_note": "~4 GB MLX (Mac) · ~12 GB VRAM (CUDA)"
       }
     },
     {
@@ -885,7 +885,7 @@
       "status": "published",
       "trust": "verified",
       "name": "RAVE v1",
-      "description": "Realtime Audio Variational autoEncoder (IRCAM ACIDS) for neural resynthesis and timbre transfer. Installs the ACIDS Studio OnLine Ordinario (fast) TorchScript checkpoint (~41MB) via Hugging Face mirror. CC-BY-NC \u2014 non-commercial use only.",
+      "description": "Realtime Audio Variational autoEncoder (IRCAM ACIDS) for neural resynthesis and timbre transfer. Installs the ACIDS Studio OnLine Ordinario (fast) TorchScript checkpoint (~41MB) via Hugging Face mirror. CC-BY-NC — non-commercial use only.",
       "task_types": [
         "timbre-transfer",
         "neural-synthesis",
@@ -1028,7 +1028,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "CPU / CUDA \u00b7 TF \u00b7 needs Python <3.12"
+        "label": "CPU / CUDA · TF · needs Python <3.12"
       },
       "similar_models": [
         "openunmix-umx",
@@ -1088,7 +1088,7 @@
           "mps"
         ],
         "requires_cuda": false,
-        "label": "CPU / CUDA / MPS \u00b7 PyTorch \u00b7 ~2 GB"
+        "label": "CPU / CUDA / MPS · PyTorch · ~2 GB"
       },
       "similar_models": [
         "demucs-v4",
@@ -1215,7 +1215,7 @@
           "cpu"
         ],
         "requires_cuda": false,
-        "label": "CPU (ONNX) \u00b7 ~1 GB"
+        "label": "CPU (ONNX) · ~1 GB"
       }
     },
     {
@@ -1266,7 +1266,7 @@
       "status": "published",
       "trust": "verified",
       "name": "AudioSeal 16-bit",
-      "description": "Meta AudioSeal localized audio watermarking \u2014 generator and detector checkpoints (MIT).",
+      "description": "Meta AudioSeal localized audio watermarking — generator and detector checkpoints (MIT).",
       "task_types": [
         "watermark-embed",
         "watermark-detect"
@@ -1404,7 +1404,7 @@
           "default": 1.0,
           "min": 0.0,
           "max": 1.0,
-          "description": "Weight for MIDI\u2192synth conditioner. Set 0 when wiring Demucs vocals to reference_audio (HF path)."
+          "description": "Weight for MIDI→synth conditioner. Set 0 when wiring Demucs vocals to reference_audio (HF path)."
         },
         {
           "name": "reference_weight",
@@ -1629,7 +1629,7 @@
           "cpu"
         ],
         "requires_cuda": false,
-        "label": "CUDA preferred \u00b7 ~8 GB VRAM"
+        "label": "CUDA preferred · ~8 GB VRAM"
       }
     },
     {
@@ -1637,7 +1637,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Stable Audio 3 Small Music",
-      "description": "CPU/MPS-friendly Stable Audio 3 music generator (stabilityai/stable-audio-3-small-music, ~433M). Up to ~120s @ 44.1 kHz stereo; ~8 steps. Installs stable-audio-3 from GitHub. Community license + Gemma ToU \u2014 accept on HF and set a token. Non-commercial by default.",
+      "description": "CPU/MPS-friendly Stable Audio 3 music generator (stabilityai/stable-audio-3-small-music, ~433M). Up to ~120s @ 44.1 kHz stereo; ~8 steps. Installs stable-audio-3 from GitHub. Community license + Gemma ToU — accept on HF and set a token. Non-commercial by default.",
       "task_types": [
         "music-generation",
         "generation"
@@ -1764,7 +1764,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "Apple Silicon (MPS) / CPU / CUDA \u00b7 ~2 GB"
+        "label": "Apple Silicon (MPS) / CPU / CUDA · ~2 GB"
       }
     },
     {
@@ -1772,7 +1772,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Stable Audio 3 Small SFX",
-      "description": "CPU/MPS-friendly Stable Audio 3 sound-effects generator (stabilityai/stable-audio-3-small-sfx, ~433M). Up to ~120s @ 44.1 kHz stereo; ~8 steps. Installs stable-audio-3 from GitHub. Community license + Gemma ToU \u2014 accept on HF and set a token. Non-commercial by default.",
+      "description": "CPU/MPS-friendly Stable Audio 3 sound-effects generator (stabilityai/stable-audio-3-small-sfx, ~433M). Up to ~120s @ 44.1 kHz stereo; ~8 steps. Installs stable-audio-3 from GitHub. Community license + Gemma ToU — accept on HF and set a token. Non-commercial by default.",
       "task_types": [
         "sfx",
         "generation"
@@ -1899,7 +1899,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "Apple Silicon (MPS) / CPU / CUDA \u00b7 ~2 GB"
+        "label": "Apple Silicon (MPS) / CPU / CUDA · ~2 GB"
       }
     },
     {
@@ -1907,7 +1907,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Stable Audio Open Small",
-      "description": "Smallest Stability AI local text-to-audio pack (stabilityai/stable-audio-open-small) via stable-audio-tools. Up to ~11s stereo @ 44.1 kHz; ~8 steps. Accept the HF Community license and set a token in Settings. Non-commercial by default \u2014 see stability.ai/license for commercial terms. Install uses no_deps + modern PyWavelets (upstream pins PyWavelets==1.4.1 which fails on Python 3.12).",
+      "description": "Smallest Stability AI local text-to-audio pack (stabilityai/stable-audio-open-small) via stable-audio-tools. Up to ~11s stereo @ 44.1 kHz; ~8 steps. Accept the HF Community license and set a token in Settings. Non-commercial by default — see stability.ai/license for commercial terms. Install uses no_deps + modern PyWavelets (upstream pins PyWavelets==1.4.1 which fails on Python 3.12).",
       "task_types": [
         "music-generation",
         "generation",
@@ -2060,7 +2060,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "CPU / CUDA \u00b7 ~4 GB"
+        "label": "CPU / CUDA · ~4 GB"
       }
     },
     {
@@ -2126,9 +2126,9 @@
           "name": "seconds_total",
           "type": "FLOAT",
           "default": 15.0,
-          "min": 10.0,
+          "min": 0.25,
           "max": 120.0,
-          "description": "Output duration in seconds (hero demos: 15\u201330; model supports longer)."
+          "description": "Output duration in seconds. With reference_audio, cover matches source length (this may extend). Text-only demos often use 15–30."
         },
         {
           "name": "num_inference_steps",
@@ -2145,6 +2145,14 @@
           "min": 0.0,
           "max": 15.0,
           "description": "Ignored on turbo (guidance-distilled); used on base/SFT variants."
+        },
+        {
+          "name": "audio_cover_strength",
+          "type": "FLOAT",
+          "default": 0.92,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Cover identity vs prompt style (wire reference_audio). 1.0 = keep source; lower = more style transfer. ACE cover only."
         },
         {
           "name": "lyrics",
@@ -2164,7 +2172,7 @@
           "cuda"
         ],
         "requires_cuda": true,
-        "label": "CUDA preferred \u00b7 ~12 GB VRAM"
+        "label": "CUDA preferred · ~12 GB VRAM"
       }
     },
     {
@@ -2172,7 +2180,7 @@
       "status": "published",
       "trust": "verified",
       "name": "ACE-Step 1.5 SFT",
-      "description": "Supervised fine-tuned ACE-Step 1.5 Diffusers pack (Runware/acestep-v15-sft-diffusers, ~2B / ~6.3GB). Not guidance-distilled \u2014 use ~50 steps and guidance_scale\u22487. Prefer NVIDIA CUDA. On Mac/CPU, real inference needs ~12 GB available (free/reclaimable) RAM \u2014 not total installed \u2014 or Render refuses; use Settings \u2192 Inference \u2192 Stub to explore the patch. MIT-class weights.",
+      "description": "Supervised fine-tuned ACE-Step 1.5 Diffusers pack (Runware/acestep-v15-sft-diffusers, ~2B / ~6.3GB). Not guidance-distilled — use ~50 steps and guidance_scale≈7. Prefer NVIDIA CUDA. On Mac/CPU, real inference needs ~12 GB available (free/reclaimable) RAM — not total installed — or Render refuses; use Settings → Inference → Stub to explore the patch. MIT-class weights.",
       "task_types": [
         "music-generation",
         "generation"
@@ -2233,9 +2241,9 @@
           "name": "seconds_total",
           "type": "FLOAT",
           "default": 15.0,
-          "min": 10.0,
+          "min": 0.25,
           "max": 120.0,
-          "description": "Output duration in seconds (demos: 15\u201330)."
+          "description": "Output duration in seconds. With reference_audio, cover matches source length (this may extend). Text-only demos often use 15–30."
         },
         {
           "name": "num_inference_steps",
@@ -2251,7 +2259,15 @@
           "default": 7.0,
           "min": 1.0,
           "max": 15.0,
-          "description": "CFG / APG strength (SFT supports guidance; try 5\u20139)."
+          "description": "CFG / APG strength (SFT supports guidance; try 5–9)."
+        },
+        {
+          "name": "audio_cover_strength",
+          "type": "FLOAT",
+          "default": 0.92,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Cover identity vs prompt style (wire reference_audio). 1.0 = keep source; lower = more style transfer. ACE cover only."
         },
         {
           "name": "lyrics",
@@ -2271,7 +2287,7 @@
           "cuda"
         ],
         "requires_cuda": false,
-        "label": "CUDA preferred \u00b7 Mac CPU needs ~12 GB free RAM",
+        "label": "CUDA preferred · Mac CPU needs ~12 GB free RAM",
         "memory_note": "~6.3 GB weights; Mac CPU needs ~12 GB available RAM (hostile on 16 GB laptops)"
       }
     },
@@ -2280,7 +2296,7 @@
       "status": "published",
       "trust": "verified",
       "name": "ACE-Step 1.5 2B Turbo",
-      "description": "Smallest ACE-Step 1.5 Diffusers pack for demos (~6.3GB; Runware/acestep-v15-turbo-diffusers \u2014 2B turbo DiT, ~8 steps, optional lyrics). Prefer this over XL on limited disk/VRAM. MIT-class ACE-Step weights.",
+      "description": "Smallest ACE-Step 1.5 Diffusers pack for demos (~6.3GB; Runware/acestep-v15-turbo-diffusers — 2B turbo DiT, ~8 steps, optional lyrics). Prefer this over XL on limited disk/VRAM. MIT-class ACE-Step weights.",
       "task_types": [
         "music-generation",
         "generation"
@@ -2340,9 +2356,9 @@
           "name": "seconds_total",
           "type": "FLOAT",
           "default": 15.0,
-          "min": 10.0,
+          "min": 0.25,
           "max": 120.0,
-          "description": "Output duration in seconds (demos: 15\u201330)."
+          "description": "Output duration in seconds. With reference_audio, cover matches source length (this may extend). Text-only demos often use 15–30."
         },
         {
           "name": "num_inference_steps",
@@ -2359,6 +2375,14 @@
           "min": 0.0,
           "max": 15.0,
           "description": "Ignored on turbo (guidance-distilled)."
+        },
+        {
+          "name": "audio_cover_strength",
+          "type": "FLOAT",
+          "default": 0.92,
+          "min": 0.0,
+          "max": 1.0,
+          "description": "Cover identity vs prompt style (wire reference_audio). 1.0 = keep source; lower = more style transfer. ACE cover only."
         },
         {
           "name": "lyrics",
@@ -2378,7 +2402,7 @@
           "cuda"
         ],
         "requires_cuda": true,
-        "label": "CUDA preferred \u00b7 ~6 GB VRAM"
+        "label": "CUDA preferred · ~6 GB VRAM"
       }
     },
     {
@@ -2464,7 +2488,7 @@
           "cpu"
         ],
         "requires_cuda": false,
-        "label": "Adapter \u00b7 needs ACE-Step base \u00b7 CUDA preferred"
+        "label": "Adapter · needs ACE-Step base · CUDA preferred"
       }
     },
     {
@@ -2549,7 +2573,7 @@
           "cpu"
         ],
         "requires_cuda": false,
-        "label": "Adapter \u00b7 needs ACE-Step base \u00b7 CUDA preferred"
+        "label": "Adapter · needs ACE-Step base · CUDA preferred"
       }
     },
     {
@@ -2687,7 +2711,7 @@
           "cuda"
         ],
         "requires_cuda": true,
-        "label": "CUDA required \u00b7 ~6 GB VRAM"
+        "label": "CUDA required · ~6 GB VRAM"
       }
     },
     {
@@ -2695,7 +2719,7 @@
       "status": "published",
       "trust": "verified",
       "name": "LTX-2.3 Q4 (MLX Mac)",
-      "description": "Real Apple Silicon text-to-video for GenerateVideo via community ltx-2-mlx + dgrauet/ltx-2.3-mlx-q4. Distilled + --low-ram; target M1 Max 32 GB: 512\u00d7512, 2\u20133 s. First install downloads ~27 GB distilled slice (+ Gemma text encoder into HF cache). Run bash scripts/setup-ltx-mac.sh after freeing \u226530 GB disk. Not the ffmpeg path-demo.",
+      "description": "Real Apple Silicon text-to-video for GenerateVideo via community ltx-2-mlx + dgrauet/ltx-2.3-mlx-q4. Distilled + --low-ram; target M1 Max 32 GB: 512×512, 2–3 s. First install downloads ~27 GB distilled slice (+ Gemma text encoder into HF cache). Run bash scripts/setup-ltx-mac.sh after freeing ≥30 GB disk. Not the ffmpeg path-demo.",
       "task_types": [
         "text-to-video",
         "video-generation",
@@ -2803,8 +2827,8 @@
           "mps"
         ],
         "requires_cuda": false,
-        "label": "Apple Silicon MLX Q4 \u00b7 --low-ram \u00b7 ~27 GB disk",
-        "memory_note": "32 GB unified recommended; close other apps; 512p / 2\u20133 s"
+        "label": "Apple Silicon MLX Q4 · --low-ram · ~27 GB disk",
+        "memory_note": "32 GB unified recommended; close other apps; 512p / 2–3 s"
       }
     },
     {
@@ -2894,8 +2918,8 @@
           "cpu"
         ],
         "requires_cuda": false,
-        "label": "Apple Silicon / CPU \u00b7 stub \u00b7 ~0 GB install",
-        "memory_note": "Stub only \u2014 no model weights; needs ffmpeg on PATH"
+        "label": "Apple Silicon / CPU · stub · ~0 GB install",
+        "memory_note": "Stub only — no model weights; needs ffmpeg on PATH"
       }
     },
     {
@@ -2903,7 +2927,7 @@
       "status": "published",
       "trust": "verified",
       "name": "LTX 2.5",
-      "description": "Open-weight Lightricks LTX-2.5 joint video+audio (HF). Public weights for GenerateVideo. CUDA Comfy path ~32 GB+ VRAM / 100 GB+ disk; Apple Silicon via community MLX packs (large unified memory). Runner wiring TBD \u2014 install is catalog/stub until Real path lands.",
+      "description": "Open-weight Lightricks LTX-2.5 joint video+audio (HF). Public weights for GenerateVideo. CUDA Comfy path ~32 GB+ VRAM / 100 GB+ disk; Apple Silicon via community MLX packs (large unified memory). Runner wiring TBD — install is catalog/stub until Real path lands.",
       "task_types": [
         "text-to-video",
         "video-generation",
@@ -2928,7 +2952,7 @@
         "commercial_ok": false,
         "attribution_required": true,
         "confidence": 0.85,
-        "notes": "LTX-2.x Community License \u2014 free below US$10M annual revenue; larger orgs need a paid license. Confirm current Lightricks card."
+        "notes": "LTX-2.x Community License — free below US$10M annual revenue; larger orgs need a paid license. Confirm current Lightricks card."
       },
       "vram_gb_estimate": 32,
       "download_size_mb_estimate": 75000,
@@ -2951,7 +2975,7 @@
           "mps"
         ],
         "requires_cuda": false,
-        "label": "CUDA 32 GB+ / Apple MLX (large RAM) \u00b7 ~75 GB disk",
+        "label": "CUDA 32 GB+ / Apple MLX (large RAM) · ~75 GB disk",
         "memory_note": "~32 GB+ VRAM CUDA or high unified memory MLX; int8 packs smaller but still large"
       }
     },
@@ -2960,7 +2984,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Wan 2.2 TI2V-5B",
-      "description": "Alibaba Wan 2.2 text/image-to-video 5B (Apache-2.0, HF Wan-AI). Public local weights for GenerateVideo. Official single-GPU path ~24 GB VRAM; Mac MLX community ports need high unified memory (~32\u201364 GB class). Not Wan 3.0 (API-only).",
+      "description": "Alibaba Wan 2.2 text/image-to-video 5B (Apache-2.0, HF Wan-AI). Public local weights for GenerateVideo. Official single-GPU path ~24 GB VRAM; Mac MLX community ports need high unified memory (~32–64 GB class). Not Wan 3.0 (API-only).",
       "task_types": [
         "text-to-video",
         "video-generation",
@@ -3008,8 +3032,8 @@
           "mps"
         ],
         "requires_cuda": false,
-        "label": "CUDA ~24 GB / Apple MLX (high RAM) \u00b7 ~34 GB disk",
-        "memory_note": "~24 GB VRAM CUDA; Mac MLX often needs 32\u201364 GB unified memory"
+        "label": "CUDA ~24 GB / Apple MLX (high RAM) · ~34 GB disk",
+        "memory_note": "~24 GB VRAM CUDA; Mac MLX often needs 32–64 GB unified memory"
       }
     },
     {
@@ -3017,7 +3041,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Wan Animate 2",
-      "description": "Open-weight Wan-Animate-2 character animation (Apache-2.0, HF). Driving video + reference image \u2192 character motion. Public weights; multi-GPU recipes are heavy. Browse under video / animate; GenerateVideo-compatible catalog entry until a dedicated animate node ships.",
+      "description": "Open-weight Wan-Animate-2 character animation (Apache-2.0, HF). Driving video + reference image → character motion. Public weights; multi-GPU recipes are heavy. Browse under video / animate; GenerateVideo-compatible catalog entry until a dedicated animate node ships.",
       "task_types": [
         "character-animation",
         "video-generation",
@@ -3059,7 +3083,7 @@
           "cuda"
         ],
         "requires_cuda": true,
-        "label": "CUDA required \u00b7 multi-GPU class \u00b7 ~28 GB disk",
+        "label": "CUDA required · multi-GPU class · ~28 GB disk",
         "memory_note": "Official demos target multi-A800; not a Mac-min path"
       }
     },
@@ -3110,7 +3134,7 @@
           "cuda"
         ],
         "requires_cuda": true,
-        "label": "CUDA datacenter-class \u00b7 ~100 GB disk",
+        "label": "CUDA datacenter-class · ~100 GB disk",
         "memory_note": "Official SGLang reference is multi-GPU; not Apple Silicon"
       }
     },
@@ -3118,7 +3142,7 @@
       "id": "demucs-v4-objects",
       "status": "published",
       "trust": "verified",
-      "name": "Demucs v4 \u2192 Objects",
+      "name": "Demucs v4 → Objects",
       "description": "Stem separation mapped to spatial objects (aliases demucs-v4 weights).",
       "task_types": [
         "scene-to-objects",
@@ -3185,7 +3209,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Helix v0.7 FOA Upmix",
-      "description": "Neural mono/stereo \u2192 first-order Ambisonics (FOA WXYZ SN3D) with trajectory conditioning. Public weights: huggingface.co/soundsol/helix-v0.7 (CC BY 4.0). Stub path uses DSP FOA encode along authored XYZ.",
+      "description": "Neural mono/stereo → first-order Ambisonics (FOA WXYZ SN3D) with trajectory conditioning. Public weights: huggingface.co/soundsol/helix-v0.7 (CC BY 4.0). Stub path uses DSP FOA encode along authored XYZ.",
       "task_types": [
         "object-upmix",
         "ambisonic-upmix"
@@ -3213,7 +3237,7 @@
         "dev_stub": true
       },
       "similar_models": [],
-      "architecture_notes": "UNet1D + FiLM position conditioning \u2192 4ch FOA. Studio stub encodes mono along the TRAJECTORY XYZ path."
+      "architecture_notes": "UNet1D + FiLM position conditioning → 4ch FOA. Studio stub encodes mono along the TRAJECTORY XYZ path."
     },
     {
       "id": "dcase-seld-foa-multiaccdoa",
@@ -3251,14 +3275,14 @@
       "similar_models": [
         "object-placement-heuristic"
       ],
-      "architecture_notes": "CRNN + MHSA Multi-ACCDOA head \u2192 per-frame Cartesian XYZ. Stub uses intensity-vector DOA from W/X/Y/Z."
+      "architecture_notes": "CRNN + MHSA Multi-ACCDOA head → per-frame Cartesian XYZ. Stub uses intensity-vector DOA from W/X/Y/Z."
     },
     {
       "id": "stereo2spatial-v2-binaural",
       "status": "published",
       "trust": "verified",
       "name": "Stereo2Spatial v2 Binaural",
-      "description": "Neural stereo/mono \u2192 binaural headphones at 48 kHz (francislabounty/stereo2spatial-v2-binaural, Apache-2.0). SpatialDiT waveform flow (~1.1GB). Stub path (Inference=Stub or missing weights) uses Bauer crossfeed.",
+      "description": "Neural stereo/mono → binaural headphones at 48 kHz (francislabounty/stereo2spatial-v2-binaural, Apache-2.0). SpatialDiT waveform flow (~1.1GB). Stub path (Inference=Stub or missing weights) uses Bauer crossfeed.",
       "task_types": [
         "binaural-render",
         "object-render"
@@ -3321,7 +3345,7 @@
       "similar_models": [
         "hrtf-binaural-v0"
       ],
-      "architecture_notes": "SpatialDiT waveform \u2192 2ch binaural FL/FR. Install pulls HF bundle; Inference=Stub keeps CI on crossfeed."
+      "architecture_notes": "SpatialDiT waveform → 2ch binaural FL/FR. Install pulls HF bundle; Inference=Stub keeps CI on crossfeed."
     },
     {
       "id": "hrtf-binaural-v0",
@@ -3366,7 +3390,7 @@
       "status": "published",
       "trust": "verified",
       "name": "Stereo2Spatial v1 (7.1.4)",
-      "description": "Neural stereo/mono \u2192 Dolby Atmos 7.1.4 bed (12ch) at 48 kHz (francislabounty/stereo2spatial-v1, Apache-2.0). SpatialDiT + EAR-VAE (~2.1GB). Stub path uses mid/side height bleed.",
+      "description": "Neural stereo/mono → Dolby Atmos 7.1.4 bed (12ch) at 48 kHz (francislabounty/stereo2spatial-v1, Apache-2.0). SpatialDiT + EAR-VAE (~2.1GB). Stub path uses mid/side height bleed.",
       "task_types": [
         "object-upmix",
         "channel-upmix"
@@ -3439,14 +3463,14 @@
         "stereo-atmos-bed-v0",
         "helix-v0.7"
       ],
-      "architecture_notes": "Legacy SpatialDiT + EAR-VAE \u2192 FL FR FC LFE BL BR SL SR TFL TFR TBL TBR. Preview via ChannelConvert\u2192stereo."
+      "architecture_notes": "Legacy SpatialDiT + EAR-VAE → FL FR FC LFE BL BR SL SR TFL TFR TBL TBR. Preview via ChannelConvert→stereo."
     },
     {
       "id": "stereo-atmos-bed-v0",
       "status": "published",
       "trust": "verified",
-      "name": "Stereo \u2192 Atmos Bed v0 (stub)",
-      "description": "Deterministic mid/side + height bleed \u2192 7.1.4. No applicable open neural model without attribution yet; stereo2spatial-v1 remains optional (Apache-2.0).",
+      "name": "Stereo → Atmos Bed v0 (stub)",
+      "description": "Deterministic mid/side + height bleed → 7.1.4. No applicable open neural model without attribution yet; stereo2spatial-v1 remains optional (Apache-2.0).",
       "task_types": [
         "object-upmix",
         "channel-upmix"
@@ -3590,7 +3614,7 @@
       "status": "published",
       "trust": "verified",
       "name": "SeamlessM4T v2 Large",
-      "description": "Speech-to-speech translation for language localization (facebook/seamless-m4t-v2-large). Source dialogue \u2192 target-language speech. CC-BY-NC \u2014 non-commercial; attribution required. First Real download is multi\u2011GB.",
+      "description": "Speech-to-speech translation for language localization (facebook/seamless-m4t-v2-large). Source dialogue → target-language speech. CC-BY-NC — non-commercial; attribution required. First Real download is multi‑GB.",
       "task_types": [
         "speech-translation",
         "localization",
@@ -3660,10 +3684,10 @@
           "default": 0,
           "min": 0,
           "max": 199,
-          "description": "Vocoder speaker id (0\u2013199). Not source-voice clone; try other IDs if gender/timbre is off. No official gender map from Meta."
+          "description": "Vocoder speaker id (0–199). Not source-voice clone; try other IDs if gender/timbre is off. No official gender map from Meta."
         }
       ],
-      "architecture_notes": "SeamlessM4T v2: speech \u2192 multilingual encoder \u2192 speech decoder (S2ST) for localization.",
+      "architecture_notes": "SeamlessM4T v2: speech → multilingual encoder → speech decoder (S2ST) for localization.",
       "internal_connections": [
         {
           "from": "source speech",
@@ -3688,7 +3712,7 @@
       "status": "published",
       "trust": "verified",
       "name": "M2M100 418M",
-      "description": "Many-to-many text translation across ~100 languages (facebook/m2m100_418M). MIT \u2014 commercial OK. Mac-friendly default for TranslateText after Whisper.",
+      "description": "Many-to-many text translation across ~100 languages (facebook/m2m100_418M). MIT — commercial OK. Mac-friendly default for TranslateText after Whisper.",
       "task_types": [
         "text-translation",
         "localization"
@@ -3740,16 +3764,16 @@
           "name": "src_lang",
           "type": "STRING",
           "default": "en",
-          "description": "Source language (ISO 639-1: en, es, fr, \u2026)."
+          "description": "Source language (ISO 639-1: en, es, fr, …)."
         },
         {
           "name": "tgt_lang",
           "type": "STRING",
           "default": "zh",
-          "description": "Target language (ISO 639-1: zh, en, es, fr, \u2026)."
+          "description": "Target language (ISO 639-1: zh, en, es, fr, …)."
         }
       ],
-      "architecture_notes": "M2M100 encoder-decoder: source text + forced_bos target lang id \u2192 translated text.",
+      "architecture_notes": "M2M100 encoder-decoder: source text + forced_bos target lang id → translated text.",
       "internal_connections": [
         {
           "from": "source text",
@@ -3778,7 +3802,7 @@
       "status": "published",
       "trust": "verified",
       "name": "MADLAD-400 3B MT",
-      "description": "Broad multilingual text translation (google/madlad400-3b-mt), 400+ languages. Apache-2.0 \u2014 commercial OK. Heavier than M2M100; better coverage.",
+      "description": "Broad multilingual text translation (google/madlad400-3b-mt), 400+ languages. Apache-2.0 — commercial OK. Heavier than M2M100; better coverage.",
       "task_types": [
         "text-translation",
         "localization"
@@ -3840,7 +3864,7 @@
           "name": "tgt_lang",
           "type": "STRING",
           "default": "zh",
-          "description": "Target language (ISO 639-1: zh, en, es, fr, \u2026) applied as <2xx> prefix."
+          "description": "Target language (ISO 639-1: zh, en, es, fr, …) applied as <2xx> prefix."
         }
       ],
       "architecture_notes": "T5-style MADLAD: prepend <2xx> target code to source text, then generate translation.",
@@ -3871,8 +3895,8 @@
       "id": "opus-mt-en-es",
       "status": "published",
       "trust": "verified",
-      "name": "Opus-MT EN\u2192ES",
-      "description": "Fast English\u2192Spanish text translation (Helsinki-NLP/opus-mt-en-es). CC-BY-4.0 \u2014 commercial OK with attribution. Fixed language pair.",
+      "name": "Opus-MT EN→ES",
+      "description": "Fast English→Spanish text translation (Helsinki-NLP/opus-mt-en-es). CC-BY-4.0 — commercial OK with attribution. Fixed language pair.",
       "task_types": [
         "text-translation",
         "localization"
@@ -3929,16 +3953,16 @@
           "name": "src_lang",
           "type": "STRING",
           "default": "en",
-          "description": "Fixed EN\u2192ES model; src/tgt widgets are informational."
+          "description": "Fixed EN→ES model; src/tgt widgets are informational."
         },
         {
           "name": "tgt_lang",
           "type": "STRING",
           "default": "es",
-          "description": "Fixed EN\u2192ES model; src/tgt widgets are informational."
+          "description": "Fixed EN→ES model; src/tgt widgets are informational."
         }
       ],
-      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng\u2192spa).",
+      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng→spa).",
       "internal_connections": [
         {
           "from": "English text",
@@ -3966,8 +3990,8 @@
       "id": "opus-mt-en-fr",
       "status": "published",
       "trust": "verified",
-      "name": "Opus-MT EN\u2192FR",
-      "description": "Fast English\u2192French text translation (Helsinki-NLP/opus-mt-en-fr). CC-BY-4.0 \u2014 commercial OK with attribution. Fixed language pair.",
+      "name": "Opus-MT EN→FR",
+      "description": "Fast English→French text translation (Helsinki-NLP/opus-mt-en-fr). CC-BY-4.0 — commercial OK with attribution. Fixed language pair.",
       "task_types": [
         "text-translation",
         "localization"
@@ -4024,16 +4048,16 @@
           "name": "src_lang",
           "type": "STRING",
           "default": "en",
-          "description": "Fixed EN\u2192FR model; src/tgt widgets are informational."
+          "description": "Fixed EN→FR model; src/tgt widgets are informational."
         },
         {
           "name": "tgt_lang",
           "type": "STRING",
           "default": "fr",
-          "description": "Fixed EN\u2192FR model; src/tgt widgets are informational."
+          "description": "Fixed EN→FR model; src/tgt widgets are informational."
         }
       ],
-      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng\u2192fra).",
+      "architecture_notes": "Marian/Opus-MT transformer for a single language pair (eng→fra).",
       "internal_connections": [
         {
           "from": "English text",

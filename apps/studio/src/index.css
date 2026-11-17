@@ -1383,8 +1383,17 @@ body {
 }
 
 .side-panel--right.side-panel--open.side-panel--wide {
-  /* Room for A/B metrics tables, subgraph ports, settings, and license copy. */
+  /* Room for multi-param sliders, A/B metrics, subgraph ports, settings, licenses. */
   flex: 0 0 min(620px, 52vw);
+}
+
+/* Freeze width animation while rubber-band selecting so the canvas doesn't jump. */
+.side-panel--right.side-panel--open.side-panel--selection-busy {
+  transition: none;
+}
+
+.side-panel--right.side-panel--selection-busy .side-panel__body {
+  transition: none;
 }
 
 .side-panel__tab {
@@ -6093,21 +6102,68 @@ body {
 }
 
 .param-fader {
-  display: inline-flex;
-  flex-direction: column;
+  display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
   user-select: none;
+}
+
+.param-fader__bound {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 2px;
+  min-width: 4.5em;
+  max-width: 6.5em;
+  color: var(--text-muted);
+  line-height: 1.15;
+}
+
+.param-fader__bound--min {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.param-fader__bound--max {
+  text-align: left;
+  align-items: flex-start;
+}
+
+.param-fader__bound-tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.param-fader__bound-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.param-fader__bound-hint {
+  font-size: 9px;
+  line-height: 1.25;
+  color: var(--text-muted);
+  white-space: normal;
 }
 
 .param-fader__track {
   position: relative;
-  width: 18px;
-  height: 88px;
+  flex: 1 1 auto;
+  min-width: 72px;
+  height: 16px;
   border: 1px solid var(--border-silver);
   background: var(--bg-recessed);
-  cursor: ns-resize;
+  cursor: ew-resize;
   outline: none;
+  touch-action: none;
 }
 
 .param-fader__track:focus-visible {
@@ -6117,18 +6173,18 @@ body {
 .param-fader__fill {
   position: absolute;
   left: 0;
-  right: 0;
+  top: 0;
   bottom: 0;
   background: var(--accent-dim);
-  border-top: 1px solid var(--accent);
+  border-right: 1px solid var(--accent);
   pointer-events: none;
 }
 
 .param-fader__cap {
   position: absolute;
-  left: -3px;
-  right: -3px;
-  height: 10px;
+  top: -3px;
+  bottom: -3px;
+  width: 10px;
   background: #e8e8e8;
   border: 1px solid #fff;
   pointer-events: none;
@@ -6137,6 +6193,81 @@ body {
 .param-fader--disabled {
   opacity: 0.4;
   pointer-events: none;
+}
+
+.param-fader__value {
+  flex: 0 0 4.5em;
+  text-align: right;
+}
+
+.node-helper__seed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.node-helper__seed-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.node-helper__seed-row > input {
+  flex: 1 1 auto;
+  min-width: 4em;
+  text-align: center;
+}
+
+.node-helper__seed-bound {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 2px;
+  min-width: 4.5em;
+  max-width: 7em;
+  color: var(--text-muted);
+  line-height: 1.15;
+}
+
+.node-helper__seed-bound:first-child {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.node-helper__seed-bound:last-child {
+  text-align: left;
+  align-items: flex-start;
+}
+
+.node-helper__seed-bound-tag {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.node-helper__seed-bound-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.node-helper__seed-bound-hint {
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.node-helper__seed-explain {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-secondary);
 }
 
 .param-seg {
@@ -6234,7 +6365,15 @@ body {
 .node-helper__field:has(.param-switch),
 .node-helper__field:has(.param-seg),
 .node-helper__field:has(.param-stepped) {
-  gap: 8px;
+  gap: 6px;
+}
+
+/* Horizontal slider rows: label + hint stack above a full-width control. */
+.node-helper__field:has(.param-fader) > span:first-child {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  text-transform: none;
 }
 
 .model-browser-backdrop {

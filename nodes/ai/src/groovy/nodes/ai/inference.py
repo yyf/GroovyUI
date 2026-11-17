@@ -1035,6 +1035,9 @@ def run_midi_to_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
 
 
 def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
+    import time
+
+    from groovy.executor.generate_log import GenerateLogReport, probe_hardware
     from groovy.nodes.ai.model_params import float_param, int_param, optional_seed, seed_param
 
     model_id = str(kwargs.get("model", "musicgen-small"))
@@ -1044,82 +1047,130 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
     if kwargs.get("midi_id"):
         midi = cache.load_midi(str(kwargs["midi_id"]))
     ref_pcm = None
+    ref_sr = sample_rate
     if kwargs.get("audio_id"):
-        _, ref_pcm = cache.load_audio(str(kwargs["audio_id"]))
+        ref_buf, ref_pcm = cache.load_audio(str(kwargs["audio_id"]))
+        ref_sr = int(getattr(ref_buf, "sample_rate", None) or sample_rate)
+    guidance_scale = float_param(
+        kwargs,
+        "guidance_scale",
+        (
+            7.0
+            if model_id in ("stable-audio-open-1.0", "ace-step-1.5-sft")
+            else 1.0
+            if model_id
+            in (
+                "ace-step-1.5",
+                "ace-step-1.5-2b-turbo",
+                "stable-audio-open-small",
+                "stable-audio-3-small-music",
+                "stable-audio-3-small-sfx",
+            )
+            else 3.0
+        ),
+    )
+    seconds_total = float_param(
+        kwargs,
+        "seconds_total",
+        (
+            15.0
+            if model_id in ("ace-step-1.5", "ace-step-1.5-sft", "ace-step-1.5-2b-turbo")
+            else 8.0
+            if model_id
+            in (
+                "stable-audio-open-small",
+                "stable-audio-3-small-music",
+                "stable-audio-3-small-sfx",
+            )
+            else 10.0
+        ),
+    )
+    num_inference_steps = int_param(
+        kwargs,
+        "num_inference_steps",
+        (
+            50
+            if model_id == "ace-step-1.5-sft"
+            else 8
+            if model_id
+            in (
+                "ace-step-1.5",
+                "ace-step-1.5-2b-turbo",
+                "stable-audio-open-small",
+                "stable-audio-3-small-music",
+                "stable-audio-3-small-sfx",
+            )
+            else 100
+        ),
+    )
+    lyrics = str(kwargs.get("lyrics") or kwargs.get("lyrics_text") or "")
+    lora = str(kwargs.get("lora") or "").strip()
+    lora_scale = float_param(kwargs, "lora_scale", 1.0)
+    audio_cover_strength = float_param(kwargs, "audio_cover_strength", 0.92)
+    seed = optional_seed(kwargs)
+    stub_seed = seed_param(kwargs, fallback=f"{prompt}|{lora}|{lora_scale}")
+    t0 = time.perf_counter()
     pcm = generate_audio_waveform(
         prompt,
         sample_rate=sample_rate,
         model_id=model_id,
         midi=midi,
         reference_pcm=ref_pcm,
+        reference_sample_rate=ref_sr,
         max_new_tokens=int_param(kwargs, "max_new_tokens", 512),
-        guidance_scale=float_param(
-            kwargs,
-            "guidance_scale",
-            (
-                7.0
-                if model_id in ("stable-audio-open-1.0", "ace-step-1.5-sft")
-                else 1.0
-                if model_id
-                in (
-                    "ace-step-1.5",
-                    "ace-step-1.5-2b-turbo",
-                    "stable-audio-open-small",
-                    "stable-audio-3-small-music",
-                    "stable-audio-3-small-sfx",
-                )
-                else 3.0
-            ),
-        ),
+        guidance_scale=guidance_scale,
         temperature=float_param(kwargs, "temperature", 1.0),
-        seconds_total=float_param(
-            kwargs,
-            "seconds_total",
-            (
-                15.0
-                if model_id in ("ace-step-1.5", "ace-step-1.5-sft", "ace-step-1.5-2b-turbo")
-                else 8.0
-                if model_id
-                in (
-                    "stable-audio-open-small",
-                    "stable-audio-3-small-music",
-                    "stable-audio-3-small-sfx",
-                )
-                else 10.0
-            ),
-        ),
-        num_inference_steps=int_param(
-            kwargs,
-            "num_inference_steps",
-            (
-                50
-                if model_id == "ace-step-1.5-sft"
-                else 8
-                if model_id
-                in (
-                    "ace-step-1.5",
-                    "ace-step-1.5-2b-turbo",
-                    "stable-audio-open-small",
-                    "stable-audio-3-small-music",
-                    "stable-audio-3-small-sfx",
-                )
-                else 100
-            ),
-        ),
+        seconds_total=seconds_total,
+        num_inference_steps=num_inference_steps,
         negative_prompt=str(kwargs.get("negative_prompt") or "Low quality."),
-        # lyrics TEXT inlet (when wired) or lyrics_text / legacy lyrics STRING widget.
-        lyrics=str(kwargs.get("lyrics") or kwargs.get("lyrics_text") or ""),
-        lora=str(kwargs.get("lora") or "").strip(),
-        lora_scale=float_param(kwargs, "lora_scale", 1.0),
-        seed=optional_seed(kwargs),
-        stub_seed=seed_param(
-            kwargs,
-            fallback=f"{prompt}|{str(kwargs.get('lora') or '').strip()}|{float_param(kwargs, 'lora_scale', 1.0)}",
-        ),
+        lyrics=lyrics,
+        lora=lora,
+        lora_scale=lora_scale,
+        audio_cover_strength=audio_cover_strength,
+        seed=seed,
+        stub_seed=stub_seed,
     )
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
     out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="GenerateAudio")
     cache.write_audio(out_buffer, pcm)
-    return [{"type": "AUDIO", "cache_id": out_buffer.id}]
+    frames = int(pcm.shape[-1]) if getattr(pcm, "ndim", 0) >= 1 else 0
+    report = GenerateLogReport.create(
+        {
+            "node_type": "GenerateAudio",
+            "prompt": prompt,
+            "lyrics": lyrics or None,
+            "timing": {
+                "generate_ms": elapsed_ms,
+                "generate_s": round(elapsed_ms / 1000.0, 3),
+            },
+            "output": {
+                "media_type": "audio/pcm",
+                "cache_id": out_buffer.id,
+                "sample_rate": sample_rate,
+                "channels": int(pcm.shape[0]) if getattr(pcm, "ndim", 0) == 2 else 1,
+                "frames": frames,
+                "duration_s": round(frames / float(sample_rate), 3) if sample_rate else None,
+            },
+            "model_config": {
+                "model": model_id,
+                "seconds_total": seconds_total,
+                "num_inference_steps": num_inference_steps,
+                "guidance_scale": guidance_scale,
+                "audio_cover_strength": audio_cover_strength if ref_pcm is not None else None,
+                "lora": lora or None,
+                "lora_scale": lora_scale if lora else None,
+                "seed": seed if seed is not None else stub_seed,
+                "has_reference_audio": ref_pcm is not None,
+                "has_midi": midi is not None,
+            },
+            "hardware": probe_hardware(),
+        }
+    )
+    cache.write_generate_log(report)
+    return [
+        {"type": "AUDIO", "cache_id": out_buffer.id},
+        {"type": "GENERATE_LOG", "generate_log_id": report.id},
+    ]
 
 
 def run_generate_video(cache: CacheStore, kwargs: dict) -> list[dict]:
@@ -1570,6 +1621,7 @@ def generate_audio_waveform(
     model_id: str,
     midi: MidiBuffer | None = None,
     reference_pcm: np.ndarray | None = None,
+    reference_sample_rate: int | None = None,
     max_new_tokens: int = 512,
     guidance_scale: float = 3.0,
     temperature: float = 1.0,
@@ -1579,6 +1631,7 @@ def generate_audio_waveform(
     lyrics: str = "",
     lora: str = "",
     lora_scale: float = 1.0,
+    audio_cover_strength: float = 0.92,
     seed: int | None = None,
     stub_seed: int | None = None,
 ) -> np.ndarray:
@@ -1591,7 +1644,6 @@ def generate_audio_waveform(
         stable_audio_small_available,
     )
 
-    _ = reference_pcm
     effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
     if model_id == "musicgen-small":
         if musicgen_small_available() and not inference_stub_enabled():
@@ -1711,6 +1763,9 @@ def generate_audio_waveform(
             lora=lora,
             lora_scale=lora_scale,
             seed=seed,
+            reference_pcm=reference_pcm,
+            reference_sample_rate=reference_sample_rate or sample_rate,
+            audio_cover_strength=audio_cover_strength,
         )
 
     if inference_stub_enabled():

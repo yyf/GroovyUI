@@ -5,12 +5,22 @@ type Props = {
   label: string;
   open: boolean;
   onToggle: () => void;
-  /** Expand body width (Inspector Subgraph tab). */
+  /** Expand body width (multi-param Config, Subgraph, compare, settings). */
   wide?: boolean;
+  /** Freeze width transitions during canvas marquee select. */
+  selectionBusy?: boolean;
   children: ReactNode;
 };
 
-export default function SidePanel({ side, label, open, onToggle, wide = false, children }: Props) {
+export default function SidePanel({
+  side,
+  label,
+  open,
+  onToggle,
+  wide = false,
+  selectionBusy = false,
+  children,
+}: Props) {
   return (
     <aside
       className={[
@@ -18,6 +28,7 @@ export default function SidePanel({ side, label, open, onToggle, wide = false, c
         `side-panel--${side}`,
         open ? "side-panel--open" : "",
         open && wide ? "side-panel--wide" : "",
+        selectionBusy ? "side-panel--selection-busy" : "",
       ]
         .filter(Boolean)
         .join(" ")}
