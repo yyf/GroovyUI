@@ -2211,5 +2211,36 @@
     "widgets": [
       "model"
     ]
+  },
+  "TTS": {
+    "inputs": [
+      {
+        "name": "transcript",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "reference_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "text",
+      "language",
+      "voice",
+      "seed",
+      "reference_text"
+    ]
   }
 }

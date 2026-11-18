@@ -515,6 +515,23 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     ],
     links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "TEXT", 0, 1)],
   },
+  // TTS is the registered type on this branch; GenerateSpeech is the rename-in-progress alias.
+  TTS: {
+    title: "TTS",
+    description: "Synthesize speech from text (optional reference for cloning).",
+    focusNodeId: "n1",
+    nodes: [
+      {
+        id: "n1",
+        type: "TTS",
+        x: 0,
+        widgets: { text: "Hello from GroovyUI.", model: "kokoro-82m" },
+      },
+      { id: "n2", type: "Normalize", x: 260, widgets: { mode: "lufs", target_lufs: -16 } },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
+  },
   GenerateSpeech: {
     title: "Generate Speech",
     description: "Synthesize speech from text (optional reference for cloning).",

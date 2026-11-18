@@ -411,7 +411,7 @@ describe("nodeMinimalPatches", () => {
       const { workflow: next, changed } = augmentNodeWithExample(workflow, "n2", whisperSchema, patch);
       expect(changed).toBe(true);
       expect(next.nodes.some((node) => node.type === "LoadAudio")).toBe(true);
-      expect(next.nodes.some((node) => node.type === "GenerateSpeech")).toBe(false);
+      expect(next.nodes.some((node) => node.type === "TTS")).toBe(false);
       expect(next.nodes.some((node) => node.type === "Preview")).toBe(false);
     });
 
@@ -469,6 +469,7 @@ describe("nodeMinimalPatches", () => {
 
     it("curates examples for core / AI / modular Help targets", () => {
       for (const type of [
+        "TTS",
         "GenerateSpeech",
         "Prompt",
         "Oscillator",
