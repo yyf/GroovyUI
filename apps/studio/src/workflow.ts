@@ -2104,14 +2104,17 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
   let height = DEFAULT_NODE_SIZE.height;
   switch (node.type) {
     case "Note": {
-      width = 420;
       const text =
         typeof node.widgets.text === "string"
           ? node.widgets.text
           : String(node.widgets.text ?? "");
-      const lines = Math.max(3, text.split("\n").length);
+      const lines = text.split("\n");
+      const longest = lines.reduce((max, line) => Math.max(max, line.length), 0);
+      // Short A/B labels (~"A · Original") should not claim a 420px collision box.
+      width = Math.min(420, Math.max(140, Math.ceil(longest * 7.2) + 28));
+      const lineCount = Math.max(1, lines.length);
       // Match on-canvas Note chrome + readable guide height (see .groovy-node__note-text).
-      height = Math.min(420, 48 + lines * 16);
+      height = Math.min(420, 48 + Math.max(3, lineCount) * 16);
       break;
     }
     case "TrajectoryMonitor":

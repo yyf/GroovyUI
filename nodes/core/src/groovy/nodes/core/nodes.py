@@ -28,7 +28,9 @@ from groovy.executor.control import AutomationBuffer
 from groovy.executor.media_io import (
     mux_video_with_audio,
     probe_video_dimensions,
+    probe_video_duration_seconds,
     read_audio_pcm,
+    strip_audio_from_video,
     write_audio_ffmpeg,
     write_uses_ffmpeg,
 )
@@ -52,6 +54,8 @@ def register_all() -> None:
     _ = (
         LoadAudio,
         LoadImage,
+        LoadVideo,
+        SplitVideo,
         SaveAudio,
         MuxVideo,
         PreviewVideo,
@@ -151,6 +155,127 @@ class LoadImage(GroovyNode):
         )
         self._ctx.cache.write_image(clip)
         return (clip,)
+
+
+@register_node
+class LoadVideo(GroovyNode):
+    """Load a project-relative video file (mp4/mov/…) into a VIDEO clip."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_CLASS = "human_recorded"
+    RETURN_TYPES = ("VIDEO",)
+    OUTPUT_NAMES = ("video",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "path": (
+                    "STRING",
+                    {
+                        "default": "assets/samples/video480p.mov",
+                        "description": "Project-relative video (mp4/mov/webm/mkv).",
+                    },
+                ),
+            },
+            "optional": {},
+        }
+
+    def run(self, **kwargs) -> tuple[VideoClip]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        path = str(kwargs.get("path") or "").strip()
+        if not path:
+            raise ValueError("LoadVideo needs a project-relative video path.")
+        suffix = Path(path).suffix.lower()
+        if suffix not in {".mp4", ".mov", ".webm", ".mkv", ".m4v"}:
+            raise ValueError(f"LoadVideo expects mp4/mov/webm/mkv, got: {path}")
+        resolved, canonical_path = resolve_project_media_path(self._ctx.cache, path)
+        if not resolved.is_file():
+            raise FileNotFoundError(f"Video not found: {canonical_path}")
+        dims = probe_video_dimensions(resolved)
+        clip = VideoClip.create(
+            canonical_path,
+            source_node_type="LoadVideo",
+            source_video_path=canonical_path,
+            width=dims[0] if dims else None,
+            height=dims[1] if dims else None,
+        )
+        self._ctx.cache.write_video(clip)
+        return (clip,)
+
+
+@register_node
+class SplitVideo(GroovyNode):
+    """Split a VIDEO into a silent video stream and its original AUDIO track."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ("VIDEO", "AUDIO")
+    OUTPUT_NAMES = ("video", "audio")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"video": ("VIDEO",)},
+            "optional": {},
+        }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [
+            {"name": name, "type": typ} for name, typ in zip(cls.OUTPUT_NAMES, cls.RETURN_TYPES)
+        ]
+        return schema
+
+    def run(self, **kwargs) -> tuple[VideoClip, AudioBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        video_in = kwargs.get("video")
+        if not isinstance(video_in, VideoClip):
+            raise TypeError("SplitVideo needs VIDEO input (wire LoadVideo / GenerateVideo).")
+        if not video_in.path:
+            raise ValueError("SplitVideo needs a VIDEO clip with an on-disk path.")
+        resolved = self._ctx.cache.resolve_project_path(video_in.path)
+        if not resolved.is_file():
+            raise FileNotFoundError(f"VIDEO clip missing on disk: {video_in.path}")
+
+        silent = VideoClip.create(
+            "",
+            source_node_type="SplitVideo",
+            source_video_path=video_in.source_video_path or video_in.path,
+            width=video_in.width,
+            height=video_in.height,
+        )
+        dest = self._ctx.cache.cache_dir / f"{silent.id}-silent.mp4"
+        strip_audio_from_video(resolved, dest)
+        dims = probe_video_dimensions(dest) or probe_video_dimensions(resolved)
+        if dims:
+            silent.width, silent.height = dims
+        silent.path = str(dest.relative_to(self._ctx.cache.project_dir)).replace("\\", "/")
+        self._ctx.cache.write_video(silent)
+
+        try:
+            pcm, sample_rate = read_audio_pcm(resolved)
+        except Exception:
+            # Silent source: emit matching-length zeros so rescore graphs still run.
+            duration = probe_video_duration_seconds(resolved) or 1.0
+            sample_rate = 48_000
+            frames = max(1, int(round(float(duration) * sample_rate)))
+            pcm = np.zeros((1, frames), dtype=np.float64)
+
+        audio = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="SplitVideo")
+        self._ctx.cache.write_audio(audio, pcm)
+        return (silent, audio)
 
 
 @register_node
@@ -448,7 +573,7 @@ class SaveAudio(GroovyNode):
 
 @register_node
 class MuxVideo(GroovyNode):
-    """Mux a source video file with generated AUDIO into a playable VIDEO clip (mp4)."""
+    """Mux a source VIDEO (or path) with generated AUDIO into a playable VIDEO clip (mp4)."""
 
     CATEGORY = "GroovyUI/Core"
     EXPORT_TIER = "STUDIO_ONLY"
@@ -464,15 +589,20 @@ class MuxVideo(GroovyNode):
         return {
             "required": {
                 "audio": ("AUDIO",),
+            },
+            "optional": {
+                "video": ("VIDEO",),
                 "path": (
                     "STRING",
                     {
                         "default": "assets/samples/video480p.mov",
-                        "description": "Project-relative source video (video stream is copied; audio is replaced).",
+                        "description": (
+                            "Project-relative source video when the video inlet is unwired "
+                            "(video stream is copied; audio is replaced)."
+                        ),
                     },
                 ),
             },
-            "optional": {},
         }
 
     def run(self, **kwargs) -> tuple[VideoClip]:
@@ -480,11 +610,20 @@ class MuxVideo(GroovyNode):
             raise RuntimeError("Node context not bound")
         audio_in = kwargs.get("audio")
         if not isinstance(audio_in, AudioBuffer):
-            raise TypeError("MuxVideo needs AUDIO input (e.g. from Video2Audio).")
+            raise TypeError("MuxVideo needs AUDIO input (e.g. from GenerateAudio / Video2Audio).")
+        video_in = kwargs.get("video")
         path = str(kwargs.get("path") or "").strip()
-        if not path:
-            raise ValueError("MuxVideo needs a source video path.")
-        resolved, canonical = resolve_project_media_path(self._ctx.cache, path)
+        if isinstance(video_in, VideoClip) and video_in.path:
+            resolved = self._ctx.cache.resolve_project_path(video_in.path)
+            if not resolved.is_file():
+                raise FileNotFoundError(f"VIDEO clip missing on disk: {video_in.path}")
+            canonical = video_in.source_video_path or video_in.path
+        elif path:
+            resolved, canonical = resolve_project_media_path(self._ctx.cache, path)
+        else:
+            raise ValueError(
+                "MuxVideo needs a VIDEO inlet (e.g. SplitVideo silent out) or a source path."
+            )
         _, pcm = self._ctx.cache.load_audio(audio_in.id)
         clip = VideoClip.create(
             "",

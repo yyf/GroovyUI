@@ -129,7 +129,10 @@
       <a href="https://youtu.be/-65IzOqKUU8"><img src="https://img.youtube.com/vi/-65IzOqKUU8/hqdefault.jpg" alt="GroovyUI template — video generation with LTX 2.3 Q4 (MLX Mac)" width="440" /></a><br />
       <sub>GroovyUI template — video generation with LTX 2.3 Q4 (MLX Mac)</sub>
     </td>
-    <td align="center" width="50%"></td>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/Gu3cCK1T2Ys"><img src="https://img.youtube.com/vi/Gu3cCK1T2Ys/hqdefault.jpg" alt="GroovyUI pack — Rescore Video" width="440" /></a><br />
+      <sub>GroovyUI pack — Rescore Video</sub>
+    </td>
   </tr>
 </table>
 

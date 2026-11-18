@@ -32,9 +32,12 @@ describe("resolveWidgetControl", () => {
     expect(fromSchema.options).toEqual(["lowpass", "highpass"]);
   });
 
-  it("maps gains to faders and most floats to pots", () => {
+  it("maps gains and floats to faders", () => {
     expect(resolveWidgetControl({ name: "gain_a", type: "FLOAT", default: 1 }).kind).toBe("fader");
-    expect(resolveWidgetControl({ name: "target_lufs", type: "FLOAT", default: -16 }).kind).toBe("pot");
+    const lufs = resolveWidgetControl({ name: "target_lufs", type: "FLOAT", default: -16 });
+    expect(lufs.kind).toBe("fader");
+    expect(lufs.min).toBe(-40);
+    expect(lufs.max).toBe(0);
   });
 
   it("maps sample rate to stepped options", () => {

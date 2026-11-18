@@ -24,6 +24,10 @@ type NumericProps = BaseProps & {
   showValue?: boolean;
   /** Accessible name for the dial (defaults to formatted value). */
   ariaLabel?: string;
+  /** Plain-language meaning of the lower bound (Inspector faders). */
+  minHint?: string;
+  /** Plain-language meaning of the upper bound (Inspector faders). */
+  maxHint?: string;
 };
 
 function useDragValue({
@@ -231,18 +235,28 @@ export function ParamPot({
   );
 }
 
-/** Vertical fader — modular-synth style. */
-export function ParamFader({ value, min, max, step, isInt = false, onChange, disabled }: NumericProps) {
+/** Horizontal slider — label-friendly overview in the Inspector. */
+export function ParamFader({
+  value,
+  min,
+  max,
+  step,
+  isInt = false,
+  onChange,
+  disabled,
+  minHint = "lower",
+  maxHint = "higher",
+}: NumericProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const span = Math.max(1e-9, max - min);
   const t = Math.min(1, Math.max(0, (value - min) / span));
 
-  const setFromClientY = useCallback(
-    (clientY: number) => {
+  const setFromClientX = useCallback(
+    (clientX: number) => {
       const el = trackRef.current;
       if (!el || disabled) return;
       const rect = el.getBoundingClientRect();
-      const ratio = 1 - Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / Math.max(1, rect.width)));
       onChange(snapToStep(min + ratio * span, min, max, step));
     },
     [disabled, min, max, step, span, onChange],
@@ -252,22 +266,34 @@ export function ParamFader({ value, min, max, step, isInt = false, onChange, dis
     (e: ReactPointerEvent) => {
       if (disabled) return;
       e.preventDefault();
+      e.stopPropagation();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      setFromClientY(e.clientY);
+      setFromClientX(e.clientX);
     },
-    [disabled, setFromClientY],
+    [disabled, setFromClientX],
   );
 
   const onPointerMove = useCallback(
     (e: ReactPointerEvent) => {
       if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-      setFromClientY(e.clientY);
+      setFromClientX(e.clientX);
     },
-    [setFromClientY],
+    [setFromClientX],
   );
+
+  const minLabel = formatControlValue(min, step, isInt);
+  const maxLabel = formatControlValue(max, step, isInt);
 
   return (
     <div className={`param-fader${disabled ? " param-fader--disabled" : ""}`}>
+      <div
+        className="param-fader__bound param-fader__bound--min"
+        title={`Minimum ${minLabel}: ${minHint}`}
+      >
+        <span className="param-fader__bound-tag">Min</span>
+        <span className="param-fader__bound-value">{minLabel}</span>
+        <span className="param-fader__bound-hint">{minHint}</span>
+      </div>
       <div
         ref={trackRef}
         className="param-fader__track"
@@ -276,6 +302,7 @@ export function ParamFader({ value, min, max, step, isInt = false, onChange, dis
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={value}
+        aria-label={`Value between ${minLabel} (${minHint}) and ${maxLabel} (${maxHint})`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={(e) => {
@@ -296,8 +323,16 @@ export function ParamFader({ value, min, max, step, isInt = false, onChange, dis
           }
         }}
       >
-        <span className="param-fader__fill" style={{ height: `${t * 100}%` }} />
-        <span className="param-fader__cap" style={{ bottom: `calc(${t * 100}% - 5px)` }} />
+        <span className="param-fader__fill" style={{ width: `${t * 100}%` }} />
+        <span className="param-fader__cap" style={{ left: `calc(${t * 100}% - 5px)` }} />
+      </div>
+      <div
+        className="param-fader__bound param-fader__bound--max"
+        title={`Maximum ${maxLabel}: ${maxHint}`}
+      >
+        <span className="param-fader__bound-tag">Max</span>
+        <span className="param-fader__bound-value">{maxLabel}</span>
+        <span className="param-fader__bound-hint">{maxHint}</span>
       </div>
       <ParamValueField
         className="param-fader__value"

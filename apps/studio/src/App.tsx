@@ -60,7 +60,6 @@ import FlowViewportBridge from "./components/FlowViewportBridge";
 import FitAllControl from "./components/FitAllControl";
 import GridControl from "./components/GridControl";
 import CanvasZoomGrid, { CANVAS_GRID_GAP, snapFlowPosition } from "./components/CanvasZoomGrid";
-import SampleAccuracyBadge from "./components/SampleAccuracyBadge";
 import CanvasNodeFinder from "./components/CanvasNodeFinder";
 import CanvasNodePicker from "./components/CanvasNodePicker";
 import { sanitizePlanWorkflowModels } from "./planModelSanitize";
@@ -240,6 +239,10 @@ export default function App() {
   const [inspectorStudioSettings, setInspectorStudioSettings] = useState(false);
   const [inspectorTemplateLicenses, setInspectorTemplateLicenses] = useState(false);
   const [inspectorWide, setInspectorWide] = useState(false);
+  /** Rubber-band select in progress — defer Inspector open/width so the canvas doesn't jump. */
+  const [selectionBusy, setSelectionBusy] = useState(false);
+  const wideAtSelectionStartRef = useRef(false);
+  const openInspectorAfterSelectionRef = useRef(false);
   const [workflowBarOpen, setWorkflowBarOpen] = useState(true);
   const [generateOpenNonce, setGenerateOpenNonce] = useState(0);
   const [creativeSession, setCreativeSession] = useState<CreativeTabSession | null>(null);
@@ -451,30 +454,6 @@ export default function App() {
     [flowEdges, selectedEdgeId, creativeGhosts.edges],
   );
 
-  const sampleAccuracyNote = useMemo(() => {
-    if (!workflow?.nodes?.length) return null;
-    const nondet = workflow.nodes.filter((node) => {
-      const schema = nodeSchemas[node.type];
-      if (schema?.deterministic === false) return true;
-      return isAiNodeType(node.type, schema?.category);
-    });
-    if (nondet.length === 0) return null;
-    const generative = new Set([
-      "GenerateAudio",
-      "GenerateVideo",
-      "MIDIToAudio",
-      "TTS",
-      "SingFromMIDI",
-      "TimbreTransfer",
-      "Video2Audio",
-    ]);
-    const hasGenerative = nondet.some((node) => generative.has(node.type));
-    if (hasGenerative) {
-      return "Sample-accurate offline render · Play = cached PCM · Generative hops choose length/timbre (seed/hardware may vary)";
-    }
-    return "Sample-accurate offline render · Play = cached PCM · AI hops may vary by seed/hardware (not bit-identical)";
-  }, [workflow, nodeSchemas]);
-
   const displayNodes = useMemo(() => {
     let merged = mergeFlowNodes(nodes, flowNodes);
     const pending = pendingSelectionRef.current;
@@ -508,7 +487,10 @@ export default function App() {
       pasteCountRef.current = 0;
       // Always DAG-layout templates — authored positions often look fine with
       // underestimated footprints but TrajectoryMonitor / Note chrome overlaps.
-      const data = layoutWorkflowNodes(await fetchTemplate(templateId));
+      // Trust authored template positions. Wide Note footprints often false-trigger
+      // ensureNoOverlappingNodes → full DAG relayout and wipe curated layouts.
+      // Users can still ⌘⇧A to auto-arrange if something truly stacks.
+      const data = await fetchTemplate(templateId);
       resetHistory(normalizeLoadedWorkflow(data));
       setActiveTemplateId(templateId);
       setViewportFitKey((key) => key + 1);
@@ -924,10 +906,16 @@ export default function App() {
   useEffect(() => {
     // Rubber-band / node select clears wire selection. Skip this tick when the
     // user just clicked an edge (nodes are deselected in the same React cycle).
+    // During marquee, defer open until selection ends so flex width doesn't
+    // shift the canvas under the drag.
     if (selectedNodeIds.length > 0 && !selectedEdgeId) {
+      if (selectionBusy) {
+        openInspectorAfterSelectionRef.current = true;
+        return;
+      }
       openInspector();
     }
-  }, [selectedNodeIds, selectedEdgeId, openInspector]);
+  }, [selectedNodeIds, selectedEdgeId, openInspector, selectionBusy]);
 
   useEffect(() => {
     if (selectedEdgeId) openInspector();
@@ -1608,10 +1596,19 @@ export default function App() {
         setLastJob(null);
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "a") {
         if (nodes.length === 0) return;
         event.preventDefault();
         setNodes((current) => current.map((node) => ({ ...node, selected: true })));
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "a") {
+        if (!workflow || workflow.nodes.length === 0) return;
+        event.preventDefault();
+        const laid = layoutWorkflowNodes(workflow);
+        setWorkflow(laid);
+        setViewportFitKey((key) => key + 1);
+        setStatus("Auto-arranged nodes (⌘⇧A)");
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "c") {
@@ -2524,9 +2521,6 @@ export default function App() {
           >
             {dropHint ? <div className="canvas__drop-hint">Drop audio or image to load</div> : null}
             <FpsMeter />
-            {sampleAccuracyNote && !dropHint ? (
-              <SampleAccuracyBadge note={sampleAccuracyNote} />
-            ) : null}
             {creativeSession ? (
               <CreativeTabHud session={creativeSession} onDismiss={dismissCreativeSession} />
             ) : null}
@@ -2561,6 +2555,18 @@ export default function App() {
                     const edgeId = selectedFlowEdges[0]?.id ?? null;
                     if (edgeId) {
                       setSelectedEdgeId(edgeId);
+                    }
+                  }}
+                  onSelectionStart={() => {
+                    wideAtSelectionStartRef.current = inspectorWide;
+                    openInspectorAfterSelectionRef.current = false;
+                    setSelectionBusy(true);
+                  }}
+                  onSelectionEnd={() => {
+                    setSelectionBusy(false);
+                    if (openInspectorAfterSelectionRef.current) {
+                      openInspectorAfterSelectionRef.current = false;
+                      openInspector();
                     }
                   }}
                   onNodeClick={() => {
@@ -2691,7 +2697,8 @@ export default function App() {
               side="right"
               label="Inspector"
               open={helperOpen}
-              wide={inspectorWide}
+              wide={selectionBusy ? wideAtSelectionStartRef.current : inspectorWide}
+              selectionBusy={selectionBusy}
               onToggle={() => {
                 setHelperOpen((prev) => {
                   if (prev) setInspectorWide(false);
@@ -2717,11 +2724,12 @@ export default function App() {
                 compareMissingRender={compareMissingRender}
                 chainHops={chainHops}
                 onSelectCompareHop={focusCompareHop}
-                showCompare={selectedNodeIds.length === 2}
+                showCompare={selectedNodeIds.length === 2 && !selectionBusy}
                 onWidgetChange={updateWidget}
                 onDisconnectPort={disconnectPortCb}
                 onDeleteLink={deleteSelectedLink}
                 onSubgraphActiveChange={setInspectorWide}
+                selectionBusy={selectionBusy}
                 onBrowseModel={(nodeId, widget) => {
                   setModelPickTarget({ nodeId, widget });
                   openModelBrowser();

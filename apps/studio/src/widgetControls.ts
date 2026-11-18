@@ -1,4 +1,4 @@
-/** Map widget specs → industrial control chrome (pots / faders / switches). */
+/** Map widget specs → industrial control chrome (horizontal sliders / switches). */
 
 export type ControlKind = "text" | "switch" | "pot" | "fader" | "stepped";
 
@@ -160,16 +160,12 @@ export function resolveWidgetControl(spec: SpecLike): ResolvedControl {
         options: SAMPLE_RATES.map(String),
       };
     }
-    const range = intRange(spec);
-    const span = range.max - range.min;
-    const kind: ControlKind = span > 64 || /frame/.test(name.toLowerCase()) ? "fader" : "pot";
-    return { kind, ...range };
+    // Inspector uses horizontal sliders for all numeric ranges (clearer labels than knobs).
+    return { kind: "fader", ...intRange(spec) };
   }
 
   if (type === "FLOAT") {
-    const range = floatRange(spec);
-    const kind: ControlKind = FADER_NAMES.test(name) ? "fader" : "pot";
-    return { kind, ...range };
+    return { kind: "fader", ...floatRange(spec) };
   }
 
   return { kind: "text", min: 0, max: 0, step: 0 };

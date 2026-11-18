@@ -345,6 +345,47 @@ def _unload_lora(pipe: object) -> None:
             pass
 
 
+def _pcm_to_48k_planar(
+    reference_pcm: np.ndarray,
+    *,
+    reference_sample_rate: int,
+) -> np.ndarray:
+    """Resample/normalize planar PCM to float32 ``[channels, samples]`` @ 48 kHz."""
+    pcm = np.asarray(reference_pcm, dtype=np.float32)
+    if pcm.ndim == 1:
+        pcm = pcm.reshape(1, -1)
+    src_sr = int(reference_sample_rate) or NATIVE_SAMPLE_RATE
+    if src_sr != NATIVE_SAMPLE_RATE:
+        target_len = max(1, int(round(pcm.shape[-1] * NATIVE_SAMPLE_RATE / src_sr)))
+        pcm = np.stack(
+            [signal.resample(ch, target_len).astype(np.float32) for ch in pcm],
+            axis=0,
+        )
+    peak = float(np.max(np.abs(pcm))) if pcm.size else 0.0
+    if peak > 1.0:
+        pcm = pcm / peak
+    return np.ascontiguousarray(pcm)
+
+
+def _loop_pad_planar(pcm: np.ndarray, *, target_frames: int) -> np.ndarray:
+    """Tile planar PCM to at least ``target_frames``, then trim."""
+    if pcm.shape[-1] <= 0:
+        return np.zeros((pcm.shape[0], max(1, target_frames)), dtype=np.float32)
+    if pcm.shape[-1] >= target_frames:
+        return pcm[..., :target_frames]
+    reps = int(np.ceil(target_frames / pcm.shape[-1]))
+    return np.tile(pcm, (1, reps))[..., :target_frames]
+
+
+def _to_torch_audio(pcm: np.ndarray, *, device: str) -> object:
+    import torch
+
+    tensor = torch.from_numpy(np.ascontiguousarray(pcm.astype(np.float32)))
+    if device == "cuda" and torch.cuda.is_available():
+        return tensor.to("cuda")
+    return tensor
+
+
 def generate_from_text(
     prompt: str,
     *,
@@ -357,10 +398,11 @@ def generate_from_text(
     lora: str = "",
     lora_scale: float = 1.0,
     seed: int | None = None,
+    reference_pcm: np.ndarray | None = None,
+    reference_sample_rate: int | None = None,
+    audio_cover_strength: float = 0.92,
 ) -> np.ndarray:
     pipe, device = _load_pipeline(_hf_model_id(model_id))
-    # Model supports ~10s–10min; keep hero demos short.
-    duration = float(np.clip(seconds_total, 10.0, 120.0))
     generator = None
     if seed is not None and seed >= 0:
         import torch
@@ -368,20 +410,65 @@ def generate_from_text(
         gen_device = "cuda" if device == "cuda" else "cpu"
         generator = torch.Generator(device=gen_device).manual_seed(int(seed) % (2**63 - 1))
 
+    # Wired GenerateAudio.reference_audio → ACE-Step *cover*:
+    # src_audio = structure/melody latents; prompt (+ CFG) restyles instrument/genre.
+    # Do NOT also pass the same clip as Diffusers reference_audio — that locks timbre
+    # to the source and fights restyle prompts. Omit it so the pipeline uses
+    # silence_latent timbre + the text prompt.
+    # Match generation length to the source (no loop-pad / no 10s floor) so mux hears
+    # the full covered clip, not the intro of a longer unrelated bed.
+    src_pcm_48k: np.ndarray | None = None
+    source_frames_48k = 0
+    if reference_pcm is not None and np.asarray(reference_pcm).size:
+        src_pcm_48k = _pcm_to_48k_planar(
+            reference_pcm,
+            reference_sample_rate=int(reference_sample_rate or sample_rate or NATIVE_SAMPLE_RATE),
+        )
+        source_frames_48k = int(src_pcm_48k.shape[-1])
+
+    if src_pcm_48k is not None and source_frames_48k > 0:
+        source_duration = source_frames_48k / float(NATIVE_SAMPLE_RATE)
+        # Prefer source length; seconds_total may extend (never shorten below source).
+        gen_duration = float(np.clip(max(float(seconds_total), source_duration), 0.25, 120.0))
+        gen_frames = max(1, int(round(gen_duration * NATIVE_SAMPLE_RATE)))
+        if gen_frames > source_frames_48k:
+            src_for_model = _loop_pad_planar(src_pcm_48k, target_frames=gen_frames)
+        else:
+            src_for_model = src_pcm_48k[..., :gen_frames]
+        task_type = "cover"
+        duration = gen_duration
+        trim_frames_out = max(1, int(round(source_duration * float(sample_rate))))
+    else:
+        # Model supports ~10s–10min; keep hero demos short.
+        duration = float(np.clip(seconds_total, 10.0, 120.0))
+        task_type = "text2music"
+        src_for_model = None
+        trim_frames_out = None
+
     lora_id = (lora or "").strip()
     lora_loaded = False
     try:
         if lora_id:
             _load_lora(pipe, _resolve_lora_repo(lora_id), scale=lora_scale)
             lora_loaded = True
+        pipe_kwargs: dict = {
+            "lyrics": lyrics or "",
+            "audio_duration": duration,
+            "num_inference_steps": max(4, int(num_inference_steps)),
+            "guidance_scale": float(guidance_scale),
+            "generator": generator,
+            "task_type": task_type,
+        }
+        if src_for_model is not None:
+            src_tensor = _to_torch_audio(src_for_model, device=device)
+            pipe_kwargs["src_audio"] = src_tensor
+            # Diffusers: lower audio_cover_strength = more text2music (prompt) blend.
+            pipe_kwargs["audio_cover_strength"] = float(
+                np.clip(audio_cover_strength, 0.0, 1.0)
+            )
         result = pipe(
             prompt or "upbeat instrumental lo-fi beat",
-            lyrics=lyrics or "",
-            audio_duration=duration,
-            num_inference_steps=max(4, int(num_inference_steps)),
-            guidance_scale=float(guidance_scale),
-            generator=generator,
-            task_type="text2music",
+            **pipe_kwargs,
         )
         audio = result.audios[0]
         if hasattr(audio, "detach"):
@@ -397,6 +484,8 @@ def generate_from_text(
                 [signal.resample(ch, target_len).astype(np.float64) for ch in pcm],
                 axis=0,
             )
+        if trim_frames_out is not None:
+            pcm = pcm[..., : min(pcm.shape[-1], trim_frames_out)]
         peak = float(np.max(np.abs(pcm))) if pcm.size else 0.0
         if peak > 1.0:
             pcm = pcm / peak

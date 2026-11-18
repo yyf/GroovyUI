@@ -578,9 +578,21 @@ class GenerateAudio(GroovyNode):
                 "midi": ("MIDI",),
                 "reference_audio": ("AUDIO",),
                 "lyrics": ("TEXT",),
-                "prompt": ("STRING", {"default": ""}),
+                "prompt": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": "Style / sound prompt when the text inlet is unwired.",
+                    },
+                ),
                 # Local lyrics when the lyrics TEXT inlet is unwired (ACE-Step).
-                "lyrics_text": ("STRING", {"default": ""}),
+                "lyrics_text": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": "ACE-Step lyrics when the lyrics inlet is unwired; empty leans instrumental.",
+                    },
+                ),
                 # Optional LoRA / adapter registry id (ACE-Step first). Blank = base model only.
                 "lora": (
                     "STRING",
@@ -599,7 +611,29 @@ class GenerateAudio(GroovyNode):
                         "description": "LoRA strength (0 = base only, 1 = full adapter).",
                     },
                 ),
-                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+                "audio_cover_strength": (
+                    "FLOAT",
+                    {
+                        "default": 0.92,
+                        "min": 0.0,
+                        "max": 1.0,
+                        "step": 0.01,
+                        "description": (
+                            "ACE-Step cover only (needs reference_audio wired). "
+                            "1.0 = keep source identity; lower = more prompt style transfer. "
+                            "Ignored for text-only / non-ACE models."
+                        ),
+                    },
+                ),
+                "seed": (
+                    "INT",
+                    {
+                        "default": -1,
+                        "min": -1,
+                        "max": 2147483647,
+                        "description": "Random seed (−1 = random). Same seed + prompt → repeatable output.",
+                    },
+                ),
             },
         }
 
