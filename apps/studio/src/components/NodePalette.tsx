@@ -5,7 +5,7 @@ import { isNodeVisibleInStudio } from "../templateUi";
 
 type NodeTypeInfo = { type: string; category: string };
 
-type PaletteTier = "core" | "modular" | "all";
+type PaletteTier = "ai" | "core" | "modular" | "all";
 
 type GroupId =
   | "core-io"
@@ -25,9 +25,9 @@ type Props = {
   studioDevMode?: boolean;
 };
 
-const MODULAR_NODES = new Set([
+/** Control-rate + modular synth building blocks (shown in Modular / All tiers). */
+export const MODULAR_NODES = new Set([
   "LoadMIDI",
-  "Prompt",
   "SignalGenerator",
   "NoiseGenerator",
   "Oscillator",
@@ -41,16 +41,18 @@ const MODULAR_NODES = new Set([
   "Logic",
   "Comparator",
   "SampleAndHold",
-    "Quantizer",
+  "Quantizer",
   "Clock",
   "BeatTrack",
   "ControlCurve",
   "MIDIToFloat",
   "MIDINoteGate",
   "AutomationApply",
+  "AutomationToMIDI",
   "Float",
   "FloatMath",
   "FloatRoute",
+  "Granulate",
   "ModuleInlet",
   "ModuleOutlet",
 ]);
@@ -85,15 +87,19 @@ const HIDDEN_FROM_PALETTE = new Set([
 const CORE_IO = new Set([
   "LoadAudio",
   "LoadImage",
+  "SwitchImage",
   "SaveAudio",
+  "SaveImage",
   "SaveVideo",
   "SaveGenerateLog",
   "MuxVideo",
   "Preview",
+  "PreviewImage",
   "PreviewVideo",
   "Mix",
   "ChannelMerge",
   "Note",
+  "Prompt",
 ]);
 
 const AUTHENTICITY = new Set([
@@ -109,8 +115,9 @@ const CORE_DSP_EXTRA = new Set(["VerifySamples", "Meter"]);
 /** Create audio from text / MIDI / prompts (sources). */
 const AI_GENERATE = new Set([
   "GenerateAudio",
+  "GenerateImage",
+  "GenerateSpeech",
   "GenerateVideo",
-  "TTS",
   "MIDIToAudio",
   "SingFromMIDI",
   "Video2Audio",
@@ -132,18 +139,19 @@ const AI_TRANSFORM = new Set([
 const AI_ANALYZE = new Set(["WhisperSTT", "DiarizeTranscribe", "AudioToMIDI"]);
 
 const TIERS: Array<{ id: PaletteTier; label: string; description: string }> = [
-  { id: "core", label: "Core", description: "Essential I/O, processing, and AI exploration." },
-  { id: "modular", label: "Modular", description: "Control wires, MIDI, and automation." },
-  { id: "all", label: "All", description: "Core and modular nodes (immersive / live I/O / subgraph hidden)." },
+  { id: "ai", label: "AI", description: "Generate, transform, analyze, and authenticity nodes." },
+  { id: "core", label: "Core", description: "Essential I/O and processing." },
+  { id: "modular", label: "Modular", description: "Control wires, MIDI, and synth building blocks." },
+  { id: "all", label: "All", description: "AI, core, and modular (immersive / live I/O / subgraph hidden)." },
 ];
 
 const GROUP_ORDER: GroupId[] = [
-  "core-io",
-  "core-dsp",
   "ai-generate",
   "ai-transform",
   "ai-analyze",
   "authenticity",
+  "core-io",
+  "core-dsp",
   "control",
   "subgraph",
 ];
@@ -151,7 +159,7 @@ const GROUP_ORDER: GroupId[] = [
 const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteTier[] }> = {
   "core-io": {
     title: "I/O",
-    hint: "Load, save, mix, preview, notes",
+    hint: "Load, save, mix, preview, notes, prompts",
     tiers: ["core", "all"],
   },
   "core-dsp": {
@@ -160,24 +168,24 @@ const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteT
     tiers: ["core", "modular", "all"],
   },
   "ai-generate": {
-    title: "AI generate",
-    hint: "Text-to-audio, TTS, MIDI-conditioned synth",
-    tiers: ["core", "all"],
+    title: "Generate",
+    hint: "Text-to-audio, speech, MIDI-conditioned synth",
+    tiers: ["ai", "all"],
   },
   "ai-transform": {
-    title: "AI transform",
+    title: "Transform",
     hint: "Denoise, stems, voice convert",
-    tiers: ["core", "all"],
+    tiers: ["ai", "all"],
   },
   "ai-analyze": {
-    title: "AI analyze",
+    title: "Analyze",
     hint: "Speech-to-text, audio-to-MIDI",
-    tiers: ["core", "all"],
+    tiers: ["ai", "all"],
   },
   authenticity: {
     title: "Authenticity",
-    hint: "Provenance verify, deepfake check",
-    tiers: ["core", "all"],
+    hint: "Provenance verify, deepfake check, watermark",
+    tiers: ["ai", "all"],
   },
   control: {
     title: "Control & MIDI",
@@ -200,6 +208,10 @@ export function isPaletteVisible(node: NodeTypeInfo, studioDevMode = false): boo
 
 function tierForNode(node: NodeTypeInfo): PaletteTier[] {
   const tiers: PaletteTier[] = ["all"];
+  if (AUTHENTICITY.has(node.type) || node.category.includes("AI")) {
+    tiers.push("ai");
+    return tiers;
+  }
   // Oscillators / noise are both Core sources and Modular synth building blocks.
   if (node.type === "SignalGenerator" || node.type === "Oscillator" || node.type === "NoiseGenerator") {
     tiers.push("core", "modular");
@@ -209,16 +221,16 @@ function tierForNode(node: NodeTypeInfo): PaletteTier[] {
     tiers.push("core", "modular");
     return tiers;
   }
-  if (node.category.includes("Core") && !MODULAR_NODES.has(node.type)) {
-    tiers.push("core");
-  }
   if (MODULAR_NODES.has(node.type) || node.type.includes("MIDI") || node.type.includes("Automation")) {
     tiers.push("modular");
   }
   if (node.category.includes("Modular")) {
     tiers.push("modular");
   }
-  if (node.category.includes("AI")) {
+  if (node.category.includes("Core") && !MODULAR_NODES.has(node.type)) {
+    tiers.push("core");
+  }
+  if (CORE_IO.has(node.type) || CORE_DSP_EXTRA.has(node.type)) {
     tiers.push("core");
   }
   return tiers;
@@ -257,7 +269,7 @@ function paletteGroup(node: NodeTypeInfo): GroupId {
 
 export default function NodePalette({ onAddNode, catalog, studioDevMode = false }: Props) {
   const [fetched, setFetched] = useState<NodeTypeInfo[]>([]);
-  const [tier, setTier] = useState<PaletteTier>("core");
+  const [tier, setTier] = useState<PaletteTier>("ai");
 
   useEffect(() => {
     if (catalog && catalog.length > 0) return;

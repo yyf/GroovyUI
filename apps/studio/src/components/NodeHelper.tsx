@@ -65,6 +65,7 @@ import { resolveWidgetControl } from "../widgetControls";
 
 const GENERATIVE_NODE_TYPES = new Set([
   "GenerateAudio",
+  "GenerateImage",
   "GenerateVideo",
   "GenerateSpeech",
   "MIDIToAudio",
@@ -819,10 +820,24 @@ export default function NodeHelper({
                 ) : null}
               </>
             ) : null}
+            {node.type === "SaveImage" ? (
+              <>
+                <p className="node-helper__hint">
+                  Writes a still IMAGE under the project. Filename template:{" "}
+                  <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code>
+                  . A UTC timestamp is appended when rendered.
+                </p>
+                {output?.type === "STRING" && output.path && output.provenance_path ? (
+                  <SaveAudioExportPair output={output} onOpenCompliance={onOpenCompliance} />
+                ) : output?.type === "STRING" && output.path ? (
+                  <SavedFileReveal path={output.path} label="Saved still" />
+                ) : null}
+              </>
+            ) : null}
             {node.type === "SaveGenerateLog" ? (
               <>
                 <p className="node-helper__hint">
-                  Writes GenerateVideo run metadata (prompt, reference image, timing, output file,
+                  Writes GenerateVideo / GenerateImage run metadata (prompt, timing, output file,
                   model config, hardware) as JSON. Template:{" "}
                   <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code>
                   . A UTC timestamp is appended when rendered.
@@ -842,6 +857,7 @@ export default function NodeHelper({
             modelParamRows.length === 0 &&
             node.type !== "SaveAudio" &&
             node.type !== "SaveVideo" &&
+            node.type !== "SaveImage" &&
             node.type !== "SaveGenerateLog" ? (
               <p className="node-helper__hint">No configurable parameters.</p>
             ) : null}
@@ -1039,7 +1055,10 @@ export default function NodeHelper({
                             output={slotOutput}
                             socketType={socket.type}
                             onOpenCompliance={
-                              node.type === "SaveAudio" || socket.type === "AUTHENTICITY"
+                              node.type === "SaveAudio" ||
+                              node.type === "SaveVideo" ||
+                              node.type === "SaveImage" ||
+                              socket.type === "AUTHENTICITY"
                                 ? onOpenCompliance
                                 : undefined
                             }
@@ -2011,11 +2030,13 @@ function OutputSnapshot({
     } else if (socketType === "SAMPLE_CHECK" && output.type === "SAMPLE_CHECK") {
       // VerifySamples
     } else if (socketType === "GENERATE_LOG" && output.type === "GENERATE_LOG") {
-      // GenerateVideo.log
+      // GenerateVideo.log / GenerateImage.log
     } else if (socketType === "TRAJECTORY" && output.type === "TRAJECTORY") {
       // TrajectoryAuthor / AmbisonicTrajectoryExtract
     } else if (socketType === "VIDEO" && output.type === "VIDEO") {
       // MuxVideo / PreviewVideo
+    } else if (socketType === "IMAGE" && output.type === "IMAGE") {
+      // LoadImage / GenerateImage / PreviewImage / SwitchImage
     } else {
       return <p className="node-helper__hint">No render for this socket yet.</p>;
     }
@@ -2039,11 +2060,11 @@ function OutputSnapshot({
         output.generate_log_id ? (
           <p className="node-helper__hint">
             Run log cached (<code>{output.generate_log_id.slice(0, 8)}…</code>). Wire{" "}
-            <strong>SaveGenerateLog</strong> to export JSON (prompt, image, timing, output, config,
+            <strong>SaveGenerateLog</strong> to export JSON (prompt, timing, output, config,
             hardware).
           </p>
         ) : (
-          <p className="node-helper__hint">No generate log yet — render GenerateVideo.</p>
+          <p className="node-helper__hint">No generate log yet — render GenerateVideo / GenerateImage.</p>
         )
       ) : null}
       {output.type === "SAMPLE_CHECK" || socketType === "SAMPLE_CHECK" ? (
@@ -2087,6 +2108,22 @@ function OutputSnapshot({
             On-node play/scrub on PreviewVideo; Space still drives picture when transport has audio.
           </p>
           <SavedFileReveal path={output.path} label="Cached clip" />
+        </div>
+      ) : null}
+      {output.type === "IMAGE" && output.path ? (
+        <div className="node-helper__image-preview">
+          <img
+            key={output.path}
+            src={projectMediaUrl(output.path)}
+            alt=""
+            className="node-helper__image-player"
+          />
+          <p className="node-helper__hint">
+            Still preview after Render (on-node for GenerateImage / LoadImage / PreviewImage).{" "}
+            <code>flux-image</code> is a labeled path-demo gradient — Real Mac T2I is{" "}
+            <code>flux-klein-4b</code>.
+          </p>
+          <SavedFileReveal path={output.path} label="Cached still" />
         </div>
       ) : null}
       {output.type === "MIDI" && output.midi_id ? (
@@ -2446,7 +2483,7 @@ function splitFact(fact: string): { label: string; value: string } {
 }
 
 function widgetLabel(name: string, nodeType: string): string {
-  if (nodeType === "SaveAudio") {
+  if (nodeType === "SaveAudio" || nodeType === "SaveVideo" || nodeType === "SaveImage") {
     if (name === "path") return "Output folder";
     if (name === "filename") return "File name";
     if (name === "format") return "Format";
@@ -2848,7 +2885,7 @@ function sliderBoundHints(
     case "duration_sec":
       return { minHint: "shorter", maxHint: "longer" };
     default:
-      if (nodeType === "GenerateAudio" || nodeType === "GenerateVideo") {
+      if (nodeType === "GenerateAudio" || nodeType === "GenerateImage" || nodeType === "GenerateVideo") {
         return { minHint: "lower", maxHint: "higher" };
       }
       return { minHint: "lower", maxHint: "higher" };
@@ -2871,17 +2908,13 @@ function WidgetInput({
   if (nodeType === "LoadImage" && spec.name === "path") {
     return <LoadImagePathInput value={value} onChange={onChange} />;
   }
-  if (nodeType === "SaveAudio" && spec.name === "filename") {
-    return (
-      <SaveAudioFilenameInput
-        value={value}
-        onChange={onChange}
-        nodeWidgets={nodeWidgets}
-        onMultiWidgetChange={onMultiWidgetChange}
-      />
-    );
-  }
-  if (nodeType === "SaveGenerateLog" && spec.name === "filename") {
+  if (
+    (nodeType === "SaveAudio" ||
+      nodeType === "SaveVideo" ||
+      nodeType === "SaveImage" ||
+      nodeType === "SaveGenerateLog") &&
+    spec.name === "filename"
+  ) {
     return (
       <SaveAudioFilenameInput
         value={value}
@@ -2897,6 +2930,16 @@ function WidgetInput({
         value={value}
         onChange={onChange}
         accept=".json,application/json"
+        placeholder="exports"
+      />
+    );
+  }
+  if ((nodeType === "SaveVideo" || nodeType === "SaveImage") && spec.name === "path") {
+    return (
+      <ProjectMediaPathInput
+        value={value}
+        onChange={onChange}
+        accept={nodeType === "SaveImage" ? "image/*" : "video/*"}
         placeholder="exports"
       />
     );

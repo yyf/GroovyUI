@@ -7,13 +7,47 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
     "LoadImage": {
         "description": (
             "Optional still for GenerateVideo I2V. Leave path empty for text-only; "
-            "choose a file or drop an image onto the canvas when you want a reference."
+            "choose a file or drop an image onto the canvas when you want a reference. "
+            "Pair with GenerateImage via SwitchImage when you want load vs generate."
         ),
         "widgets": {
             "path": (
                 "Optional. Project-relative image under assets/samples or assets/uploads. "
                 "Empty keeps the I2V wire without using a reference."
             ),
+        },
+    },
+    "GenerateImage": {
+        "description": (
+            "Text-to-image for I2V / stills. Default flux-klein-4b (mflux Real on Mac); "
+            "flux-image is the zero-weight path demo. Wire IMAGE into SwitchImage or PreviewImage."
+        ),
+        "inputs": {"text": "Optional prompt TEXT (else use the prompt widget)."},
+        "outputs": {
+            "image": "Still IMAGE clip (PNG under project cache).",
+            "log": "GENERATE_LOG run metadata — wire SaveGenerateLog to export JSON.",
+        },
+        "widgets": {
+            "model": "Registry T2I model (flux-klein-4b Real, flux-image path demo).",
+            "prompt": "Fallback prompt when text inlet is unwired.",
+            "width": "Output width (keep 512 on 32 GB Macs).",
+            "height": "Output height (keep 512 on 32 GB Macs).",
+            "num_steps": "Sampling steps (klein turbo schedules are short).",
+            "seed": "RNG seed (−1 = derived).",
+        },
+    },
+    "SwitchImage": {
+        "description": (
+            "Pick between two IMAGE sources (LoadImage vs GenerateImage). "
+            "select=0 → a, select=1 → b."
+        ),
+        "inputs": {
+            "a": "First IMAGE (often LoadImage).",
+            "b": "Second IMAGE (often GenerateImage).",
+        },
+        "outputs": {"image": "Selected IMAGE passthrough."},
+        "widgets": {
+            "select": "0 = inlet a, 1 = inlet b.",
         },
     },
     "LoadAudio": {
@@ -66,14 +100,14 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "language": "ISO language code for Whisper.",
         },
     },
-    "TTS": {
+    "GenerateSpeech": {
         "description": "Synthesize speech from a text prompt using a TTS model. Wire reference_audio for zero-shot voice cloning (F5-TTS / GPT-SoVITS).",
         "inputs": {
             "transcript": "Optional TEXT wire; overrides the local text widget when connected.",
             "reference_audio": "Optional speaker reference clip for clone models (F5-TTS, GPT-SoVITS).",
         },
         "widgets": {
-            "model": "Text-to-speech model (Kokoro for plain TTS; F5-TTS / GPT-SoVITS for cloning).",
+            "model": "Text-to-speech model (Kokoro for plain speech; F5-TTS / GPT-SoVITS for cloning).",
             "text": "Script or prompt to speak.",
             "language": "ISO 639-1 for Kokoro (en, zh, es, fr, ja…). Mandarin = zh (needs misaki[zh]).",
             "voice": "Optional Kokoro voice id (e.g. zf_xiaobei). Empty = language default.",
@@ -314,10 +348,24 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "path": "Project-relative source video when the video inlet is unwired (video stream copied; audio replaced).",
         },
     },
+    "PreviewImage": {
+        "description": "Terminal sink for still IMAGE audition on canvas and in Node Helper.",
+        "inputs": {
+            "image": "IMAGE clip from LoadImage, GenerateImage, or SwitchImage upstream."
+        },
+    },
     "PreviewVideo": {
         "description": "Terminal sink for VIDEO audition in Node Helper (HTML5 video player).",
         "inputs": {
             "video": "VIDEO clip from GenerateVideo, MuxVideo, SplitVideo, or LoadVideo upstream."
+        },
+    },
+    "SaveImage": {
+        "description": "Copy an IMAGE clip into the project exports folder (PNG/JPEG/…).",
+        "inputs": {"image": "IMAGE clip to export (LoadImage / GenerateImage / PreviewImage)."},
+        "widgets": {
+            "path": "Folder under the project (e.g. exports).",
+            "filename": "Base file name; a UTC timestamp is appended when written.",
         },
     },
     "SaveVideo": {

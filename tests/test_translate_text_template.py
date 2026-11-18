@@ -88,7 +88,7 @@ def test_isolate_transcribe_translate_template_schema_and_stub_render(
     assert mt["widgets"]["model"] == "m2m100-418m"
     assert mt["widgets"]["src_lang"] == "en"
     assert mt["widgets"]["tgt_lang"] == "zh"
-    tts = next(node for node in data["nodes"] if node["type"] == "TTS")
+    tts = next(node for node in data["nodes"] if node["type"] == "GenerateSpeech")
     assert tts["widgets"]["model"] == "kokoro-82m"
     assert tts["widgets"]["language"] == "zh"
     assert tts["widgets"]["voice"] == "zf_xiaobei"

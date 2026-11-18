@@ -27,7 +27,8 @@ _SECONDS_PER_MINUTE: dict[str, tuple[int, int]] = {
     "DeepfakeDetect": (5, 45),
     "EmbedWatermark": (5, 45),
     "DetectWatermark": (5, 45),
-    "TTS": (5, 60),
+    "GenerateSpeech": (5, 60),
+    "TTS": (5, 60),  # legacy alias
     "MIDIToAudio": (30, 240),
     "GenerateAudio": (30, 240),
     "GenerateVideo": (60, 600),

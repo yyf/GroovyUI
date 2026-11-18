@@ -112,7 +112,7 @@ export function creativeTabPrompt(args: {
   return (
     "Grow this patch: suggest the next useful hops from the current canvas." +
     " Prefer additive explore steps; keep the graph minimal." +
-    " Prefer public type names: LoadAudio, Denoise, Normalize, Preview, SeparateStems, WhisperSTT, TTS, Mix, SaveAudio." +
+    " Prefer public type names: LoadAudio, Denoise, Normalize, Preview, SeparateStems, WhisperSTT, GenerateSpeech, Mix, SaveAudio." +
     layout +
     focus
   );
@@ -276,7 +276,7 @@ export function parallelBranchRanks(count: number): number[] {
  * Score 0 = stay on the growing signal lane (Denoise, Normalize, Mix, …).
  */
 function parallelSortScore(type: string): number {
-  if (type === "Preview" || type === "PreviewVideo") return -1;
+  if (type === "Preview" || type === "PreviewImage" || type === "PreviewVideo") return -1;
   if (type === "SaveAudio") return 1;
   return 0;
 }

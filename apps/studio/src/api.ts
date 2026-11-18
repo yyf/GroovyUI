@@ -258,8 +258,8 @@ export async function clearRenderCache(): Promise<{ status: string; removed: num
   return res.json();
 }
 
-export async function importComfyWorkflow(
-  comfyJson: Record<string, unknown>,
+export async function importExternalGraph(
+  graphJson: Record<string, unknown>,
   title?: string,
 ): Promise<{
   workflow: Workflow;
@@ -267,13 +267,13 @@ export async function importComfyWorkflow(
   validation: { valid: boolean };
   missing_models: import("./types").MissingWorkflowModel[];
 }> {
-  const res = await fetch(`${API}/api/workflow/import/comfy`, {
+  const res = await fetch(`${API}/api/workflow/import/external`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ workflow: comfyJson, title }),
+    body: JSON.stringify({ workflow: graphJson, title }),
   });
   if (!res.ok) {
-    throw new Error(`ComfyUI import failed (${res.status})`);
+    throw new Error(`External graph import failed (${res.status})`);
   }
   return res.json();
 }

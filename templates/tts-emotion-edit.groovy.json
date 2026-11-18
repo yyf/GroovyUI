@@ -46,7 +46,7 @@
     },
     {
       "id": "n2",
-      "type": "TTS",
+      "type": "GenerateSpeech",
       "pos": {
         "x": 260,
         "y": 160.0

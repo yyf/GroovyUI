@@ -196,33 +196,71 @@ export const STANDARD_MODE_NODE_TYPES = [
   "DetectWatermark",
   "EmbedWatermark",
   "GenerateAudio",
+  "GenerateImage",
+  "GenerateSpeech",
   "GenerateVideo",
   "Granulate",
+  "SwitchImage",
   "LoadAudio",
   "LoadImage",
   "MuxVideo",
   "Normalize",
   "Note",
   "Preview",
+  "PreviewImage",
   "PreviewVideo",
   "Prompt",
   "SaveAudio",
   "SaveGenerateLog",
+  "SaveImage",
   "SaveVideo",
   "SeparateStems",
   "TranslateText",
-  "TTS",
   "VoiceConvert",
   "WhisperSTT",
 ] as const;
 
-const standardModeNodeTypes = new Set<string>(STANDARD_MODE_NODE_TYPES);
+/**
+ * Modular synth + control-rate nodes always available in Modular / All tiers
+ * (without requiring ⌘⇧D studio-dev mode). Keep in sync with NodePalette MODULAR_NODES.
+ */
+export const MODULAR_MODE_NODE_TYPES = [
+  "Amplifier",
+  "Attenuator",
+  "AutomationApply",
+  "AutomationToMIDI",
+  "BeatTrack",
+  "Clock",
+  "Comparator",
+  "ControlCurve",
+  "Envelope",
+  "Filter",
+  "Float",
+  "FloatMath",
+  "FloatRoute",
+  "Granulate",
+  "LFO",
+  "LoadMIDI",
+  "Logic",
+  "MatrixMixer",
+  "MIDINoteGate",
+  "MIDIToFloat",
+  "NoiseGenerator",
+  "Oscillator",
+  "Quantizer",
+  "Reverb",
+  "SampleAndHold",
+  "SignalGenerator",
+] as const;
 
-/** Standard mode: only nodes used by the ISMIR demo templates. Dev mode (⌘⇧D): all palette-eligible except picker-hidden. */
+const standardModeNodeTypes = new Set<string>(STANDARD_MODE_NODE_TYPES);
+const modularModeNodeTypes = new Set<string>(MODULAR_MODE_NODE_TYPES);
+
+/** Standard mode: ISMIR demo nodes + modular synth set. Dev mode (⌘⇧D): all palette-eligible except picker-hidden. */
 export function isNodeVisibleInStudio(nodeType: string, studioDevMode = false): boolean {
   if (pickerHiddenNodeTypes.has(nodeType)) return false;
   if (studioDevMode) return true;
-  return standardModeNodeTypes.has(nodeType);
+  return standardModeNodeTypes.has(nodeType) || modularModeNodeTypes.has(nodeType);
 }
 
 export function domainIdForTemplate(templateId: string): TemplateDomainId {

@@ -18,7 +18,7 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | Demucs vs Open-Unmix — Stem A/B | [demucs-vs-openunmix.groovy.json](demucs-vs-openunmix.groovy.json) | `demucs-v4` ∥ `openunmix-umx` vocals; A/B pairwise (no GT): loudness / waveform / SDR / SI-SDR / mel cosine / LSD |
 | ACE-Step Dual LoRA A/B | [ace-step-dual-lora-ab.groovy.json](ace-step-dual-lora-ab.groovy.json) | Experimental: turbo + `ace-step-cny-lora` ∥ `ace-step-ambient-lora` (NC / community); Inspector A/B |
 | Watermark Embed and Detect | [watermark-embed-detect.groovy.json](watermark-embed-detect.groovy.json) | `audioseal-16bit` (MIT) — EmbedWatermark → DetectWatermark |
-| Text to Video | [text-to-video.groovy.json](text-to-video.groovy.json) | `ltx-2.3-q4` (MLX Mac · ~27 GB; optional `LoadImage` I2V; path demo: `ltx-video`) |
+| Text to Video | [text-to-video.groovy.json](text-to-video.groovy.json) | `ltx-2.3-q4` (MLX Mac · ~27 GB; `SwitchImage` defaults GenerateImage/`flux-klein-4b` + PreviewImage; select=0 LoadImage A/B; path demo: `flux-image`) |
 
 Featured-only (⌘⇧D):
 - Trailer Bumper — Music + SFX Layers ([layered-music-sfx.groovy.json](layered-music-sfx.groovy.json)) — Community / NC `stable-audio-open-small` ×2 → Mix.

@@ -1,4 +1,4 @@
-"""GenerateVideo run log (behavior / performance / hardware) for SaveGenerateLog."""
+"""GenerateVideo / GenerateImage run log (behavior / performance / hardware) for SaveGenerateLog."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from typing import Any
 
 @dataclass
 class GenerateLogReport:
-    """Structured GENERATE_LOG payload from a GenerateVideo run."""
+    """Structured GENERATE_LOG payload from a GenerateVideo / GenerateImage run."""
 
     id: str
     record: dict[str, Any] = field(default_factory=dict)

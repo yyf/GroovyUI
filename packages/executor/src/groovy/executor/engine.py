@@ -38,7 +38,7 @@ from groovy.executor.image import ImageClip
 from groovy.executor.video import VideoClip
 from groovy.executor.provenance import build_record, parent_refs, read_provenance
 from groovy.executor.signal_integrity import attach_signal_metadata
-from groovy.node import NODE_REGISTRY, get_node_class
+from groovy.node import NODE_REGISTRY, get_node_class, known_node_types
 from groovy.schema.models import Link, NodeInstance, Workflow
 from groovy.schema.validate import validate_workflow
 
@@ -107,7 +107,7 @@ class Executor:
         on_progress: Callable[[str, str, float, str], None] | None = None,
         cancel_check: Callable[[], bool] | None = None,
     ) -> ExecutionResult:
-        validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+        validation = validate_workflow(workflow, known_node_types=known_node_types())
         if not validation.valid:
             msg = "; ".join(e.message for e in validation.errors)
             return ExecutionResult(job_id="", status="failed", error=msg)
@@ -130,7 +130,11 @@ class Executor:
         node_by_id = {n.id: n for n in workflow.nodes}
         order = _topological_order(workflow.nodes, workflow.links)
         if target_nodes:
-            required = _upstream_closure(target_nodes, workflow.links)
+            required = _upstream_closure(
+                target_nodes,
+                workflow.links,
+                nodes=workflow.nodes,
+            )
             order = [nid for nid in order if nid in required]
 
         inputs_map = _build_inputs_map(workflow.links)
@@ -162,6 +166,10 @@ class Executor:
                 for input_idx, (src_id, src_out_idx) in sorted(inputs_map.get(node_id, {}).items()):
                     src_outputs = node_outputs.get(src_id)
                     if src_outputs is None:
+                        # Optional inlet whose upstream was pruned (e.g. SwitchImage
+                        # unused branch) — leave unwired rather than failing the job.
+                        if _input_is_optional(node_cls, input_idx):
+                            continue
                         raise RuntimeError(f"Missing upstream output for {node_id}")
                     if src_out_idx >= len(src_outputs):
                         src_type = node_by_id[src_id].type
@@ -584,6 +592,26 @@ class Executor:
                     "path": item,
                     "provenance_path": str(provenance_path).replace("\\", "/"),
                 }
+            elif node.type == "SaveImage":
+                output_path = Path(item)
+                provenance_path = output_path.with_name(
+                    f"{output_path.stem}.provenance.json"
+                )
+                resolved = (
+                    provenance_path
+                    if provenance_path.is_absolute()
+                    else (self.project_dir / provenance_path)
+                )
+                if not resolved.is_file():
+                    raise RuntimeError(
+                        f"SaveImage wrote image but provenance sidecar is missing: "
+                        f"{provenance_path}"
+                    )
+                meta = {
+                    "type": "STRING",
+                    "path": item,
+                    "provenance_path": str(provenance_path).replace("\\", "/"),
+                }
             elif node.type == "SaveGenerateLog":
                 meta = {"type": "STRING", "path": item}
             else:
@@ -632,36 +660,53 @@ class Executor:
         return None
 
 
-def _input_name(node_cls: type, index: int) -> str:
+_WIREABLE_SOCKET_TYPES = {
+    "AUDIO",
+    "STEMS",
+    "MIDI",
+    "AUTHENTICITY",
+    "SAMPLE_CHECK",
+    "TEXT",
+    "AUTOMATION",
+    "AMBISONICS",
+    "OBA",
+    "OSC",
+    "TRAJECTORY",
+    "VIDEO",
+    "IMAGE",
+    "GENERATE_LOG",
+}
+
+
+def _wireable_input_names(node_cls: type) -> list[tuple[str, bool]]:
+    """Ordered (name, optional) for wireable sockets — same slot order as links."""
     inputs = node_cls.INPUT_TYPES()
-    names: list[str] = []
+    names: list[tuple[str, bool]] = []
     for section in ("required", "optional"):
+        optional = section == "optional"
         for name, spec in inputs.get(section, {}).items():
             if not isinstance(spec, tuple) or not spec:
                 continue
             socket_type = spec[0]
-            if socket_type in {
-                "AUDIO",
-                "STEMS",
-                "MIDI",
-                "AUTHENTICITY",
-                "SAMPLE_CHECK",
-                "TEXT",
-                "AUTOMATION",
-                "AMBISONICS",
-                "OBA",
-                "OSC",
-                "TRAJECTORY",
-                "VIDEO",
-                "IMAGE",
-                "GENERATE_LOG",
-            }:
-                names.append(name)
+            if socket_type in _WIREABLE_SOCKET_TYPES:
+                names.append((name, optional))
             elif socket_type == "FLOAT" and name in {"gain_a", "gain_b", "value"}:
-                names.append(name)
+                names.append((name, optional))
+    return names
+
+
+def _input_name(node_cls: type, index: int) -> str:
+    names = _wireable_input_names(node_cls)
     if index < len(names):
-        return names[index]
+        return names[index][0]
     return f"input_{index}"
+
+
+def _input_is_optional(node_cls: type, index: int) -> bool:
+    names = _wireable_input_names(node_cls)
+    if index < len(names):
+        return names[index][1]
+    return False
 
 
 def _topological_order(nodes: list[NodeInstance], links: list[Link]) -> list[str]:
@@ -697,10 +742,24 @@ def _build_inputs_map(links: list[Link]) -> dict[str, dict[int, tuple[str, int]]
     return result
 
 
-def _upstream_closure(target_nodes: list[str], links: list[Link]) -> set[str]:
-    reverse: dict[str, list[str]] = defaultdict(list)
+def _upstream_closure(
+    target_nodes: list[str],
+    links: list[Link],
+    *,
+    nodes: list[NodeInstance] | None = None,
+) -> set[str]:
+    """Collect nodes that feed ``target_nodes``.
+
+    SwitchImage only pulls the selected inlet (``select`` 0→a / 1→b) so unused
+    GenerateImage / LoadImage branches are not rendered.
+    """
+    from groovy.node import resolve_node_type
+
+    node_by_id = {n.id: n for n in (nodes or [])}
+    # dst → [(src_id, dst_slot), ...]
+    reverse: dict[str, list[tuple[str, int]]] = defaultdict(list)
     for link in links:
-        reverse[str(link.to[0])].append(str(link.from_[0]))
+        reverse[str(link.to[0])].append((str(link.from_[0]), int(link.to[1])))
 
     needed: set[str] = set()
     stack = list(target_nodes)
@@ -709,7 +768,23 @@ def _upstream_closure(target_nodes: list[str], links: list[Link]) -> set[str]:
         if node_id in needed:
             continue
         needed.add(node_id)
-        stack.extend(reverse.get(node_id, []))
+        parents = reverse.get(node_id, [])
+        node = node_by_id.get(node_id)
+        if (
+            node is not None
+            and resolve_node_type(node.type) == "SwitchImage"
+            and parents
+        ):
+            select = int((node.widgets or {}).get("select", 0) or 0)
+            preferred_slot = 1 if select >= 1 else 0
+            selected = [src for src, slot in parents if slot == preferred_slot]
+            if selected:
+                stack.extend(selected)
+            else:
+                # Selected inlet unwired — keep any wired sibling (matches SwitchImage.run).
+                stack.extend(src for src, _ in parents)
+        else:
+            stack.extend(src for src, _ in parents)
     return needed
 
 

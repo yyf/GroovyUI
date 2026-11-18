@@ -57,7 +57,7 @@ type Props = {
   initialMode?: "search" | "recommend" | "workflow" | "discover" | "plan";
   /** When browsing from a node's MODEL_REF widget, filter to compatible models. */
   filterNodeType?: string | null;
-  /** Deep-link filters when opened from Compliance / Comfy import. */
+  /** Deep-link filters when opened from Compliance / workflow import. */
   launch?: import("../types").ModelBrowserLaunch | null;
 };
 
@@ -70,6 +70,7 @@ const TASK_FILTERS = [
   { value: "voice-conversion", label: "Voice conversion" },
   { value: "audio-to-midi", label: "Audio to MIDI" },
   { value: "music-generation", label: "Music generation" },
+  { value: "text-to-image", label: "Text to image" },
   { value: "text-to-video", label: "Text to video" },
   { value: "video-to-audio", label: "Video to audio" },
   { value: "character-animation", label: "Character animation" },

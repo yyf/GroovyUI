@@ -18,7 +18,9 @@ TerminalOutputType = Literal["AUDIO", "MIDI", "TEXT", "AUTHENTICITY", "VIDEO", "
 
 TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "Preview": "AUDIO",
+    "PreviewImage": "IMAGE",
     "PreviewVideo": "VIDEO",
+    "SaveImage": "STRING",
     "SaveVideo": "STRING",
     "SaveGenerateLog": "STRING",
     "WhisperSTT": "TEXT",
@@ -137,8 +139,15 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
     "text-to-video": {
         "fixture": "none",
         "sample_path": "assets/samples/Fort-Zeelandia.png",
-        "models": ("ltx-2.3-q4",),
-        "required_outputs": (("n2", "VIDEO"), ("n3", "STRING"), ("n-log", "STRING")),
+        # GenerateVideo + GenerateImage (select=1 default) both run under stub CI.
+        "models": ("ltx-2.3-q4", "flux-klein-4b"),
+        "required_outputs": (
+            ("n2", "VIDEO"),
+            ("n3", "STRING"),
+            ("n-log", "STRING"),
+            ("n-save-img", "STRING"),
+            ("n-img-log", "STRING"),
+        ),
     },
     "ace-step-1.5": {
         "fixture": "none",
@@ -385,7 +394,7 @@ def _terminal_node_ids(workflow: Workflow) -> tuple[str, ...]:
 def _primary_terminal(workflow: Workflow, terminal_ids: tuple[str, ...]) -> str:
     by_id = {node.id: node for node in workflow.nodes}
     for node_id in terminal_ids:
-        if by_id[node_id].type in {"Preview", "PreviewVideo"}:
+        if by_id[node_id].type in {"Preview", "PreviewImage", "PreviewVideo"}:
             return node_id
     for node_id in terminal_ids:
         if by_id[node_id].type != "Note":

@@ -147,6 +147,8 @@ class GroovyNode:
 
 
 NODE_REGISTRY: dict[str, type[GroovyNode]] = {}
+# Legacy workflow type names → canonical registered class name.
+NODE_TYPE_ALIASES: dict[str, str] = {}
 
 
 def register_node(cls: type[GroovyNode]) -> type[GroovyNode]:
@@ -154,14 +156,31 @@ def register_node(cls: type[GroovyNode]) -> type[GroovyNode]:
     return cls
 
 
+def register_node_alias(alias: str, canonical: str) -> None:
+    """Accept *alias* in workflows while listing/running the *canonical* type."""
+    if canonical not in NODE_REGISTRY:
+        raise KeyError(f"Cannot alias {alias!r} → unknown canonical type {canonical!r}")
+    NODE_TYPE_ALIASES[alias] = canonical
+
+
+def resolve_node_type(node_type: str) -> str:
+    return NODE_TYPE_ALIASES.get(node_type, node_type)
+
+
 def get_node_class(node_type: str) -> type[GroovyNode]:
-    if node_type not in NODE_REGISTRY:
+    canonical = resolve_node_type(node_type)
+    if canonical not in NODE_REGISTRY:
         raise KeyError(f"Unknown node type: {node_type}")
-    return NODE_REGISTRY[node_type]
+    return NODE_REGISTRY[canonical]
 
 
 def list_node_types() -> list[str]:
     return sorted(NODE_REGISTRY.keys())
+
+
+def known_node_types() -> set[str]:
+    """Canonical types plus legacy aliases accepted by the executor."""
+    return set(NODE_REGISTRY.keys()) | set(NODE_TYPE_ALIASES.keys())
 
 
 class _GroovyDecorators:

@@ -1,32 +1,32 @@
 from __future__ import annotations
 
-from groovy.schema.comfy_import import import_comfy_workflow
+from groovy.node import NODE_REGISTRY
+from groovy.nodes.core import register_all
+from groovy.schema.external_graph_import import import_external_graph
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
-from groovy.nodes.core import register_all
-from groovy.node import NODE_REGISTRY
 
 register_all()
 
 
-def test_import_comfy_maps_known_nodes() -> None:
-    comfy = {
+def test_import_external_graph_maps_known_nodes() -> None:
+    payload = {
         "nodes": [
             {"id": 1, "type": "LoadAudio", "pos": [0, 0], "widgets_values": ["audio.wav"]},
             {"id": 2, "type": "NormalizeAudio", "pos": [300, 0], "widgets_values": []},
             {"id": 3, "type": "PreviewAudio", "pos": [600, 0], "widgets_values": []},
-            {"id": 99, "type": "UnknownComfyNode", "pos": [900, 0], "widgets_values": []},
+            {"id": 99, "type": "UnknownExternalNode", "pos": [900, 0], "widgets_values": []},
         ],
         "links": [
             [1, 0, 2, 0, "AUDIO"],
             [2, 0, 3, 0, "AUDIO"],
         ],
     }
-    result = import_comfy_workflow(comfy, title="Test import")
+    result = import_external_graph(payload, title="Test import")
     import_meta = result.pop("import_meta")
     assert import_meta["mapped_nodes"] == 3
     assert import_meta["mapped_links"] == 2
-    assert "UnknownComfyNode" in import_meta["unmapped_node_types"]
+    assert "UnknownExternalNode" in import_meta["unmapped_node_types"]
     assert [n["type"] for n in result["nodes"]] == ["LoadAudio", "Normalize", "Preview"]
     validation = validate_workflow(
         Workflow.model_validate(result),
@@ -35,7 +35,7 @@ def test_import_comfy_maps_known_nodes() -> None:
     assert validation.valid
 
 
-def test_import_comfy_api_shape() -> None:
-    result = import_comfy_workflow({"nodes": [], "links": []})
-    assert result["import_meta"]["source"] == "comfyui"
+def test_import_external_graph_api_shape() -> None:
+    result = import_external_graph({"nodes": [], "links": []})
+    assert result["import_meta"]["source"] == "external_graph"
     assert result["metadata"]["title"]

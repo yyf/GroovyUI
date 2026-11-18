@@ -49,7 +49,7 @@ TASK_COMPATIBLE_NODES: dict[str, list[str]] = {
     "speech-to-text": ["WhisperSTT", "DiarizeTranscribe"],
     "diarization": ["DiarizeTranscribe"],
     "speaker-diarization": ["DiarizeTranscribe"],
-    "text-to-speech": ["TTS"],
+    "text-to-speech": ["GenerateSpeech"],
     "voice-conversion": ["VoiceConvert"],
     "speech-translation": ["SpeechTranslate"],
     "localization": ["SpeechTranslate", "TranslateText"],

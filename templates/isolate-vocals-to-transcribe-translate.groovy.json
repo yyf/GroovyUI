@@ -112,7 +112,7 @@
     },
     {
       "id": "n8",
-      "type": "TTS",
+      "type": "GenerateSpeech",
       "pos": {
         "x": 1300,
         "y": 120.0

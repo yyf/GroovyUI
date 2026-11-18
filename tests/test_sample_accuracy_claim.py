@@ -23,7 +23,7 @@ def test_sample_accurate_flag_exposed_on_describe() -> None:
 
 
 def test_generative_nodes_mark_duration_unlocked() -> None:
-    for name in ("TTS", "GenerateAudio", "MIDIToAudio", "SingFromMIDI"):
+    for name in ("GenerateSpeech", "GenerateAudio", "MIDIToAudio", "SingFromMIDI"):
         cls = NODE_REGISTRY[name]
         assert cls.DURATION_LOCKED is False
         assert cls.describe()["duration_locked"] is False

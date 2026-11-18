@@ -50,6 +50,7 @@ OFFLINE_TYPES = {
     "Oscillator",
     "Pan",
     "Preview",
+    "PreviewImage",
     "PreviewVideo",
     "Prompt",
     "Quantizer",
@@ -57,6 +58,7 @@ OFFLINE_TYPES = {
     "Reverb",
     "SampleAndHold",
     "SaveAudio",
+    "SaveImage",
     "SaveVideo",
     "SignalGenerator",
     "SplitVideo",
@@ -241,7 +243,15 @@ def main() -> int:
             # Prefer a terminal Preview*/Save* if present; else focus.
             targets = [item["focusNodeId"]]
             for node in reversed(nodes):
-                if node.type in {"Preview", "PreviewVideo", "SaveAudio", "SaveVideo", "Benchmark"}:
+                if node.type in {
+                    "Preview",
+                    "PreviewImage",
+                    "PreviewVideo",
+                    "SaveAudio",
+                    "SaveImage",
+                    "SaveVideo",
+                    "Benchmark",
+                }:
                     targets = [node.id]
                     break
             result = Executor(project).execute(workflow, target_nodes=targets)

@@ -5,7 +5,7 @@
   "metadata": {
     "title": "Text to Video",
     "author": "groovy",
-    "description": "I2V demo: Fort-Zeelandia still + Pointillism prompt → GenerateVideo (ltx-2.3-q4 MLX) → PreviewVideo / SaveVideo + SaveGenerateLog. Image anchors frame 0; prompt steers style/motion. Apple Silicon Real: distilled Q4 + --low-ram. Run bash scripts/setup-ltx-mac.sh first (~27 GB).",
+    "description": "I2V demo: SwitchImage defaults to GenerateImage (flux-klein-4b / mflux; PreviewImage + SaveImage on that branch) → GenerateVideo (ltx-2.3-q4). Flip select=0 for LoadImage (Fort-Zeelandia) A/B. Separate Prompts for video motion vs T2I still. Apple Silicon Real video: distilled Q4 + --low-ram. Run bash scripts/setup-ltx-mac.sh first (~27 GB).",
     "tags": [
       "featured",
       "starter",
@@ -13,18 +13,19 @@
       "text-to-video",
       "video",
       "t2v",
-      "i2v"
+      "i2v",
+      "text-to-image"
     ],
     "created_at": "2026-11-14T00:00:00Z",
-    "modified_at": "2026-11-15T00:00:00Z"
+    "modified_at": "2026-11-18T00:00:00Z"
   },
   "nodes": [
     {
       "id": "note-overview",
       "type": "Note",
-      "pos": { "x": 0, "y": 460.0 },
+      "pos": { "x": 0, "y": 560.0 },
       "widgets": {
-        "text": "I2V: Fort-Zeelandia.png + prompt (ltx-2.3-q4)\nImage anchors frame 0; prompt steers style & motion (image_strength 0–1)\nnum_steps: distilled Real is fixed ~8 steps; more steps won’t apply on this model\n512×512 square vs landscape still = crop/letterbox — expect composition shift"
+        "text": "I2V: SwitchImage → GenerateVideo (ltx-2.3-q4)\nselect=1 GenerateImage (flux-klein-4b) + PreviewImage + SaveImage · select=0 LoadImage A/B\nVideo Prompt steers motion/style; Image Prompt only builds the still\nimage_strength 0–1 · keep video Prompt fixed when flipping the switch"
       }
     },
     {
@@ -45,9 +46,57 @@
       }
     },
     {
+      "id": "n-img-prompt",
+      "type": "Prompt",
+      "pos": { "x": 0, "y": 360.0 },
+      "widgets": {
+        "text": "Wide photo of Fort Zeelandia stone walls at golden hour, documentary still, sharp detail, natural color, no illustration",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n-genimg",
+      "type": "GenerateImage",
+      "pos": { "x": 280, "y": 360.0 },
+      "widgets": {
+        "model": "flux-klein-4b",
+        "prompt": "Wide photo of Fort Zeelandia stone walls at golden hour, documentary still, sharp detail, natural color, no illustration",
+        "width": 512,
+        "height": 512,
+        "num_steps": 4,
+        "seed": 42
+      }
+    },
+    {
+      "id": "n-preview-img",
+      "type": "PreviewImage",
+      "pos": { "x": 280, "y": 520.0 },
+      "widgets": {
+        "preview_width": 240,
+        "preview_height": 240
+      }
+    },
+    {
+      "id": "n-save-img",
+      "type": "SaveImage",
+      "pos": { "x": 560, "y": 600.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-video-still.png"
+      }
+    },
+    {
+      "id": "n-switch",
+      "type": "SwitchImage",
+      "pos": { "x": 560, "y": 260.0 },
+      "widgets": {
+        "select": 1
+      }
+    },
+    {
       "id": "n1",
       "type": "GenerateVideo",
-      "pos": { "x": 280, "y": 40.0 },
+      "pos": { "x": 840, "y": 40.0 },
       "widgets": {
         "model": "ltx-2.3-q4",
         "prompt": "Regenerate the reference image using Pointillism technique for visual aesthetics and ambient city soundscape for sound design",
@@ -63,7 +112,7 @@
     {
       "id": "n2",
       "type": "PreviewVideo",
-      "pos": { "x": 560, "y": 40.0 },
+      "pos": { "x": 1120, "y": 40.0 },
       "widgets": {
         "preview_width": 320,
         "preview_height": 320
@@ -72,7 +121,7 @@
     {
       "id": "n3",
       "type": "SaveVideo",
-      "pos": { "x": 920, "y": 40.0 },
+      "pos": { "x": 1400, "y": 40.0 },
       "widgets": {
         "path": "exports",
         "filename": "text-to-video.mp4"
@@ -81,16 +130,31 @@
     {
       "id": "n-log",
       "type": "SaveGenerateLog",
-      "pos": { "x": 560, "y": 320.0 },
+      "pos": { "x": 1120, "y": 320.0 },
       "widgets": {
         "path": "exports",
         "filename": "generate-video-log.json"
+      }
+    },
+    {
+      "id": "n-img-log",
+      "type": "SaveGenerateLog",
+      "pos": { "x": 560, "y": 480.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "generate-image-log.json"
       }
     }
   ],
   "links": [
     { "id": "l0", "from": ["n0", 0], "to": ["n1", 0], "type": "TEXT" },
-    { "id": "l-img", "from": ["n-img", 0], "to": ["n1", 1], "type": "IMAGE" },
+    { "id": "l-prompt-img", "from": ["n-img-prompt", 0], "to": ["n-genimg", 0], "type": "TEXT" },
+    { "id": "l-img-a", "from": ["n-img", 0], "to": ["n-switch", 0], "type": "IMAGE" },
+    { "id": "l-img-b", "from": ["n-genimg", 0], "to": ["n-switch", 1], "type": "IMAGE" },
+    { "id": "l-preview-img", "from": ["n-genimg", 0], "to": ["n-preview-img", 0], "type": "IMAGE" },
+    { "id": "l-save-img", "from": ["n-genimg", 0], "to": ["n-save-img", 0], "type": "IMAGE" },
+    { "id": "l-img-log", "from": ["n-genimg", 1], "to": ["n-img-log", 0], "type": "GENERATE_LOG" },
+    { "id": "l-img", "from": ["n-switch", 0], "to": ["n1", 1], "type": "IMAGE" },
     { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "VIDEO" },
     { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "VIDEO" },
     { "id": "l-log", "from": ["n1", 1], "to": ["n-log", 0], "type": "GENERATE_LOG" }

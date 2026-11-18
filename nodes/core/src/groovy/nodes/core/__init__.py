@@ -1,5 +1,6 @@
 from groovy.nodes.core.benchmark import Benchmark
 from groovy.nodes.core.nodes import (
+    SwitchImage,
     LoadAudio,
     LoadImage,
     Mix,
@@ -7,10 +8,12 @@ from groovy.nodes.core.nodes import (
     Normalize,
     Note,
     Preview,
+    PreviewImage,
     PreviewVideo,
     Resample,
     SaveAudio,
     SaveGenerateLog,
+    SaveImage,
     SaveVideo,
     Trim,
     register_all,
@@ -18,6 +21,7 @@ from groovy.nodes.core.nodes import (
 
 __all__ = [
     "Benchmark",
+    "SwitchImage",
     "LoadAudio",
     "LoadImage",
     "Mix",
@@ -25,10 +29,12 @@ __all__ = [
     "Normalize",
     "Note",
     "Preview",
+    "PreviewImage",
     "PreviewVideo",
     "Resample",
     "SaveAudio",
     "SaveGenerateLog",
+    "SaveImage",
     "SaveVideo",
     "Trim",
     "register_all",

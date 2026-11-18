@@ -238,7 +238,7 @@ def run_tts(cache: CacheStore, kwargs: dict) -> list[dict]:
         language=language,
         voice=voice,
     )
-    out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="TTS")
+    out_buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="GenerateSpeech")
     cache.write_audio(out_buffer, pcm)
     return [{"type": "AUDIO", "cache_id": out_buffer.id}]
 
@@ -668,7 +668,7 @@ def synthesize_speech(
         if reference_pcm is None:
             raise RuntimeError(
                 "F5-TTS voice cloning requires reference_audio. "
-                "Wire LoadAudio → TTS reference_audio (Voice Cloning template)."
+                "Wire LoadAudio → GenerateSpeech reference_audio (Voice Cloning template)."
             )
         if not f5_tts_available():
             raise RuntimeError(
@@ -1170,6 +1170,79 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
     return [
         {"type": "AUDIO", "cache_id": out_buffer.id},
         {"type": "GENERATE_LOG", "generate_log_id": report.id},
+    ]
+
+
+def run_generate_image(cache: CacheStore, kwargs: dict) -> list[dict]:
+    """TEXT → IMAGE for GenerateImage (mflux Real or Pillow path-demo)."""
+    import time
+
+    from groovy.executor.generate_log import GenerateLogReport, image_file_info, probe_hardware
+    from groovy.executor.image import ImageClip, probe_image_dimensions
+    from groovy.nodes.ai.model_params import int_param, optional_seed, seed_param
+
+    model_id = str(kwargs.get("model", "flux-image"))
+    prompt = str(kwargs.get("text") or kwargs.get("prompt") or "a calm still life")
+    width = int_param(kwargs, "width", 512)
+    height = int_param(kwargs, "height", 512)
+    num_steps = int_param(kwargs, "num_steps", 4)
+    seed = optional_seed(kwargs)
+    stub_seed = seed_param(kwargs, fallback=prompt)
+
+    t0 = time.perf_counter()
+    dest = generate_image_file(
+        prompt,
+        model_id=model_id,
+        width=width,
+        height=height,
+        num_steps=num_steps,
+        seed=seed,
+        stub_seed=stub_seed,
+        cache_dir=cache.cache_dir,
+    )
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    clip = ImageClip.create("", source_node_type="GenerateImage", width=width, height=height)
+    final = cache.cache_dir / f"{clip.id}.png"
+    if dest.resolve() != final.resolve():
+        dest.replace(final)
+    dims = probe_image_dimensions(final)
+    if dims:
+        clip.width, clip.height = dims
+    rel = str(final.relative_to(cache.project_dir)).replace("\\", "/")
+    clip.path = rel
+    cache.write_image(clip)
+    report = GenerateLogReport.create(
+        {
+            "node_type": "GenerateImage",
+            "prompt": prompt,
+            "timing": {
+                "generate_ms": elapsed_ms,
+                "generate_s": round(elapsed_ms / 1000.0, 3),
+            },
+            "output": image_file_info(final, project_relative=rel),
+            "model_config": {
+                "model": model_id,
+                "width": width,
+                "height": height,
+                "num_steps": num_steps,
+                "seed": seed if seed is not None else stub_seed,
+            },
+            "hardware": probe_hardware(),
+        }
+    )
+    cache.write_generate_log(report)
+    return [
+        {
+            "type": "IMAGE",
+            "image_id": clip.id,
+            "path": clip.path,
+            "width": clip.width,
+            "height": clip.height,
+        },
+        {
+            "type": "GENERATE_LOG",
+            "generate_log_id": report.id,
+        },
     ]
 
 
@@ -1774,6 +1847,113 @@ def generate_audio_waveform(
         )
 
     raise RuntimeError(f"Unsupported text-to-music model for real inference: {model_id}")
+
+
+def generate_image_file(
+    prompt: str,
+    *,
+    model_id: str,
+    width: int = 512,
+    height: int = 512,
+    num_steps: int = 4,
+    seed: int | None = None,
+    stub_seed: int | None = None,
+    cache_dir,
+):
+    """Model-agnostic text → PNG. Dispatch by registry ``model_id``."""
+    from pathlib import Path
+
+    from groovy.nodes.ai.inference_env import inference_stub_enabled
+
+    effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
+    out_dir = Path(cache_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tmp = out_dir / f"generate-image-{model_id.replace('/', '_')}-{effective_stub % 10_000}.png"
+
+    if model_id == "flux-image":
+        return _generate_image_stub(prompt, dest=tmp, width=width, height=height, seed=effective_stub)
+
+    if inference_stub_enabled():
+        return _generate_image_stub(prompt, dest=tmp, width=width, height=height, seed=effective_stub)
+
+    if model_id == "flux-klein-4b":
+        from groovy.nodes.ai.backends.mflux_runner import generate_png as mflux_generate
+
+        return mflux_generate(
+            prompt,
+            dest=tmp,
+            width=width,
+            height=height,
+            num_steps=num_steps,
+            seed=seed if seed is not None else effective_stub,
+            model_name=model_id,
+        )
+
+    _ = num_steps
+    raise RuntimeError(
+        f"Real text-to-image inference is not wired for {model_id} yet. "
+        "Use flux-image (path demo) or flux-klein-4b after installing mflux."
+    )
+
+
+def _generate_image_stub(
+    prompt: str,
+    *,
+    dest,
+    width: int,
+    height: int,
+    seed: int = 0,
+):
+    """Local Mac/CI demo PNG — vivid gradient plate so path-demo is obviously not a blank/gray fail."""
+    from pathlib import Path
+
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    w = max(64, int(width))
+    h = max(64, int(height))
+    nudge = abs(int(seed)) % 64
+    prompt_nudge = (sum(ord(c) for c in prompt) % 64) if prompt else 0
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+
+        # Seed/prompt-tinted corner colors — bright enough to read as intentional demo art.
+        c0 = (40 + nudge, 120 + (prompt_nudge // 2), 220 - (nudge // 2))
+        c1 = (240 - nudge, 90 + (prompt_nudge % 40), 60 + (nudge // 3))
+        c2 = (30 + (prompt_nudge // 2), 200 - (nudge // 2), 140 + (nudge % 30))
+        c3 = (180 + (nudge // 2), 60 + prompt_nudge, 200 - (prompt_nudge // 2))
+        img = Image.new("RGB", (w, h))
+        pix = img.load()
+        for y in range(h):
+            v = y / max(1, h - 1)
+            for x in range(w):
+                u = x / max(1, w - 1)
+                # Bilinear blend of four corners.
+                top = tuple(int(c0[i] * (1 - u) + c1[i] * u) for i in range(3))
+                bot = tuple(int(c2[i] * (1 - u) + c3[i] * u) for i in range(3))
+                pix[x, y] = tuple(int(top[i] * (1 - v) + bot[i] * v) for i in range(3))
+        draw = ImageDraw.Draw(img)
+        try:
+            font = ImageFont.load_default()
+        except Exception:
+            font = None
+        banner_h = max(56, h // 8)
+        draw.rectangle([(0, 0), (w - 1, banner_h)], fill=(12, 14, 22))
+        draw.text((12, 10), "path demo · flux-image", fill=(255, 210, 90), font=font)
+        caption = (prompt or "flux-image stub").strip()[:100]
+        draw.text((12, 30), caption or "flux-image stub", fill=(230, 230, 235), font=font)
+        # Corner mark so tiny thumbnails still look intentional.
+        mark = max(8, min(w, h) // 16)
+        draw.rectangle([(w - mark - 8, h - mark - 8), (w - 8, h - 8)], fill=(255, 255, 255))
+        img.save(dest, format="PNG")
+        return dest
+    except Exception:
+        # Minimal valid 1×1 PNG if Pillow is missing.
+        dest.write_bytes(
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x02\x00\x00\x00\x90wS\xde\x00\x00\x00\x0cIDATx\x9cc\xf8\x0f"
+            b"\x00\x00\x01\x01\x00\x05\x18\xd8N\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        return dest
 
 
 def generate_video_file(

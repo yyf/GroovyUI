@@ -35,7 +35,7 @@ def test_tts_emotion_edit_template_schema_and_stub_render(tmp_path: Path, monkey
     assert "starter" in data["metadata"]["tags"]
     assert any(n["id"] == "note-voiceconvert-edits" for n in data["nodes"])
 
-    tts = next(node for node in data["nodes"] if node["type"] == "TTS")
+    tts = next(node for node in data["nodes"] if node["type"] == "GenerateSpeech")
     assert tts["widgets"]["model"] == "kokoro-82m"
     convert = next(node for node in data["nodes"] if node["type"] == "VoiceConvert")
     assert convert["widgets"]["model"] == "step-audio-editx"

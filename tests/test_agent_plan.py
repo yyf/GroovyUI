@@ -242,7 +242,7 @@ def test_remap_public_model_ref_to_local_registry(tmp_path: Path) -> None:
             "summary": "TTS draft",
             "nodes": [
                 {"id": "n1", "type": "Prompt", "widgets": {"text": "hi"}},
-                {"id": "n3", "type": "TTS", "widgets": {"model": "coqui/XTTS-v2"}},
+                {"id": "n3", "type": "GenerateSpeech", "widgets": {"model": "coqui/XTTS-v2"}},
                 {"id": "n4", "type": "Preview", "widgets": {}},
             ],
             "links": [
@@ -251,9 +251,9 @@ def test_remap_public_model_ref_to_local_registry(tmp_path: Path) -> None:
             ],
         },
         index=0,
-        known_node_types={"Prompt", "TTS", "Preview"},
+        known_node_types={"Prompt", "GenerateSpeech", "Preview"},
         catalog=registry.catalog,
-        node_model_defaults={"TTS": "kokoro-82m"},
+        node_model_defaults={"GenerateSpeech": "kokoro-82m"},
     )
     assert reason == ""
     assert workflow is not None
