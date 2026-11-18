@@ -1,0 +1,2246 @@
+{
+  "AmbisonicDecode": {
+    "inputs": [
+      {
+        "name": "ambisonics",
+        "type": "AMBISONICS",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "layout"
+    ]
+  },
+  "AmbisonicEncode": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AMBISONICS",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "order"
+    ]
+  },
+  "AmbisonicRotate": {
+    "inputs": [
+      {
+        "name": "ambisonics",
+        "type": "AMBISONICS",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AMBISONICS",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "yaw"
+    ]
+  },
+  "AmbisonicTrajectoryExtract": {
+    "inputs": [
+      {
+        "name": "ambisonics",
+        "type": "AMBISONICS",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "TRAJECTORY",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model"
+    ]
+  },
+  "AmbisonicUpmix": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "trajectory",
+        "type": "TRAJECTORY",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AMBISONICS",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model"
+    ]
+  },
+  "Amplifier": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "cv",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "gain"
+    ]
+  },
+  "Attenuator": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "amount"
+    ]
+  },
+  "AudioToMIDI": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "MIDI",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model"
+    ]
+  },
+  "AuthenticitySummary": {
+    "inputs": [
+      {
+        "name": "provenance_report",
+        "type": "AUTHENTICITY",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "ml_report",
+        "type": "AUTHENTICITY",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTHENTICITY",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "spoof_threshold"
+    ]
+  },
+  "AutomationApply": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "curve",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "gain"
+    ]
+  },
+  "AutomationToMIDI": {
+    "inputs": [
+      {
+        "name": "cv",
+        "type": "AUTOMATION",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "gate",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "MIDI",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "threshold",
+      "velocity",
+      "midi_kind"
+    ]
+  },
+  "BeatTrack": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "fallback_clock",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "beats",
+        "type": "AUTOMATION",
+        "slot": 0
+      },
+      {
+        "name": "half",
+        "type": "AUTOMATION",
+        "slot": 1
+      }
+    ],
+    "widgets": [
+      "fallback_bpm",
+      "pulse_ms",
+      "min_bpm",
+      "max_bpm",
+      "tightness"
+    ]
+  },
+  "Benchmark": {
+    "inputs": [
+      {
+        "name": "hypothesis",
+        "type": "TEXT",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "reference",
+        "type": "TEXT",
+        "optional": false,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "TEXT",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "metric",
+      "normalize",
+      "label"
+    ]
+  },
+  "BinauralRender": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "strength"
+    ]
+  },
+  "ChannelConvert": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "layout"
+    ]
+  },
+  "ChannelMerge": {
+    "inputs": [
+      {
+        "name": "ch0",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "ch1",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 1
+      },
+      {
+        "name": "ch2",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 2
+      },
+      {
+        "name": "ch3",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 3
+      },
+      {
+        "name": "ch4",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 4
+      },
+      {
+        "name": "ch5",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 5
+      },
+      {
+        "name": "ch6",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 6
+      },
+      {
+        "name": "ch7",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 7
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "output_layout"
+    ]
+  },
+  "Clock": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "bpm",
+      "pulse_ms",
+      "duration_sec",
+      "sample_rate"
+    ]
+  },
+  "Comparator": {
+    "inputs": [
+      {
+        "name": "signal",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "threshold"
+    ]
+  },
+  "ControlCurve": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "start_value",
+      "end_value",
+      "frame_count",
+      "sample_rate",
+      "points"
+    ]
+  },
+  "DeepfakeDetect": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTHENTICITY",
+        "slot": 0
+      },
+      {
+        "name": "output_1",
+        "type": "AUDIO",
+        "slot": 1
+      }
+    ],
+    "widgets": [
+      "model"
+    ]
+  },
+  "Denoise": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model"
+    ]
+  },
+  "DetectWatermark": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "report",
+        "type": "TEXT",
+        "slot": 0
+      },
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "slot": 1
+      }
+    ],
+    "widgets": [
+      "model",
+      "threshold"
+    ]
+  },
+  "DiarizeTranscribe": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "TEXT",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "diarize_model",
+      "language"
+    ]
+  },
+  "EmbedWatermark": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "message_id",
+      "strength"
+    ]
+  },
+  "Envelope": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "attack_ms",
+      "decay_ms",
+      "sustain",
+      "release_ms",
+      "duration_sec",
+      "sample_rate"
+    ]
+  },
+  "Filter": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "cutoff",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "filter_type",
+      "cutoff_hz",
+      "q"
+    ]
+  },
+  "Float": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "value",
+      "duration_sec",
+      "sample_rate"
+    ]
+  },
+  "FloatMath": {
+    "inputs": [
+      {
+        "name": "a",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "b",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "operation"
+    ]
+  },
+  "FloatRoute": {
+    "inputs": [
+      {
+        "name": "a",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "b",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "select"
+    ]
+  },
+  "GenerateAudio": {
+    "inputs": [
+      {
+        "name": "text",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "reference_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 2
+      },
+      {
+        "name": "lyrics",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 3
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "prompt",
+      "lyrics_text",
+      "lora",
+      "lora_scale",
+      "audio_cover_strength",
+      "seed"
+    ]
+  },
+  "GenerateSpeech": {
+    "inputs": [
+      {
+        "name": "transcript",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "reference_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "text",
+      "language",
+      "voice",
+      "seed",
+      "reference_text"
+    ]
+  },
+  "GenerateVideo": {
+    "inputs": [
+      {
+        "name": "text",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "image",
+        "type": "IMAGE",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "slot": 0
+      },
+      {
+        "name": "log",
+        "type": "GENERATE_LOG",
+        "slot": 1
+      }
+    ],
+    "widgets": [
+      "model",
+      "prompt",
+      "negative_prompt",
+      "duration",
+      "width",
+      "height",
+      "num_steps",
+      "image_strength",
+      "seed"
+    ]
+  },
+  "Granulate": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "grain_ms_curve",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "hop_ms_curve",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 2
+      },
+      {
+        "name": "pitch_cents_curve",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 3
+      },
+      {
+        "name": "density_curve",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 4
+      },
+      {
+        "name": "width_curve",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 5
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "grain_ms",
+      "hop_ms",
+      "pitch_cents",
+      "density",
+      "spray",
+      "width",
+      "window",
+      "window_alpha",
+      "scatter_ms",
+      "wet_start",
+      "wet_end",
+      "seed"
+    ]
+  },
+  "LFO": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "waveform",
+      "rate_hz",
+      "amplitude",
+      "offset",
+      "duration_sec",
+      "sample_rate"
+    ]
+  },
+  "LoadAudio": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path",
+      "start_frame",
+      "end_frame",
+      "audio_stream"
+    ]
+  },
+  "LoadImage": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "image",
+        "type": "IMAGE",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path"
+    ]
+  },
+  "LoadMIDI": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "MIDI",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path",
+      "midi_kind"
+    ]
+  },
+  "LoadVideo": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path"
+    ]
+  },
+  "Logic": {
+    "inputs": [
+      {
+        "name": "a",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "b",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "operation",
+      "threshold"
+    ]
+  },
+  "MIDIInDevice": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "MIDI",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "device_id",
+      "channel_filter",
+      "mode",
+      "record_arm",
+      "sample_rate",
+      "frame_count"
+    ]
+  },
+  "MIDINoteGate": {
+    "inputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "note",
+      "channel"
+    ]
+  },
+  "MIDIOutDevice": {
+    "inputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "optional": true,
+        "slot": 0
+      }
+    ],
+    "outputs": [],
+    "widgets": [
+      "device_id",
+      "channel",
+      "mode",
+      "cc_number",
+      "frame_count"
+    ]
+  },
+  "MIDIToAudio": {
+    "inputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "text",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "reference_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 2
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "prompt",
+      "seed"
+    ]
+  },
+  "MIDIToFloat": {
+    "inputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "cc",
+      "default_value"
+    ]
+  },
+  "MatrixMixer": {
+    "inputs": [
+      {
+        "name": "in_0",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "in_1",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "in_2",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 2
+      },
+      {
+        "name": "in_3",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 3
+      }
+    ],
+    "outputs": [
+      {
+        "name": "out_0",
+        "type": "AUDIO",
+        "slot": 0
+      },
+      {
+        "name": "out_1",
+        "type": "AUDIO",
+        "slot": 1
+      },
+      {
+        "name": "out_2",
+        "type": "AUDIO",
+        "slot": 2
+      },
+      {
+        "name": "out_3",
+        "type": "AUDIO",
+        "slot": 3
+      }
+    ],
+    "widgets": [
+      "gain_0_0",
+      "gain_0_1",
+      "gain_0_2",
+      "gain_0_3",
+      "gain_1_0",
+      "gain_1_1",
+      "gain_1_2",
+      "gain_1_3",
+      "gain_2_0",
+      "gain_2_1",
+      "gain_2_2",
+      "gain_2_3",
+      "gain_3_0",
+      "gain_3_1",
+      "gain_3_2",
+      "gain_3_3"
+    ]
+  },
+  "Meter": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "ambisonics",
+        "type": "AMBISONICS",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "slot": 0
+      },
+      {
+        "name": "levels",
+        "type": "TEXT",
+        "slot": 1
+      }
+    ],
+    "widgets": [
+      "layout",
+      "edge_fraction"
+    ]
+  },
+  "Mix": {
+    "inputs": [
+      {
+        "name": "a",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "b",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": []
+  },
+  "ModuleInlet": {
+    "inputs": [
+      {
+        "name": "signal",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "name",
+      "socket_type"
+    ]
+  },
+  "ModuleOutlet": {
+    "inputs": [
+      {
+        "name": "signal",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "name"
+    ]
+  },
+  "MultichannelNormalize": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "target_lufs",
+      "target_peak_db",
+      "mode"
+    ]
+  },
+  "MuxVideo": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path"
+    ]
+  },
+  "NoiseGenerator": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "color",
+      "amplitude",
+      "duration_sec",
+      "sample_rate",
+      "seed"
+    ]
+  },
+  "Normalize": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "mode",
+      "target_lufs",
+      "target_peak_db"
+    ]
+  },
+  "Note": {
+    "inputs": [],
+    "outputs": [],
+    "widgets": [
+      "text"
+    ]
+  },
+  "OSCInLive": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "OSC",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "sample_rate",
+      "frame_count"
+    ]
+  },
+  "ObjectAnimate": {
+    "inputs": [
+      {
+        "name": "scene",
+        "type": "OBA",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "OBA",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "object_id",
+      "azimuth_start",
+      "azimuth_end",
+      "gain_start_db",
+      "gain_end_db"
+    ]
+  },
+  "ObjectFromAudio": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "OBA",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "name",
+      "azimuth",
+      "elevation"
+    ]
+  },
+  "ObjectMerge": {
+    "inputs": [
+      {
+        "name": "scene_a",
+        "type": "OBA",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "scene_b",
+        "type": "OBA",
+        "optional": false,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "OBA",
+        "slot": 0
+      }
+    ],
+    "widgets": []
+  },
+  "ObjectPlacement": {
+    "inputs": [
+      {
+        "name": "scene",
+        "type": "OBA",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "OBA",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "spread_deg"
+    ]
+  },
+  "Oscillator": {
+    "inputs": [
+      {
+        "name": "frequency",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "amplitude",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "phase_mod",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 2
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "waveform",
+      "frequency_hz",
+      "amplitude_default",
+      "duration_sec",
+      "sample_rate"
+    ]
+  },
+  "Pan": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "pan_curve",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "pan",
+      "output_layout"
+    ]
+  },
+  "Preview": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "text",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": []
+  },
+  "PreviewVideo": {
+    "inputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "preview_width",
+      "preview_height"
+    ]
+  },
+  "Prompt": {
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "TEXT",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "text",
+      "language"
+    ]
+  },
+  "Quantizer": {
+    "inputs": [
+      {
+        "name": "cv",
+        "type": "AUTOMATION",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "scale",
+      "root_hz"
+    ]
+  },
+  "RenderObjectScene": {
+    "inputs": [
+      {
+        "name": "scene",
+        "type": "OBA",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "output"
+    ]
+  },
+  "Resample": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "target_sample_rate",
+      "quality"
+    ]
+  },
+  "Reverb": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "mix_cv",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "mix",
+      "room_sec",
+      "damping"
+    ]
+  },
+  "SampleAndHold": {
+    "inputs": [
+      {
+        "name": "clock",
+        "type": "AUTOMATION",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "signal",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 2
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "threshold"
+    ]
+  },
+  "SaveAudio": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "STRING",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path",
+      "filename",
+      "format",
+      "bit_depth"
+    ]
+  },
+  "SaveGenerateLog": {
+    "inputs": [
+      {
+        "name": "log",
+        "type": "GENERATE_LOG",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "STRING",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path",
+      "filename"
+    ]
+  },
+  "SaveVideo": {
+    "inputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "STRING",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path",
+      "filename"
+    ]
+  },
+  "SeparateStems": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "vocals",
+        "type": "AUDIO",
+        "slot": 0
+      },
+      {
+        "name": "drums",
+        "type": "AUDIO",
+        "slot": 1
+      },
+      {
+        "name": "bass",
+        "type": "AUDIO",
+        "slot": 2
+      },
+      {
+        "name": "other",
+        "type": "AUDIO",
+        "slot": 3
+      }
+    ],
+    "widgets": [
+      "model"
+    ]
+  },
+  "SeparateToObjects": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "OBA",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model"
+    ]
+  },
+  "SignalGenerator": {
+    "inputs": [
+      {
+        "name": "frequency",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "amplitude",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "phase_mod",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 2
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "waveform",
+      "frequency_hz",
+      "amplitude_default",
+      "duration_sec",
+      "sample_rate"
+    ]
+  },
+  "SingFromMIDI": {
+    "inputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "lyrics",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "reference_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 2
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "text",
+      "seed"
+    ]
+  },
+  "SpatialUpmix": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "layout"
+    ]
+  },
+  "SpeechTranslate": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "src_lang",
+      "tgt_lang",
+      "speaker_id"
+    ]
+  },
+  "SplitVideo": {
+    "inputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "slot": 0
+      },
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "slot": 1
+      }
+    ],
+    "widgets": []
+  },
+  "TimbreTransfer": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "fidelity"
+    ]
+  },
+  "TrajectoryAuthor": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "trajectory",
+        "type": "TRAJECTORY",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "start_x",
+      "start_y",
+      "start_z",
+      "end_x",
+      "end_y",
+      "end_z",
+      "duration_sec",
+      "sample_rate",
+      "points",
+      "object_id"
+    ]
+  },
+  "TrajectoryMonitor": {
+    "inputs": [
+      {
+        "name": "trajectory",
+        "type": "TRAJECTORY",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "trajectory",
+        "type": "TRAJECTORY",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "role",
+      "label"
+    ]
+  },
+  "Transcode": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "format",
+      "path"
+    ]
+  },
+  "TranslateText": {
+    "inputs": [
+      {
+        "name": "text",
+        "type": "TEXT",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "TEXT",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "src_lang",
+      "tgt_lang"
+    ]
+  },
+  "Trim": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "start_frame",
+      "end_frame"
+    ]
+  },
+  "VerifyProvenance": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUTHENTICITY",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "check_sidecar"
+    ]
+  },
+  "VerifySamples": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "report",
+        "type": "SAMPLE_CHECK",
+        "slot": 0
+      },
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "slot": 1
+      }
+    ],
+    "widgets": []
+  },
+  "Video2Audio": {
+    "inputs": [
+      {
+        "name": "text",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "path",
+      "prompt",
+      "negative_prompt",
+      "duration",
+      "num_steps",
+      "cfg_strength",
+      "seed"
+    ]
+  },
+  "VoiceConvert": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      },
+      {
+        "name": "transcript",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "prompt_text",
+      "edit_type",
+      "edit_info",
+      "target_text"
+    ]
+  },
+  "WhisperSTT": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "TEXT",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model"
+    ]
+  },
+  "TTS": {
+    "inputs": [
+      {
+        "name": "transcript",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "reference_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "model",
+      "text",
+      "language",
+      "voice",
+      "seed",
+      "reference_text"
+    ]
+  }
+}

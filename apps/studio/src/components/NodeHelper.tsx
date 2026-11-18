@@ -55,6 +55,8 @@ import CompareSampleIntegrity, { SampleCheckFromReport } from "./CompareSampleIn
 import ControlCurvePreview, { syncPointsFromStartEnd } from "./ControlCurvePreview";
 import MatrixMixerPanel from "./MatrixMixerPanel";
 import ModelSubgraphPanel from "./ModelSubgraphPanel";
+import NodeHelpPanel from "./NodeHelpPanel";
+import type { MinimalPatch } from "../nodeMinimalPatches";
 import { ParamFader, ParamStepped, ParamSwitch } from "./ParamControls";
 import SocketTypeBadge from "./SocketTypeBadge";
 import WaveformCompare from "./WaveformCompare";
@@ -64,7 +66,7 @@ import { resolveWidgetControl } from "../widgetControls";
 const GENERATIVE_NODE_TYPES = new Set([
   "GenerateAudio",
   "GenerateVideo",
-  "TTS",
+  "GenerateSpeech",
   "MIDIToAudio",
   "SingFromMIDI",
   "Video2Audio",
@@ -82,7 +84,7 @@ const EXPLORATION_WIDGET_ORDER = [
   "seed",
 ];
 
-type Tab = "config" | "subgraph" | "inputs" | "outputs" | "provenance";
+type Tab = "config" | "help" | "subgraph" | "inputs" | "outputs" | "provenance";
 
 type CompareEntry = {
   node: WorkflowNode;
@@ -114,8 +116,12 @@ type Props = {
   onDisconnectPort?: (nodeId: string, direction: "in" | "out", slot: number) => void;
   /** Remove the currently selected canvas wire. */
   onDeleteLink?: (linkId: string) => void;
-  /** Widen Inspector (multi-param Config, Subgraph, compare, settings). */
+  /** Widen Inspector (multi-param Config, Help, Subgraph, compare, settings). */
   onSubgraphActiveChange?: (active: boolean) => void;
+  /** Insert the Help-tab minimal example onto the canvas. */
+  onApplyHelpExample?: (patch: MinimalPatch) => void;
+  /** Live node schemas for Help examples that fall back to schema wiring. */
+  nodeSchemas?: Record<string, NodeSchema>;
   /** True while canvas rubber-band select is active — freeze width updates. */
   selectionBusy?: boolean;
   onBrowseModel?: (nodeId: string, widgetName: string) => void;
@@ -159,6 +165,8 @@ export default function NodeHelper({
   onDisconnectPort,
   onDeleteLink,
   onSubgraphActiveChange,
+  onApplyHelpExample,
+  nodeSchemas = {},
   selectionBusy = false,
   onBrowseModel,
   onAudition,
@@ -306,7 +314,7 @@ export default function NodeHelper({
     !showCompare &&
     !selectedLink &&
     selectedNodes.length <= 1 &&
-    (tab === "subgraph" || (tab === "config" && configParamCount >= 4));
+    (tab === "subgraph" || tab === "help" || (tab === "config" && configParamCount >= 4));
 
   const inspectorWide =
     showStudioSettings || showTemplateLicenses || showCompare || multiParamWide;
@@ -493,7 +501,7 @@ export default function NodeHelper({
               .join(" · ")}
           </p>
         ) : null}
-        {hasMinimalPatch(node.type) ? (
+        {hasMinimalPatch(node.type, nodeSchemas) ? (
           <p className="node-helper__hint node-helper__tab-wire-hint">
             Press <kbd>Tab</kbd> to wire missing example inputs and outputs for this node.
           </p>
@@ -501,6 +509,14 @@ export default function NodeHelper({
         <nav className="node-helper__tabs">
         <button type="button" className={tab === "config" ? "active" : ""} onClick={() => setTab("config")}>
           Config
+        </button>
+        <button
+          type="button"
+          className={tab === "help" ? "active" : ""}
+          onClick={() => setTab("help")}
+          disabled={!schema && !hasMinimalPatch(node.type, nodeSchemas)}
+        >
+          Help
         </button>
         <button
           type="button"
@@ -844,6 +860,14 @@ export default function NodeHelper({
               <pre className="node-helper__render-error-inline node-helper__path-error">{fileMetaError}</pre>
             ) : null}
           </div>
+        ) : null}
+        {tab === "help" ? (
+          <NodeHelpPanel
+            nodeType={node.type}
+            schema={schema}
+            schemas={nodeSchemas}
+            onApplyToCanvas={(patch) => onApplyHelpExample?.(patch)}
+          />
         ) : null}
         {tab === "subgraph" && schema ? (
           <ModelSubgraphPanel
@@ -2457,7 +2481,7 @@ function isPromptLikeWidget(name: string): boolean {
 function promptPlaceholder(widgetName: string, nodeType: string): string | undefined {
   if (!GENERATIVE_NODE_TYPES.has(nodeType)) return undefined;
   if (widgetName === "prompt") return "describe the sound.";
-  if (widgetName === "text" && nodeType === "TTS") return "describe the sound.";
+  if (widgetName === "text" && nodeType === "GenerateSpeech") return "describe the sound.";
   if (widgetName === "text" && nodeType === "SingFromMIDI") return "type the lyrics.";
   if (widgetName === "lyrics" || widgetName === "lyrics_text") {
     return "optional lyrics ([verse] / [chorus]); empty = instrumental.";
