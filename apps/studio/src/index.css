@@ -2403,6 +2403,118 @@ body {
 }
 
 /* Inspector Subgraph tab — compact I/O + config canvas */
+.node-help {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.node-help__head {
+  display: grid;
+  gap: 6px;
+}
+
+.node-help__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.node-help__desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.node-help__example {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-dim);
+  background: var(--bg-elevated);
+}
+
+.side-panel--wide .node-help__example {
+  padding: 12px;
+}
+
+.node-help__label {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.node-help__chain {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border-rule);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.node-help__nodes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.node-help__node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-dim);
+  font-size: 12px;
+}
+
+.node-help__node--focus {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-dim));
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.node-help__node-type {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.node-help__badge {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.node-help__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.node-help__apply {
+  padding: 8px 12px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.node-help__apply:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
 .model-subgraph {
   display: flex;
   flex-direction: column;

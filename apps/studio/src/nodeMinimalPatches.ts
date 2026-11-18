@@ -140,14 +140,15 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
   },
   ChannelMerge: {
     title: "Channel Merge",
-    description: "Combine LoadAudio L/R (or mono) outlets into one stereo buffer for SaveAudio.",
-    focusNodeId: "n2",
+    description: "Merge two mono LoadAudio sources into one stereo buffer.",
+    focusNodeId: "n3",
     nodes: [
-      load("n1", 0, 0, "assets/samples/stem_separation_demo.wav"),
-      { id: "n2", type: "ChannelMerge", x: 280, widgets: { output_layout: "stereo" } },
-      preview("n3", 540),
+      load("n1", 0, 0),
+      load("n2", 0, 140),
+      { id: "n3", type: "ChannelMerge", x: 280, widgets: { output_layout: "stereo" } },
+      preview("n4", 540),
       {
-        id: "n4",
+        id: "n5",
         type: "SaveAudio",
         x: 540,
         y: 120,
@@ -155,10 +156,10 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       },
     ],
     links: [
-      link("l1", "n1", "n2", "AUDIO", 0, 0),
-      link("l2", "n1", "n2", "AUDIO", 1, 1),
-      link("l3", "n2", "n3", "AUDIO"),
-      link("l4", "n2", "n4", "AUDIO"),
+      link("l1", "n1", "n3", "AUDIO", 0, 0),
+      link("l2", "n2", "n3", "AUDIO", 0, 1),
+      link("l3", "n3", "n4", "AUDIO"),
+      link("l4", "n3", "n5", "AUDIO"),
     ],
   },
   Normalize: {
@@ -297,32 +298,31 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     focusNodeId: "n2",
     nodes: [
       load("n1", 0),
-      { id: "n2", type: "Transcode", x: 260, widgets: { format: "flac", path: "assets/exports/example.flac" } },
+      { id: "n2", type: "Transcode", x: 260, widgets: { format: "flac", path: "exports/example.flac" } },
       preview("n3", 520),
     ],
     links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
   },
   Prompt: {
     title: "Prompt",
-    description: "Text prompt into MusicGen generation.",
+    description: "Author TEXT and preview it (wire onward to GenerateAudio / TTS when ready).",
     focusNodeId: "n1",
     nodes: [
       { id: "n1", type: "Prompt", x: 0, widgets: { text: "warm lo-fi beat with soft piano" } },
-      { id: "n2", type: "GenerateAudio", x: 260, widgets: { model: "musicgen-small", prompt: "", seed: -1 } },
-      preview("n3", 520),
+      preview("n2", 260),
     ],
-    links: [link("l1", "n1", "n2", "TEXT"), link("l2", "n2", "n3", "AUDIO")],
+    links: [link("l1", "n1", "n2", "TEXT", 0, 1)],
   },
   LoadMIDI: {
     title: "Load MIDI",
-    description: "Load a MIDI file and synthesize audio.",
+    description: "Load a MIDI file and extract CC automation (offline).",
     focusNodeId: "n1",
     nodes: [
-      { id: "n1", type: "LoadMIDI", x: 0, widgets: { path: MIDI_SAMPLE, midi_kind: "performance" } },
-      { id: "n2", type: "MIDIToAudio", x: 260, widgets: { model: "musicgen-melody-small", prompt: "keyboard melody" } },
-      preview("n3", 520),
+      { id: "n1", type: "LoadMIDI", x: 0, widgets: { path: MIDI_SAMPLE, midi_kind: "control" } },
+      { id: "n2", type: "MIDIToFloat", x: 260, widgets: { cc: 7, default_value: 0.75 } },
+      { id: "n3", type: "FloatRoute", x: 520, widgets: {} },
     ],
-    links: [link("l1", "n1", "n2", "MIDI"), link("l2", "n2", "n3", "AUDIO")],
+    links: [link("l1", "n1", "n2", "MIDI"), link("l2", "n2", "n3", "AUTOMATION")],
   },
   ControlCurve: {
     title: "Control Curve",
@@ -396,30 +396,50 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
   },
   MIDINoteGate: {
     title: "MIDI Note Gate",
-    description: "Gate audio with MIDI note events.",
-    focusNodeId: "n3",
+    description: "Convert MIDI note events into a gate AUTOMATION for a VCA.",
+    focusNodeId: "n2",
     nodes: [
-      load("n1", 0),
-      { id: "n2", type: "LoadMIDI", x: 0, y: 120, widgets: { path: MIDI_SAMPLE, midi_kind: "performance" } },
-      { id: "n3", type: "MIDINoteGate", x: 280, widgets: { note: 60, channel: 1 } },
-      preview("n4", 540),
+      { id: "n1", type: "LoadMIDI", x: 0, widgets: { path: MIDI_SAMPLE, midi_kind: "performance" } },
+      { id: "n2", type: "MIDINoteGate", x: 260, widgets: { note: 60, channel: 1 } },
+      {
+        id: "n3",
+        type: "Oscillator",
+        x: 0,
+        y: 140,
+        widgets: {
+          waveform: "saw",
+          frequency_hz: 110,
+          amplitude_default: 0.35,
+          duration_sec: 0.5,
+          sample_rate: 48000,
+        },
+      },
+      { id: "n4", type: "Amplifier", x: 520, widgets: { gain: 1 } },
+      preview("n5", 780),
     ],
-    links: [link("l1", "n1", "n3", "AUDIO"), link("l2", "n2", "n3", "MIDI"), link("l3", "n3", "n4", "AUDIO")],
+    links: [
+      link("l1", "n1", "n2", "MIDI"),
+      link("l2", "n3", "n4", "AUDIO", 0, 0),
+      link("l3", "n2", "n4", "AUTOMATION", 0, 1),
+      link("l4", "n4", "n5", "AUDIO"),
+    ],
   },
   AutomationApply: {
     title: "Automation Apply",
-    description: "Multiply audio by a control-rate envelope.",
-    focusNodeId: "n3",
+    description: "Multiply audio by a MIDI-derived control-rate envelope.",
+    focusNodeId: "n4",
     nodes: [
       load("n1", 0),
-      { id: "n2", type: "LoadMIDI", x: 0, y: 120, widgets: { path: MIDI_SAMPLE, midi_kind: "control" } },
-      { id: "n3", type: "AutomationApply", x: 280, widgets: {} },
-      preview("n4", 540),
+      { id: "n2", type: "LoadMIDI", x: 0, y: 140, widgets: { path: MIDI_SAMPLE, midi_kind: "control" } },
+      { id: "n3", type: "MIDIToFloat", x: 260, y: 140, widgets: { cc: 7, default_value: 0.5 } },
+      { id: "n4", type: "AutomationApply", x: 520, widgets: {} },
+      preview("n5", 780),
     ],
     links: [
-      link("l1", "n1", "n3", "AUDIO"),
-      link("l2", "n2", "n3", "AUTOMATION", 0, 1),
-      link("l3", "n3", "n4", "AUDIO"),
+      link("l1", "n1", "n4", "AUDIO"),
+      link("l2", "n2", "n3", "MIDI"),
+      link("l3", "n3", "n4", "AUTOMATION", 0, 1),
+      link("l4", "n4", "n5", "AUDIO"),
     ],
   },
   FloatMath: {
@@ -495,12 +515,17 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     ],
     links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "TEXT", 0, 1)],
   },
-  TTS: {
-    title: "TTS",
+  GenerateSpeech: {
+    title: "Generate Speech",
     description: "Synthesize speech from text (optional reference for cloning).",
     focusNodeId: "n1",
     nodes: [
-      { id: "n1", type: "TTS", x: 0, widgets: { text: "Hello from GroovyUI.", model: "kokoro-82m" } },
+      {
+        id: "n1",
+        type: "GenerateSpeech",
+        x: 0,
+        widgets: { text: "Hello from GroovyUI.", model: "kokoro-82m" },
+      },
       { id: "n2", type: "Normalize", x: 260, widgets: { mode: "lufs", target_lufs: -16 } },
       preview("n3", 520),
     ],
@@ -1034,6 +1059,603 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     nodes: [load("n1", 0), { id: "n2", type: "ModuleInlet", x: 260, widgets: { name: "audio_in" } }, { id: "n3", type: "ModuleOutlet", x: 520, widgets: { name: "audio_out" } }],
     links: [link("l1", "n1", "n2", "AUDIO", 0, 0), link("l2", "n2", "n3", "AUDIO")],
   },
+  Note: {
+    title: "Note",
+    description: "Canvas annotation — no audio I/O.",
+    focusNodeId: "n1",
+    nodes: [{ id: "n1", type: "Note", x: 0, widgets: { text: "Patch notes go here." } }],
+    links: [],
+  },
+  TranslateText: {
+    title: "Translate Text",
+    description: "Prompt → machine translation → Preview.",
+    focusNodeId: "n2",
+    nodes: [
+      { id: "n1", type: "Prompt", x: 0, widgets: { text: "Hello from GroovyUI.", language: "en" } },
+      {
+        id: "n2",
+        type: "TranslateText",
+        x: 260,
+        widgets: { model: "m2m100-418m", src_lang: "en", tgt_lang: "zh" },
+      },
+      { id: "n3", type: "Preview", x: 520, widgets: {} },
+    ],
+    links: [link("l1", "n1", "n2", "TEXT"), link("l2", "n2", "n3", "TEXT", 0, 1)],
+  },
+  SpeechTranslate: {
+    title: "Speech Translate",
+    description: "Load speech and translate to another spoken language.",
+    focusNodeId: "n2",
+    nodes: [
+      load("n1", 0),
+      {
+        id: "n2",
+        type: "SpeechTranslate",
+        x: 260,
+        widgets: { model: "seamless-m4t-v2-large", src_lang: "eng", tgt_lang: "spa" },
+      },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
+  },
+  Benchmark: {
+    title: "Benchmark",
+    description: "Compare hypothesis TEXT to a gold Prompt with WER/CER.",
+    focusNodeId: "n3",
+    nodes: [
+      { id: "n1", type: "Prompt", x: 0, widgets: { text: "hello groovy" } },
+      { id: "n2", type: "Prompt", x: 0, y: 120, widgets: { text: "hello groovy" } },
+      { id: "n3", type: "Benchmark", x: 280, widgets: { metric: "wer_cer", normalize: true } },
+      { id: "n4", type: "Preview", x: 540, widgets: {} },
+    ],
+    links: [
+      link("l1", "n2", "n3", "TEXT", 0, 0),
+      link("l2", "n1", "n3", "TEXT", 0, 1),
+      link("l3", "n3", "n4", "TEXT", 0, 1),
+    ],
+  },
+  SignalGenerator: {
+    title: "Signal Generator",
+    description: "Offline oscillator tone into Preview.",
+    focusNodeId: "n1",
+    nodes: [
+      {
+        id: "n1",
+        type: "SignalGenerator",
+        x: 0,
+        widgets: {
+          waveform: "sine",
+          frequency_hz: 220,
+          amplitude_default: 0.35,
+          duration_sec: 0.5,
+          sample_rate: 48000,
+        },
+      },
+      preview("n2", 260),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO")],
+  },
+  Oscillator: {
+    title: "Oscillator",
+    description: "Modular oscillator into Preview.",
+    focusNodeId: "n1",
+    nodes: [
+      {
+        id: "n1",
+        type: "Oscillator",
+        x: 0,
+        widgets: {
+          waveform: "sine",
+          frequency_hz: 220,
+          amplitude_default: 0.35,
+          duration_sec: 0.4,
+          sample_rate: 48000,
+        },
+      },
+      preview("n2", 260),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO")],
+  },
+  NoiseGenerator: {
+    title: "Noise Generator",
+    description: "White noise burst into Preview.",
+    focusNodeId: "n1",
+    nodes: [
+      {
+        id: "n1",
+        type: "NoiseGenerator",
+        x: 0,
+        widgets: { color: "white", amplitude: 0.35, duration_sec: 0.35, sample_rate: 48000, seed: 1 },
+      },
+      preview("n2", 260),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO")],
+  },
+  Filter: {
+    title: "Filter",
+    description: "Noise → lowpass Filter → Preview.",
+    focusNodeId: "n2",
+    nodes: [
+      {
+        id: "n1",
+        type: "NoiseGenerator",
+        x: 0,
+        widgets: { color: "white", amplitude: 0.4, duration_sec: 0.35, sample_rate: 48000, seed: 2 },
+      },
+      { id: "n2", type: "Filter", x: 260, widgets: { filter_type: "lowpass", cutoff_hz: 1200, q: 0.7 } },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
+  },
+  Amplifier: {
+    title: "Amplifier",
+    description: "Oscillator → VCA with Envelope CV → Preview.",
+    focusNodeId: "n3",
+    nodes: [
+      {
+        id: "n1",
+        type: "Oscillator",
+        x: 0,
+        widgets: {
+          waveform: "saw",
+          frequency_hz: 110,
+          amplitude_default: 0.4,
+          duration_sec: 0.4,
+          sample_rate: 48000,
+        },
+      },
+      {
+        id: "n2",
+        type: "Envelope",
+        x: 0,
+        y: 140,
+        widgets: {
+          attack_ms: 10,
+          decay_ms: 80,
+          sustain: 0.4,
+          release_ms: 120,
+          duration_sec: 0.4,
+          sample_rate: 48000,
+        },
+      },
+      { id: "n3", type: "Amplifier", x: 280, widgets: { gain: 0.9 } },
+      preview("n4", 540),
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUDIO", 0, 0),
+      link("l2", "n2", "n3", "AUTOMATION", 0, 1),
+      link("l3", "n3", "n4", "AUDIO"),
+    ],
+  },
+  Attenuator: {
+    title: "Attenuator",
+    description: "Scale an oscillator by a fixed amount.",
+    focusNodeId: "n2",
+    nodes: [
+      {
+        id: "n1",
+        type: "Oscillator",
+        x: 0,
+        widgets: {
+          waveform: "sine",
+          frequency_hz: 330,
+          amplitude_default: 0.5,
+          duration_sec: 0.3,
+          sample_rate: 48000,
+        },
+      },
+      { id: "n2", type: "Attenuator", x: 260, widgets: { amount: 0.4 } },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
+  },
+  Envelope: {
+    title: "Envelope",
+    description: "ADSR curve driving an Amplifier.",
+    focusNodeId: "n1",
+    nodes: [
+      {
+        id: "n1",
+        type: "Envelope",
+        x: 0,
+        widgets: {
+          attack_ms: 20,
+          decay_ms: 60,
+          sustain: 0.55,
+          release_ms: 100,
+          duration_sec: 0.4,
+          sample_rate: 48000,
+        },
+      },
+      {
+        id: "n2",
+        type: "Oscillator",
+        x: 0,
+        y: 140,
+        widgets: {
+          waveform: "triangle",
+          frequency_hz: 196,
+          amplitude_default: 0.45,
+          duration_sec: 0.4,
+          sample_rate: 48000,
+        },
+      },
+      { id: "n3", type: "Amplifier", x: 280, widgets: { gain: 1 } },
+      preview("n4", 540),
+    ],
+    links: [
+      link("l1", "n2", "n3", "AUDIO", 0, 0),
+      link("l2", "n1", "n3", "AUTOMATION", 0, 1),
+      link("l3", "n3", "n4", "AUDIO"),
+    ],
+  },
+  LFO: {
+    title: "LFO",
+    description: "LFO modulates oscillator frequency.",
+    focusNodeId: "n1",
+    nodes: [
+      {
+        id: "n1",
+        type: "LFO",
+        x: 0,
+        widgets: { rate_hz: 3, amplitude: 40, duration_sec: 0.5, sample_rate: 48000 },
+      },
+      {
+        id: "n2",
+        type: "Oscillator",
+        x: 260,
+        widgets: {
+          waveform: "sine",
+          frequency_hz: 220,
+          amplitude_default: 0.35,
+          duration_sec: 0.5,
+          sample_rate: 48000,
+        },
+      },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUTOMATION", 0, 0), link("l2", "n2", "n3", "AUDIO")],
+  },
+  Reverb: {
+    title: "Reverb",
+    description: "Oscillator into a short room reverb.",
+    focusNodeId: "n2",
+    nodes: [
+      {
+        id: "n1",
+        type: "Oscillator",
+        x: 0,
+        widgets: {
+          waveform: "square",
+          frequency_hz: 110,
+          amplitude_default: 0.35,
+          duration_sec: 0.35,
+          sample_rate: 48000,
+        },
+      },
+      { id: "n2", type: "Reverb", x: 260, widgets: { mix: 0.35, room_sec: 0.6, damping: 0.45 } },
+      preview("n3", 520),
+    ],
+    links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
+  },
+  Clock: {
+    title: "Clock",
+    description: "Clock pulses open a SampleAndHold on noise.",
+    focusNodeId: "n1",
+    nodes: [
+      {
+        id: "n1",
+        type: "Clock",
+        x: 0,
+        widgets: { bpm: 180, pulse_ms: 8, duration_sec: 0.4, sample_rate: 48000 },
+      },
+      {
+        id: "n2",
+        type: "NoiseGenerator",
+        x: 0,
+        y: 140,
+        widgets: { color: "white", amplitude: 1, duration_sec: 0.4, sample_rate: 48000, seed: 7 },
+      },
+      { id: "n3", type: "SampleAndHold", x: 280, widgets: { threshold: 0.5 } },
+      {
+        id: "n4",
+        type: "Oscillator",
+        x: 540,
+        widgets: {
+          waveform: "sine",
+          frequency_hz: 220,
+          amplitude_default: 0.3,
+          duration_sec: 0.4,
+          sample_rate: 48000,
+        },
+      },
+      preview("n5", 800),
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUTOMATION", 0, 0),
+      link("l2", "n2", "n3", "AUDIO", 0, 2),
+      link("l3", "n3", "n4", "AUTOMATION", 0, 0),
+      link("l4", "n4", "n5", "AUDIO"),
+    ],
+  },
+  Comparator: {
+    title: "Comparator",
+    description: "LFO through a threshold gate into Logic.",
+    focusNodeId: "n2",
+    nodes: [
+      {
+        id: "n1",
+        type: "LFO",
+        x: 0,
+        widgets: { rate_hz: 4, amplitude: 1, duration_sec: 0.35, sample_rate: 48000 },
+      },
+      { id: "n2", type: "Comparator", x: 260, widgets: { threshold: 0 } },
+      {
+        id: "n3",
+        type: "Clock",
+        x: 0,
+        y: 140,
+        widgets: { bpm: 240, pulse_ms: 5, duration_sec: 0.35, sample_rate: 48000 },
+      },
+      { id: "n4", type: "Logic", x: 520, widgets: { operation: "and" } },
+    ],
+    links: [
+      link("l1", "n1", "n2", "AUTOMATION"),
+      link("l2", "n2", "n4", "AUTOMATION", 0, 0),
+      link("l3", "n3", "n4", "AUTOMATION", 0, 1),
+    ],
+  },
+  Logic: {
+    title: "Logic",
+    description: "AND two pulse trains.",
+    focusNodeId: "n3",
+    nodes: [
+      {
+        id: "n1",
+        type: "Clock",
+        x: 0,
+        widgets: { bpm: 180, pulse_ms: 6, duration_sec: 0.35, sample_rate: 48000 },
+      },
+      {
+        id: "n2",
+        type: "Clock",
+        x: 0,
+        y: 120,
+        widgets: { bpm: 240, pulse_ms: 6, duration_sec: 0.35, sample_rate: 48000 },
+      },
+      { id: "n3", type: "Logic", x: 280, widgets: { operation: "and" } },
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUTOMATION", 0, 0),
+      link("l2", "n2", "n3", "AUTOMATION", 0, 1),
+    ],
+  },
+  SampleAndHold: {
+    title: "Sample and Hold",
+    description: "Clocked S&H on noise into a Quantizer.",
+    focusNodeId: "n3",
+    nodes: [
+      {
+        id: "n1",
+        type: "Clock",
+        x: 0,
+        widgets: { bpm: 200, pulse_ms: 8, duration_sec: 0.4, sample_rate: 48000 },
+      },
+      {
+        id: "n2",
+        type: "NoiseGenerator",
+        x: 0,
+        y: 140,
+        widgets: { color: "white", amplitude: 1, duration_sec: 0.4, sample_rate: 48000, seed: 9 },
+      },
+      { id: "n3", type: "SampleAndHold", x: 280, widgets: { threshold: 0.5 } },
+      { id: "n4", type: "Quantizer", x: 540, widgets: { scale: "minor", root_hz: 220 } },
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUTOMATION", 0, 0),
+      link("l2", "n2", "n3", "AUDIO", 0, 2),
+      link("l3", "n3", "n4", "AUTOMATION"),
+    ],
+  },
+  Quantizer: {
+    title: "Quantizer",
+    description: "Quantize CV into a musical scale for an Oscillator.",
+    focusNodeId: "n2",
+    nodes: [
+      {
+        id: "n1",
+        type: "LFO",
+        x: 0,
+        widgets: { rate_hz: 1.5, amplitude: 1, duration_sec: 0.5, sample_rate: 48000 },
+      },
+      { id: "n2", type: "Quantizer", x: 260, widgets: { scale: "major", root_hz: 220 } },
+      {
+        id: "n3",
+        type: "Oscillator",
+        x: 520,
+        widgets: {
+          waveform: "sine",
+          frequency_hz: 220,
+          amplitude_default: 0.3,
+          duration_sec: 0.5,
+          sample_rate: 48000,
+        },
+      },
+      preview("n4", 780),
+    ],
+    links: [
+      link("l1", "n1", "n2", "AUTOMATION"),
+      link("l2", "n2", "n3", "AUTOMATION", 0, 0),
+      link("l3", "n3", "n4", "AUDIO"),
+    ],
+  },
+  MatrixMixer: {
+    title: "Matrix Mixer",
+    description: "Two oscillators into a 2×2 matrix mix.",
+    focusNodeId: "n3",
+    nodes: [
+      {
+        id: "n1",
+        type: "Oscillator",
+        x: 0,
+        widgets: {
+          waveform: "sine",
+          frequency_hz: 220,
+          amplitude_default: 0.3,
+          duration_sec: 0.3,
+          sample_rate: 48000,
+        },
+      },
+      {
+        id: "n2",
+        type: "Oscillator",
+        x: 0,
+        y: 140,
+        widgets: {
+          waveform: "saw",
+          frequency_hz: 330,
+          amplitude_default: 0.25,
+          duration_sec: 0.3,
+          sample_rate: 48000,
+        },
+      },
+      {
+        id: "n3",
+        type: "MatrixMixer",
+        x: 280,
+        widgets: { gain_0_0: 1, gain_1_0: 0.5, gain_0_1: 0, gain_1_1: 1 },
+      },
+      preview("n4", 540),
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUDIO", 0, 0),
+      link("l2", "n2", "n3", "AUDIO", 0, 1),
+      link("l3", "n3", "n4", "AUDIO", 0, 0),
+    ],
+  },
+  Float: {
+    title: "Float",
+    description: "Constant AUTOMATION into FloatMath.",
+    focusNodeId: "n1",
+    nodes: [
+      { id: "n1", type: "Float", x: 0, widgets: { value: 2, duration_sec: 0.2, sample_rate: 48000 } },
+      { id: "n2", type: "Float", x: 0, y: 120, widgets: { value: 3, duration_sec: 0.2, sample_rate: 48000 } },
+      { id: "n3", type: "FloatMath", x: 280, widgets: { operation: "multiply" } },
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUTOMATION", 0, 0),
+      link("l2", "n2", "n3", "AUTOMATION", 0, 1),
+    ],
+  },
+  GenerateVideo: {
+    title: "Generate Video",
+    description: "Prompt → GenerateVideo → PreviewVideo (and generation log).",
+    focusNodeId: "n2",
+    nodes: [
+      { id: "n1", type: "Prompt", x: 0, widgets: { text: "A quiet forest path at dusk." } },
+      {
+        id: "n2",
+        type: "GenerateVideo",
+        x: 260,
+        widgets: { model: "ltx-video", duration: 2, width: 512, height: 512, num_steps: 8, seed: -1 },
+      },
+      { id: "n3", type: "PreviewVideo", x: 520, widgets: {} },
+      { id: "n4", type: "SaveGenerateLog", x: 520, y: 140, widgets: { path: "exports", filename: "gen-log.json" } },
+    ],
+    links: [
+      link("l1", "n1", "n2", "TEXT"),
+      link("l2", "n2", "n3", "VIDEO", 0, 0),
+      link("l3", "n2", "n4", "GENERATE_LOG", 1, 0),
+    ],
+  },
+  LoadImage: {
+    title: "Load Image",
+    description: "Load a still from assets (wire to GenerateVideo image inlet when ready).",
+    focusNodeId: "n1",
+    nodes: [
+      { id: "n1", type: "LoadImage", x: 0, widgets: { path: "assets/samples/Fort-Zeelandia.png" } },
+      { id: "n2", type: "Note", x: 280, widgets: { text: "Wire IMAGE → GenerateVideo (image inlet)." } },
+    ],
+    links: [],
+  },
+  LoadVideo: {
+    title: "Load Video",
+    description: "Load a clip and preview it.",
+    focusNodeId: "n1",
+    nodes: [
+      { id: "n1", type: "LoadVideo", x: 0, widgets: { path: "assets/samples/video480p.mov" } },
+      { id: "n2", type: "PreviewVideo", x: 280, widgets: {} },
+    ],
+    links: [link("l1", "n1", "n2", "VIDEO")],
+  },
+  SplitVideo: {
+    title: "Split Video",
+    description: "LoadVideo → SplitVideo → PreviewVideo.",
+    focusNodeId: "n2",
+    nodes: [
+      { id: "n1", type: "LoadVideo", x: 0, widgets: { path: "assets/samples/video480p.mov" } },
+      { id: "n2", type: "SplitVideo", x: 280, widgets: {} },
+      { id: "n3", type: "PreviewVideo", x: 560, widgets: {} },
+    ],
+    links: [link("l1", "n1", "n2", "VIDEO"), link("l2", "n2", "n3", "VIDEO", 0, 0)],
+  },
+  MuxVideo: {
+    title: "Mux Video",
+    description: "Combine video + audio into a PreviewVideo.",
+    focusNodeId: "n3",
+    nodes: [
+      { id: "n1", type: "LoadVideo", x: 0, widgets: { path: "assets/samples/video480p.mov" } },
+      load("n2", 0, 140),
+      { id: "n3", type: "MuxVideo", x: 280, widgets: {} },
+      { id: "n4", type: "PreviewVideo", x: 560, widgets: {} },
+    ],
+    links: [
+      link("l1", "n2", "n3", "AUDIO", 0, 0),
+      link("l2", "n1", "n3", "VIDEO", 0, 1),
+      link("l3", "n3", "n4", "VIDEO"),
+    ],
+  },
+  PreviewVideo: {
+    title: "Preview Video",
+    description: "LoadVideo into an on-canvas PreviewVideo.",
+    focusNodeId: "n2",
+    nodes: [
+      { id: "n1", type: "LoadVideo", x: 0, widgets: { path: "assets/samples/video480p.mov" } },
+      { id: "n2", type: "PreviewVideo", x: 280, widgets: {} },
+    ],
+    links: [link("l1", "n1", "n2", "VIDEO")],
+  },
+  SaveVideo: {
+    title: "Save Video",
+    description: "LoadVideo and write to exports.",
+    focusNodeId: "n2",
+    nodes: [
+      { id: "n1", type: "LoadVideo", x: 0, widgets: { path: "assets/samples/video480p.mov" } },
+      {
+        id: "n2",
+        type: "SaveVideo",
+        x: 280,
+        widgets: { path: "exports", filename: "saved-clip.mp4" },
+      },
+    ],
+    links: [link("l1", "n1", "n2", "VIDEO")],
+  },
+  SaveGenerateLog: {
+    title: "Save Generate Log",
+    description: "Capture GenerateVideo log sidecar to disk.",
+    focusNodeId: "n3",
+    nodes: [
+      { id: "n1", type: "Prompt", x: 0, widgets: { text: "Soft clouds over a lake." } },
+      { id: "n2", type: "GenerateVideo", x: 260, widgets: { model: "ltx-video", duration: 2, seed: -1 } },
+      {
+        id: "n3",
+        type: "SaveGenerateLog",
+        x: 520,
+        widgets: { path: "exports", filename: "generate-log.json" },
+      },
+    ],
+    links: [link("l1", "n1", "n2", "TEXT"), link("l2", "n2", "n3", "GENERATE_LOG", 1, 0)],
+  },
 };
 
 const PATCH_X_STEP = 260;
@@ -1470,6 +2092,10 @@ export function hasMinimalPatch(nodeType: string, schemas: Record<string, NodeSc
   return Boolean(PATCH_RECIPES[nodeType] ?? schemas[nodeType]);
 }
 
+export function listCuratedMinimalPatchTypes(): string[] {
+  return Object.keys(PATCH_RECIPES).sort((a, b) => a.localeCompare(b));
+}
+
 export function getMinimalPatch(nodeType: string, schemas: Record<string, NodeSchema> = {}): MinimalPatch | null {
   const schema = schemas[nodeType];
   const recipe = PATCH_RECIPES[nodeType];
@@ -1478,4 +2104,128 @@ export function getMinimalPatch(nodeType: string, schemas: Record<string, NodeSc
     patch = ensureSchemaIoWiring(patch, schema);
   }
   return patch;
+}
+
+/** Human-readable chain summary for the Inspector Help tab. */
+export function summarizeMinimalPatch(patch: MinimalPatch): {
+  title: string;
+  description: string;
+  nodeTypes: string[];
+  chain: string;
+} {
+  const title = patch.workflow.metadata.title || "Example";
+  const description = patch.workflow.metadata.description || patch.hint;
+  const byId = new Map(patch.workflow.nodes.map((node) => [node.id, node]));
+  const focus = byId.get(patch.focusNodeId);
+  const nodeTypes = patch.workflow.nodes.map((node) => node.type);
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  const visit = (id: string) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    for (const edge of patch.workflow.links) {
+      if (edge.to[0] === id) visit(edge.from[0]);
+    }
+    const node = byId.get(id);
+    if (node) ordered.push(node.type);
+  };
+  if (focus) visit(focus.id);
+  for (const node of patch.workflow.nodes) visit(node.id);
+  return {
+    title,
+    description,
+    nodeTypes,
+    chain: ordered.length ? ordered.join(" → ") : nodeTypes.join(" · "),
+  };
+}
+
+/**
+ * Insert a minimal example patch onto the canvas (new node ids), anchored near *anchor*.
+ * Does not remove existing nodes.
+ *
+ * When `expandNodeId` matches the patch focus type, reuses that canvas node instead of
+ * duplicating it — Help "Apply to canvas" expands the dropped/selected node in place.
+ */
+export function applyMinimalPatchToCanvas(
+  workflow: Workflow,
+  patch: MinimalPatch,
+  anchor: { x: number; y: number },
+  options?: { expandNodeId?: string },
+): { workflow: Workflow; focusNodeId: string; expanded: boolean } {
+  const focus = patch.workflow.nodes.find((node) => node.id === patch.focusNodeId);
+  const expandNode = options?.expandNodeId
+    ? workflow.nodes.find((node) => node.id === options.expandNodeId)
+    : undefined;
+  const canExpand = Boolean(
+    expandNode && focus && expandNode.type === focus.type && options?.expandNodeId,
+  );
+
+  const idMap = allocatePatchNodeIdMap(workflow, patch.workflow);
+  if (canExpand && options?.expandNodeId) {
+    idMap.set(patch.focusNodeId, options.expandNodeId);
+  }
+
+  const focusPos = focus?.pos ?? { x: 0, y: 0 };
+  const origin = canExpand && expandNode?.pos ? expandNode.pos : anchor;
+  const dx = origin.x - focusPos.x;
+  const dy = origin.y - focusPos.y;
+
+  let placedWorkflow = workflow;
+  if (canExpand && expandNode && focus) {
+    placedWorkflow = {
+      ...placedWorkflow,
+      nodes: placedWorkflow.nodes.map((node) =>
+        node.id === expandNode.id
+          ? {
+              ...node,
+              widgets: { ...(node.widgets ?? {}), ...(focus.widgets ?? {}) },
+            }
+          : node,
+      ),
+    };
+  }
+
+  for (const node of patch.workflow.nodes) {
+    if (canExpand && node.id === patch.focusNodeId) continue;
+    const size = estimateNodeSize(node);
+    const desired = {
+      x: (node.pos?.x ?? 0) + dx,
+      y: (node.pos?.y ?? 0) + dy,
+    };
+    const center = { x: desired.x + size.width / 2, y: desired.y + size.height / 2 };
+    const pos = findOpenNodePosition(placedWorkflow, center, size);
+    const placed: WorkflowNode = {
+      ...node,
+      id: idMap.get(node.id)!,
+      pos,
+      widgets: { ...(node.widgets ?? {}) },
+    };
+    placedWorkflow = { ...placedWorkflow, nodes: [...placedWorkflow.nodes, placed] };
+  }
+
+  const newLinks: WorkflowLink[] = [];
+  for (const [index, edge] of patch.workflow.links.entries()) {
+    const fromId = idMap.get(edge.from[0]);
+    const toId = idMap.get(edge.to[0]);
+    if (!fromId || !toId) continue;
+    const alreadyWired = placedWorkflow.links.some(
+      (link) => link.to[0] === toId && link.to[1] === edge.to[1],
+    );
+    if (alreadyWired) continue;
+    newLinks.push({
+      id: `help-${Date.now()}-${index}-${edge.id}`,
+      from: [fromId, edge.from[1]] as [string, number],
+      to: [toId, edge.to[1]] as [string, number],
+      type: edge.type,
+    });
+  }
+
+  return {
+    workflow: {
+      ...placedWorkflow,
+      links: [...placedWorkflow.links, ...newLinks],
+    },
+    focusNodeId: idMap.get(patch.focusNodeId)!,
+    expanded: canExpand,
+  };
 }

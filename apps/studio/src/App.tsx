@@ -86,7 +86,12 @@ import RenderActivityBar from "./components/RenderActivityBar";
 import { AuditionContext } from "./context/AuditionContext";
 import { PreviewVideoSizeContext } from "./context/PreviewVideoSizeContext";
 import { TrajectoryEditContext } from "./context/TrajectoryEditContext";
-import { augmentNodeWithExample, getMinimalPatch, type MinimalPatch } from "./nodeMinimalPatches";
+import {
+  applyMinimalPatchToCanvas,
+  augmentNodeWithExample,
+  getMinimalPatch,
+  type MinimalPatch,
+} from "./nodeMinimalPatches";
 import { useLiveIo } from "./hooks/useLiveIo";
 import { useWorkflowHistory } from "./hooks/useWorkflowHistory";
 import {
@@ -135,6 +140,7 @@ import {
   preferredAuditionNodeId,
   preferredVideoPreviewNodeId,
   disconnectPort,
+  estimateNodeSize,
   removeLinks,
   removeNodesFromWorkflow,
   resolveComparePair,
@@ -1340,6 +1346,50 @@ export default function App() {
       });
     },
     [setWorkflow],
+  );
+
+  const applyHelpExampleToCanvas = useCallback(
+    (patch: MinimalPatch) => {
+      setWorkflow((prev) => {
+        if (!prev) return prev;
+        const selected = selectedNodeId
+          ? prev.nodes.find((node) => node.id === selectedNodeId)
+          : null;
+        const focus = patch.workflow.nodes.find((node) => node.id === patch.focusNodeId);
+        const expandNodeId =
+          selected && focus && selected.type === focus.type ? selected.id : undefined;
+        const size = selected ? estimateNodeSize(selected) : { width: 200, height: 100 };
+        const anchor = expandNodeId
+          ? (selected?.pos ?? { x: 320, y: 200 })
+          : selected?.pos
+            ? { x: selected.pos.x + size.width + 80, y: selected.pos.y }
+            : (flowCenterRef.current?.() ?? { x: 320, y: 200 });
+        const { workflow: next, focusNodeId, expanded } = applyMinimalPatchToCanvas(
+          prev,
+          patch,
+          anchor,
+          { expandNodeId },
+        );
+        pendingSelectionRef.current = new Set([focusNodeId]);
+        setLastJob(null);
+        auditionTargetRef.current = null;
+        setActiveEdgeIds(
+          nextActiveEdgeIds({
+            event: "preview_cleared",
+            workflow: null,
+            targetNodeId: null,
+          }),
+        );
+        setHelperOpen(true);
+        setStatus(
+          expanded
+            ? `Expanded ${selected?.type ?? "node"} with Help example`
+            : `Applied Help example: ${patch.workflow.metadata.title}`,
+        );
+        return next;
+      });
+    },
+    [selectedNodeId, setWorkflow],
   );
 
   const dismissCreativeSession = useCallback(() => {
@@ -2732,6 +2782,8 @@ export default function App() {
                 onDisconnectPort={disconnectPortCb}
                 onDeleteLink={deleteSelectedLink}
                 onSubgraphActiveChange={setInspectorWide}
+                onApplyHelpExample={applyHelpExampleToCanvas}
+                nodeSchemas={nodeSchemas}
                 selectionBusy={selectionBusy}
                 onBrowseModel={(nodeId, widget) => {
                   setModelPickTarget({ nodeId, widget });

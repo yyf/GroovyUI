@@ -1,5 +1,80 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { augmentNodeWithExample, getMinimalPatch, hasMinimalPatch } from "./nodeMinimalPatches";
+import {
+  applyMinimalPatchToCanvas,
+  augmentNodeWithExample,
+  getMinimalPatch,
+  hasMinimalPatch,
+  listCuratedMinimalPatchTypes,
+  summarizeMinimalPatch,
+} from "./nodeMinimalPatches";
+import schemaSlots from "./fixtures/node_schema_slots.json";
+
+type SlotSpec = { name: string; type: string; optional?: boolean; slot: number };
+type SchemaSlots = Record<string, { inputs: SlotSpec[]; outputs: SlotSpec[] }>;
+const SLOTS = schemaSlots as SchemaSlots;
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+
+function emptyWorkflow(title: string, nodes: Array<{ id: string; type: string; pos?: { x: number; y: number } }>) {
+  return {
+    schema_version: "1.0.0",
+    groovy_version: "0.1.0",
+    id: "wf",
+    metadata: { title },
+    nodes: nodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      pos: node.pos ?? { x: 240, y: 120 },
+      widgets: {},
+    })),
+    links: [],
+    groups: [],
+  };
+}
+
+function validatePatchLinks(
+  label: string,
+  nodes: Array<{ id: string; type: string }>,
+  links: Array<{ id: string; from: [string, number]; to: [string, number]; type: string }>,
+  failures: string[],
+) {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  for (const edge of links) {
+    const fromNode = byId.get(edge.from[0]);
+    const toNode = byId.get(edge.to[0]);
+    if (!fromNode || !toNode) {
+      failures.push(`${label}: missing endpoint for ${edge.id}`);
+      continue;
+    }
+    const fromSchema = SLOTS[fromNode.type];
+    const toSchema = SLOTS[toNode.type];
+    if (!fromSchema || !toSchema) {
+      failures.push(`${label}: unknown schema for ${fromNode.type}→${toNode.type}`);
+      continue;
+    }
+    const out = fromSchema.outputs.find((socket) => socket.slot === edge.from[1]);
+    const inn = toSchema.inputs.find((socket) => socket.slot === edge.to[1]);
+    if (!out) {
+      failures.push(`${label}: ${fromNode.type} has no output slot ${edge.from[1]} (${edge.id})`);
+    } else if (out.type !== edge.type) {
+      failures.push(
+        `${label}: ${fromNode.type} out[${edge.from[1]}] is ${out.type}, link claims ${edge.type}`,
+      );
+    }
+    if (!inn) {
+      failures.push(
+        `${label}: ${toNode.type} has no input slot ${edge.to[1]} (${edge.id}, type ${edge.type})`,
+      );
+    } else if (inn.type !== edge.type) {
+      failures.push(
+        `${label}: ${toNode.type} in[${edge.to[1]}] is ${inn.type}, link claims ${edge.type}`,
+      );
+    }
+  }
+}
 
 describe("nodeMinimalPatches", () => {
   it("has recipes for core studio nodes", () => {
@@ -336,7 +411,7 @@ describe("nodeMinimalPatches", () => {
       const { workflow: next, changed } = augmentNodeWithExample(workflow, "n2", whisperSchema, patch);
       expect(changed).toBe(true);
       expect(next.nodes.some((node) => node.type === "LoadAudio")).toBe(true);
-      expect(next.nodes.some((node) => node.type === "TTS")).toBe(false);
+      expect(next.nodes.some((node) => node.type === "GenerateSpeech")).toBe(false);
       expect(next.nodes.some((node) => node.type === "Preview")).toBe(false);
     });
 
@@ -386,6 +461,230 @@ describe("nodeMinimalPatches", () => {
           expect(overlap).toBe(false);
         }
       }
+    });
+  });
+
+  describe("Help tab production recipes", () => {
+    const curated = listCuratedMinimalPatchTypes();
+
+    it("curates examples for core / AI / modular Help targets", () => {
+      for (const type of [
+        "GenerateSpeech",
+        "Prompt",
+        "Oscillator",
+        "Filter",
+        "Amplifier",
+        "MatrixMixer",
+        "TranslateText",
+        "GenerateVideo",
+        "LoadVideo",
+        "MuxVideo",
+        "Benchmark",
+        "Float",
+      ]) {
+        expect(curated).toContain(type);
+      }
+      expect(curated.length).toBeGreaterThan(80);
+    });
+
+    it("builds a valid focus + chain summary for every curated recipe", () => {
+      for (const type of curated) {
+        const patch = getMinimalPatch(type);
+        expect(patch, type).not.toBeNull();
+        expect(patch!.workflow.nodes.some((node) => node.id === patch!.focusNodeId), type).toBe(true);
+        expect(patch!.workflow.nodes.some((node) => node.type === type), type).toBe(true);
+        const summary = summarizeMinimalPatch(patch!);
+        expect(summary.title.length, type).toBeGreaterThan(0);
+        expect(summary.chain.length, type).toBeGreaterThan(0);
+        for (const edge of patch!.workflow.links) {
+          expect(
+            patch!.workflow.nodes.some((node) => node.id === edge.from[0]),
+            `${type} missing from ${edge.id}`,
+          ).toBe(true);
+          expect(
+            patch!.workflow.nodes.some((node) => node.id === edge.to[0]),
+            `${type} missing to ${edge.id}`,
+          ).toBe(true);
+        }
+      }
+    });
+
+    it("applies Help examples onto an existing canvas without wiping nodes", () => {
+      const patch = getMinimalPatch("Oscillator")!;
+      const base = {
+        schema_version: "1.0.0",
+        groovy_version: "0.1.0",
+        id: "wf",
+        metadata: { title: "Base" },
+        nodes: [{ id: "keep", type: "Note", pos: { x: 0, y: 0 }, widgets: { text: "keep me" } }],
+        links: [],
+        groups: [],
+      };
+      const { workflow: next, focusNodeId, expanded } = applyMinimalPatchToCanvas(base, patch, {
+        x: 400,
+        y: 80,
+      });
+      expect(expanded).toBe(false);
+      expect(next.nodes.some((node) => node.id === "keep")).toBe(true);
+      expect(next.nodes.some((node) => node.id === focusNodeId)).toBe(true);
+      expect(next.nodes.some((node) => node.type === "Oscillator")).toBe(true);
+      expect(next.nodes.length).toBeGreaterThan(base.nodes.length);
+    });
+
+    it("expands the selected matching node instead of duplicating the Help focus", () => {
+      const patch = getMinimalPatch("Denoise")!;
+      const base = {
+        schema_version: "1.0.0",
+        groovy_version: "0.1.0",
+        id: "wf",
+        metadata: { title: "Dropped" },
+        nodes: [{ id: "dropped", type: "Denoise", pos: { x: 300, y: 120 }, widgets: {} }],
+        links: [],
+        groups: [],
+      };
+      const beforeCount = base.nodes.filter((node) => node.type === "Denoise").length;
+      const { workflow: next, focusNodeId, expanded } = applyMinimalPatchToCanvas(
+        base,
+        patch,
+        base.nodes[0].pos!,
+        { expandNodeId: "dropped" },
+      );
+      expect(expanded).toBe(true);
+      expect(focusNodeId).toBe("dropped");
+      expect(next.nodes.filter((node) => node.type === "Denoise")).toHaveLength(beforeCount);
+      expect(next.nodes.some((node) => node.type === "LoadAudio")).toBe(true);
+      expect(next.nodes.some((node) => node.type === "Preview")).toBe(true);
+      expect(next.links.some((link) => link.to[0] === "dropped")).toBe(true);
+      expect(next.links.some((link) => link.from[0] === "dropped")).toBe(true);
+      // Example widgets land on the existing node so Cmd+J renders the demo.
+      const focus = next.nodes.find((node) => node.id === "dropped")!;
+      expect(Object.keys(focus.widgets ?? {}).length).toBeGreaterThan(0);
+    });
+
+    it("wires every curated Help recipe to valid schema slots and types", () => {
+      const failures: string[] = [];
+      for (const type of curated) {
+        const patch = getMinimalPatch(type)!;
+        validatePatchLinks(type, patch.workflow.nodes, patch.workflow.links, failures);
+      }
+      expect(failures, failures.join("\n")).toEqual([]);
+    });
+
+    it("covers every registered backend node type with a curated Help recipe", () => {
+      const registered = Object.keys(SLOTS).sort();
+      const curatedSet = new Set(curated);
+      const missing = registered.filter((type) => !curatedSet.has(type));
+      expect(missing, `missing Help recipes:\n${missing.join("\n")}`).toEqual([]);
+    });
+
+    it("expands every curated Help recipe onto a dropped node without duplicating focus", () => {
+      const failures: string[] = [];
+      for (const type of curated) {
+        const patch = getMinimalPatch(type)!;
+        const focus = patch.workflow.nodes.find((node) => node.id === patch.focusNodeId)!;
+        const helpersOfSameType = patch.workflow.nodes.filter(
+          (node) => node.type === type && node.id !== patch.focusNodeId,
+        ).length;
+        const base = emptyWorkflow(`drop-${type}`, [{ id: "dropped", type }]);
+        const { workflow: next, focusNodeId, expanded } = applyMinimalPatchToCanvas(
+          base,
+          patch,
+          { x: 240, y: 120 },
+          { expandNodeId: "dropped" },
+        );
+        if (!expanded) {
+          failures.push(`${type}: expand did not activate`);
+          continue;
+        }
+        if (focusNodeId !== "dropped") {
+          failures.push(`${type}: focus became ${focusNodeId}`);
+        }
+        const focusCount = next.nodes.filter((node) => node.type === type).length;
+        const expectedFocusCount = 1 + helpersOfSameType;
+        if (focusCount !== expectedFocusCount) {
+          failures.push(
+            `${type}: expected ${expectedFocusCount} ${type} node(s), got ${focusCount}`,
+          );
+        }
+        const expectedAdded = patch.workflow.nodes.length - 1;
+        if (next.nodes.length !== 1 + expectedAdded) {
+          failures.push(
+            `${type}: expected ${1 + expectedAdded} nodes after expand, got ${next.nodes.length}`,
+          );
+        }
+        // Recipe helper nodes should all be present.
+        for (const node of patch.workflow.nodes) {
+          if (node.id === patch.focusNodeId) continue;
+          if (!next.nodes.some((candidate) => candidate.type === node.type)) {
+            failures.push(`${type}: missing helper type ${node.type}`);
+          }
+        }
+        // Example widgets merge onto the dropped focus.
+        const dropped = next.nodes.find((node) => node.id === "dropped")!;
+        for (const [key, value] of Object.entries(focus.widgets ?? {})) {
+          if (dropped.widgets?.[key] !== value) {
+            failures.push(`${type}: widget ${key} not applied to dropped node`);
+          }
+        }
+        validatePatchLinks(`expand:${type}`, next.nodes, next.links, failures);
+      }
+      expect(failures, failures.join("\n")).toEqual([]);
+    });
+
+    it("inserts every curated Help recipe as a standalone patch with valid wiring", () => {
+      const failures: string[] = [];
+      for (const type of curated) {
+        const patch = getMinimalPatch(type)!;
+        const base = emptyWorkflow("blank", []);
+        const { workflow: next, focusNodeId, expanded } = applyMinimalPatchToCanvas(base, patch, {
+          x: 320,
+          y: 160,
+        });
+        if (expanded) failures.push(`${type}: insert unexpectedly expanded`);
+        if (!next.nodes.some((node) => node.id === focusNodeId && node.type === type)) {
+          failures.push(`${type}: focus missing after insert`);
+        }
+        if (next.nodes.length !== patch.workflow.nodes.length) {
+          failures.push(
+            `${type}: insert node count ${next.nodes.length} != recipe ${patch.workflow.nodes.length}`,
+          );
+        }
+        if (next.links.length !== patch.workflow.links.length) {
+          failures.push(
+            `${type}: insert link count ${next.links.length} != recipe ${patch.workflow.links.length}`,
+          );
+        }
+        validatePatchLinks(`insert:${type}`, next.nodes, next.links, failures);
+      }
+      expect(failures, failures.join("\n")).toEqual([]);
+    });
+
+    it("resolves every Help recipe input sample path under assets/", () => {
+      const failures: string[] = [];
+      const inputLoaders = new Set([
+        "LoadAudio",
+        "LoadMIDI",
+        "LoadVideo",
+        "LoadImage",
+        "MuxVideo",
+      ]);
+      for (const type of curated) {
+        const patch = getMinimalPatch(type)!;
+        for (const node of patch.workflow.nodes) {
+          // Output destinations (Save*/Transcode exports/) are created at render time.
+          if (node.type.startsWith("Save") || node.type === "Transcode") continue;
+          for (const [key, value] of Object.entries(node.widgets ?? {})) {
+            if (key !== "path" || typeof value !== "string" || !value.includes("/")) continue;
+            if (value.startsWith("exports/")) continue;
+            if (!inputLoaders.has(node.type) && !value.startsWith("assets/samples/")) continue;
+            const abs = path.resolve(REPO_ROOT, value);
+            if (!existsSync(abs)) {
+              failures.push(`${type}/${node.type}: missing ${value}`);
+            }
+          }
+        }
+      }
+      expect(failures, failures.join("\n")).toEqual([]);
     });
   });
 });
