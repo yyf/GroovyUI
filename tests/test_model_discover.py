@@ -74,6 +74,60 @@ def test_discover_models_normalizes_hf_payload() -> None:
     assert entry["source_url"].startswith("https://huggingface.co/")
 
 
+def test_discover_task_dropdown_alone_returns_results() -> None:
+    """Task filter with an empty search box must still return HF hits.
+
+    Hyphenated slugs (speech-to-text) never appear literally in the HF search
+    string; do not drop sparse-metadata cards after a task-scoped query.
+    """
+    whisperish = [
+        {
+            "id": "openai/whisper-tiny",
+            "author": "openai",
+            "downloads": 5000,
+            "likes": 100,
+            "lastModified": "2025-01-01T00:00:00.000Z",
+            "tags": ["audio", "transformers"],
+            "pipeline_tag": "automatic-speech-recognition",
+            "cardData": {"license": "MIT", "description": "ASR."},
+        }
+    ]
+    results = discover_models("", task_type="speech-to-text", fetch_json=lambda _url: whisperish)
+    assert len(results) == 1
+    assert results[0]["external_id"] == "hf:openai/whisper-tiny"
+
+
+def test_stem_separation_dropdown_uses_short_hf_query() -> None:
+    """HF AND-matches search tokens; long stem bags return zero Hub hits."""
+    seen: list[str] = []
+
+    def capture(url: str):
+        seen.append(url)
+        return [
+            {
+                "id": "facebook/demucs",
+                "author": "facebook",
+                "downloads": 100,
+                "likes": 10,
+                "lastModified": "2025-01-01T00:00:00.000Z",
+                "tags": ["audio", "source-separation", "demucs"],
+                "pipeline_tag": "audio-to-audio",
+                "cardData": {"license": "MIT", "description": "Stems."},
+            }
+        ]
+
+    results = discover_models("", task_type="stem-separation", fetch_json=capture)
+    assert results
+    assert "stem-separation" in results[0]["task_types"]
+    assert "SeparateStems" in results[0]["suggested_compatible_nodes"]
+    assert seen, "expected HF search URL"
+    from urllib.parse import parse_qs, urlparse
+
+    query = parse_qs(urlparse(seen[0]).query).get("search", [""])[0]
+    assert query == "source separation"
+    assert len(query.split()) <= 2
+
+
 def test_save_discover_draft(tmp_path: Path) -> None:
     entry = discover_models(fetch_json=lambda _url: SAMPLE_HF)[0]
     manifest, created = save_discover_draft(tmp_path / "drafts", entry)

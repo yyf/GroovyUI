@@ -14,6 +14,7 @@ import {
   type InstalledModelRow,
   type StudioSettings,
 } from "../api";
+import { CLAUDE_UX_ENABLED } from "../claudeFeatures";
 import { buildCleanMachineReport } from "../cleanMachineReport";
 import { displayProjectPath } from "../displayProjectPath";
 import type { ActivationDiagnosticsSummary, C2paStatus } from "../types";
@@ -378,51 +379,55 @@ export default function SettingsDrawer({
                   ) : null}
                 </div>
 
-                <h4 className="settings-subsection-title">Plan / Claude</h4>
-                <p className="compliance-hint">
-                  Anthropic API key for Model Plan (model picks in the browser) and Patch Generation (graph
-                  drafts). Environment variable <code>ANTHROPIC_API_KEY</code> takes precedence. Prefer env
-                  over saving in the project file. Keys never leave this machine except to api.anthropic.com.
-                </p>
-                {studioSettings.anthropic_api_key_source === "environment" ? (
-                  <p className="compliance-hint">Using ANTHROPIC_API_KEY from environment.</p>
-                ) : studioSettings.anthropic_api_key_set ? (
-                  <p className="compliance-hint">Key saved in project settings (.groovy/, gitignored).</p>
-                ) : (
-                  <p className="compliance-hint">
-                    No Claude key — Model Plan falls back to deterministic recommendations; Patch Generation (⌘G)
-                    stays locked until a key is set. Bundled templates: Model Browser → Suggest workflow.
-                  </p>
-                )}
-                <label className="settings-field">
-                  Anthropic API key
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    placeholder={
-                      studioSettings.anthropic_api_key_set
-                        ? "••••••••  (leave blank to keep)"
-                        : "sk-ant-…"
-                    }
-                    value={anthropicKeyDraft}
-                    onChange={(event) => setAnthropicKeyDraft(event.target.value)}
-                  />
-                </label>
-                <div className="model-card__actions">
-                  <button
-                    type="button"
-                    disabled={!anthropicKeyDraft.trim()}
-                    onClick={() => void saveStudio({ anthropic_api_key: anthropicKeyDraft.trim() })}
-                  >
-                    Save Claude key
-                  </button>
-                  {studioSettings.anthropic_api_key_set &&
-                  studioSettings.anthropic_api_key_source !== "environment" ? (
-                    <button type="button" onClick={() => void saveStudio({ anthropic_api_key: null })}>
-                      Clear Claude key
-                    </button>
-                  ) : null}
-                </div>
+                {CLAUDE_UX_ENABLED ? (
+                  <>
+                    <h4 className="settings-subsection-title">Plan / Claude</h4>
+                    <p className="compliance-hint">
+                      Anthropic API key for Model Plan (model picks in the browser) and Patch Generation (graph
+                      drafts). Environment variable <code>ANTHROPIC_API_KEY</code> takes precedence. Prefer env
+                      over saving in the project file. Keys never leave this machine except to api.anthropic.com.
+                    </p>
+                    {studioSettings.anthropic_api_key_source === "environment" ? (
+                      <p className="compliance-hint">Using ANTHROPIC_API_KEY from environment.</p>
+                    ) : studioSettings.anthropic_api_key_set ? (
+                      <p className="compliance-hint">Key saved in project settings (.groovy/, gitignored).</p>
+                    ) : (
+                      <p className="compliance-hint">
+                        No Claude key — Model Plan falls back to deterministic recommendations; Patch Generation (⌘G)
+                        stays locked until a key is set. Bundled templates: Model Browser → Suggest workflow.
+                      </p>
+                    )}
+                    <label className="settings-field">
+                      Anthropic API key
+                      <input
+                        type="password"
+                        autoComplete="off"
+                        placeholder={
+                          studioSettings.anthropic_api_key_set
+                            ? "••••••••  (leave blank to keep)"
+                            : "sk-ant-…"
+                        }
+                        value={anthropicKeyDraft}
+                        onChange={(event) => setAnthropicKeyDraft(event.target.value)}
+                      />
+                    </label>
+                    <div className="model-card__actions">
+                      <button
+                        type="button"
+                        disabled={!anthropicKeyDraft.trim()}
+                        onClick={() => void saveStudio({ anthropic_api_key: anthropicKeyDraft.trim() })}
+                      >
+                        Save Claude key
+                      </button>
+                      {studioSettings.anthropic_api_key_set &&
+                      studioSettings.anthropic_api_key_source !== "environment" ? (
+                        <button type="button" onClick={() => void saveStudio({ anthropic_api_key: null })}>
+                          Clear Claude key
+                        </button>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
 
                 <h4 className="settings-subsection-title">Installed models</h4>
                 <p className="compliance-hint">

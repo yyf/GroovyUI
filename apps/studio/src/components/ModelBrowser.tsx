@@ -22,6 +22,7 @@ import type {
   ModelInstallState,
   Workflow,
 } from "../types";
+import { CLAUDE_UX_ENABLED } from "../claudeFeatures";
 import { PLAN_LLM_OPTIONS, type PlanLlmModelId } from "../planLlmOptions";
 import {
   buildModelRequestIssueUrl,
@@ -82,6 +83,8 @@ type BrowserMode = "search" | "workflow" | "discover" | "plan";
 function normalizeBrowserMode(
   mode: string | null | undefined,
 ): BrowserMode {
+  // Plan (Claude model picks) is paid/gated — fall back to Search when disabled.
+  if (mode === "plan" && !CLAUDE_UX_ENABLED) return "search";
   if (mode === "workflow" || mode === "discover" || mode === "plan") return mode;
   // Legacy "recommend" launches land on Search (recommender is merged into Search).
   return "search";
@@ -422,8 +425,8 @@ export default function ModelBrowser({
         return;
       }
       if (mode === "discover") {
+        // Discover is keyword-only — no task dropdown (Hub search AND-matches tokens).
         const results = await discoverModels(debouncedQuery, {
-          task_type: taskType || undefined,
           limit: 20,
         });
         setDiscoverResults(filterDiscoverResults(results, commercialOnly, effectiveNodeFilter));
@@ -763,7 +766,9 @@ export default function ModelBrowser({
         : mode === "discover"
           ? "Hugging Face browse only — no Install here. File a GitHub request; Install unlocks after a verified registry entry is merged (no secrets; no GroovyUI account)."
           : mode === "workflow"
-            ? "Suggest workflow — match a bundled template from your description (no LLM). For a new graph draft, use Patch Generation (⌘G)."
+            ? CLAUDE_UX_ENABLED
+              ? "Suggest workflow — match a bundled template from your description (no LLM). For a new graph draft, use Patch Generation (⌘G)."
+              : "Suggest workflow — match a bundled template from your description (no LLM)."
             : null;
 
   const requiredPending = requiredModels.filter((model) => !modelIsReady(model));
@@ -882,16 +887,18 @@ export default function ModelBrowser({
               >
                 Discover
               </button>
-              <button
-                type="button"
-                className={mode === "plan" ? "active" : ""}
-                onClick={() => {
-                  setMode("plan");
-                  setError(null);
-                }}
-              >
-                Plan
-              </button>
+              {CLAUDE_UX_ENABLED ? (
+                <button
+                  type="button"
+                  className={mode === "plan" ? "active" : ""}
+                  onClick={() => {
+                    setMode("plan");
+                    setError(null);
+                  }}
+                >
+                  Plan
+                </button>
+              ) : null}
               <button type="button" className={mode === "workflow" ? "active" : ""} onClick={() => setMode("workflow")}>
                 Suggest workflow
               </button>
@@ -961,7 +968,7 @@ export default function ModelBrowser({
               </div>
             ) : null}
             <div className="model-browser__search-row">
-              {mode !== "workflow" ? (
+              {mode === "search" || mode === "plan" ? (
                 <label className="model-browser__filter-select model-browser__search-task">
                   <span className="model-browser__sr">Task</span>
                   <select
@@ -985,7 +992,7 @@ export default function ModelBrowser({
                     : mode === "workflow"
                     ? "Deterministic match — e.g. denoise podcast then normalize"
                     : mode === "discover"
-                        ? "Search Hugging Face — e.g. denoise podcast whisper demucs"
+                        ? "Search Hugging Face — e.g. demucs, whisper, musicgen"
                         : "Search or describe a task — e.g. denoise, stems, commercial podcast cleanup…"
                 }
                 value={query}
@@ -1322,7 +1329,9 @@ export default function ModelBrowser({
                 <>
                   {!loading && !error && discoverResults.length === 0 ? (
                     <p className="model-browser__hint">
-                      No Hugging Face models matched — try another task filter or search term.
+                      {debouncedQuery.trim()
+                        ? `No Hugging Face models matched “${debouncedQuery.trim()}” — try another keyword.`
+                        : "Type a keyword to browse Hugging Face — e.g. demucs, whisper, musicgen."}
                     </p>
                   ) : null}
                   {discoverResults.filter((entry) => discoverMatchesHardware(entry, computePreset)).map((entry) => {

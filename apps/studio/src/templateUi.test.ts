@@ -85,7 +85,6 @@ describe("templatesVisibleInUi", () => {
       "isolate-vocals-to-transcribe-translate",
       "podcast-denoise",
       "prompt-modular-synth",
-      "tab-creative-grow",
       "text-to-video",
       "tts-emotion-edit",
       "watermark-embed-detect",
@@ -153,7 +152,6 @@ describe("templatesVisibleInUi", () => {
       "stable-audio",
       "stem-lyrics-to-ace",
       "stem-separation",
-      "tab-creative-grow",
       "text-to-music",
       "text-to-video",
       "transcribe-and-diarize",
@@ -224,6 +222,16 @@ describe("templatesVisibleInUi", () => {
     );
   });
 
+  it("hides tab-creative-grow even when it is the active selection", () => {
+    expect(templatesVisibleInUi(allBundled).map((t) => t.id)).not.toContain("tab-creative-grow");
+    expect(templatesVisibleInUi(allBundled, "tab-creative-grow").map((t) => t.id)).not.toContain(
+      "tab-creative-grow",
+    );
+    expect(templatesVisibleInUi(allBundled, "tab-creative-grow", true).map((t) => t.id)).not.toContain(
+      "tab-creative-grow",
+    );
+  });
+
   it("always shows user templates", () => {
     const visible = templatesVisibleInUi([...allBundled, user("my-export")]);
     expect(visible.some((t) => t.id === "my-export")).toBe(true);
@@ -267,7 +275,6 @@ describe("groupBundledTemplatesByDomain", () => {
     const groups = groupBundledTemplatesByDomain(visible);
     expect(groups.map((g) => g.domain.id)).toEqual([
       "start",
-      "experimental",
       "speech",
       "stems",
       "generate",
@@ -279,9 +286,7 @@ describe("groupBundledTemplatesByDomain", () => {
       "empty-canvas",
       "hello-groovy",
     ]);
-    expect(groups.find((g) => g.domain.id === "experimental")?.templates.map((t) => t.id)).toEqual([
-      "tab-creative-grow",
-    ]);
+    expect(groups.find((g) => g.domain.id === "experimental")).toBeUndefined();
     expect(groups.find((g) => g.domain.id === "speech")?.templates.map((t) => t.id).sort()).toEqual(
       ["podcast-denoise", "tts-emotion-edit", "voice-cloning"].sort(),
     );
@@ -293,7 +298,7 @@ describe("groupBundledTemplatesByDomain", () => {
     expect(domainIdForTemplate("hello-groovy")).toBe("start");
   });
 
-  it("places tab-creative-grow in Experimental", () => {
+  it("keeps tab-creative-grow mapped to Experimental when loaded outside the picker", () => {
     expect(domainIdForTemplate("tab-creative-grow")).toBe("experimental");
   });
 
