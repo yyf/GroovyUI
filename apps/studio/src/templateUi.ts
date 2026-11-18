@@ -76,8 +76,12 @@ export const PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS = [
   "video-to-audio",
 ] as const;
 
+/** Node types hidden from palette / canvas picker (even in ⌘⇧D). CUDA-only / experimental. */
+export const PICKER_HIDDEN_NODE_TYPES = ["Video2Audio"] as const;
+
 export type TemplateDomainId =
   | "start"
+  | "experimental"
   | "speech"
   | "stems"
   | "generate"
@@ -96,6 +100,7 @@ export type TemplateDomain = {
 /** Picker domains — Hub/job-aligned, not phase numbers. */
 export const TEMPLATE_DOMAINS: readonly TemplateDomain[] = [
   { id: "start", label: "Starter Templates" },
+  { id: "experimental", label: "Experimental" },
   { id: "speech", label: "Podcast & Gaming VO" },
   { id: "stems", label: "Stems & Remix" },
   { id: "generate", label: "Generate Music" },
@@ -111,7 +116,7 @@ export const TEMPLATE_DOMAINS: readonly TemplateDomain[] = [
 export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> = {
   "empty-canvas": "start",
   "hello-groovy": "start",
-  "tab-creative-grow": "start",
+  "tab-creative-grow": "experimental",
 
   "podcast-denoise": "speech",
   "transcribe-dialogue": "speech",
@@ -177,6 +182,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
 const standardBundledIds = new Set<string>(STANDARD_BUNDLED_TEMPLATE_IDS);
 const featuredBundledIds = new Set<string>(FEATURED_BUNDLED_TEMPLATE_IDS);
 const pickerHiddenBundledIds = new Set<string>(PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS);
+const pickerHiddenNodeTypes = new Set<string>(PICKER_HIDDEN_NODE_TYPES);
 
 /**
  * Node types used by {@link STANDARD_BUNDLED_TEMPLATE_IDS} graphs.
@@ -207,15 +213,15 @@ export const STANDARD_MODE_NODE_TYPES = [
   "SeparateStems",
   "TranslateText",
   "TTS",
-  "Video2Audio",
   "VoiceConvert",
   "WhisperSTT",
 ] as const;
 
 const standardModeNodeTypes = new Set<string>(STANDARD_MODE_NODE_TYPES);
 
-/** Standard mode: only nodes used by the ISMIR demo templates. Dev mode (⌘⇧D): all palette-eligible. */
+/** Standard mode: only nodes used by the ISMIR demo templates. Dev mode (⌘⇧D): all palette-eligible except picker-hidden. */
 export function isNodeVisibleInStudio(nodeType: string, studioDevMode = false): boolean {
+  if (pickerHiddenNodeTypes.has(nodeType)) return false;
   if (studioDevMode) return true;
   return standardModeNodeTypes.has(nodeType);
 }

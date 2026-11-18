@@ -7,7 +7,7 @@
     "author": "groovy",
     "description": "Task-first Tab Creative demo: GOAL Note states what to finish (clean dialogue), LoadAudio holds the seed. Press Tab to propose next hops toward the goal; approve each ghost. Patch-bay growth — not a DAW timeline.",
     "tags": [
-      "starter",
+      "experimental",
       "featured",
       "creative",
       "tab",

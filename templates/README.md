@@ -23,6 +23,6 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 Featured-only (⌘⇧D):
 - Trailer Bumper — Music + SFX Layers ([layered-music-sfx.groovy.json](layered-music-sfx.groovy.json)) — Community / NC `stable-audio-open-small` ×2 → Mix.
 - ACE-Step LoRA A/B ([ace-step-lora-demo.groovy.json](ace-step-lora-demo.groovy.json)) — `ace-step-1.5-2b-turbo` base ∥ + `ace-step-cny-lora` (NC); GenerateAudio `lora` / `lora_scale` widgets.
-- Video to Audio ([video-to-audio.groovy.json](video-to-audio.groovy.json)) — `diff-foley` (hidden from picker; CUDA experimental).
+- Video to Audio ([video-to-audio.groovy.json](video-to-audio.groovy.json)) — `diff-foley` / `Video2Audio` (hidden from template + node pickers; CUDA-only experimental).
 
 Sample assets: `assets/samples/` (`podcast_denoise_demo.wav`, `stem_separation_demo.wav`, `video480p.mov`).
