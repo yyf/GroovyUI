@@ -303,8 +303,7 @@ def _run_pip_install(
         raise RuntimeError(
             "deepfilterlib (DeepFilterNet / podcast-denoise) has no wheel for "
             f"Python {py_major}.{py_minor}. "
-            "Use Python 3.11: rm -rf .venv && uv venv --python 3.11 && "
-            "uv sync --all-packages --group dev. "
+            "Use Python 3.11: rm -rf .venv && ./scripts/install.sh. "
             "Source builds need Rust/cargo and are not supported for cold installs."
         )
     # Deezer Spleeter pins TensorFlow==2.12.1 and declares Python <3.12. On 3.12+
@@ -355,8 +354,7 @@ def _run_pip_install(
                     f"Failed to install {requirement}: no usable binary wheel "
                     f"(Python {py_major}.{py_minor}). "
                     "Podcast denoise needs Python 3.11 for deepfilterlib wheels. "
-                    "Recreate: rm -rf .venv && uv venv --python 3.11 && "
-                    "uv sync --all-packages --group dev. "
+                    "Recreate: rm -rf .venv && ./scripts/install.sh. "
                     f"Detail: {detail[:300]}"
                 )
             raise RuntimeError(f"Failed to install {requirement}: {detail[:500]}")
@@ -406,7 +404,7 @@ def _human_error(error: str) -> str:
         if "deepfilterlib" in lowered or "python 3.11" in lowered:
             return (
                 "DeepFilterNet needs Python 3.11 (deepfilterlib has no 3.12+ wheel). "
-                "Recreate the venv with: uv venv --python 3.11 && uv sync --all-packages --group dev"
+                "Recreate the venv with: rm -rf .venv && ./scripts/install.sh"
             )
         if "spleeter" in lowered or "tensorflow" in lowered:
             return (

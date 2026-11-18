@@ -4,9 +4,11 @@ Thanks for helping improve the patch-bay for AI audio. This project is **Apache 
 
 ## Before you open a PR
 
-1. **Python 3.11** — `uv venv --python 3.11 && uv sync --all-packages --group dev`
-2. **Studio** — `cd apps/studio && npm install`
-3. **Tests** (from repo root):
+```bash
+./scripts/install.sh   # one-time (Python 3.11 venv + Studio deps)
+```
+
+Then run tests from the repo root:
 
 ```bash
 uv run pytest tests/ -q
@@ -14,7 +16,7 @@ uv run groovy-verify
 cd apps/studio && npm test && npm run lint
 ```
 
-CI runs with `GROOVY_INFERENCE_STUB=1`. For audio-facing changes, smoke **Real** inference locally when you can.
+CI runs with `GROOVY_INFERENCE_STUB=1`. For audio-facing changes, smoke **Real** inference locally when you can. Optional: `./scripts/install.sh --inference` for the AI inference extras group.
 
 ## Dev session
 

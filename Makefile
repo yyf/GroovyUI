@@ -4,10 +4,7 @@ help:
 	@echo "GroovyUI dev targets (make install, make test, make server, make studio)"
 
 install:
-	uv sync --all-packages --group dev
-	@if command -v pnpm >/dev/null 2>&1; then pnpm install; \
-	elif [ -f apps/studio/package.json ]; then cd apps/studio && npm install; \
-	else echo "Install Node 20+ for the studio UI"; fi
+	bash scripts/install.sh
 
 test:
 	uv run pytest tests/ -q
@@ -31,6 +28,4 @@ studio:
 	@if command -v pnpm >/dev/null 2>&1; then pnpm dev:studio; else cd apps/studio && npm run dev; fi
 
 dev:
-	@echo "Start API (8188) and studio (5173) in separate terminals:"
-	@echo "  make server"
-	@echo "  make studio"
+	bash scripts/dev.sh

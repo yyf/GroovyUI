@@ -9,6 +9,18 @@
 - **Where:** quick evaluation between raw model repos and production DAWs. Explore here; arrange elsewhere.
 - **Who:** people already comfortable with node-based tools (modular racks, Pure Data, Max/MSP).
 
+## Contents
+
+- [YouTube](#youtube)
+- [Status](#status)
+- [OS compatibility](#os-compatibility)
+- [Quick start](#quick-start)
+- [FAQ](#faq)
+  - [Why is the first run on a cold machine slow?](#why-is-the-first-run-on-a-cold-machine-slow)
+  - [What does Contribution Mix mean?](#what-does-contribution-mix-mean)
+  - [What does the Provenance view show?](#what-does-the-provenance-view-show)
+- [License](#license)
+
 <p align="center">
   <img src="assets/media/groovy-demos-2x2-10x-1920.gif" alt="GroovyUI demos: Model Browser, Patch Generation, isolate-to-transcribe, prompt modular synth" width="960" />
 </p>
@@ -142,10 +154,6 @@
 
 Experimental. APIs and UI will change. Expect rough edges on clean machines and first model installs.
 
-**Contribution Mix** (Compliance) is currently a **node-count** of each hop’s provenance class on the patch (passthrough/utility nodes excluded) — e.g. prompts, notes, and normalize count as human; `GenerateAudio` counts as AI. It is **not** an audio detection score or “how much of the waveform is synthetic.” Better weighting (audio lineage, duration, generative vs edit hops) is an **open question**.
-
-**Provenance visualization** (Compliance → Provenance) appears after a render when cache / SaveAudio `provenance.json` lineage exists. It draws the **audio hop chain** source → output (branching DAGs when Mix merges paths), color-coded by contribution class, with a mix bar over those hops only — so it can disagree with Contribution Mix, which counts canvas nodes (including prompts/notes) that never appear in the audio lineage. Click a hop for models and ids. Not C2PA / Content Credentials unless you separately enable signing.
-
 ## OS compatibility
 
 Use **Python 3.11**, keep Inference on **Real** for demos, and install models via **Cmd+K** / Model Browser when prompted. Some models need CUDA or other hardware; Mac CPU/MPS may be slow or unsupported depending on the backend.
@@ -162,15 +170,11 @@ Use **Python 3.11**, keep Inference on **Real** for demos, and install models vi
 
 ## Quick start
 
-```bash
-# One-time install
-uv venv --python 3.11
-uv sync --all-packages --group dev
-cd apps/studio && npm install && cd ../..
+Prerequisites: [uv](https://docs.astral.sh/uv/) and **Node 20+** on `PATH`.
 
-# Every session — API + studio + browser
-./scripts/dev.sh
-# or: just dev
+```bash
+./scripts/install.sh   # one-time
+./scripts/dev.sh       # every session — API + studio + browser
 ```
 
 Opens http://127.0.0.1:5173 (API on `:8188`). Ctrl+C stops both.
@@ -182,15 +186,17 @@ Opens http://127.0.0.1:5173 (API on `:8188`). Ctrl+C stops both.
 
 If `./scripts/dev.sh` says port 8188 is in use, quit the leftover API (`lsof -nP -iTCP:8188 -sTCP:LISTEN`) and retry.
 
+Optional extras: `./scripts/install.sh --inference` pulls the AI inference dependency group. Contributors: `just install` / `just test` / `just verify` / `just dev`, or:
+
 ```bash
 uv run pytest tests/ -q && cd apps/studio && npm test && uv run groovy-verify
 ```
 
-Or with [just](https://github.com/casey/just): `just install`, `just test`, `just verify`, `just dev`.
+## FAQ
 
-## Cold machine
+### Why is the first run on a cold machine slow?
 
-First run on a clean machine is slower: `uv` sync, Studio `npm install`, and especially **first model downloads** (minutes; multi‑GB disk). Model licenses stay with the weights — see **Compliance**.
+`./scripts/install.sh` syncs Python + Studio deps, then **first model downloads** often take minutes and multi‑GB disk. Model licenses stay with the weights — see **Compliance**.
 
 Also:
 
@@ -209,6 +215,14 @@ Also:
 | ACE-Step 1.5 SFT | `ace-step-1.5-sft` (MIT) | CPU / Mac | Same download; float32 CPU inference is slow and memory-heavy. |
 | ACE-Step LoRA A/B | `ace-step-1.5-2b-turbo` + `ace-step-cny-lora` (NC) | CUDA | Base ∥ LoRA via GenerateAudio `lora` / `lora_scale`; research LoRA — not commercial-safe. |
 | ACE-Step Dual LoRA A/B | turbo + `ace-step-cny-lora` ∥ `ace-step-ambient-lora` | CUDA | Experimental: same prompt/seed, two adapters; A/B Previews. NC / community — not commercial-safe. |
+
+### What does Contribution Mix mean?
+
+Compliance → Contribution Mix is a **node-count** of each hop’s provenance class on the patch (passthrough/utility nodes excluded). Prompts, notes, and normalize count as human; `GenerateAudio` counts as AI. It is **not** an audio detection score or “how much of the waveform is synthetic.” Better weighting (audio lineage, duration, generative vs edit hops) is still an open question.
+
+### What does the Provenance view show?
+
+Compliance → Provenance appears after a render when cache / SaveAudio `provenance.json` lineage exists. It draws the **audio hop chain** source → output (branching DAGs when Mix merges paths), color-coded by contribution class, with a mix bar over those hops only. That bar can disagree with Contribution Mix, which also counts canvas nodes (prompts/notes) that never appear in the audio lineage. Click a hop for models and ids. This is not C2PA / Content Credentials unless you separately enable signing.
 
 ## License
 
