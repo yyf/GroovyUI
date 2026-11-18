@@ -11,23 +11,28 @@ from groovy.registry.download import ALLOWED_HOSTS
 
 HF_MODELS_API = "https://huggingface.co/api/models"
 
+# Keep these short (1–2 Hub tokens). HF `/api/models?search=` AND-matches
+# tokens; long keyword bags like "source separation demucs vocals stems"
+# routinely return zero hits even when each word alone matches many models.
 TASK_HF_QUERIES: dict[str, str] = {
-    "denoise": "audio denoise speech enhancement",
-    "stem-separation": "source separation demucs vocals stems",
-    "speech-to-text": "speech recognition whisper asr",
-    "text-to-speech": "text to speech tts",
-    "voice-conversion": "voice conversion rvc clone",
-    "speech-translation": "speech translation seamless m4t s2st localization",
-    "text-translation": "machine translation nllb m2m100 madlad opus-mt",
-    "timbre-transfer": "rave timbre transfer neural audio vae",
-    "audio-to-midi": "audio to midi transcription",
-    "music-generation": "music generation audio",
-    "singing-synthesis": "singing voice synthesis",
-    "video-to-audio": "video to audio synthesis Foley Diff-Foley Hunyuan",
-    "deepfake-detection": "deepfake audio detection spoof",
-    "watermark-embed": "audio watermark embed audioseal",
-    "watermark-detect": "audio watermark detect audioseal",
-    "audio-compare": "audio similarity embedding",
+    "denoise": "denoise",
+    "stem-separation": "source separation",
+    "speech-to-text": "whisper",
+    "text-to-speech": "tts",
+    "voice-conversion": "rvc",
+    "speech-translation": "seamless",
+    "text-translation": "nllb",
+    "timbre-transfer": "rave",
+    "audio-to-midi": "basic-pitch",
+    "music-generation": "musicgen",
+    "singing-synthesis": "diffsinger",
+    "text-to-video": "text-to-video",
+    "video-to-audio": "mmaudio",
+    "character-animation": "liveportrait",
+    "deepfake-detection": "deepfake",
+    "watermark-embed": "audioseal",
+    "watermark-detect": "audioseal",
+    "audio-compare": "clap",
 }
 
 TASK_TYPES_BY_PIPELINE: dict[str, list[str]] = {
@@ -430,9 +435,8 @@ def discover_models(
             normalized = _normalize_hf_item(item, task_filter=task_type)
         except ValueError:
             continue
-        if task_type and task_type not in normalized["task_types"]:
-            # Keep loosely related results when HF metadata is sparse.
-            if task_type not in search_query.lower():
-                continue
+        # Do not drop sparse HF tags after a task-scoped search. Hyphenated slugs
+        # like "speech-to-text" never appear literally in TASK_HF_QUERIES text, so
+        # requiring task_type ⊆ search_query emptied Discover for dropdown-only picks.
         results.append(normalized)
     return results[:limit]

@@ -14,6 +14,10 @@ describe("status LED tones", () => {
     expect(renderLedTone({ running: false, statusMessage: "Failed: boom" })).toBe("fault");
     expect(renderLedTone({ running: false, statusMessage: "Unknown node type: BeatTrack" })).toBe("fault");
     expect(renderLedTone({ running: false, statusMessage: "Cancelled" })).toBe("warn");
+    expect(renderLedTone({ running: false, statusMessage: "Cancelled — completed nodes kept" })).toBe(
+      "warn",
+    );
+    expect(renderLedTone({ running: false, statusMessage: "Share cancelled" })).toBe("off");
     expect(renderLedTone({ running: false, statusMessage: "Render complete" })).toBe("ok");
     expect(renderLedTone({ running: false, statusMessage: "Ready" })).toBe("ok");
   });
@@ -44,5 +48,8 @@ describe("status LED tones", () => {
     expect(html).toContain("RND fault");
     expect(html).toContain("Failed: boom");
     expect(html).toContain("<br />");
+    const warnHtml = buildStatusReportHtml("RND", "Cancelled — completed nodes kept", "warn");
+    expect(warnHtml).toContain("RND warning");
+    expect(warnHtml).not.toContain("RND fault");
   });
 });

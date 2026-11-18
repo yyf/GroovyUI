@@ -27,9 +27,16 @@ export function escapeReportHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-export function buildStatusReportHtml(label: string, body: string): string {
+export function buildStatusReportHtml(
+  label: string,
+  body: string,
+  tone: LedTone = "fault",
+): string {
   const safeLabel = escapeReportHtml(label);
   const safeBody = escapeReportHtml(body).replace(/\n/g, "<br />");
+  const severity = tone === "warn" ? "warning" : "fault";
+  const accent = tone === "warn" ? "#f0b429" : "#ff002b";
+  const headerColor = tone === "warn" ? "#f5d76e" : "#ff6b7f";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,20 +44,24 @@ export function buildStatusReportHtml(label: string, body: string): string {
   <title>GroovyUI ${safeLabel}</title>
   <style>
     body { margin: 0; background: #0b0d12; color: #e8eefc; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
-    header { padding: 14px 18px; border-bottom: 1px solid #ff002b; letter-spacing: 0.16em; text-transform: uppercase; color: #ff6b7f; }
+    header { padding: 14px 18px; border-bottom: 1px solid ${accent}; letter-spacing: 0.16em; text-transform: uppercase; color: ${headerColor}; }
     main { padding: 18px; white-space: normal; word-break: break-word; }
   </style>
 </head>
 <body>
-  <header>${safeLabel} fault</header>
+  <header>${safeLabel} ${severity}</header>
   <main>${safeBody}</main>
 </body>
 </html>`;
 }
 
-export function openStatusReportWindow(label: string, body: string): Window | null {
+export function openStatusReportWindow(
+  label: string,
+  body: string,
+  tone: LedTone = "fault",
+): Window | null {
   if (typeof window === "undefined") return null;
-  const html = buildStatusReportHtml(label, body);
+  const html = buildStatusReportHtml(label, body, tone);
   // Empty URL + document.write stays in the click gesture; blob: URLs are often blocked.
   const win = window.open(
     "",
@@ -74,9 +85,9 @@ export default function StatusLeds({ leds }: Props) {
           led.onInspect?.();
           // Inspector handlers (e.g. API status) skip the popup when no report body.
           if (led.report != null) {
-            openStatusReportWindow(led.label, led.report);
+            openStatusReportWindow(led.label, led.report, led.tone);
           } else if (!led.onInspect) {
-            openStatusReportWindow(led.label, led.title);
+            openStatusReportWindow(led.label, led.title, led.tone);
           }
         };
         const lamp = (
@@ -114,7 +125,8 @@ export function renderLedTone(args: {
   if (msg.includes("fail") || msg.startsWith("error") || msg.includes("crash") || msg.includes("unknown node")) {
     return "fault";
   }
-  if (msg.includes("cancel")) return "warn";
+  // Render-job cancels only. "Share cancelled" / dialog dismiss must not warn RND.
+  if (msg.startsWith("cancel") || msg.includes("render cancel")) return "warn";
   if (msg.includes("complete") || msg.includes("ready") || msg.includes("audition")) return "ok";
   return "off";
 }

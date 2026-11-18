@@ -62,6 +62,7 @@ import GridControl from "./components/GridControl";
 import CanvasZoomGrid, { CANVAS_GRID_GAP, snapFlowPosition } from "./components/CanvasZoomGrid";
 import CanvasNodeFinder from "./components/CanvasNodeFinder";
 import CanvasNodePicker from "./components/CanvasNodePicker";
+import { CLAUDE_UX_ENABLED, TAB_GROW_UX_ENABLED } from "./claudeFeatures";
 import { sanitizePlanWorkflowModels } from "./planModelSanitize";
 import FpsMeter from "./components/FpsMeter";
 import GroovyFlowNode from "./components/GroovyFlowNode";
@@ -708,7 +709,7 @@ export default function App() {
     fetchStudioSettings()
       .then((settings) => {
         setInferenceStubActive(settings.inference_stub_active);
-        setClaudeAvailable(Boolean(settings.anthropic_api_key_set));
+        setClaudeAvailable(CLAUDE_UX_ENABLED && Boolean(settings.anthropic_api_key_set));
       })
       .catch(() => {
         setInferenceStubActive(false);
@@ -1555,7 +1556,7 @@ export default function App() {
       }
 
       // Creative Tab loop must work even if Compliance / HUD stole focus.
-      if (event.key === "Tab" && workflow && creativeSessionRef.current) {
+      if (TAB_GROW_UX_ENABLED && event.key === "Tab" && workflow && creativeSessionRef.current) {
         event.preventDefault();
         const session = creativeSessionRef.current;
         if (session.planning) {
@@ -1567,7 +1568,7 @@ export default function App() {
         advanceCreativeTab(event.shiftKey ? "skip" : "approve");
         return;
       }
-      if (event.key === "Escape" && creativeSessionRef.current) {
+      if (TAB_GROW_UX_ENABLED && event.key === "Escape" && creativeSessionRef.current) {
         event.preventDefault();
         dismissCreativeSession();
         return;
@@ -1581,6 +1582,7 @@ export default function App() {
         return;
       }
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "g") {
+        if (!CLAUDE_UX_ENABLED) return;
         event.preventDefault();
         setWorkflowBarOpen(true);
         setGenerateOpenNonce((n) => n + 1);
@@ -1649,10 +1651,10 @@ export default function App() {
         setStatus(`Duplicated ${newNodeIds.length} node(s)`);
         return;
       }
-      if (event.key === "Tab" && workflow) {
+      if (TAB_GROW_UX_ENABLED && event.key === "Tab" && workflow) {
         if (event.shiftKey) return;
-        // Start Creative Agent when Claude is available; else minimal-patch expand.
-        if (claudeAvailable) {
+        // Claude agent when unlocked + key present; else local minimal expand.
+        if (CLAUDE_UX_ENABLED && claudeAvailable) {
           event.preventDefault();
           void (async () => {
             const ok = await startCreativeTabSession();
@@ -1909,7 +1911,8 @@ export default function App() {
     try {
       const shared = await shareWorkflow(workflow);
       if (shared.status === "cancelled") {
-        setStatus("Share cancelled");
+        // Dialog dismiss is a no-op — keep RND idle (do not set "…cancelled").
+        setStatus("Ready");
         return;
       }
       setStatus(`Shared ${shared.relative_path}`);
@@ -2521,7 +2524,7 @@ export default function App() {
           >
             {dropHint ? <div className="canvas__drop-hint">Drop audio or image to load</div> : null}
             <FpsMeter />
-            {creativeSession ? (
+            {TAB_GROW_UX_ENABLED && creativeSession ? (
               <CreativeTabHud session={creativeSession} onDismiss={dismissCreativeSession} />
             ) : null}
             <CanvasErrorBoundary

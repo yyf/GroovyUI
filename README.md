@@ -142,8 +142,6 @@
 
 Experimental. APIs and UI will change. Expect rough edges on clean machines and first model installs.
 
-**Tab-to-grow** (select a node → **Tab**) is experimental. With an Anthropic API key in Settings → Plan / Claude (or `ANTHROPIC_API_KEY`), it uses Claude to suggest the next patch steps. Without a key, Tab grows the patch locally from the selected node’s minimal expand — no cloud call.
-
 **Contribution Mix** (Compliance) is currently a **node-count** of each hop’s provenance class on the patch (passthrough/utility nodes excluded) — e.g. prompts, notes, and normalize count as human; `GenerateAudio` counts as AI. It is **not** an audio detection score or “how much of the waveform is synthetic.” Better weighting (audio lineage, duration, generative vs edit hops) is an **open question**.
 
 **Provenance visualization** (Compliance → Provenance) appears after a render when cache / SaveAudio `provenance.json` lineage exists. It draws the **audio hop chain** source → output (branching DAGs when Mix merges paths), color-coded by contribution class, with a mix bar over those hops only — so it can disagree with Contribution Mix, which counts canvas nodes (including prompts/notes) that never appear in the audio lineage. Click a hop for models and ids. Not C2PA / Content Credentials unless you separately enable signing.

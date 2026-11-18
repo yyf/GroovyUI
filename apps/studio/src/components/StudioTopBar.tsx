@@ -1,4 +1,5 @@
 import type { Workflow } from "../types";
+import { CLAUDE_UX_ENABLED } from "../claudeFeatures";
 import StudioSettingsMenu, { type StudioSettingsMenuProps } from "./StudioSettingsMenu";
 import TemplateSelector from "./TemplateSelector";
 import WorkflowGenerateButton from "./WorkflowGenerateButton";
@@ -78,11 +79,13 @@ export default function StudioTopBar({
             onDeleteUserTemplate={onDeleteUserTemplate}
             studioDevMode={studioDevMode}
           />
-          <WorkflowGenerateButton
-            onApply={onApplyWorkflow}
-            onTaskStart={onGenerateTaskStart}
-            openNonce={generateOpenNonce}
-          />
+          {CLAUDE_UX_ENABLED ? (
+            <WorkflowGenerateButton
+              onApply={onApplyWorkflow}
+              onTaskStart={onGenerateTaskStart}
+              openNonce={generateOpenNonce}
+            />
+          ) : null}
           <button
             type="button"
             className="top-bar__tool"

@@ -12,7 +12,6 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "demucs-vs-openunmix",
   "empty-canvas",
   "hello-groovy",
-  "tab-creative-grow",
   "isolate-vocals-to-transcribe",
   "isolate-vocals-to-transcribe-translate",
   "podcast-denoise",
@@ -59,7 +58,6 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "stereo-to-binaural",
   "stem-lyrics-to-ace",
   "stem-separation",
-  "tab-creative-grow",
   "text-to-music",
   "text-to-video",
   "transcribe-and-diarize",
@@ -73,6 +71,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
 export const PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS = [
   "melody-to-modular-synth",
   "self-playing-neural-rack",
+  "tab-creative-grow",
   "video-to-audio",
 ] as const;
 
