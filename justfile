@@ -6,10 +6,7 @@ default:
     @just --list
 
 install:
-    # Prefer 3.11 so DeepFilterNet (podcast-denoise) can use deepfilterlib wheels.
-    @[ -d .venv ] || uv venv --python 3.11
-    uv sync --all-packages --group dev
-    pnpm install
+    bash scripts/install.sh
 
 dev:
     bash scripts/dev.sh

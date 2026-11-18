@@ -36,7 +36,7 @@ free_disk() {
 install_cli() {
   echo "==> Installing ltx-2-mlx packages into project venv"
   if [[ ! -x .venv/bin/python ]]; then
-    echo "Missing .venv — run: uv venv --python 3.11 && uv sync --all-packages --group dev" >&2
+    echo "Missing .venv — run: ./scripts/install.sh" >&2
     exit 1
   fi
   uv pip install --python .venv/bin/python \
