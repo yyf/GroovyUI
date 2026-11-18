@@ -18,6 +18,7 @@ import {
   previewMidiId,
   previewListenId,
   previewTextSnippet,
+  previewImagePath,
   previewVideoPath,
   previewVideoAspect,
   lockPreviewVideoSize,
@@ -330,6 +331,43 @@ describe("previewTextSnippet", () => {
     const prompt = nodes.find((node) => node.id === "n0");
     expect(prompt?.data).toMatchObject({ previewText: "new inspector prompt" });
     expect(promptWidgetSnippet(workflow.nodes[0]!)).toBe("new inspector prompt");
+  });
+
+  it("attaches previewImagePath on GenerateImage IMAGE outputs", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [{ id: "gi", type: "GenerateImage", pos: { x: 0, y: 0 }, widgets: { model: "flux-image" } }],
+      links: [],
+    };
+    const nodes = workflowToFlowNodes(
+      workflow,
+      {},
+      { gi: { type: "IMAGE", path: ".groovy/cache/gen.png", width: 512, height: 512 } },
+    );
+    expect(nodes.find((node) => node.id === "gi")?.data).toMatchObject({
+      previewImagePath: ".groovy/cache/gen.png",
+    });
+  });
+
+  it("attaches previewImagePath on PreviewImage IMAGE outputs", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [{ id: "pi", type: "PreviewImage", pos: { x: 0, y: 0 }, widgets: {} }],
+      links: [],
+    };
+    expect(previewImagePath({ type: "IMAGE", path: ".groovy/cache/still.png" })).toBe(
+      ".groovy/cache/still.png",
+    );
+    const nodes = workflowToFlowNodes(
+      workflow,
+      {},
+      { pi: { type: "IMAGE", path: ".groovy/cache/still.png", width: 512, height: 512 } },
+    );
+    expect(nodes.find((node) => node.id === "pi")?.data).toMatchObject({
+      previewImagePath: ".groovy/cache/still.png",
+      previewImageWidth: 240,
+      previewImageHeight: 240,
+    });
   });
 
   it("attaches previewVideoPath on PreviewVideo VIDEO outputs", () => {
@@ -986,7 +1024,7 @@ describe("layoutWorkflowNodes", () => {
       ...sampleWorkflow(),
       nodes: [
         { id: "n1", type: "Prompt", pos: { x: 0, y: 0 }, widgets: { text: "hi" } },
-        { id: "n2", type: "TTS", pos: { x: 260, y: 0 }, widgets: { model: "kokoro-82m" } },
+        { id: "n2", type: "GenerateSpeech", pos: { x: 260, y: 0 }, widgets: { model: "kokoro-82m" } },
         {
           id: "n3",
           type: "VoiceConvert",

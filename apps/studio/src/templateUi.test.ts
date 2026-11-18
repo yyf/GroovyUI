@@ -363,22 +363,31 @@ describe("groupBundledTemplatesByDomain", () => {
 });
 
 describe("isNodeVisibleInStudio", () => {
-  it("limits standard mode to ISMIR demo template nodes", () => {
+  it("limits standard mode to ISMIR demo + modular synth nodes", () => {
     expect(isNodeVisibleInStudio("Denoise")).toBe(true);
     expect(isNodeVisibleInStudio("LoadAudio")).toBe(true);
     expect(isNodeVisibleInStudio("LoadImage")).toBe(true);
     expect(STANDARD_MODE_NODE_TYPES).toContain("LoadImage");
     expect(isNodeVisibleInStudio("GenerateAudio")).toBe(true);
+    expect(isNodeVisibleInStudio("GenerateSpeech")).toBe(true);
+    expect(isNodeVisibleInStudio("Prompt")).toBe(true);
+    expect(isNodeVisibleInStudio("Oscillator")).toBe(true);
+    expect(isNodeVisibleInStudio("Filter")).toBe(true);
+    expect(isNodeVisibleInStudio("AutomationToMIDI")).toBe(true);
     expect(isNodeVisibleInStudio("Mix")).toBe(false);
-    expect(STANDARD_MODE_NODE_TYPES).toContain("TTS");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateSpeech");
     expect(STANDARD_MODE_NODE_TYPES).toContain("VoiceConvert");
     expect(STANDARD_MODE_NODE_TYPES).toContain("TranslateText");
     expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateAudio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateVideo");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateImage");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("SwitchImage");
     expect(STANDARD_MODE_NODE_TYPES).toContain("Benchmark");
     expect(STANDARD_MODE_NODE_TYPES).not.toContain("Video2Audio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewImage");
     expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewVideo");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("SaveImage");
     expect(STANDARD_MODE_NODE_TYPES).toContain("SaveVideo");
     expect(domainIdForTemplate("text-to-video")).toBe("video");
     expect(FEATURED_BUNDLED_TEMPLATE_IDS).toContain("text-to-video");

@@ -38,7 +38,7 @@ from groovy.executor.midi import MidiBuffer
 from groovy.executor.project_paths import resolve_project_media_path
 from groovy.executor.provenance import build_lineage_graph
 from groovy.executor.video import VideoClip
-from groovy.node import GroovyNode, register_node
+from groovy.node import GroovyNode, register_node, register_node_alias
 from groovy.nodes.core.immersive import register_immersive
 from groovy.nodes.core.live_io import register_live_io
 from groovy.nodes.core.modular_io import register_modular_io
@@ -58,7 +58,9 @@ def register_all() -> None:
         SplitVideo,
         SaveAudio,
         MuxVideo,
+        PreviewImage,
         PreviewVideo,
+        SaveImage,
         SaveVideo,
         SaveGenerateLog,
         Resample,
@@ -88,11 +90,65 @@ def register_all() -> None:
         Granulate,
         Meter,
         Benchmark,
+        SwitchImage,
     )
     register_immersive()
     register_modular_io()
     register_modular_synth()
     register_live_io()
+
+
+@register_node
+class SwitchImage(GroovyNode):
+    """Select between two IMAGE inputs (e.g. LoadImage vs GenerateImage for I2V)."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("IMAGE",)
+    OUTPUT_NAMES = ("image",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {},
+            "optional": {
+                "a": ("IMAGE",),
+                "b": ("IMAGE",),
+                "select": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 1,
+                        "description": "0 = inlet a (e.g. LoadImage), 1 = inlet b (e.g. GenerateImage).",
+                    },
+                ),
+            },
+        }
+
+    def run(self, **kwargs):
+        from groovy.executor.image import ImageClip
+
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        a = kwargs.get("a")
+        b = kwargs.get("b")
+        select = int(kwargs.get("select", 0) or 0)
+        chosen = b if select >= 1 else a
+        if chosen is None:
+            chosen = a if a is not None else b
+        if chosen is None or not isinstance(chosen, ImageClip):
+            raise ValueError("SwitchImage needs at least one IMAGE input (wire LoadImage / GenerateImage).")
+        # Pass through the same clip handle (cache already holds pixels/path).
+        return (chosen,)
+
+
+# Legacy workflow / template type name.
+register_node_alias("ImageSwitch", "SwitchImage")
 
 
 @register_node
@@ -642,6 +698,57 @@ class MuxVideo(GroovyNode):
 
 
 @register_node
+class PreviewImage(GroovyNode):
+    """Terminal still-image audition sink — wire an IMAGE clip (LoadImage / GenerateImage)."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("IMAGE",)
+    OUTPUT_NAMES = ("image",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"image": ("IMAGE",)},
+            "optional": {
+                # Studio canvas chrome only — ignored at render; aspect locked to source still.
+                "preview_width": (
+                    "INT",
+                    {
+                        "default": 240,
+                        "min": 120,
+                        "max": 960,
+                        "description": "On-canvas preview width (px). Height follows source aspect.",
+                    },
+                ),
+                "preview_height": (
+                    "INT",
+                    {
+                        "default": 240,
+                        "min": 68,
+                        "max": 720,
+                        "description": "On-canvas preview height (px). Width follows source aspect.",
+                    },
+                ),
+            },
+        }
+
+    def run(self, **kwargs):
+        from groovy.executor.image import ImageClip
+
+        _ = kwargs.get("preview_width")
+        _ = kwargs.get("preview_height")
+        image_in = kwargs.get("image")
+        if not isinstance(image_in, ImageClip):
+            raise TypeError("PreviewImage needs IMAGE input (wire LoadImage / GenerateImage).")
+        return (image_in,)
+
+
+@register_node
 class PreviewVideo(GroovyNode):
     """Terminal video audition sink — wire a VIDEO clip (e.g. from MuxVideo)."""
 
@@ -688,6 +795,138 @@ class PreviewVideo(GroovyNode):
         if not isinstance(video_in, VideoClip):
             raise TypeError("PreviewVideo needs VIDEO input (wire MuxVideo).")
         return (video_in,)
+
+
+@register_node
+class SaveImage(GroovyNode):
+    """Copy an IMAGE clip into the project exports folder."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = False
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ("STRING",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"image": ("IMAGE",)},
+            "optional": {
+                "path": (
+                    "STRING",
+                    {
+                        "default": "exports",
+                        "description": "Folder under the project directory (e.g. exports/stills)",
+                    },
+                ),
+                "filename": (
+                    "STRING",
+                    {
+                        "default": "output.png",
+                        "description": "Base file name; a UTC timestamp is appended when written",
+                    },
+                ),
+            },
+        }
+
+    @staticmethod
+    def _resolve_output_relative(path: str, filename: str) -> str:
+        folder = (path or "").strip().strip("/")
+        name = (filename or "").strip().lstrip("/")
+        if not name:
+            name = "output.png"
+        if "/" in name and (not folder or folder == "exports"):
+            return name
+        if folder:
+            return f"{folder}/{name}"
+        return name
+
+    @staticmethod
+    def _timestamped_relative(relative: str, now: datetime | None = None) -> str:
+        instant = now or datetime.now(UTC)
+        stamp = instant.strftime("%Y%m%dT%H%M%S") + f"{instant.microsecond // 1000:03d}Z"
+        path = Path(relative)
+        return str(path.with_name(f"{path.stem}-{stamp}{path.suffix or '.png'}"))
+
+    def run(self, **kwargs) -> tuple[str]:
+        from groovy.executor.image import ImageClip
+
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        image_in = kwargs.get("image")
+        if not isinstance(image_in, ImageClip):
+            raise TypeError("SaveImage needs IMAGE input (wire LoadImage / GenerateImage / PreviewImage).")
+        if not str(getattr(image_in, "path", "") or "").strip():
+            raise ValueError("SaveImage needs a concrete IMAGE file path (empty LoadImage is not exportable).")
+        folder = str(kwargs.get("path", "exports"))
+        name = str(kwargs.get("filename", "output.png"))
+        relative = self._resolve_output_relative(folder, name)
+        if not Path(relative).suffix:
+            relative = f"{relative}.png"
+        relative = self._timestamped_relative(relative)
+        relative = relative.replace("\\", "/")
+        src = self._ctx.cache.resolve_project_path(image_in.path)
+        if not src.is_file():
+            raise FileNotFoundError(f"IMAGE clip missing on disk: {image_in.path}")
+        out_path = self._ctx.cache.resolve_project_path(relative)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        sidecar_path = out_path.with_name(f"{out_path.stem}.provenance.json")
+        suffix = out_path.suffix.lower()
+        media_type = {
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".webp": "image/webp",
+            ".gif": "image/gif",
+            ".bmp": "image/bmp",
+        }.get(suffix, f"image/{suffix.lstrip('.') or 'png'}")
+        try:
+            shutil.copy2(src, out_path)
+            digest = hashlib.sha256()
+            with out_path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            parent = self._ctx.cache.read_provenance(image_in.id)
+            record: dict = {
+                "schema_version": "1.1.0",
+                "image_id": image_in.id,
+                "content_hash": f"sha256:{digest.hexdigest()}",
+                "created_at": datetime.now(UTC).isoformat(),
+                "contribution": {
+                    "class": "human_edited",
+                    "disclosure_label": "Contains human-edited / exported still",
+                },
+                "artifact": {
+                    "filename": out_path.name,
+                    "media_type": media_type,
+                    "path": relative,
+                    "width": image_in.width,
+                    "height": image_in.height,
+                },
+                "node": {"node_type": "SaveImage"},
+                "models": list((parent or {}).get("models") or []),
+                "parents": (
+                    [
+                        {
+                            "cache_id": image_in.id,
+                            "node_type": image_in.source_node_type,
+                            "content_hash": (parent or {}).get("content_hash"),
+                        }
+                    ]
+                    if parent
+                    else []
+                ),
+            }
+            sidecar_path.write_text(json.dumps(record, indent=2) + "\n")
+        except Exception as exc:
+            out_path.unlink(missing_ok=True)
+            sidecar_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"SaveImage could not write image or provenance sidecar for {relative}: {exc}"
+            ) from exc
+        return (relative,)
 
 
 @register_node
@@ -813,7 +1052,7 @@ class SaveVideo(GroovyNode):
 
 @register_node
 class SaveGenerateLog(GroovyNode):
-    """Write a GenerateVideo GENERATE_LOG report to the project exports folder (JSON)."""
+    """Write a GenerateVideo / GenerateImage GENERATE_LOG report to exports (JSON)."""
 
     CATEGORY = "GroovyUI/Core"
     EXPORT_TIER = "STUDIO_ONLY"
@@ -873,7 +1112,7 @@ class SaveGenerateLog(GroovyNode):
         log_in = kwargs.get("log")
         if not isinstance(log_in, GenerateLogReport):
             raise TypeError(
-                "SaveGenerateLog needs GENERATE_LOG input (wire GenerateVideo.log)."
+                "SaveGenerateLog needs GENERATE_LOG input (wire GenerateVideo.log / GenerateImage.log)."
             )
         folder = str(kwargs.get("path", "exports"))
         name = str(kwargs.get("filename", "generate-video-log.json"))
@@ -1528,8 +1767,10 @@ class AuthenticitySummary(GroovyNode):
 
 @register_node
 class Prompt(GroovyNode):
+    """Text/prompt source for AI generate nodes — palette I/O (not Modular)."""
+
     CATEGORY = "GroovyUI/Core"
-    RETURN_TYPES = ("STRING",)
+    RETURN_TYPES = ("TEXT",)
 
     @classmethod
     def INPUT_TYPES(cls):

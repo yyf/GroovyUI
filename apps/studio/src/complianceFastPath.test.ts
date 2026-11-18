@@ -69,7 +69,7 @@ describe("compliance-first fast path", () => {
           flags: [
             {
               node_id: "n1",
-              node_type: "TTS",
+              node_type: "GenerateSpeech",
               severity: "warning",
               code: "UNKNOWN_MODEL",
               message: "Unknown model",

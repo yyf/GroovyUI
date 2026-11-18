@@ -1543,6 +1543,27 @@
     ],
     "widgets": []
   },
+  "PreviewImage": {
+    "inputs": [
+      {
+        "name": "image",
+        "type": "IMAGE",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "image",
+        "type": "IMAGE",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "preview_width",
+      "preview_height"
+    ]
+  },
   "PreviewVideo": {
     "inputs": [
       {
@@ -1728,6 +1749,27 @@
       {
         "name": "log",
         "type": "GENERATE_LOG",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "STRING",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path",
+      "filename"
+    ]
+  },
+  "SaveImage": {
+    "inputs": [
+      {
+        "name": "image",
+        "type": "IMAGE",
         "optional": false,
         "slot": 0
       }
@@ -2241,6 +2283,62 @@
       "voice",
       "seed",
       "reference_text"
+    ]
+  },
+  "GenerateImage": {
+    "inputs": [
+      {
+        "name": "text",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "image",
+        "type": "IMAGE",
+        "slot": 0
+      },
+      {
+        "name": "log",
+        "type": "GENERATE_LOG",
+        "slot": 1
+      }
+    ],
+    "widgets": [
+      "model",
+      "prompt",
+      "width",
+      "height",
+      "num_steps",
+      "seed"
+    ]
+  },
+  "SwitchImage": {
+    "inputs": [
+      {
+        "name": "a",
+        "type": "IMAGE",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "b",
+        "type": "IMAGE",
+        "optional": true,
+        "slot": 1
+      }
+    ],
+    "outputs": [
+      {
+        "name": "image",
+        "type": "IMAGE",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "select"
     ]
   }
 }

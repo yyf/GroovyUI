@@ -4988,7 +4988,8 @@ body {
 .groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__channel,
 .groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__note-text,
 .groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__preview-text,
-.groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__video {
+.groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__video,
+.groovy-node__body:has(.groovy-node__socket-list):has(.groovy-node__socket-list--outputs) .groovy-node__image {
   grid-column: 1 / -1;
 }
 
@@ -5086,6 +5087,59 @@ body {
 }
 
 .groovy-node__video-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background:
+    linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.35) 50%) no-repeat;
+  touch-action: none;
+  z-index: 1;
+}
+
+.groovy-node__image {
+  position: relative;
+  margin: 6px auto 0;
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-tight);
+  overflow: hidden;
+  background: #0a0a0a;
+  flex-shrink: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.groovy-node__image--selected {
+  border-color: var(--accent, #5b8def);
+}
+
+.groovy-node__image-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  background: #0a0a0a;
+  pointer-events: none;
+}
+
+.groovy-node__image-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 10px;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.groovy-node__image-resize {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -8834,6 +8888,21 @@ body {
 .node-helper__video-player {
   width: 100%;
   max-height: 240px;
+  background: #0a0a0a;
+  border: 1px solid var(--border-silver);
+}
+
+.node-helper__image-preview {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-helper__image-player {
+  width: 100%;
+  max-height: 240px;
+  object-fit: contain;
   background: #0a0a0a;
   border: 1px solid var(--border-silver);
 }

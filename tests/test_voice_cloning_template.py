@@ -23,7 +23,7 @@ from template_fixtures import require_template
 
 
 def test_tts_exposes_optional_reference_audio_socket() -> None:
-    inputs = NODE_REGISTRY["TTS"].describe()["inputs"]
+    inputs = NODE_REGISTRY["GenerateSpeech"].describe()["inputs"]
     assert any(s["name"] == "reference_audio" and s["type"] == "AUDIO" for s in inputs)
 
 
@@ -32,7 +32,7 @@ def test_voice_cloning_template_schema_and_stub_render(tmp_path: Path, monkeypat
     path = require_template("voice-cloning")
     data = json.loads(path.read_text())
     assert "featured" in data["metadata"]["tags"]
-    tts = next(node for node in data["nodes"] if node["type"] == "TTS")
+    tts = next(node for node in data["nodes"] if node["type"] == "GenerateSpeech")
     assert tts["widgets"]["model"] == "f5-tts-base"
     # LoadAudio → TTS reference_audio (socket index 1)
     assert ["n1", 0] == data["links"][0]["from"]

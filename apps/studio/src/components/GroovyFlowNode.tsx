@@ -7,7 +7,8 @@ import type { CanvasNodeKind } from "../nodeKinds";
 import { shortCanvasIssueLabel } from "../planModelSanitize";
 import { socketTypeColor } from "../socketTypes";
 import type { NodeRenderStatus } from "../types";
-import { lockPreviewVideoSize } from "../workflow";
+import { projectMediaUrl } from "../api";
+import { lockPreviewImageSize, lockPreviewVideoSize } from "../workflow";
 import { PreviewVideoTransport } from "./PreviewVideoTransport";
 import { TrajectoryAuthorPad } from "./TrajectoryPanel";
 
@@ -39,6 +40,12 @@ export type GroovyNodeData = {
   previewVideoWidth?: number;
   previewVideoHeight?: number;
   previewVideoAspect?: number;
+  /** Project-relative IMAGE path for on-node still (PreviewImage only). */
+  previewImagePath?: string;
+  /** Aspect-locked on-canvas image panel size (PreviewImage). */
+  previewImageWidth?: number;
+  previewImageHeight?: number;
+  previewImageAspect?: number;
   /** Freeform Note comment shown on-node. */
   noteText?: string;
   /** Channel layout / count chip (LoadAudio, Preview, SaveAudio). */
@@ -130,6 +137,9 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
   const videoW = nodeData.previewVideoWidth ?? 240;
   const videoH = nodeData.previewVideoHeight ?? 135;
   const videoAspect = nodeData.previewVideoAspect ?? 16 / 9;
+  const imageW = nodeData.previewImageWidth ?? 240;
+  const imageH = nodeData.previewImageHeight ?? 240;
+  const imageAspect = nodeData.previewImageAspect ?? 1;
   const noteLineCount =
     nodeData.noteText != null
       ? Math.max(3, nodeData.noteText.split("\n").length)
@@ -141,6 +151,8 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
     nodeData.previewVideoPath || nodeData.label === "PreviewVideo"
       ? videoH + (nodeData.previewVideoPath ? 64 : 36)
       : 0,
+    // Title chrome only for stills (no transport). Keep in sync with PREVIEW_IMAGE_CHROME_H.
+    nodeData.previewImagePath || nodeData.label === "PreviewImage" ? imageH + 36 : 0,
     Math.max(inputs.length, outputs.length) * 24 + 20,
   );
 
@@ -176,6 +188,40 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
       window.addEventListener("pointerup", onUp);
     },
     [nodeData.nodeId, patchSize, videoAspect, videoW],
+  );
+
+  const onImageResizePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLSpanElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const target = event.currentTarget;
+      target.setPointerCapture(event.pointerId);
+      resizeDrag.current = {
+        startX: event.clientX,
+        startW: imageW,
+        aspect: imageAspect,
+      };
+      const onMove = (ev: PointerEvent) => {
+        const drag = resizeDrag.current;
+        if (!drag) return;
+        const nextW = drag.startW + (ev.clientX - drag.startX);
+        const locked = lockPreviewImageSize("preview_width", nextW, drag.aspect);
+        patchSize(nodeData.nodeId, locked.preview_width, locked.preview_height);
+      };
+      const onUp = (ev: PointerEvent) => {
+        resizeDrag.current = null;
+        try {
+          target.releasePointerCapture(ev.pointerId);
+        } catch {
+          /* already released */
+        }
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [imageAspect, imageW, nodeData.nodeId, patchSize],
   );
   const isNote = nodeData.label === "Note";
   const kind = nodeData.kind ?? "core";
@@ -332,6 +378,34 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
               />
             </div>
           )
+        ) : null}
+        {nodeData.label === "PreviewImage" ||
+        ((nodeData.label === "GenerateImage" || nodeData.label === "LoadImage") &&
+          nodeData.previewImagePath) ? (
+          <div
+            className={`groovy-node__image nodrag nopan${selected ? " groovy-node__image--selected" : ""}`}
+            style={{ width: imageW, height: imageH }}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            {nodeData.previewImagePath ? (
+              <img
+                key={nodeData.previewImagePath}
+                className="groovy-node__image-frame"
+                src={projectMediaUrl(nodeData.previewImagePath)}
+                alt=""
+                draggable={false}
+              />
+            ) : (
+              <div className="groovy-node__image-placeholder">Render to preview</div>
+            )}
+            {nodeData.label === "PreviewImage" ? (
+              <span
+                className="groovy-node__image-resize"
+                title="Drag to scale (aspect locked)"
+                onPointerDown={onImageResizePointerDown}
+              />
+            ) : null}
+          </div>
         ) : null}
         {showAuthorPad && nodeData.trajectoryAuthorId && nodeData.trajectoryWidgets ? (
           <div

@@ -128,7 +128,7 @@ def test_license_optimizer_previews_explicit_commercial_chain_swap(tmp_path: Pat
         nodes=[
             NodeInstance(
                 id="n1",
-                type="TTS",
+                type="GenerateSpeech",
                 widgets={"model": "f5-tts-base", "text": "hello"},
             )
         ],
@@ -144,7 +144,7 @@ def test_license_optimizer_previews_explicit_commercial_chain_swap(tmp_path: Pat
     replacement = registry.catalog.get(swap["to_model_id"])
     assert replacement is not None
     assert replacement.license.commercial_ok is True
-    assert "TTS" in replacement.compatible_nodes
+    assert "GenerateSpeech" in replacement.compatible_nodes
 
 
 def test_preflight_estimates_missing_only_download_and_peak_vram(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
 [project]
 name = "groovy-ui"
 version = "0.1.0"
-description = "ComfyUI for audio — modular synthesis with AI models as nodes"
+description = "Patch-bay for AI audio — modular synthesis with AI models as nodes"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []

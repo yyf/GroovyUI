@@ -12,7 +12,7 @@ describe("nodeKinds", () => {
     expect(isAiNodeType("Video2Audio")).toBe(true);
     expect(isAiNodeType("Denoise")).toBe(true);
     expect(isAiNodeType("WhisperSTT")).toBe(true);
-    expect(canvasNodeKind("TTS")).toBe("ai");
+    expect(canvasNodeKind("GenerateSpeech")).toBe("ai");
   });
 
   it("classifies core DSP as core", () => {

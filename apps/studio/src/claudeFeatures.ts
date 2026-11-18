@@ -5,7 +5,7 @@
 export const CLAUDE_UX_ENABLED = false;
 
 /**
- * Tab-to-grow (demo template + Tab key patch expansion, Claude or local minimal).
- * Gated with the same paid/agent unlock as Claude UX for now.
+ * Tab expands the selected node with its deterministic Help/minimal patch
+ * (local recipes only — no Claude). Creative-agent Tab loop stays behind CLAUDE_UX_ENABLED.
  */
-export const TAB_GROW_UX_ENABLED = CLAUDE_UX_ENABLED;
+export const TAB_GROW_UX_ENABLED = true;

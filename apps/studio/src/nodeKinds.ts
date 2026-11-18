@@ -11,7 +11,7 @@ const AI_NODE_TYPES = new Set([
   "SpatialUpmix",
   "WhisperSTT",
   "DiarizeTranscribe",
-  "TTS",
+  "GenerateSpeech",
   "VoiceConvert",
   "TimbreTransfer",
   "AudioToMIDI",

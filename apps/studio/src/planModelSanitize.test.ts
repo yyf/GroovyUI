@@ -15,14 +15,14 @@ describe("planModelSanitize", () => {
       id: "w1",
       metadata: { title: "plan" },
       nodes: [
-        { id: "n3", type: "TTS", widgets: { model: "coqui/XTTS-v2" } },
+        { id: "n3", type: "GenerateSpeech", widgets: { model: "coqui/XTTS-v2" } },
         { id: "n4", type: "Preview", widgets: {} },
       ],
       links: [],
     };
     const schemas: Record<string, NodeSchema> = {
-      TTS: {
-        type: "TTS",
+      GenerateSpeech: {
+        type: "GenerateSpeech",
         category: "GroovyUI/AI",
         inputs: [],
         outputs: [{ name: "audio", type: "AUDIO" }],

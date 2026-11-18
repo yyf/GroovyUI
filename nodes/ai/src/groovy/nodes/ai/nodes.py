@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from groovy.executor.audio import AudioBuffer
-from groovy.node import GroovyNode, register_node
+from groovy.node import GroovyNode, register_node, register_node_alias
 
 
 def register_all() -> None:
@@ -11,7 +11,7 @@ def register_all() -> None:
         WhisperSTT,
         DiarizeTranscribe,
         TranslateText,
-        TTS,
+        GenerateSpeech,
         VoiceConvert,
         SpeechTranslate,
         TimbreTransfer,
@@ -21,6 +21,7 @@ def register_all() -> None:
         DetectWatermark,
         MIDIToAudio,
         GenerateAudio,
+        GenerateImage,
         GenerateVideo,
         SingFromMIDI,
         Video2Audio,
@@ -30,6 +31,8 @@ def register_all() -> None:
         BinauralRender,
         SpatialUpmix,
     )
+    # Legacy workflows may still use the old type name.
+    register_node_alias("TTS", "GenerateSpeech")
 
 
 @register_node
@@ -194,7 +197,9 @@ class DiarizeTranscribe(GroovyNode):
 
 
 @register_node
-class TTS(GroovyNode):
+class GenerateSpeech(GroovyNode):
+    """Text-to-speech synthesis (formerly registered as ``TTS``)."""
+
     CATEGORY = "GroovyUI/AI"
     EXPORT_TIER = "OFFLINE_RENDER"
     SAMPLE_ACCURATE = True
@@ -248,7 +253,7 @@ class TTS(GroovyNode):
         }
 
     def run(self, **kwargs):
-        raise RuntimeError("TTS must run in AI worker subprocess")
+        raise RuntimeError("GenerateSpeech must run in AI worker subprocess")
 
 
 @register_node
@@ -736,6 +741,77 @@ class GenerateVideo(GroovyNode):
 
     def run(self, **kwargs):
         raise RuntimeError("GenerateVideo must run in AI worker subprocess")
+
+
+@register_node
+class GenerateImage(GroovyNode):
+    """Text → IMAGE (local T2I). Default Real: flux-klein-4b / mflux; path demo: flux-image."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    DURATION_LOCKED = True
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_generated"
+    COMPATIBLE_MODELS = [
+        "flux-klein-4b",
+        "flux-image",
+    ]
+    RETURN_TYPES = ("IMAGE", "GENERATE_LOG")
+    OUTPUT_NAMES = ("image", "log")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (
+                    "MODEL_REF",
+                    {
+                        "default": "flux-klein-4b",
+                        "description": (
+                            "Text-to-image. Default flux-klein-4b (mflux FLUX.2 klein 4B, 8-bit). "
+                            "Path demo without weights: flux-image."
+                        ),
+                    },
+                ),
+            },
+            "optional": {
+                "text": ("TEXT",),
+                "prompt": ("STRING", {"default": ""}),
+                "width": ("INT", {"default": 512, "min": 256, "max": 1024}),
+                "height": ("INT", {"default": 512, "min": 256, "max": 1024}),
+                "num_steps": (
+                    "INT",
+                    {
+                        "default": 4,
+                        "min": 1,
+                        "max": 30,
+                        "description": "Sampling steps (klein turbo schedules are short).",
+                    },
+                ),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+            },
+        }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [
+            {"name": "image", "type": "IMAGE"},
+            {
+                "name": "log",
+                "type": "GENERATE_LOG",
+                "description": (
+                    "Optional run log: prompt, timing, output file, model config, and hardware. "
+                    "Wire to SaveGenerateLog."
+                ),
+            },
+        ]
+        return schema
+
+    def run(self, **kwargs):
+        raise RuntimeError("GenerateImage must run in AI worker subprocess")
 
 
 @register_node

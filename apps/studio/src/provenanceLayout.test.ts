@@ -122,7 +122,7 @@ describe("layoutProvenanceGraph", () => {
         },
         {
           cache_id: "b",
-          node: { node_id: "n2", node_type: "TTS" },
+          node: { node_id: "n2", node_type: "GenerateSpeech" },
           contribution: { class: "ai_generated" },
         },
         {

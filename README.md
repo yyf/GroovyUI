@@ -11,6 +11,7 @@
 
 ## Contents
 
+- [Demos](#demos)
 - [YouTube](#youtube)
 - [Status](#status)
 - [OS compatibility](#os-compatibility)
@@ -20,6 +21,8 @@
   - [What does Contribution Mix mean?](#what-does-contribution-mix-mean)
   - [What does the Provenance view show?](#what-does-the-provenance-view-show)
 - [License](#license)
+
+## Demos
 
 <p align="center">
   <img src="assets/media/groovy-demos-2x2-10x-1920.gif" alt="GroovyUI demos: Model Browser, Patch Generation, isolate-to-transcribe, prompt modular synth" width="960" />

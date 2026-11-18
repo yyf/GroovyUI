@@ -34,7 +34,7 @@ def test_asr_benchmark_template_shape_and_validate(tmp_path: Path, monkeypatch) 
     data = json.loads(path.read_text(encoding="utf-8"))
     assert data["metadata"]["title"].startswith("ASR Benchmark")
     nodes = {node["id"]: node for node in data["nodes"]}
-    assert nodes["n2"]["type"] == "TTS"
+    assert nodes["n2"]["type"] == "GenerateSpeech"
     assert nodes["n2"]["widgets"]["model"] == "kokoro-82m"
     assert nodes["n4"]["widgets"]["model"] == "whisper-small-en"
     assert nodes["n5"]["widgets"]["model"] == "whisper-large-v3-turbo"

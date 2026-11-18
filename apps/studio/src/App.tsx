@@ -151,7 +151,9 @@ import {
   resolveTargetNode,
   withAuthenticityRenderTargets,
   findUpstreamLoadAudio,
+  lockPreviewImageSize,
   lockPreviewVideoSize,
+  previewImageAspect,
   previewVideoAspect,
   rescalePointsWidgetJson,
   setLinkColor,
@@ -946,16 +948,17 @@ export default function App() {
           nodes: prev.nodes.map((node) => {
             if (node.id !== nodeId) return node;
             if (
-              node.type === "PreviewVideo" &&
+              (node.type === "PreviewVideo" || node.type === "PreviewImage") &&
               (name === "preview_width" || name === "preview_height")
             ) {
               const aspect =
-                previewVideoAspect(lastJob?.outputs?.[nodeId]) ?? 16 / 9;
-              const locked = lockPreviewVideoSize(
-                name,
-                Number(value),
-                aspect,
-              );
+                node.type === "PreviewImage"
+                  ? (previewImageAspect(lastJob?.outputs?.[nodeId]) ?? 1)
+                  : (previewVideoAspect(lastJob?.outputs?.[nodeId]) ?? 16 / 9);
+              const locked =
+                node.type === "PreviewImage"
+                  ? lockPreviewImageSize(name, Number(value), aspect)
+                  : lockPreviewVideoSize(name, Number(value), aspect);
               return { ...node, widgets: { ...node.widgets, ...locked } };
             }
             return { ...node, widgets: { ...node.widgets, [name]: value } };
@@ -1155,16 +1158,22 @@ export default function App() {
         if (job.status === "completed") {
           setFailedNodeId(null);
           const outputs = job.outputs ?? {};
-          // Lock PreviewVideo canvas size to source frame aspect once VIDEO dims are known.
+          // Lock PreviewVideo / PreviewImage canvas size to source aspect once dims are known.
           setWorkflow((prev) => {
             if (!prev) return prev;
             let changed = false;
             const nodes = prev.nodes.map((node) => {
-              if (node.type !== "PreviewVideo") return node;
-              const aspect = previewVideoAspect(outputs[node.id]);
+              if (node.type !== "PreviewVideo" && node.type !== "PreviewImage") return node;
+              const aspect =
+                node.type === "PreviewImage"
+                  ? previewImageAspect(outputs[node.id])
+                  : previewVideoAspect(outputs[node.id]);
               if (!aspect) return node;
               const baseW = Number(node.widgets.preview_width) || 240;
-              const locked = lockPreviewVideoSize("preview_width", baseW, aspect);
+              const locked =
+                node.type === "PreviewImage"
+                  ? lockPreviewImageSize("preview_width", baseW, aspect)
+                  : lockPreviewVideoSize("preview_width", baseW, aspect);
               if (
                 Number(node.widgets.preview_width) === locked.preview_width &&
                 Number(node.widgets.preview_height) === locked.preview_height
@@ -1220,23 +1229,31 @@ export default function App() {
           const savedOutput = targets
             .map((nodeId) => {
               const node = workflow.nodes.find((n) => n.id === nodeId);
-              return node?.type === "SaveAudio" || node?.type === "SaveVideo"
+              return node?.type === "SaveAudio" ||
+                node?.type === "SaveVideo" ||
+                node?.type === "SaveImage"
                 ? outputs[nodeId]
                 : undefined;
             })
             .find(Boolean);
           const saved = savedFilePath(savedOutput);
           const provenance = savedProvenancePath(savedOutput);
-          const savedVideo = targets.some(
-            (nodeId) => workflow.nodes.find((n) => n.id === nodeId)?.type === "SaveVideo",
-          );
+          const savedKind = targets
+            .map((nodeId) => workflow.nodes.find((n) => n.id === nodeId)?.type)
+            .find((type) => type === "SaveVideo" || type === "SaveImage" || type === "SaveAudio");
           setStatus(
             saved && provenance
-              ? `Saved audio + provenance: ${saved}`
+              ? savedKind === "SaveImage"
+                ? `Saved image + provenance: ${saved}`
+                : savedKind === "SaveVideo"
+                  ? `Saved video + provenance: ${saved}`
+                  : `Saved audio + provenance: ${saved}`
               : saved
-                ? savedVideo
+                ? savedKind === "SaveVideo"
                   ? `Saved video to ${saved}`
-                  : `Saved to ${saved}`
+                  : savedKind === "SaveImage"
+                    ? `Saved image to ${saved}`
+                    : `Saved to ${saved}`
                 : autoAudition && !auditionNodeId && !videoPreviewId
                   ? "Render complete — Preview produced no listenable output"
                   : videoPreviewId
@@ -2074,12 +2091,16 @@ export default function App() {
   const selectedSavedPath = savedFilePath(selectedOutput);
   const transportEmptyHint = !selectedNodeId
     ? "Select a node"
-    : selectedNode?.type === "SaveAudio" || selectedNode?.type === "SaveVideo"
+    : selectedNode?.type === "SaveAudio" ||
+        selectedNode?.type === "SaveVideo" ||
+        selectedNode?.type === "SaveImage"
       ? selectedSavedPath
         ? `Saved to ${selectedSavedPath}`
         : selectedNode.type === "SaveVideo"
           ? "Render to write video under workspace/exports"
-          : "Render to write audio file"
+          : selectedNode.type === "SaveImage"
+            ? "Render to write image under workspace/exports"
+            : "Render to write audio file"
       : selectedMidiId || selectedNodePreview
         ? ""
         : selectedOutput?.type === "VIDEO" && selectedOutput.path

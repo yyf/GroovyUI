@@ -517,7 +517,7 @@
       "vram_gb_estimate": 6,
       "download_size_mb_estimate": 1300,
       "compatible_nodes": [
-        "TTS"
+        "GenerateSpeech"
       ],
       "install": {
         "dev_stub": false,
@@ -565,7 +565,7 @@
       "vram_gb_estimate": 1,
       "download_size_mb_estimate": 350,
       "compatible_nodes": [
-        "TTS"
+        "GenerateSpeech"
       ],
       "install": {
         "dev_stub": false,
@@ -663,7 +663,7 @@
       "vram_gb_estimate": 8,
       "download_size_mb_estimate": 4500,
       "compatible_nodes": [
-        "TTS"
+        "GenerateSpeech"
       ],
       "install": {
         "dev_stub": false,
@@ -837,7 +837,7 @@
       "vram_gb_estimate": 4,
       "download_size_mb_estimate": 2000,
       "compatible_nodes": [
-        "TTS"
+        "GenerateSpeech"
       ],
       "install": {
         "dev_stub": true
@@ -2927,7 +2927,7 @@
       "status": "published",
       "trust": "verified",
       "name": "LTX 2.5",
-      "description": "Open-weight Lightricks LTX-2.5 joint video+audio (HF). Public weights for GenerateVideo. CUDA Comfy path ~32 GB+ VRAM / 100 GB+ disk; Apple Silicon via community MLX packs (large unified memory). Runner wiring TBD — install is catalog/stub until Real path lands.",
+      "description": "Open-weight Lightricks LTX-2.5 joint video+audio (HF). Public weights for GenerateVideo. CUDA path ~32 GB+ VRAM / 100 GB+ disk; Apple Silicon via community MLX packs (large unified memory). Runner wiring TBD — install is catalog/stub until Real path lands.",
       "task_types": [
         "text-to-video",
         "video-generation",
@@ -3092,7 +3092,7 @@
       "status": "published",
       "trust": "verified",
       "name": "MiniMax H3",
-      "description": "Open-weight MiniMax H3 omni video+audio (HF). Public weights for GenerateVideo / Comfy. Local Real path is datacenter-scale (e.g. multi-B200 recipes); not Mac-min. Commercial local outputs may need MiniMax commercial license.",
+      "description": "Open-weight MiniMax H3 omni video+audio (HF). Public weights for GenerateVideo. Local Real path is datacenter-scale (e.g. multi-B200 recipes); not Mac-min. Commercial local outputs may need MiniMax commercial license.",
       "task_types": [
         "text-to-video",
         "video-generation",
@@ -4080,6 +4080,189 @@
         "m2m100-418m",
         "madlad400-3b-mt"
       ]
+    },
+    {
+      "id": "flux-klein-4b",
+      "status": "published",
+      "trust": "verified",
+      "name": "FLUX.2 Klein 4B (mflux)",
+      "description": "Primary local text-to-image for GenerateImage on Apple Silicon via mflux (FLUX.2 [klein] 4B, 8-bit). Target M1 Max 32 GB: ~20–25 GB peak MLX, 512². Apache-2.0. Install from Model Browser, then Real render. Path demo without weights: flux-image.",
+      "task_types": [
+        "text-to-image",
+        "image-generation",
+        "generation"
+      ],
+      "tags": [
+        "flux",
+        "flux-2",
+        "klein",
+        "image",
+        "text-to-image",
+        "t2i",
+        "generation",
+        "mflux",
+        "mlx",
+        "apple-silicon",
+        "mac",
+        "low-vram",
+        "open-weights",
+        "apache"
+      ],
+      "author": "Black Forest Labs / mflux community",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.9,
+        "notes": "FLUX.2 klein weights + mflux tooling; prefer Apache-2.0 builds."
+      },
+      "vram_gb_estimate": 20,
+      "download_size_mb_estimate": 8000,
+      "compatible_nodes": [
+        "GenerateImage"
+      ],
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "mflux",
+            "version": ">=0.24.0"
+          },
+          {
+            "package": "mlx",
+            "version": ">=0.22.0"
+          },
+          {
+            "package": "pillow",
+            "version": ">=10.0.0"
+          }
+        ],
+        "verify_imports": [
+          "mflux",
+          "mlx"
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "width",
+          "type": "INT",
+          "default": 512,
+          "min": 256,
+          "max": 1024,
+          "description": "Output width. Keep 512 on 32 GB Macs."
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "default": 512,
+          "min": 256,
+          "max": 1024,
+          "description": "Output height. Keep 512 on 32 GB Macs."
+        },
+        {
+          "name": "num_steps",
+          "type": "INT",
+          "default": 4,
+          "min": 1,
+          "max": 30,
+          "description": "Sampling steps (klein turbo schedules are short)."
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "default": -1,
+          "min": -1,
+          "max": 2147483647,
+          "description": "RNG seed (−1 = derived)."
+        }
+      ],
+      "similar_models": [
+        "flux-image"
+      ],
+      "architecture_notes": "GenerateImage Real path: mflux FLUX.2 klein 4B 8-bit. Path demo is flux-image.",
+      "compute": {
+        "runtimes": [
+          "mps",
+          "mlx"
+        ],
+        "requires_cuda": false,
+        "label": "Apple Silicon mflux 8-bit · ~20–25 GB peak",
+        "memory_note": "32 GB unified recommended; close other apps; 512p"
+      }
+    },
+    {
+      "id": "flux-image",
+      "status": "published",
+      "trust": "verified",
+      "name": "FLUX Image (path demo)",
+      "description": "Path-demo only for GenerateImage (Pillow gradient + prompt caption). Instant ~0 GB. For real Mac T2I use flux-klein-4b (mflux) after Model Browser install.",
+      "task_types": [
+        "text-to-image",
+        "image-generation",
+        "generation"
+      ],
+      "tags": [
+        "flux",
+        "image",
+        "text-to-image",
+        "t2i",
+        "generation",
+        "mac",
+        "apple-silicon",
+        "lightweight",
+        "stub"
+      ],
+      "author": "GroovyUI",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0,
+        "notes": "Local placeholder PNG only."
+      },
+      "vram_gb_estimate": 0,
+      "download_size_mb_estimate": 0,
+      "compatible_nodes": [
+        "GenerateImage"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "inference_params": [
+        {
+          "name": "width",
+          "type": "INT",
+          "default": 512,
+          "min": 256,
+          "max": 1024
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "default": 512,
+          "min": 256,
+          "max": 1024
+        },
+        {
+          "name": "num_steps",
+          "type": "INT",
+          "default": 4,
+          "min": 1,
+          "max": 30
+        }
+      ],
+      "similar_models": [
+        "flux-klein-4b"
+      ],
+      "architecture_notes": "GenerateImage path-demo: Pillow plate. Real Mac T2I is flux-klein-4b (mflux).",
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "mps"
+        ],
+        "requires_cuda": false,
+        "label": "Path demo · 0 GB"
+      }
     }
   ]
 }

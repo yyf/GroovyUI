@@ -43,7 +43,7 @@ MAX_STEPS = 8
 # Fixed public type names (not the live registry) — bias Claude + local remap.
 PUBLIC_NODE_TYPE_HINTS = (
     "LoadAudio, SaveAudio, Preview, Normalize, Denoise, SeparateStems, "
-    "WhisperSTT, TTS, Mix, Trim, Resample, ChannelConvert, Video2Audio, "
+    "WhisperSTT, GenerateSpeech, Mix, Trim, Resample, ChannelConvert, Video2Audio, "
     "Prompt, Note, ControlCurve, AutomationApply"
 )
 
@@ -68,9 +68,11 @@ _NODE_TYPE_ALIASES: dict[str, str] = {
     "speechtotext": "WhisperSTT",
     "asr": "WhisperSTT",
     "stt": "WhisperSTT",
-    "kokoro": "TTS",
-    "texttospeech": "TTS",
-    "ttsnode": "TTS",
+    "kokoro": "GenerateSpeech",
+    "texttospeech": "GenerateSpeech",
+    "ttsnode": "GenerateSpeech",
+    "tts": "GenerateSpeech",
+    "generatespeech": "GenerateSpeech",
     "audioload": "LoadAudio",
     "loadaudiofile": "LoadAudio",
     "audioinput": "LoadAudio",

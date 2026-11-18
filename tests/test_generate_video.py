@@ -401,6 +401,29 @@ def test_text_to_video_template_schema_and_stub_render(
     assert 0.0 < float(gen["widgets"].get("image_strength", 1.0)) <= 1.0
     load = next(node for node in data["nodes"] if node["type"] == "LoadImage")
     assert load["widgets"].get("path") == "assets/samples/Fort-Zeelandia.png"
+    gen_img = next(node for node in data["nodes"] if node["type"] == "GenerateImage")
+    assert gen_img["widgets"]["model"] == "flux-klein-4b"
+    switch = next(node for node in data["nodes"] if node["type"] == "SwitchImage")
+    assert int(switch["widgets"].get("select", 0)) == 1
+    assert any(node["type"] == "PreviewImage" for node in data["nodes"])
+    assert any(node["type"] == "SaveImage" for node in data["nodes"])
+    assert any(
+        link["from"] == ["n-genimg", 0] and link["to"] == ["n-preview-img", 0] and link["type"] == "IMAGE"
+        for link in data["links"]
+    ), "GenerateImage must wire to PreviewImage"
+    assert any(
+        link["from"] == ["n-genimg", 0] and link["to"] == ["n-save-img", 0] and link["type"] == "IMAGE"
+        for link in data["links"]
+    ), "GenerateImage must wire to SaveImage"
+    save_img = next(node for node in data["nodes"] if node["type"] == "SaveImage")
+    assert save_img["widgets"].get("filename") == "text-to-video-still.png"
+    prompts = [node for node in data["nodes"] if node["type"] == "Prompt"]
+    assert len(prompts) >= 2
+    video_prompt = next(node for node in prompts if node["id"] == "n0")
+    image_prompt = next(node for node in prompts if node["id"] == "n-img-prompt")
+    assert "Pointillism" in str(video_prompt["widgets"].get("text", ""))
+    assert "documentary still" in str(image_prompt["widgets"].get("text", ""))
+    assert video_prompt["widgets"]["text"] != image_prompt["widgets"]["text"]
     note = next(node for node in data["nodes"] if node["type"] == "Note")
     # Note sits below the graph so its 420px width does not cover GenerateVideo.
     assert float(note["pos"]["y"]) >= 400.0
@@ -414,10 +437,28 @@ def test_text_to_video_template_schema_and_stub_render(
     assert "image" in gen_inputs
     assert gen_inputs["image"][0] == "IMAGE"
     assert "image_strength" in gen_inputs
+    assert "GenerateImage" in NODE_REGISTRY
+    assert "SwitchImage" in NODE_REGISTRY
     assert any(
-        link["from"] == ["n-img", 0] and link["to"] == ["n1", 1] and link["type"] == "IMAGE"
+        link["from"] == ["n-img", 0] and link["to"] == ["n-switch", 0] and link["type"] == "IMAGE"
         for link in data["links"]
-    ), "LoadImage must wire to GenerateVideo.image"
+    ), "LoadImage must wire to SwitchImage.a"
+    assert any(
+        link["from"] == ["n-img-prompt", 0] and link["to"] == ["n-genimg", 0] and link["type"] == "TEXT"
+        for link in data["links"]
+    ), "Image Prompt must wire to GenerateImage (separate from video Prompt)"
+    assert not any(
+        link["from"] == ["n0", 0] and link["to"] == ["n-genimg", 0]
+        for link in data["links"]
+    ), "Video Prompt must not feed GenerateImage"
+    assert any(
+        link["from"] == ["n-genimg", 0] and link["to"] == ["n-switch", 1] and link["type"] == "IMAGE"
+        for link in data["links"]
+    ), "GenerateImage must wire to SwitchImage.b"
+    assert any(
+        link["from"] == ["n-switch", 0] and link["to"] == ["n1", 1] and link["type"] == "IMAGE"
+        for link in data["links"]
+    ), "SwitchImage must wire to GenerateVideo.image"
     assert any(
         link["from"] == ["n1", 1]
         and link["to"] == ["n-log", 0]
@@ -435,13 +476,25 @@ def test_text_to_video_template_schema_and_stub_render(
     result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
     assert result.valid, [e.message for e in result.errors]
 
-    # Stub env: Real MLX weights are optional; stub still produces a PreviewVideo plate.
+    # Stub env: Real MLX / mflux weights are optional; stub still produces PreviewVideo + PreviewImage.
+    # select=1 → SwitchImage keeps GenerateImage (prunes LoadImage).
     registry = ModelRegistry(tmp_path)
     registry.installer.install("ltx-2.3-q4")
-    out = Executor(tmp_path).execute(workflow, target_nodes=["n3", "n-log"])
+    registry.installer.install("flux-klein-4b")
+    out = Executor(tmp_path).execute(
+        workflow, target_nodes=["n3", "n-log", "n-preview-img", "n-img-log"]
+    )
     assert out.status == "completed", out.error
-    assert out.outputs["n-img"]["type"] == "IMAGE"
-    assert out.outputs["n-img"].get("path") == "assets/samples/Fort-Zeelandia.png"
+    assert "n-img" not in out.outputs
+    assert out.outputs["n-genimg"]["type"] == "MULTI"
+    assert out.outputs["n-genimg"]["outputs"][0]["type"] == "IMAGE"
+    assert out.outputs["n-genimg"]["outputs"][1]["type"] == "GENERATE_LOG"
+    assert out.outputs["n-genimg"]["outputs"][1].get("generate_log_id")
+    assert out.outputs["n-preview-img"]["type"] == "IMAGE"
+    assert out.outputs["n-switch"]["type"] == "IMAGE"
+    assert out.outputs["n-switch"].get("path") == out.outputs["n-genimg"]["outputs"][0].get("path")
+    assert out.outputs["n-img-log"]["type"] == "STRING"
+    assert out.outputs["n-img-log"].get("path")
     assert out.outputs["n1"]["type"] == "MULTI"
     assert out.outputs["n1"]["outputs"][0]["type"] == "VIDEO"
     assert out.outputs["n1"]["outputs"][1]["type"] == "GENERATE_LOG"

@@ -26,7 +26,7 @@ def test_hello_groovy_template_shape() -> None:
     assert types == [
         "Note",
         "Prompt",
-        "TTS",
+        "GenerateSpeech",
         "ControlCurve",
         "AutomationApply",
         "Normalize",

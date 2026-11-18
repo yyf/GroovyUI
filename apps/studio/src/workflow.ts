@@ -135,6 +135,14 @@ export function previewVideoPath(output?: JobOutput): string | null {
   return null;
 }
 
+/** Project-relative IMAGE path for on-canvas PreviewImage / GenerateImage. */
+export function previewImagePath(output?: JobOutput): string | null {
+  const slot = jobOutputAtSlot(output, 0);
+  if (slot?.type === "IMAGE" && slot.path) return slot.path;
+  if (output?.type === "IMAGE" && output.path) return output.path;
+  return null;
+}
+
 const PREVIEW_VIDEO_DEFAULT_ASPECT = 16 / 9;
 const PREVIEW_VIDEO_MIN_W = 120;
 const PREVIEW_VIDEO_MAX_W = 960;
@@ -212,6 +220,62 @@ export function previewVideoNodeFootprint(panel: {
   return {
     width: panel.width + PREVIEW_VIDEO_CHROME_W,
     height: panel.height + PREVIEW_VIDEO_CHROME_H,
+  };
+}
+
+const PREVIEW_IMAGE_DEFAULT_ASPECT = 1;
+/** Title row only — no local transport bar (still image). */
+const PREVIEW_IMAGE_CHROME_H = 36;
+
+/** Aspect ratio from IMAGE job output (incl. MULTI slot 0), else null. */
+export function previewImageAspect(output?: JobOutput): number | null {
+  return previewVideoAspect(jobOutputAtSlot(output, 0) ?? output);
+}
+
+export function clampPreviewImageWidth(width: number): number {
+  return clampPreviewVideoWidth(width);
+}
+
+export function clampPreviewImageHeight(height: number): number {
+  return clampPreviewVideoHeight(height);
+}
+
+/** Keep PreviewImage on-canvas size locked to source aspect. */
+export function lockPreviewImageSize(
+  changed: "preview_width" | "preview_height",
+  value: number,
+  aspect: number = PREVIEW_IMAGE_DEFAULT_ASPECT,
+): { preview_width: number; preview_height: number } {
+  return lockPreviewVideoSize(changed, value, aspect > 0 ? aspect : PREVIEW_IMAGE_DEFAULT_ASPECT);
+}
+
+export function previewImagePanelSize(
+  node: WorkflowNode,
+  output?: JobOutput,
+): { width: number; height: number; aspect: number } {
+  const aspect = previewImageAspect(output) ?? PREVIEW_IMAGE_DEFAULT_ASPECT;
+  const rawW = Number(node.widgets.preview_width);
+  const rawH = Number(node.widgets.preview_height);
+  const locked =
+    Number.isFinite(rawW) && rawW > 0
+      ? lockPreviewImageSize("preview_width", rawW, aspect)
+      : Number.isFinite(rawH) && rawH > 0
+        ? lockPreviewImageSize("preview_height", rawH, aspect)
+        : lockPreviewImageSize("preview_width", 240, aspect);
+  return {
+    width: locked.preview_width,
+    height: locked.preview_height,
+    aspect,
+  };
+}
+
+export function previewImageNodeFootprint(panel: {
+  width: number;
+  height: number;
+}): { width: number; height: number } {
+  return {
+    width: panel.width + PREVIEW_VIDEO_CHROME_W,
+    height: panel.height + PREVIEW_IMAGE_CHROME_H,
   };
 }
 
@@ -427,6 +491,10 @@ export function resolveNodeInspectorOutput(
   if (direct?.type === "VIDEO" && direct.path) {
     return direct;
   }
+  // Still IMAGE (PreviewImage / GenerateImage / LoadImage) keeps path for on-canvas <img>.
+  if (direct?.type === "IMAGE" && direct.path) {
+    return direct;
+  }
   if (direct?.text) {
     const cacheId = direct.cache_id ?? listen?.cache_id;
     return {
@@ -437,7 +505,7 @@ export function resolveNodeInspectorOutput(
       text: direct.text,
     };
   }
-  // SaveAudio / SaveVideo: keep the written-file STRING payload (path + optional provenance).
+  // SaveAudio / SaveVideo / SaveImage: keep the written-file STRING payload (path + optional provenance).
   if (direct?.type === "STRING" && direct.path) {
     return direct;
   }
@@ -628,6 +696,28 @@ const NODE_SOCKET_FALLBACKS: Record<
     inputs: [],
     outputs: [{ name: "image", type: "IMAGE", slot: 0 }],
   },
+  GenerateImage: {
+    inputs: [{ name: "text", type: "TEXT", optional: true, slot: 0 }],
+    outputs: [
+      { name: "image", type: "IMAGE", slot: 0 },
+      { name: "log", type: "GENERATE_LOG", slot: 1 },
+    ],
+  },
+  SwitchImage: {
+    inputs: [
+      { name: "a", type: "IMAGE", optional: true, slot: 0 },
+      { name: "b", type: "IMAGE", optional: true, slot: 1 },
+    ],
+    outputs: [{ name: "image", type: "IMAGE", slot: 0 }],
+  },
+  PreviewImage: {
+    inputs: [{ name: "image", type: "IMAGE", slot: 0 }],
+    outputs: [{ name: "image", type: "IMAGE", slot: 0 }],
+  },
+  SaveImage: {
+    inputs: [{ name: "image", type: "IMAGE", slot: 0 }],
+    outputs: [{ name: "path", type: "STRING", slot: 0 }],
+  },
   GenerateVideo: {
     inputs: [
       { name: "text", type: "TEXT", optional: true, slot: 0 },
@@ -707,10 +797,18 @@ export function proxyNodeId(groupId: string): string {
 }
 
 /** Ensure optional array fields exist so canvas helpers never iterate undefined. */
+/** Legacy node type names rewritten on load so the canvas matches the registry. */
+const LEGACY_NODE_TYPE_ALIASES: Record<string, string> = {
+  TTS: "GenerateSpeech",
+};
+
 export function normalizeLoadedWorkflow(raw: Workflow): Workflow {
   return {
     ...raw,
-    nodes: raw.nodes ?? [],
+    nodes: (raw.nodes ?? []).map((node) => {
+      const nextType = LEGACY_NODE_TYPE_ALIASES[node.type];
+      return nextType ? { ...node, type: nextType } : node;
+    }),
     links: raw.links ?? [],
     groups: raw.groups ?? [],
   };
@@ -1164,13 +1262,26 @@ export function workflowToFlowNodes(
             : null;
       const videoPanel =
         n.type === "PreviewVideo" ? previewVideoPanelSize(n, jobOut) : null;
-      const videoFootprint = videoPanel ? previewVideoNodeFootprint(videoPanel) : null;
+      // PreviewImage always reserves a plate; GenerateImage / LoadImage grow once IMAGE path exists.
+      const imagePathForNode =
+        n.type === "PreviewImage" || n.type === "GenerateImage" || n.type === "LoadImage"
+          ? previewImagePath(jobOut)
+          : null;
+      const imagePanel =
+        n.type === "PreviewImage" || imagePathForNode
+          ? previewImagePanelSize(n, jobOut)
+          : null;
+      const mediaFootprint = videoPanel
+        ? previewVideoNodeFootprint(videoPanel)
+        : imagePanel
+          ? previewImageNodeFootprint(imagePanel)
+          : null;
       return {
         id: n.id,
         type: "groovy",
         position: n.pos ?? { x: 0, y: 0 },
-        style: videoFootprint
-          ? { width: videoFootprint.width, height: videoFootprint.height }
+        style: mediaFootprint
+          ? { width: mediaFootprint.width, height: mediaFootprint.height }
           : undefined,
         data: {
           label: n.type,
@@ -1190,6 +1301,10 @@ export function workflowToFlowNodes(
           previewVideoWidth: videoPanel?.width,
           previewVideoHeight: videoPanel?.height,
           previewVideoAspect: videoPanel?.aspect,
+          previewImagePath: imagePathForNode ?? undefined,
+          previewImageWidth: imagePanel?.width,
+          previewImageHeight: imagePanel?.height,
+          previewImageAspect: imagePanel?.aspect,
           noteText,
           channelLabel,
           trajectoryId: resolveNodeTrajectoryId(workflow, n.id, outputs),
@@ -1272,7 +1387,7 @@ const WIRED_TEXT_SUPERSEDES_WIDGET: Record<string, Record<string, string | strin
   Video2Audio: { text: "prompt" },
   MIDIToAudio: { text: "prompt" },
   SingFromMIDI: { lyrics: "text" },
-  TTS: { transcript: "text" },
+  GenerateSpeech: { transcript: "text" },
   TrajectoryAuthor: {
     audio: ["duration_sec", "sample_rate"],
   },
@@ -2152,9 +2267,16 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
       height = footprint.height;
       break;
     }
+    case "PreviewImage": {
+      const panel = previewImagePanelSize(node);
+      const footprint = previewImageNodeFootprint(panel);
+      width = footprint.width;
+      height = footprint.height;
+      break;
+    }
     case "Prompt":
     case "Video2Audio":
-    case "TTS":
+    case "GenerateSpeech":
     case "SingFromMIDI":
       width = 210;
       height = 100;
@@ -2163,6 +2285,11 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
       // Named inlets (prompt + image) + video/log outlets need a taller body.
       width = 210;
       height = 128;
+      break;
+    case "GenerateImage":
+      // Named inlet (prompt) + image/log outlets.
+      width = 210;
+      height = 112;
       break;
     case "SaveGenerateLog":
       width = 210;

@@ -48,7 +48,7 @@ from groovy.registry.pack_installer import PackInstaller
 from groovy.registry.packs import list_packs
 from groovy.registry.studio_settings import StudioSettingsStore
 from groovy.registry.workflow_models import missing_models_for_workflow
-from groovy.schema.comfy_import import import_comfy_workflow
+from groovy.schema.external_graph_import import import_external_graph
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
 from groovy.server.activation_diagnostics import ActivationDiagnosticsStore
@@ -253,7 +253,7 @@ class WorkflowSuggestRequest(BaseModel):
     llm_model: str | None = None
 
 
-class ComfyImportRequest(BaseModel):
+class ExternalGraphImportRequest(BaseModel):
     workflow: dict[str, Any]
     title: str | None = None
 
@@ -775,6 +775,13 @@ def project_media(path: str):
         ".wav": "audio/wav",
         ".mp3": "audio/mpeg",
         ".m4a": "audio/mp4",
+        # Stills for PreviewImage / Node Helper <img> — browsers reject octet-stream.
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
     }
     # Do not pass ``filename=`` — that sets Content-Disposition: attachment and breaks
     # inline HTML5 video+audio playback in the studio.
@@ -1537,9 +1544,9 @@ def _start_model_install(model_id: str):
     return _registry.store.get(model_id)
 
 
-@app.post("/api/workflow/import/comfy")
-def import_comfy_workflow_endpoint(body: ComfyImportRequest) -> dict[str, Any]:
-    converted = import_comfy_workflow(body.workflow, title=body.title or "Imported from ComfyUI")
+@app.post("/api/workflow/import/external")
+def import_external_graph_endpoint(body: ExternalGraphImportRequest) -> dict[str, Any]:
+    converted = import_external_graph(body.workflow, title=body.title or "Imported graph")
     import_meta = converted.pop("import_meta", {})
     workflow = _workflow_from_dict(converted)
     validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))

@@ -1585,13 +1585,68 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l3", "n2", "n4", "GENERATE_LOG", 1, 0),
     ],
   },
+  GenerateImage: {
+    title: "Generate Image",
+    description: "Prompt → GenerateImage → PreviewImage + SaveImage + SaveGenerateLog.",
+    focusNodeId: "n2",
+    nodes: [
+      { id: "n1", type: "Prompt", x: 0, widgets: { text: "Fort Zeelandia at dusk, pointillism." } },
+      {
+        id: "n2",
+        type: "GenerateImage",
+        x: 260,
+        widgets: { model: "flux-image", width: 512, height: 512, num_steps: 4, seed: 42 },
+      },
+      { id: "n3", type: "PreviewImage", x: 520, widgets: {} },
+      {
+        id: "n4",
+        type: "SaveImage",
+        x: 520,
+        y: 160,
+        widgets: { path: "exports", filename: "generate-image.png" },
+      },
+      {
+        id: "n5",
+        type: "SaveGenerateLog",
+        x: 520,
+        y: 300,
+        widgets: { path: "exports", filename: "generate-image-log.json" },
+      },
+    ],
+    links: [
+      link("l1", "n1", "n2", "TEXT"),
+      link("l2", "n2", "n3", "IMAGE"),
+      link("l3", "n2", "n4", "IMAGE", 0, 0),
+      link("l4", "n2", "n5", "GENERATE_LOG", 1, 0),
+    ],
+  },
+  SwitchImage: {
+    title: "Switch Image",
+    description: "Pick LoadImage or GenerateImage for GenerateVideo I2V.",
+    focusNodeId: "n3",
+    nodes: [
+      { id: "n1", type: "LoadImage", x: 0, widgets: { path: "assets/samples/Fort-Zeelandia.png" } },
+      {
+        id: "n2",
+        type: "GenerateImage",
+        x: 0,
+        y: 140,
+        widgets: { model: "flux-image", prompt: "Harbor fort at dusk", width: 512, height: 512, seed: 1 },
+      },
+      { id: "n3", type: "SwitchImage", x: 280, widgets: { select: 0 } },
+    ],
+    links: [
+      link("l1", "n1", "n3", "IMAGE", 0, 0),
+      link("l2", "n2", "n3", "IMAGE", 0, 1),
+    ],
+  },
   LoadImage: {
     title: "Load Image",
-    description: "Load a still from assets (wire to GenerateVideo image inlet when ready).",
+    description: "Load a still from assets (wire to SwitchImage / GenerateVideo).",
     focusNodeId: "n1",
     nodes: [
       { id: "n1", type: "LoadImage", x: 0, widgets: { path: "assets/samples/Fort-Zeelandia.png" } },
-      { id: "n2", type: "Note", x: 280, widgets: { text: "Wire IMAGE → GenerateVideo (image inlet)." } },
+      { id: "n2", type: "Note", x: 280, widgets: { text: "Wire IMAGE → SwitchImage or GenerateVideo." } },
     ],
     links: [],
   },
@@ -1631,6 +1686,31 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l2", "n1", "n3", "VIDEO", 0, 1),
       link("l3", "n3", "n4", "VIDEO"),
     ],
+  },
+  PreviewImage: {
+    title: "Preview Image",
+    description: "LoadImage into an on-canvas PreviewImage.",
+    focusNodeId: "n2",
+    nodes: [
+      { id: "n1", type: "LoadImage", x: 0, widgets: { path: "assets/samples/Fort-Zeelandia.png" } },
+      { id: "n2", type: "PreviewImage", x: 280, widgets: {} },
+    ],
+    links: [link("l1", "n1", "n2", "IMAGE")],
+  },
+  SaveImage: {
+    title: "Save Image",
+    description: "LoadImage and write a still to exports.",
+    focusNodeId: "n2",
+    nodes: [
+      { id: "n1", type: "LoadImage", x: 0, widgets: { path: "assets/samples/Fort-Zeelandia.png" } },
+      {
+        id: "n2",
+        type: "SaveImage",
+        x: 280,
+        widgets: { path: "exports", filename: "still.png" },
+      },
+    ],
+    links: [link("l1", "n1", "n2", "IMAGE")],
   },
   PreviewVideo: {
     title: "Preview Video",
@@ -1679,7 +1759,14 @@ const PATCH_X_STEP = 260;
 const PATCH_Y_STEP = 140;
 
 /** Terminal nodes — Tab wires upstream only, not another chain leg downstream. */
-const SKIP_DOWNSTREAM_TYPES = new Set(["Preview", "SaveAudio", "ModuleOutlet", "WhisperSTT"]);
+const SKIP_DOWNSTREAM_TYPES = new Set([
+  "Preview",
+  "PreviewImage",
+  "PreviewVideo",
+  "SaveAudio",
+  "ModuleOutlet",
+  "WhisperSTT",
+]);
 
 /** Text outputs are terminal in v1 — no auto downstream chain. */
 const SKIP_DOWNSTREAM_OUTPUT_TYPES = new Set(["TEXT", "STRING"]);
@@ -1855,6 +1942,27 @@ function appendSinkForOutput(
   if (output.type === "AUDIO") {
     patchNodes.push({ id: sinkId, type: "Preview", x: sinkX, y: sinkY, widgets: {} });
     links.push(link(`l${linkIndex.value++}`, focusNodeId, sinkId, "AUDIO", outputSlot, 0));
+    return;
+  }
+  if (output.type === "IMAGE") {
+    patchNodes.push({ id: sinkId, type: "PreviewImage", x: sinkX, y: sinkY, widgets: {} });
+    links.push(link(`l${linkIndex.value++}`, focusNodeId, sinkId, "IMAGE", outputSlot, 0));
+    return;
+  }
+  if (output.type === "VIDEO") {
+    patchNodes.push({ id: sinkId, type: "PreviewVideo", x: sinkX, y: sinkY, widgets: {} });
+    links.push(link(`l${linkIndex.value++}`, focusNodeId, sinkId, "VIDEO", outputSlot, 0));
+    return;
+  }
+  if (output.type === "GENERATE_LOG") {
+    patchNodes.push({
+      id: sinkId,
+      type: "SaveGenerateLog",
+      x: sinkX,
+      y: sinkY,
+      widgets: { path: "exports", filename: "generate-log.json" },
+    });
+    links.push(link(`l${linkIndex.value++}`, focusNodeId, sinkId, "GENERATE_LOG", outputSlot, 0));
     return;
   }
   if (output.type === "AUTHENTICITY") {
