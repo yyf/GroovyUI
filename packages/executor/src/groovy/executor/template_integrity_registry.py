@@ -139,8 +139,15 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
     "text-to-video": {
         "fixture": "none",
         "sample_path": "assets/samples/Fort-Zeelandia.png",
-        "models": ("ltx-2.3-q4",),
-        "required_outputs": (("n2", "VIDEO"), ("n3", "STRING"), ("n-log", "STRING")),
+        # GenerateVideo + GenerateImage (select=1 default) both run under stub CI.
+        "models": ("ltx-2.3-q4", "flux-klein-4b"),
+        "required_outputs": (
+            ("n2", "VIDEO"),
+            ("n3", "STRING"),
+            ("n-log", "STRING"),
+            ("n-save-img", "STRING"),
+            ("n-img-log", "STRING"),
+        ),
     },
     "ace-step-1.5": {
         "fixture": "none",

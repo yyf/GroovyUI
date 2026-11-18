@@ -482,7 +482,8 @@ def test_text_to_video_template_schema_and_stub_render(
     registry.installer.install("ltx-2.3-q4")
     registry.installer.install("flux-klein-4b")
     out = Executor(tmp_path).execute(
-        workflow, target_nodes=["n3", "n-log", "n-preview-img", "n-img-log"]
+        workflow,
+        target_nodes=["n3", "n-log", "n-preview-img", "n-save-img", "n-img-log"],
     )
     assert out.status == "completed", out.error
     assert "n-img" not in out.outputs
@@ -491,6 +492,8 @@ def test_text_to_video_template_schema_and_stub_render(
     assert out.outputs["n-genimg"]["outputs"][1]["type"] == "GENERATE_LOG"
     assert out.outputs["n-genimg"]["outputs"][1].get("generate_log_id")
     assert out.outputs["n-preview-img"]["type"] == "IMAGE"
+    assert out.outputs["n-save-img"]["type"] == "STRING"
+    assert out.outputs["n-save-img"].get("path")
     assert out.outputs["n-switch"]["type"] == "IMAGE"
     assert out.outputs["n-switch"].get("path") == out.outputs["n-genimg"]["outputs"][0].get("path")
     assert out.outputs["n-img-log"]["type"] == "STRING"
