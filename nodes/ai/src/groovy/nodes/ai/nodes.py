@@ -22,6 +22,7 @@ def register_all() -> None:
         MIDIToAudio,
         GenerateAudio,
         GenerateImage,
+        GenerateMidi,
         GenerateVideo,
         SingFromMIDI,
         Video2Audio,
@@ -812,6 +813,102 @@ class GenerateImage(GroovyNode):
 
     def run(self, **kwargs):
         raise RuntimeError("GenerateImage must run in AI worker subprocess")
+
+
+@register_node
+class GenerateMidi(GroovyNode):
+    """Text → MIDI (local symbolic). Default Real: midi-llm; path demo: midi-gen."""
+
+    CATEGORY = "GroovyUI/AI"
+    EXPORT_TIER = "OFFLINE_RENDER"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = False
+    DURATION_LOCKED = True
+    run_in_worker = True
+    PROVENANCE_CLASS = "ai_generated"
+    COMPATIBLE_MODELS = [
+        "midi-llm",
+        "midi-gen",
+    ]
+    RETURN_TYPES = ("MIDI", "GENERATE_LOG")
+    OUTPUT_NAMES = ("midi", "log")
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "model": (
+                    "MODEL_REF",
+                    {
+                        "default": "midi-llm",
+                        "description": (
+                            "Text-to-MIDI. Default midi-llm (Llama 3.2 1B + MIDI tokens; Mac MPS). "
+                            "Path demo without weights: midi-gen."
+                        ),
+                    },
+                ),
+            },
+            "optional": {
+                "text": ("TEXT",),
+                "prompt": ("STRING", {"default": ""}),
+                "max_tokens": (
+                    "INT",
+                    {
+                        "default": 1024,
+                        "min": 64,
+                        "max": 2046,
+                        "description": "Max MIDI tokens to generate (Real midi-llm).",
+                    },
+                ),
+                "temperature": (
+                    "FLOAT",
+                    {
+                        "default": 1.0,
+                        "min": 0.01,
+                        "max": 2.0,
+                        "description": "Sampling temperature (Real midi-llm).",
+                    },
+                ),
+                "top_p": (
+                    "FLOAT",
+                    {
+                        "default": 0.98,
+                        "min": 0.01,
+                        "max": 1.0,
+                        "description": "Nucleus sampling (Real midi-llm).",
+                    },
+                ),
+                "duration": (
+                    "FLOAT",
+                    {
+                        "default": 8.0,
+                        "min": 2.0,
+                        "max": 32.0,
+                        "description": "Target length in seconds (path-demo midi-gen).",
+                    },
+                ),
+                "seed": ("INT", {"default": -1, "min": -1, "max": 2147483647}),
+            },
+        }
+
+    @classmethod
+    def describe(cls) -> dict:
+        schema = super().describe()
+        schema["outputs"] = [
+            {"name": "midi", "type": "MIDI"},
+            {
+                "name": "log",
+                "type": "GENERATE_LOG",
+                "description": (
+                    "Optional run log: prompt, timing, output file, model config, and hardware. "
+                    "Wire to SaveGenerateLog."
+                ),
+            },
+        ]
+        return schema
+
+    def run(self, **kwargs):
+        raise RuntimeError("GenerateMidi must run in AI worker subprocess")
 
 
 @register_node

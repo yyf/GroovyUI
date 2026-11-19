@@ -191,7 +191,10 @@ class CacheStore:
         mid_path = self.cache_dir / f"{midi.id}.mid"
         if midi_bytes is not None:
             mid_path.write_bytes(midi_bytes)
-        midi.path = str(mid_path)
+            midi.path = str(mid_path)
+        elif midi.path is None:
+            # Keep intentional empty-string placeholders (optional LoadMIDI) as "".
+            midi.path = str(mid_path) if mid_path.exists() else None
         meta_path = self.cache_dir / f"{midi.id}.midi.meta.json"
         meta_path.write_text(json.dumps(midi.to_meta(), indent=2))
         return midi
@@ -218,28 +221,28 @@ class CacheStore:
     def midi_roll(self, midi_id: str) -> dict:
         midi = self.load_midi(midi_id)
         mid_path = self.cache_dir / f"{midi_id}.mid"
-        if not mid_path.exists():
-            raise FileNotFoundError(f"MIDI file not found: {midi_id}")
         duration = midi.frame_count / max(midi.sample_rate, 1)
         notes: list[dict] = []
-        try:
-            from pretty_midi import PrettyMIDI
+        # Empty LoadMIDI placeholder — no SMF on disk yet.
+        if mid_path.exists() and int(midi.frame_count or 0) > 0:
+            try:
+                from pretty_midi import PrettyMIDI
 
-            pm = PrettyMIDI(str(mid_path))
-            duration = max(duration, float(pm.get_end_time()))
-            for instrument in pm.instruments:
-                for note in instrument.notes:
-                    notes.append(
-                        {
-                            "start": round(note.start, 4),
-                            "end": round(note.end, 4),
-                            "pitch": int(note.pitch),
-                            "velocity": int(note.velocity),
-                            "drum": bool(instrument.is_drum),
-                        }
-                    )
-        except ImportError:
-            pass
+                pm = PrettyMIDI(str(mid_path))
+                duration = max(duration, float(pm.get_end_time()))
+                for instrument in pm.instruments:
+                    for note in instrument.notes:
+                        notes.append(
+                            {
+                                "start": round(note.start, 4),
+                                "end": round(note.end, 4),
+                                "pitch": int(note.pitch),
+                                "velocity": int(note.velocity),
+                                "drum": bool(instrument.is_drum),
+                            }
+                        )
+            except ImportError:
+                pass
         pitches = [note["pitch"] for note in notes]
         min_pitch = max(0, (min(pitches) if pitches else 60) - 2)
         max_pitch = min(127, (max(pitches) if pitches else 72) + 2)
@@ -261,8 +264,11 @@ class CacheStore:
 
         midi = self.load_midi(midi_id)
         mid_path = self.cache_dir / f"{midi_id}.mid"
-        if not mid_path.exists():
-            raise FileNotFoundError(f"MIDI file not found: {midi_id}")
+        # Empty LoadMIDI placeholder — silent stub WAV (no SMF on disk).
+        if not mid_path.exists() or int(midi.frame_count or 0) <= 0:
+            buf = io.BytesIO()
+            sf.write(buf, np.zeros(int(0.25 * sample_rate), dtype=np.float64), sample_rate, format="WAV", subtype="FLOAT")
+            return buf.getvalue()
 
         duration = max(0.25, midi.frame_count / max(midi.sample_rate, 1))
         pcm: np.ndarray | None = None

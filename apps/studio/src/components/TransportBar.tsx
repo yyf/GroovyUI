@@ -395,9 +395,20 @@ export default function TransportBar({
   }, [onPlaybackStarted, previewUrl, startRaf, stopRaf, timelineDuration]);
 
   const handleSeek = useCallback(
-    (ratio: number) => {
+    (ratio: number, phase: "start" | "move" | "end" = "end") => {
       if (!previewUrl) return;
-      // Move playhead immediately; commit to audio element (blob) when ready.
+      // Scrub: update the visual playhead only. Committing currentTime on every
+      // pointermove makes HTMLAudio click/glitch (especially MIDI → WAV previews).
+      if (phase === "start") {
+        audioRef.current?.pause();
+        setPlayheadRatio(ratio, { commitAudio: false });
+        return;
+      }
+      if (phase === "move") {
+        setPlayheadRatio(ratio, { commitAudio: false });
+        return;
+      }
+      // Click or scrub end — seek the cached WAV once.
       setPlayheadRatio(ratio, { commitAudio: true });
       void ensureBlobLoaded()
         .then(() => {
@@ -511,7 +522,7 @@ export default function TransportBar({
         </div>
 
         <div className="transport__stage">
-          <div className="transport__wave-wrap">
+          <div className={["transport__wave-wrap", isMidiVisual ? "transport__wave-wrap--midi" : ""].filter(Boolean).join(" ")}>
             {!isMidiVisual && previewUrl ? (
               <div className="transport__visual-toggle" role="group" aria-label="Audio visualization mode">
                 <button
@@ -534,19 +545,31 @@ export default function TransportBar({
             ) : null}
             <div className="transport__wave-visual" title={hasPreview ? "Click waveform to set playhead" : undefined}>
               {isMidiVisual ? (
-                <div className={previewUrl ? undefined : "transport__wave-empty"}>
+                previewUrl ? (
                   <MidiRollMini
                     duration={midiRoll?.duration ?? 1}
                     notes={midiRoll?.notes ?? []}
                     minPitch={midiRoll?.minPitch ?? 60}
                     maxPitch={midiRoll?.maxPitch ?? 72}
                     progress={playbackProgress}
-                    onSeek={previewUrl ? handleSeek : undefined}
+                    onSeek={handleSeek}
                     fitContainer
                     className="transport__midi-roll"
                   />
-                  {!previewUrl ? <p className="transport__empty">{emptyHint}</p> : null}
-                </div>
+                ) : (
+                  <div className="transport__wave-empty">
+                    <MidiRollMini
+                      duration={midiRoll?.duration ?? 1}
+                      notes={midiRoll?.notes ?? []}
+                      minPitch={midiRoll?.minPitch ?? 60}
+                      maxPitch={midiRoll?.maxPitch ?? 72}
+                      progress={playbackProgress}
+                      fitContainer
+                      className="transport__midi-roll"
+                    />
+                    <p className="transport__empty">{emptyHint}</p>
+                  </div>
+                )
               ) : previewUrl ? (
                 audioVisualMode === "spectrogram" ? (
                   <SpectrogramMini

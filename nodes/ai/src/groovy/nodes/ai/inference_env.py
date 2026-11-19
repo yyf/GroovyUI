@@ -23,6 +23,17 @@ def basic_pitch_available() -> bool:
         return False
 
 
+def midi_llm_available() -> bool:
+    try:
+        import anticipation.convert  # noqa: F401
+        import torch  # noqa: F401
+        import transformers  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
 def musicgen_available() -> bool:
     try:
         import torch  # noqa: F401
@@ -262,6 +273,8 @@ def stereo2spatial_available() -> bool:
 _MODEL_RUNTIME_CHECKS: dict[str, Callable[[], bool]] = {
     "deepfilternet-v3": deepfilternet_available,
     "basic-pitch": basic_pitch_available,
+    "midi-llm": midi_llm_available,
+    "midi-gen": lambda: True,
     "demucs-v4": demucs_available,
     "demucs-v4-ht": demucs_available,
     "spleeter-2stems": spleeter_available,

@@ -4563,9 +4563,11 @@ body {
 .transport__wave-visual > .transport__spectrogram,
 .transport__wave-visual > .transport__waveform,
 .transport__wave-visual > .transport__midi-roll,
-.transport__wave-visual > .transport__wave-empty {
+.transport__wave-visual > .transport__wave-empty,
+.transport__wave-empty > .transport__midi-roll {
   flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
   align-self: stretch;
 }
 
@@ -4655,21 +4657,28 @@ body {
   flex: 1;
   width: 100%;
   height: 100%;
-  min-height: 72px;
+  min-height: 96px;
   margin: 0;
 }
 
 .midi-roll-mini {
   position: relative;
-  display: grid;
-  grid-template-columns: var(--transport-yaxis-width, 40px) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
-  min-height: 40px;
+  min-height: 72px;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border-dim);
   border-radius: 0;
   overflow: hidden;
+}
+
+.midi-roll-mini__body {
+  flex: 1 1 auto;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: var(--transport-yaxis-width, 40px) minmax(0, 1fr);
 }
 
 .midi-roll-mini__scale {
@@ -4687,6 +4696,16 @@ body {
   border-right: 1px solid var(--border-dim);
   background: #080808;
   user-select: none;
+}
+
+.midi-roll-mini__scale--zoomable {
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.midi-roll-mini__scale--zoomable:hover {
+  color: #9ca3af;
+  background: #0c0c0c;
 }
 
 .midi-roll-mini__scale-mark--mid {
@@ -4710,15 +4729,29 @@ body {
   width: 100%;
   height: 100%;
   min-height: 40px;
+  overflow: visible;
 }
 
 .midi-roll-mini__grid {
-  stroke: rgba(255, 255, 255, 0.06);
+  stroke: rgba(255, 255, 255, 0.05);
   stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.midi-roll-mini__grid--pitch {
+  stroke: rgba(255, 255, 255, 0.07);
 }
 
 .midi-roll-mini__grid--octave {
-  stroke: rgba(255, 255, 255, 0.12);
+  stroke: rgba(255, 255, 255, 0.18);
+}
+
+.midi-roll-mini__grid--time {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.midi-roll-mini__grid--time-major {
+  stroke: rgba(255, 255, 255, 0.2);
 }
 
 .midi-roll-mini__note {
@@ -4741,6 +4774,118 @@ body {
 
 .midi-roll-mini--seekable .midi-roll-mini__plot {
   cursor: pointer;
+}
+
+.midi-roll-mini__footer {
+  /* Same columns as body → time-axis width === plot width (vertical grid aligns with ticks). */
+  display: grid;
+  grid-template-columns: var(--transport-yaxis-width, 40px) minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 22px;
+  border-top: 1px solid var(--border-dim);
+  background: #080808;
+  position: relative;
+  z-index: 3;
+}
+
+.midi-roll-mini__footer-gutter {
+  border-right: 1px solid var(--border-dim);
+  background: #080808;
+}
+
+.midi-roll-mini__footer-main {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 2px 0 3px;
+}
+
+.midi-roll-mini__zoom {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  gap: 2px;
+  flex-shrink: 0;
+  z-index: 2;
+  background: rgba(8, 8, 8, 0.92);
+  padding-left: 4px;
+}
+
+.midi-roll-mini__zoom button {
+  border: 1px solid var(--border-dim);
+  background: #0c0c0c;
+  color: #9ca3af;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.midi-roll-mini__zoom button:hover:not(:disabled) {
+  color: #e5e7eb;
+  border-color: #6b7280;
+}
+
+.midi-roll-mini__zoom button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.midi-roll-mini__time-axis {
+  position: relative;
+  flex: 1;
+  height: 18px;
+  min-width: 0;
+  /* Leave room so ticks/labels are not covered by absolute zoom controls. */
+  padding-right: 92px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: #6b7280;
+  user-select: none;
+}
+
+.midi-roll-mini__time-axis--zoomable {
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.midi-roll-mini__time-axis--zoomable:hover {
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.midi-roll-mini__time-mark {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+
+/* Tick stub directly under the grid line for visual registration. */
+.midi-roll-mini__time-tick {
+  display: block;
+  width: 1px;
+  height: 4px;
+  margin-bottom: 1px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.midi-roll-mini__time-unit {
+  position: absolute;
+  right: 96px;
+  top: 2px;
+  color: #4b5563;
+  pointer-events: none;
 }
 
 .transport__wave-empty .transport__empty {
@@ -4770,6 +4915,13 @@ body {
   border-radius: 0;
   pointer-events: none;
   z-index: 2;
+}
+
+/* MIDI: keep timecode in the plot (top-left), clear of footer zoom controls on the right. */
+.transport__wave-wrap--midi .transport__time-tag {
+  top: 6px;
+  bottom: auto;
+  right: auto;
 }
 
 .transport__time-current {

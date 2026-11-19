@@ -66,6 +66,7 @@ import { resolveWidgetControl } from "../widgetControls";
 const GENERATIVE_NODE_TYPES = new Set([
   "GenerateAudio",
   "GenerateImage",
+  "GenerateMidi",
   "GenerateVideo",
   "GenerateSpeech",
   "MIDIToAudio",
@@ -834,11 +835,25 @@ export default function NodeHelper({
                 ) : null}
               </>
             ) : null}
+            {node.type === "SaveMidi" ? (
+              <>
+                <p className="node-helper__hint">
+                  Writes an SMF MIDI file under the project. Filename template:{" "}
+                  <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code>
+                  . A UTC timestamp is appended when rendered.
+                </p>
+                {output?.type === "STRING" && output.path && output.provenance_path ? (
+                  <SaveAudioExportPair output={output} onOpenCompliance={onOpenCompliance} />
+                ) : output?.type === "STRING" && output.path ? (
+                  <SavedFileReveal path={output.path} label="Saved MIDI" />
+                ) : null}
+              </>
+            ) : null}
             {node.type === "SaveGenerateLog" ? (
               <>
                 <p className="node-helper__hint">
-                  Writes GenerateVideo / GenerateImage run metadata (prompt, timing, output file,
-                  model config, hardware) as JSON. Template:{" "}
+                  Writes GenerateVideo / GenerateImage / GenerateMidi run metadata (prompt, timing,
+                  output file, model config, hardware) as JSON. Template:{" "}
                   <code>{joinSaveAudioPath(node.widgets.path, node.widgets.filename)}</code>
                   . A UTC timestamp is appended when rendered.
                 </p>
@@ -853,11 +868,18 @@ export default function NodeHelper({
                 <code>assets/samples/podcast_denoise_demo.wav</code>). You can also drop audio onto the canvas.
               </p>
             ) : null}
+            {node.type === "LoadMIDI" ? (
+              <p className="node-helper__hint">
+                Optional SMF (.mid). Leave path empty as a placeholder when the downstream MIDI inlet
+                is unused (e.g. GenerateAudio). Choose a file when you want conditioning.
+              </p>
+            ) : null}
             {schema.widgets.length === 0 &&
             modelParamRows.length === 0 &&
             node.type !== "SaveAudio" &&
             node.type !== "SaveVideo" &&
             node.type !== "SaveImage" &&
+            node.type !== "SaveMidi" &&
             node.type !== "SaveGenerateLog" ? (
               <p className="node-helper__hint">No configurable parameters.</p>
             ) : null}
@@ -1058,6 +1080,7 @@ export default function NodeHelper({
                               node.type === "SaveAudio" ||
                               node.type === "SaveVideo" ||
                               node.type === "SaveImage" ||
+                              node.type === "SaveMidi" ||
                               socket.type === "AUTHENTICITY"
                                 ? onOpenCompliance
                                 : undefined
@@ -2030,7 +2053,7 @@ function OutputSnapshot({
     } else if (socketType === "SAMPLE_CHECK" && output.type === "SAMPLE_CHECK") {
       // VerifySamples
     } else if (socketType === "GENERATE_LOG" && output.type === "GENERATE_LOG") {
-      // GenerateVideo.log / GenerateImage.log
+      // GenerateVideo.log / GenerateImage.log / GenerateMidi.log
     } else if (socketType === "TRAJECTORY" && output.type === "TRAJECTORY") {
       // TrajectoryAuthor / AmbisonicTrajectoryExtract
     } else if (socketType === "VIDEO" && output.type === "VIDEO") {
@@ -2064,7 +2087,9 @@ function OutputSnapshot({
             hardware).
           </p>
         ) : (
-          <p className="node-helper__hint">No generate log yet — render GenerateVideo / GenerateImage.</p>
+          <p className="node-helper__hint">
+            No generate log yet — render GenerateVideo / GenerateImage / GenerateMidi.
+          </p>
         )
       ) : null}
       {output.type === "SAMPLE_CHECK" || socketType === "SAMPLE_CHECK" ? (
@@ -2483,7 +2508,12 @@ function splitFact(fact: string): { label: string; value: string } {
 }
 
 function widgetLabel(name: string, nodeType: string): string {
-  if (nodeType === "SaveAudio" || nodeType === "SaveVideo" || nodeType === "SaveImage") {
+  if (
+    nodeType === "SaveAudio" ||
+    nodeType === "SaveVideo" ||
+    nodeType === "SaveImage" ||
+    nodeType === "SaveMidi"
+  ) {
     if (name === "path") return "Output folder";
     if (name === "filename") return "File name";
     if (name === "format") return "Format";
@@ -2682,6 +2712,23 @@ function LoadImagePathInput({
       onChange={onChange}
       accept="image/*,.png,.jpg,.jpeg,.webp,.bmp,.gif"
       placeholder="assets/uploads/reference.png"
+    />
+  );
+}
+
+function LoadMidiPathInput({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  return (
+    <ProjectMediaPathInput
+      value={value}
+      onChange={onChange}
+      accept=".mid,.midi,audio/midi,audio/x-midi"
+      placeholder="assets/uploads/melody.mid (optional)"
     />
   );
 }
@@ -2885,7 +2932,12 @@ function sliderBoundHints(
     case "duration_sec":
       return { minHint: "shorter", maxHint: "longer" };
     default:
-      if (nodeType === "GenerateAudio" || nodeType === "GenerateImage" || nodeType === "GenerateVideo") {
+      if (
+        nodeType === "GenerateAudio" ||
+        nodeType === "GenerateImage" ||
+        nodeType === "GenerateMidi" ||
+        nodeType === "GenerateVideo"
+      ) {
         return { minHint: "lower", maxHint: "higher" };
       }
       return { minHint: "lower", maxHint: "higher" };
@@ -2908,10 +2960,14 @@ function WidgetInput({
   if (nodeType === "LoadImage" && spec.name === "path") {
     return <LoadImagePathInput value={value} onChange={onChange} />;
   }
+  if (nodeType === "LoadMIDI" && spec.name === "path") {
+    return <LoadMidiPathInput value={value} onChange={onChange} />;
+  }
   if (
     (nodeType === "SaveAudio" ||
       nodeType === "SaveVideo" ||
       nodeType === "SaveImage" ||
+      nodeType === "SaveMidi" ||
       nodeType === "SaveGenerateLog") &&
     spec.name === "filename"
   ) {
@@ -2934,12 +2990,14 @@ function WidgetInput({
       />
     );
   }
-  if ((nodeType === "SaveVideo" || nodeType === "SaveImage") && spec.name === "path") {
+  if ((nodeType === "SaveVideo" || nodeType === "SaveImage" || nodeType === "SaveMidi") && spec.name === "path") {
     return (
       <ProjectMediaPathInput
         value={value}
         onChange={onChange}
-        accept={nodeType === "SaveImage" ? "image/*" : "video/*"}
+        accept={
+          nodeType === "SaveImage" ? "image/*" : nodeType === "SaveMidi" ? ".mid,audio/midi" : "video/*"
+        }
         placeholder="exports"
       />
     );

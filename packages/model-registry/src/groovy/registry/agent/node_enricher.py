@@ -17,6 +17,39 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             ),
         },
     },
+    "LoadMIDI": {
+        "description": (
+            "Load an SMF (.mid) into the graph, or leave path empty as a placeholder on an "
+            "optional MIDI inlet (e.g. GenerateAudio.midi). Empty path does not condition "
+            "downstream models — pick a file when you want MIDI guidance."
+        ),
+        "outputs": {"midi": "MIDI clip (empty placeholder when path is blank)."},
+        "widgets": {
+            "path": (
+                "Optional. Project-relative .mid under assets/samples or assets/uploads. "
+                "Empty keeps the MIDI wire without loading a file."
+            ),
+            "midi_kind": "Role hint: control / performance / score / transcript.",
+        },
+    },
+    "GenerateMidi": {
+        "description": (
+            "Text → MIDI. Default midi-llm (Llama 3.2 1B, Mac MPS). "
+            "midi-gen is the zero-weight path demo. Audition via PreviewMidi (bottom piano roll). "
+            "Second outlet is an optional GENERATE_LOG for SaveGenerateLog."
+        ),
+        "inputs": {"text": "Prompt TEXT (wire a Prompt node)."},
+        "outputs": {
+            "midi": "Generated MIDI clip (SMF under project cache).",
+            "log": "GENERATE_LOG run metadata — wire SaveGenerateLog to export JSON.",
+        },
+        "widgets": {
+            "model": "midi-llm (Real) or midi-gen (path demo).",
+            "prompt": "Fallback prompt when TEXT is unwired.",
+            "max_tokens": "Max MIDI tokens (Real).",
+            "seed": "−1 = derived; ≥0 locks the take.",
+        },
+    },
     "GenerateImage": {
         "description": (
             "Text-to-image for I2V / stills. Default flux-klein-4b (mflux Real on Mac); "
@@ -167,7 +200,10 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "inputs": {
             "text": "Style / sound prompt (TEXT). When wired, overrides the local prompt widget.",
             "lyrics": "Optional lyrics (TEXT). ACE-Step: [verse] / [chorus]; leave empty for instrumental.",
-            "midi": "Optional MIDI melody conditioning.",
+            "midi": (
+                "Optional MIDI conditioning. Wire LoadMIDI (empty path = placeholder) or "
+                "GenerateMidi / AudioToMIDI when the model supports it."
+            ),
             "reference_audio": (
                 "Optional source clip. ACE-Step Real: identity-preserving cover — "
                 "src_audio (structure) + reference timbre from this clip; prompt restyles. "
@@ -230,11 +266,11 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
     },
     "SaveGenerateLog": {
         "description": (
-            "Export a GenerateVideo GENERATE_LOG as timestamped JSON "
-            "(behavior, performance, hardware)."
+            "Export a GenerateVideo / GenerateImage / GenerateMidi GENERATE_LOG as "
+            "timestamped JSON (behavior, performance, hardware)."
         ),
         "inputs": {
-            "log": "GENERATE_LOG from GenerateVideo.log.",
+            "log": "GENERATE_LOG from GenerateVideo / GenerateImage / GenerateMidi .log.",
         },
         "widgets": {
             "path": "Folder under the project (e.g. exports).",
@@ -352,6 +388,21 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         "description": "Terminal sink for still IMAGE audition on canvas and in Node Helper.",
         "inputs": {
             "image": "IMAGE clip from LoadImage, GenerateImage, or SwitchImage upstream."
+        },
+    },
+    "PreviewMidi": {
+        "description": (
+            "MIDI audition sink. After Render, select it — transport piano roll + synthesized "
+            "preview (same bottom path as LoadMIDI / AudioToMIDI)."
+        ),
+        "inputs": {"midi": "MIDI from GenerateMidi, LoadMIDI, or AudioToMIDI."},
+    },
+    "SaveMidi": {
+        "description": "Copy a MIDI clip (SMF .mid) into the project exports folder.",
+        "inputs": {"midi": "MIDI clip to export (GenerateMidi / LoadMIDI / PreviewMidi)."},
+        "widgets": {
+            "path": "Folder under the project (e.g. exports).",
+            "filename": "Base file name; a UTC timestamp is appended when written.",
         },
     },
     "PreviewVideo": {

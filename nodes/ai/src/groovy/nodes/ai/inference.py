@@ -1045,7 +1045,10 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
     sample_rate = 48000
     midi = None
     if kwargs.get("midi_id"):
-        midi = cache.load_midi(str(kwargs["midi_id"]))
+        loaded = cache.load_midi(str(kwargs["midi_id"]))
+        # Empty LoadMIDI placeholder (optional conditioning not armed) → treat as unwired.
+        if int(getattr(loaded, "frame_count", 0) or 0) > 0:
+            midi = loaded
     ref_pcm = None
     ref_sr = sample_rate
     if kwargs.get("audio_id"):
@@ -1169,6 +1172,77 @@ def run_generate_audio(cache: CacheStore, kwargs: dict) -> list[dict]:
     cache.write_generate_log(report)
     return [
         {"type": "AUDIO", "cache_id": out_buffer.id},
+        {"type": "GENERATE_LOG", "generate_log_id": report.id},
+    ]
+
+
+def run_generate_midi(cache: CacheStore, kwargs: dict) -> list[dict]:
+    """TEXT → MIDI for GenerateMidi (MIDI-LLM Real or pretty_midi path-demo)."""
+    import time
+
+    from groovy.executor.generate_log import GenerateLogReport, probe_hardware
+    from groovy.nodes.ai.model_params import float_param, int_param, optional_seed, seed_param
+
+    model_id = str(kwargs.get("model", "midi-llm"))
+    require_model(cache.project_dir, model_id)
+    prompt = str(kwargs.get("text") or kwargs.get("prompt") or "a short melodic phrase")
+    max_tokens = int_param(kwargs, "max_tokens", 1024)
+    temperature = float_param(kwargs, "temperature", 1.0)
+    top_p = float_param(kwargs, "top_p", 0.98)
+    duration = float_param(kwargs, "duration", 8.0)
+    seed = optional_seed(kwargs)
+    stub_seed = seed_param(kwargs, fallback=prompt)
+    t0 = time.perf_counter()
+    midi, midi_bytes = generate_midi_clip(
+        prompt,
+        model_id=model_id,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        duration=duration,
+        seed=seed,
+        stub_seed=stub_seed,
+        cache_dir=cache.cache_dir / "generate-midi",
+    )
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    cache.write_midi(midi, midi_bytes)
+    mid_path = cache.cache_dir / f"{midi.id}.mid"
+    duration_s = round(midi.frame_count / float(max(midi.sample_rate, 1)), 3)
+    report = GenerateLogReport.create(
+        {
+            "node_type": "GenerateMidi",
+            "prompt": prompt,
+            "timing": {
+                "generate_ms": elapsed_ms,
+                "generate_s": round(elapsed_ms / 1000.0, 3),
+            },
+            "output": {
+                "media_type": "audio/midi",
+                "format": "smf",
+                "midi_id": midi.id,
+                "midi_kind": midi.midi_kind,
+                "path": str(mid_path.relative_to(cache.project_dir)).replace("\\", "/")
+                if mid_path.is_file()
+                else None,
+                "bytes": len(midi_bytes),
+                "sample_rate": midi.sample_rate,
+                "frames": midi.frame_count,
+                "duration_s": duration_s,
+            },
+            "model_config": {
+                "model": model_id,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "top_p": top_p,
+                "duration_s": duration,
+                "seed": seed if seed is not None else stub_seed,
+            },
+            "hardware": probe_hardware(),
+        }
+    )
+    cache.write_generate_log(report)
+    return [
+        {"type": "MIDI", "midi_id": midi.id},
         {"type": "GENERATE_LOG", "generate_log_id": report.id},
     ]
 
@@ -1847,6 +1921,84 @@ def generate_audio_waveform(
         )
 
     raise RuntimeError(f"Unsupported text-to-music model for real inference: {model_id}")
+
+
+def generate_midi_clip(
+    prompt: str,
+    *,
+    model_id: str,
+    max_tokens: int = 1024,
+    temperature: float = 1.0,
+    top_p: float = 0.98,
+    duration: float = 8.0,
+    seed: int | None = None,
+    stub_seed: int | None = None,
+    cache_dir,
+) -> tuple[MidiBuffer, bytes]:
+    """Model-agnostic text → SMF. Dispatch by registry ``model_id``."""
+    from pathlib import Path
+
+    from groovy.nodes.ai.inference_env import inference_stub_enabled
+
+    effective_stub = stub_seed if stub_seed is not None else (seed if seed is not None else 0)
+    out_dir = Path(cache_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tmp = out_dir / f"generate-midi-{model_id.replace('/', '_')}-{effective_stub % 10_000}.mid"
+
+    if model_id == "midi-gen" or inference_stub_enabled():
+        from groovy.nodes.ai.backends.midi_gen_stub import generate_stub_midi
+
+        generate_stub_midi(
+            prompt,
+            dest=tmp,
+            seed=int(effective_stub),
+            duration_sec=float(duration),
+        )
+        midi_bytes = tmp.read_bytes()
+        midi = MidiBuffer.create(
+            sample_rate=48000,
+            frame_count=int(max(1.0, float(duration)) * 48000),
+            source_node_type="GenerateMidi",
+            midi_kind="performance",
+        )
+        return midi, midi_bytes
+
+    if model_id == "midi-llm":
+        from groovy.nodes.ai.backends.midi_llm_runner import generate_midi_bytes
+
+        generate_midi_bytes(
+            prompt,
+            dest=tmp,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            seed=seed if seed is not None else effective_stub,
+            cache_dir=out_dir / "hf",
+        )
+        midi_bytes = tmp.read_bytes()
+        # Estimate duration from pretty_midi when available.
+        frame_count = int(max(1.0, float(duration)) * 48000)
+        try:
+            import pretty_midi
+
+            pm = pretty_midi.PrettyMIDI(str(tmp))
+            end = float(pm.get_end_time() or 0.0)
+            if end > 0:
+                frame_count = max(1, int(end * 48000))
+        except Exception:
+            pass
+        midi = MidiBuffer.create(
+            sample_rate=48000,
+            frame_count=frame_count,
+            source_node_type="GenerateMidi",
+            midi_kind="performance",
+        )
+        return midi, midi_bytes
+
+    raise RuntimeError(
+        f"Real text-to-MIDI inference is not wired for {model_id} yet. "
+        "Use midi-gen (path demo) or midi-llm after installing from Model Browser."
+    )
 
 
 def generate_image_file(

@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "e4f5a6b7-c8d9-0123-def0-444455556666",
+  "metadata": {
+    "title": "Text to MIDI/Music",
+    "author": "groovy",
+    "description": "Text → MIDI (midi-llm / midi-gen) → PreviewMidi into GenerateAudio (ace-step-1.5-sft) for text-to-music. Style + optional lyrics Prompts; empty lyrics = instrumental. SaveMidi / SaveGenerateLog on the MIDI branch; Normalize → Preview/SaveAudio on the music branch. Install midi-llm (Mac MPS) and ace-step-1.5-sft (prefer CUDA) before real Render.",
+    "tags": [
+      "starter",
+      "featured",
+      "generation",
+      "text-to-midi",
+      "text-to-music",
+      "ace-step",
+      "sft",
+      "midi",
+      "symbolic",
+      "lyrics",
+      "cfg"
+    ],
+    "created_at": "2026-10-26T00:00:00Z",
+    "modified_at": "2026-11-19T07:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": { "x": 0, "y": 480.0 },
+      "widgets": {
+        "text": "Text → MIDI/Music\nMIDI Prompt → GenerateMidi → PreviewMidi → GenerateAudio.midi\nStyle + lyrics Prompts → GenerateAudio (ace-step-1.5-sft) → Normalize → Preview/Save\nEmpty lyrics = instrumental · SaveMidi / SaveGenerateLog on the MIDI branch\nReal MIDI: midi-llm (Mac MPS) · path demo: midi-gen · music: prefer CUDA"
+      }
+    },
+    {
+      "id": "n-midi-prompt",
+      "type": "Prompt",
+      "pos": { "x": 0, "y": 40.0 },
+      "widgets": {
+        "text": "A cheerful piano melody in C major, moderate tempo, short phrase",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n-gen-midi",
+      "type": "GenerateMidi",
+      "pos": { "x": 280, "y": 40.0 },
+      "widgets": {
+        "model": "midi-llm",
+        "prompt": "A cheerful piano melody in C major, moderate tempo, short phrase",
+        "max_tokens": 1024,
+        "temperature": 1.0,
+        "top_p": 0.98,
+        "duration": 8.0,
+        "seed": 42
+      }
+    },
+    {
+      "id": "n-preview-midi",
+      "type": "PreviewMidi",
+      "pos": { "x": 560, "y": 40.0 },
+      "widgets": {}
+    },
+    {
+      "id": "n-save-midi",
+      "type": "SaveMidi",
+      "pos": { "x": 840, "y": 40.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-midi-music.mid"
+      }
+    },
+    {
+      "id": "n-midi-log",
+      "type": "SaveGenerateLog",
+      "pos": { "x": 560, "y": 180.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-midi-music-log.json"
+      }
+    },
+    {
+      "id": "n0",
+      "type": "Prompt",
+      "pos": { "x": 0, "y": 280.0 },
+      "widgets": {
+        "text": "dark IDM with experimental granular texture",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n0b",
+      "type": "Prompt",
+      "pos": { "x": 0, "y": 400.0 },
+      "widgets": {
+        "text": "",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n1",
+      "type": "GenerateAudio",
+      "pos": { "x": 560, "y": 300.0 },
+      "widgets": {
+        "model": "ace-step-1.5-sft",
+        "prompt": "dark IDM with experimental granular texture",
+        "lyrics_text": "",
+        "seed": 42,
+        "seconds_total": 15.0,
+        "num_inference_steps": 50,
+        "guidance_scale": 7.0
+      }
+    },
+    {
+      "id": "n2",
+      "type": "Normalize",
+      "pos": { "x": 840, "y": 300.0 },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n3",
+      "type": "Preview",
+      "pos": { "x": 1120, "y": 300.0 },
+      "widgets": {}
+    },
+    {
+      "id": "n4",
+      "type": "SaveAudio",
+      "pos": { "x": 1120, "y": 424.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-midi-music.wav",
+        "format": "wav",
+        "bit_depth": "16"
+      }
+    }
+  ],
+  "links": [
+    { "id": "l-midi-prompt", "from": ["n-midi-prompt", 0], "to": ["n-gen-midi", 0], "type": "TEXT" },
+    { "id": "l-gen-preview", "from": ["n-gen-midi", 0], "to": ["n-preview-midi", 0], "type": "MIDI" },
+    { "id": "l-preview-save", "from": ["n-preview-midi", 0], "to": ["n-save-midi", 0], "type": "MIDI" },
+    { "id": "l-gen-log", "from": ["n-gen-midi", 1], "to": ["n-midi-log", 0], "type": "GENERATE_LOG" },
+    { "id": "l-preview-audio", "from": ["n-preview-midi", 0], "to": ["n1", 1], "type": "MIDI" },
+    { "id": "l0", "from": ["n0", 0], "to": ["n1", 0], "type": "TEXT" },
+    { "id": "l0b", "from": ["n0b", 0], "to": ["n1", 3], "type": "TEXT" },
+    { "id": "l1", "from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO" },
+    { "id": "l2", "from": ["n2", 0], "to": ["n3", 0], "type": "AUDIO" },
+    { "id": "l3", "from": ["n2", 0], "to": ["n4", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

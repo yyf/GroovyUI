@@ -19,8 +19,11 @@ TerminalOutputType = Literal["AUDIO", "MIDI", "TEXT", "AUTHENTICITY", "VIDEO", "
 TERMINAL_OUTPUT_BY_NODE: dict[str, TerminalOutputType] = {
     "Preview": "AUDIO",
     "PreviewImage": "IMAGE",
+    "PreviewMidi": "MIDI",
     "PreviewVideo": "VIDEO",
+    "GenerateMidi": "MIDI",
     "SaveImage": "STRING",
+    "SaveMidi": "STRING",
     "SaveVideo": "STRING",
     "SaveGenerateLog": "STRING",
     "WhisperSTT": "TEXT",
@@ -149,16 +152,20 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
             ("n-img-log", "STRING"),
         ),
     },
+    "text-to-midi-music": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("midi-llm", "ace-step-1.5-sft"),
+        "required_outputs": (
+            ("n-preview-midi", "MIDI"),
+            ("n-save-midi", "STRING"),
+            ("n3", "AUDIO"),
+        ),
+    },
     "ace-step-1.5": {
         "fixture": "none",
         "sample_path": None,
         "models": ("ace-step-1.5",),
-        "required_outputs": (("n3", "AUDIO"),),
-    },
-    "ace-step-1.5-sft": {
-        "fixture": "none",
-        "sample_path": None,
-        "models": ("ace-step-1.5-sft",),
         "required_outputs": (("n3", "AUDIO"),),
     },
     "ace-step-lora-demo": {
@@ -394,7 +401,7 @@ def _terminal_node_ids(workflow: Workflow) -> tuple[str, ...]:
 def _primary_terminal(workflow: Workflow, terminal_ids: tuple[str, ...]) -> str:
     by_id = {node.id: node for node in workflow.nodes}
     for node_id in terminal_ids:
-        if by_id[node_id].type in {"Preview", "PreviewImage", "PreviewVideo"}:
+        if by_id[node_id].type in {"Preview", "PreviewImage", "PreviewMidi", "PreviewVideo"}:
             return node_id
     for node_id in terminal_ids:
         if by_id[node_id].type != "Note":

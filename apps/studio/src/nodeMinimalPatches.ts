@@ -1620,6 +1620,99 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l4", "n2", "n5", "GENERATE_LOG", 1, 0),
     ],
   },
+  GenerateMidi: {
+    title: "Generate MIDI",
+    description: "Prompt → GenerateMidi → PreviewMidi + SaveMidi + SaveGenerateLog.",
+    focusNodeId: "n2",
+    nodes: [
+      {
+        id: "n1",
+        type: "Prompt",
+        x: 0,
+        widgets: { text: "A cheerful piano melody in C major, moderate tempo." },
+      },
+      {
+        id: "n2",
+        type: "GenerateMidi",
+        x: 280,
+        widgets: { model: "midi-gen", duration: 8.0, seed: 42 },
+      },
+      { id: "n3", type: "PreviewMidi", x: 560, widgets: {} },
+      {
+        id: "n4",
+        type: "SaveMidi",
+        x: 560,
+        y: 140,
+        widgets: { path: "exports", filename: "generate-midi.mid" },
+      },
+      {
+        id: "n5",
+        type: "SaveGenerateLog",
+        x: 560,
+        y: 280,
+        widgets: { path: "exports", filename: "generate-midi-log.json" },
+      },
+    ],
+    links: [
+      link("l1", "n1", "n2", "TEXT"),
+      link("l2", "n2", "n3", "MIDI"),
+      link("l3", "n2", "n4", "MIDI"),
+      link("l4", "n2", "n5", "GENERATE_LOG", 1, 0),
+    ],
+  },
+  PreviewMidi: {
+    title: "Preview MIDI",
+    description: "GenerateMidi into PreviewMidi — audition on the bottom piano roll.",
+    focusNodeId: "n3",
+    nodes: [
+      {
+        id: "n1",
+        type: "Prompt",
+        x: 0,
+        widgets: { text: "A short melodic phrase." },
+      },
+      {
+        id: "n2",
+        type: "GenerateMidi",
+        x: 280,
+        widgets: { model: "midi-gen", duration: 4.0, seed: 7 },
+      },
+      { id: "n3", type: "PreviewMidi", x: 560, widgets: {} },
+    ],
+    links: [
+      link("l1", "n1", "n2", "TEXT"),
+      link("l2", "n2", "n3", "MIDI"),
+    ],
+  },
+  SaveMidi: {
+    title: "Save MIDI",
+    description: "GenerateMidi and write an SMF to exports.",
+    focusNodeId: "n3",
+    nodes: [
+      {
+        id: "n1",
+        type: "Prompt",
+        x: 0,
+        widgets: { text: "A short melodic phrase." },
+      },
+      {
+        id: "n2",
+        type: "GenerateMidi",
+        x: 280,
+        widgets: { model: "midi-gen", duration: 4.0, seed: 7 },
+      },
+      {
+        id: "n3",
+        type: "SaveMidi",
+        x: 560,
+        widgets: { path: "exports", filename: "melody.mid" },
+      },
+    ],
+    links: [
+      link("l1", "n1", "n2", "TEXT"),
+      link("l2", "n2", "n3", "MIDI"),
+    ],
+  },
   SwitchImage: {
     title: "Switch Image",
     description: "Pick LoadImage or GenerateImage for GenerateVideo I2V.",

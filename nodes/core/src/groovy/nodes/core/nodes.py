@@ -59,8 +59,10 @@ def register_all() -> None:
         SaveAudio,
         MuxVideo,
         PreviewImage,
+        PreviewMidi,
         PreviewVideo,
         SaveImage,
+        SaveMidi,
         SaveVideo,
         SaveGenerateLog,
         Resample,
@@ -749,6 +751,35 @@ class PreviewImage(GroovyNode):
 
 
 @register_node
+class PreviewMidi(GroovyNode):
+    """Terminal MIDI audition sink — wire MIDI; studio transport shows the piano roll."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    PROVENANCE_PASSTHROUGH = True
+    RETURN_TYPES = ("MIDI",)
+    OUTPUT_NAMES = ("midi",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"midi": ("MIDI",)},
+            "optional": {},
+        }
+
+    def run(self, **kwargs):
+        from groovy.executor.midi import MidiBuffer
+
+        midi_in = kwargs.get("midi")
+        if not isinstance(midi_in, MidiBuffer):
+            raise TypeError("PreviewMidi needs MIDI input (wire GenerateMidi / LoadMIDI / AudioToMIDI).")
+        return (midi_in,)
+
+
+@register_node
 class PreviewVideo(GroovyNode):
     """Terminal video audition sink — wire a VIDEO clip (e.g. from MuxVideo)."""
 
@@ -795,6 +826,128 @@ class PreviewVideo(GroovyNode):
         if not isinstance(video_in, VideoClip):
             raise TypeError("PreviewVideo needs VIDEO input (wire MuxVideo).")
         return (video_in,)
+
+
+@register_node
+class SaveMidi(GroovyNode):
+    """Copy a MIDI clip (SMF) into the project exports folder."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "STUDIO_ONLY"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = False
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ("STRING",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"midi": ("MIDI",)},
+            "optional": {
+                "path": (
+                    "STRING",
+                    {
+                        "default": "exports",
+                        "description": "Folder under the project directory (e.g. exports/midi)",
+                    },
+                ),
+                "filename": (
+                    "STRING",
+                    {
+                        "default": "output.mid",
+                        "description": "Base file name; a UTC timestamp is appended when written",
+                    },
+                ),
+            },
+        }
+
+    @staticmethod
+    def _resolve_output_relative(path: str, filename: str) -> str:
+        folder = (path or "").strip().strip("/")
+        name = (filename or "").strip().lstrip("/")
+        if not name:
+            name = "output.mid"
+        if "/" in name and (not folder or folder == "exports"):
+            return name
+        if folder:
+            return f"{folder}/{name}"
+        return name
+
+    @staticmethod
+    def _timestamped_relative(relative: str, now: datetime | None = None) -> str:
+        instant = now or datetime.now(UTC)
+        stamp = instant.strftime("%Y%m%dT%H%M%S") + f"{instant.microsecond // 1000:03d}Z"
+        path = Path(relative)
+        return str(path.with_name(f"{path.stem}-{stamp}{path.suffix or '.mid'}"))
+
+    def run(self, **kwargs) -> tuple[str]:
+        from groovy.executor.midi import MidiBuffer
+
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        midi_in = kwargs.get("midi")
+        if not isinstance(midi_in, MidiBuffer):
+            raise TypeError("SaveMidi needs MIDI input (wire GenerateMidi / LoadMIDI / PreviewMidi).")
+        folder = str(kwargs.get("path", "exports"))
+        name = str(kwargs.get("filename", "output.mid"))
+        relative = self._resolve_output_relative(folder, name)
+        if not Path(relative).suffix:
+            relative = f"{relative}.mid"
+        relative = self._timestamped_relative(relative)
+        relative = relative.replace("\\", "/")
+        src = self._ctx.cache.cache_dir / f"{midi_in.id}.mid"
+        if not src.is_file():
+            raise FileNotFoundError(f"MIDI clip missing on disk: {midi_in.id}")
+        out_path = self._ctx.cache.resolve_project_path(relative)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        sidecar_path = out_path.with_name(f"{out_path.stem}.provenance.json")
+        try:
+            shutil.copy2(src, out_path)
+            digest = hashlib.sha256()
+            with out_path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            parent = self._ctx.cache.read_provenance(midi_in.id)
+            record: dict = {
+                "schema_version": "1.1.0",
+                "midi_id": midi_in.id,
+                "content_hash": f"sha256:{digest.hexdigest()}",
+                "created_at": datetime.now(UTC).isoformat(),
+                "contribution": {
+                    "class": "human_edited",
+                    "disclosure_label": "Contains human-edited / exported MIDI",
+                },
+                "artifact": {
+                    "filename": out_path.name,
+                    "media_type": "audio/midi",
+                    "path": relative,
+                    "format": "smf",
+                    "midi_kind": midi_in.midi_kind,
+                    "duration_sec": midi_in.frame_count / max(midi_in.sample_rate, 1),
+                },
+                "node": {"node_type": "SaveMidi"},
+                "models": list((parent or {}).get("models") or []),
+                "parents": (
+                    [
+                        {
+                            "cache_id": midi_in.id,
+                            "node_type": midi_in.source_node_type,
+                            "content_hash": (parent or {}).get("content_hash"),
+                        }
+                    ]
+                    if parent
+                    else []
+                ),
+            }
+            sidecar_path.write_text(json.dumps(record, indent=2) + "\n")
+        except Exception as exc:
+            out_path.unlink(missing_ok=True)
+            sidecar_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                f"SaveMidi could not write MIDI or provenance sidecar for {relative}: {exc}"
+            ) from exc
+        return (relative,)
 
 
 @register_node
@@ -1052,7 +1205,7 @@ class SaveVideo(GroovyNode):
 
 @register_node
 class SaveGenerateLog(GroovyNode):
-    """Write a GenerateVideo / GenerateImage GENERATE_LOG report to exports (JSON)."""
+    """Write a GenerateVideo / GenerateImage / GenerateMidi GENERATE_LOG report to exports (JSON)."""
 
     CATEGORY = "GroovyUI/Core"
     EXPORT_TIER = "STUDIO_ONLY"
@@ -1112,7 +1265,8 @@ class SaveGenerateLog(GroovyNode):
         log_in = kwargs.get("log")
         if not isinstance(log_in, GenerateLogReport):
             raise TypeError(
-                "SaveGenerateLog needs GENERATE_LOG input (wire GenerateVideo.log / GenerateImage.log)."
+                "SaveGenerateLog needs GENERATE_LOG input "
+                "(wire GenerateVideo.log / GenerateImage.log / GenerateMidi.log)."
             )
         folder = str(kwargs.get("path", "exports"))
         name = str(kwargs.get("filename", "generate-video-log.json"))
@@ -1788,28 +1942,61 @@ class Prompt(GroovyNode):
 
 @register_node
 class LoadMIDI(GroovyNode):
+    """Load a project-relative SMF (.mid), or leave path empty as an optional MIDI placeholder."""
+
     CATEGORY = "GroovyUI/Core"
     PROVENANCE_CLASS = "human_recorded"
     RETURN_TYPES = ("MIDI",)
+    OUTPUT_NAMES = ("midi",)
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
-            "required": {"path": ("STRING", {"default": ""})},
+            "required": {},
             "optional": {
-                "midi_kind": ("STRING", {"default": "control"}),
+                # Empty = optional MIDI conditioning not armed (wire can stay connected).
+                "path": (
+                    "STRING",
+                    {
+                        "default": "",
+                        "description": (
+                            "Optional project-relative SMF (e.g. assets/samples/automation_cc7.mid). "
+                            "Leave empty as a placeholder when GenerateAudio MIDI is unused."
+                        ),
+                    },
+                ),
+                "midi_kind": (
+                    "STRING",
+                    {
+                        "default": "control",
+                        "description": "MIDI role hint: control / performance / score / transcript.",
+                    },
+                ),
             },
         }
 
     def run(self, path: str = "", midi_kind: str = "control", **kwargs) -> tuple[MidiBuffer]:
         if not self._ctx:
             raise RuntimeError("Node context not bound")
-        path = str(kwargs.get("path", path))
-        midi_kind = str(kwargs.get("midi_kind", midi_kind))
+        path = str(kwargs.get("path", path) or "").strip()
+        midi_kind = str(kwargs.get("midi_kind", midi_kind) or "control")
+        sample_rate = 48000
+        # Empty path is intentional for optional MIDI (e.g. ACE-Step template):
+        # emit a no-op MIDI so the wire can stay connected without failing text-only renders.
+        if not path:
+            midi = MidiBuffer.create(
+                sample_rate=sample_rate,
+                frame_count=0,
+                source_node_type="LoadMIDI",
+                midi_kind=midi_kind,
+            )
+            midi.path = ""
+            self._ctx.cache.write_midi(midi, None)
+            return (midi,)
+
         resolved, _canonical_path = resolve_project_media_path(self._ctx.cache, path)
         from groovy.executor.live_midi import events_from_smf, write_midi_events_meta
 
-        sample_rate = 48000
         midi_bytes = resolved.read_bytes()
         try:
             events, frame_count = events_from_smf(resolved, sample_rate=sample_rate)

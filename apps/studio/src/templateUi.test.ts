@@ -35,9 +35,9 @@ describe("templatesVisibleInUi", () => {
     bundled("prompt-modular-synth"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
-    bundled("ace-step-1.5-sft"),
     bundled("ace-step-lora-demo"),
     bundled("ace-step-dual-lora-ab"),
+    bundled("text-to-midi-music"),
     bundled("ambisonic-trajectory-demo"),
     bundled("extract-lyrics-to-music-with-ace-step"),
     bundled("stable-audio"),
@@ -75,7 +75,6 @@ describe("templatesVisibleInUi", () => {
     ]);
     // Sorted by display title (default title = id), not STANDARD_BUNDLED order.
     expect(visible.map((t) => t.id)).toEqual([
-      "ace-step-1.5-sft",
       "ace-step-dual-lora-ab",
       "asr-benchmark-wer-cer",
       "demucs-vs-openunmix",
@@ -85,6 +84,7 @@ describe("templatesVisibleInUi", () => {
       "isolate-vocals-to-transcribe-translate",
       "podcast-denoise",
       "prompt-modular-synth",
+      "text-to-midi-music",
       "text-to-video",
       "tts-emotion-edit",
       "watermark-embed-detect",
@@ -124,7 +124,6 @@ describe("templatesVisibleInUi", () => {
     const visible = templatesVisibleInUi(allBundled, undefined, true);
     expect(visible.map((t) => t.id)).toEqual([
       "ace-step-1.5",
-      "ace-step-1.5-sft",
       "ace-step-dual-lora-ab",
       "ace-step-lora-demo",
       "ambisonic-trajectory-demo",
@@ -152,6 +151,7 @@ describe("templatesVisibleInUi", () => {
       "stable-audio",
       "stem-lyrics-to-ace",
       "stem-separation",
+      "text-to-midi-music",
       "text-to-music",
       "text-to-video",
       "transcribe-and-diarize",
@@ -381,7 +381,12 @@ describe("isNodeVisibleInStudio", () => {
     expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateAudio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateVideo");
     expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateImage");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateMidi");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("PreviewMidi");
+    expect(STANDARD_MODE_NODE_TYPES).toContain("SaveMidi");
     expect(STANDARD_MODE_NODE_TYPES).toContain("SwitchImage");
+    expect(domainIdForTemplate("text-to-midi-music")).toBe("generate");
+    expect(STANDARD_BUNDLED_TEMPLATE_IDS).toContain("text-to-midi-music");
     expect(STANDARD_MODE_NODE_TYPES).toContain("Benchmark");
     expect(STANDARD_MODE_NODE_TYPES).not.toContain("Video2Audio");
     expect(STANDARD_MODE_NODE_TYPES).toContain("MuxVideo");
