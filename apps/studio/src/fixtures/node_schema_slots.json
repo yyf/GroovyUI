@@ -930,7 +930,7 @@
     "inputs": [],
     "outputs": [
       {
-        "name": "output_0",
+        "name": "midi",
         "type": "MIDI",
         "slot": 0
       }
@@ -1564,6 +1564,24 @@
       "preview_height"
     ]
   },
+  "PreviewMidi": {
+    "inputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "slot": 0
+      }
+    ],
+    "widgets": []
+  },
   "PreviewVideo": {
     "inputs": [
       {
@@ -1770,6 +1788,27 @@
       {
         "name": "image",
         "type": "IMAGE",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "output_0",
+        "type": "STRING",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "path",
+      "filename"
+    ]
+  },
+  "SaveMidi": {
+    "inputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
         "optional": false,
         "slot": 0
       }
@@ -2312,6 +2351,37 @@
       "width",
       "height",
       "num_steps",
+      "seed"
+    ]
+  },
+  "GenerateMidi": {
+    "inputs": [
+      {
+        "name": "text",
+        "type": "TEXT",
+        "optional": true,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "slot": 0
+      },
+      {
+        "name": "log",
+        "type": "GENERATE_LOG",
+        "slot": 1
+      }
+    ],
+    "widgets": [
+      "model",
+      "prompt",
+      "max_tokens",
+      "temperature",
+      "top_p",
+      "duration",
       "seed"
     ]
   },

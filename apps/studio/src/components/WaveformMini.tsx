@@ -7,7 +7,7 @@ type Props = {
   /** Playback position 0–1; draws playhead and played/unplayed styling. */
   progress?: number;
   /** Click/drag seek callback with ratio 0–1. */
-  onSeek?: (ratio: number) => void;
+  onSeek?: (ratio: number, phase?: "start" | "move" | "end") => void;
   fitContainer?: boolean;
   /** Show linear peak-relative amplitude scale (1 … 0). */
   showScale?: boolean;
@@ -102,11 +102,11 @@ export default function WaveformMini({
     return () => observer.disconnect();
   }, [displayWidth, fitContainer]);
 
-  const seekFromEvent = (clientX: number) => {
+  const seekFromEvent = (clientX: number, phase: "start" | "move" | "end") => {
     if (!onSeek || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     if (rect.width <= 0) return;
-    onSeek(ratioFromPointer(clientX, rect));
+    onSeek(ratioFromPointer(clientX, rect), phase);
   };
 
   const plotProps = onSeek
@@ -115,21 +115,23 @@ export default function WaveformMini({
           if (event.button !== 0) return;
           event.preventDefault();
           event.currentTarget.setPointerCapture(event.pointerId);
-          seekFromEvent(event.clientX);
+          seekFromEvent(event.clientX, "start");
         },
         onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => {
           if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-          seekFromEvent(event.clientX);
+          seekFromEvent(event.clientX, "move");
         },
         onPointerUp: (event: React.PointerEvent<HTMLDivElement>) => {
           if (event.currentTarget.hasPointerCapture(event.pointerId)) {
             event.currentTarget.releasePointerCapture(event.pointerId);
           }
+          seekFromEvent(event.clientX, "end");
         },
         onPointerCancel: (event: React.PointerEvent<HTMLDivElement>) => {
           if (event.currentTarget.hasPointerCapture(event.pointerId)) {
             event.currentTarget.releasePointerCapture(event.pointerId);
           }
+          seekFromEvent(event.clientX, "end");
         },
       }
     : {};

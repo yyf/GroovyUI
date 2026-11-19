@@ -1231,7 +1231,8 @@ export default function App() {
               const node = workflow.nodes.find((n) => n.id === nodeId);
               return node?.type === "SaveAudio" ||
                 node?.type === "SaveVideo" ||
-                node?.type === "SaveImage"
+                node?.type === "SaveImage" ||
+                node?.type === "SaveMidi"
                 ? outputs[nodeId]
                 : undefined;
             })
@@ -1240,20 +1241,30 @@ export default function App() {
           const provenance = savedProvenancePath(savedOutput);
           const savedKind = targets
             .map((nodeId) => workflow.nodes.find((n) => n.id === nodeId)?.type)
-            .find((type) => type === "SaveVideo" || type === "SaveImage" || type === "SaveAudio");
+            .find(
+              (type) =>
+                type === "SaveVideo" ||
+                type === "SaveImage" ||
+                type === "SaveMidi" ||
+                type === "SaveAudio",
+            );
           setStatus(
             saved && provenance
               ? savedKind === "SaveImage"
                 ? `Saved image + provenance: ${saved}`
                 : savedKind === "SaveVideo"
                   ? `Saved video + provenance: ${saved}`
-                  : `Saved audio + provenance: ${saved}`
+                  : savedKind === "SaveMidi"
+                    ? `Saved MIDI + provenance: ${saved}`
+                    : `Saved audio + provenance: ${saved}`
               : saved
                 ? savedKind === "SaveVideo"
                   ? `Saved video to ${saved}`
                   : savedKind === "SaveImage"
                     ? `Saved image to ${saved}`
-                    : `Saved to ${saved}`
+                    : savedKind === "SaveMidi"
+                      ? `Saved MIDI to ${saved}`
+                      : `Saved to ${saved}`
                 : autoAudition && !auditionNodeId && !videoPreviewId
                   ? "Render complete — Preview produced no listenable output"
                   : videoPreviewId
@@ -2058,7 +2069,10 @@ export default function App() {
       ? "midi"
       : selectedPreviewId
         ? "audio"
-        : selectedNode?.type === "AudioToMIDI" || selectedNode?.type === "LoadMIDI"
+        : selectedNode?.type === "AudioToMIDI" ||
+            selectedNode?.type === "LoadMIDI" ||
+            selectedNode?.type === "GenerateMidi" ||
+            selectedNode?.type === "PreviewMidi"
           ? "midi"
           : null;
   const compareResolution = useMemo(
@@ -2093,14 +2107,17 @@ export default function App() {
     ? "Select a node"
     : selectedNode?.type === "SaveAudio" ||
         selectedNode?.type === "SaveVideo" ||
-        selectedNode?.type === "SaveImage"
+        selectedNode?.type === "SaveImage" ||
+        selectedNode?.type === "SaveMidi"
       ? selectedSavedPath
         ? `Saved to ${selectedSavedPath}`
         : selectedNode.type === "SaveVideo"
           ? "Render to write video under workspace/exports"
           : selectedNode.type === "SaveImage"
             ? "Render to write image under workspace/exports"
-            : "Render to write audio file"
+            : selectedNode.type === "SaveMidi"
+              ? "Render to write MIDI under workspace/exports"
+              : "Render to write audio file"
       : selectedMidiId || selectedNodePreview
         ? ""
         : selectedOutput?.type === "VIDEO" && selectedOutput.path

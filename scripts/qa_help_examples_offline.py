@@ -51,6 +51,7 @@ OFFLINE_TYPES = {
     "Pan",
     "Preview",
     "PreviewImage",
+    "PreviewMidi",
     "PreviewVideo",
     "Prompt",
     "Quantizer",
@@ -59,6 +60,7 @@ OFFLINE_TYPES = {
     "SampleAndHold",
     "SaveAudio",
     "SaveImage",
+    "SaveMidi",
     "SaveVideo",
     "SignalGenerator",
     "SplitVideo",
@@ -249,6 +251,7 @@ def main() -> int:
                     "PreviewVideo",
                     "SaveAudio",
                     "SaveImage",
+                    "SaveMidi",
                     "SaveVideo",
                     "Benchmark",
                 }:

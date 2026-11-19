@@ -61,7 +61,7 @@ export function resolveNodeListenOutput(
   if (!outputs) return undefined;
 
   const node = workflow.nodes.find((entry) => entry.id === nodeId);
-  if (node?.type === "Preview") {
+  if (node?.type === "Preview" || node?.type === "PreviewMidi") {
     const wired = listenOutputFromInboundLinks(workflow, nodeId, outputs);
     if (wired) return wired;
   }
@@ -99,13 +99,15 @@ export function resolveNodeListenId(
   return previewCacheId(listenOutput) ?? previewMidiId(listenOutput);
 }
 
-/** Prefer a Preview sink for post-render audition, then the last listenable node. */
+/** Prefer a Preview / PreviewMidi sink for post-render audition, then the last listenable node. */
 export function preferredAuditionNodeId(
   workflow: Workflow,
   outputs?: Record<string, JobOutput>,
 ): string | null {
   const preview = workflow.nodes.find(
-    (node) => node.type === "Preview" && resolveNodeListenId(workflow, node.id, outputs),
+    (node) =>
+      (node.type === "Preview" || node.type === "PreviewMidi") &&
+      resolveNodeListenId(workflow, node.id, outputs),
   );
   if (preview) return preview.id;
   return (
@@ -702,6 +704,21 @@ const NODE_SOCKET_FALLBACKS: Record<
       { name: "image", type: "IMAGE", slot: 0 },
       { name: "log", type: "GENERATE_LOG", slot: 1 },
     ],
+  },
+  GenerateMidi: {
+    inputs: [{ name: "text", type: "TEXT", optional: true, slot: 0 }],
+    outputs: [
+      { name: "midi", type: "MIDI", slot: 0 },
+      { name: "log", type: "GENERATE_LOG", slot: 1 },
+    ],
+  },
+  PreviewMidi: {
+    inputs: [{ name: "midi", type: "MIDI", slot: 0 }],
+    outputs: [{ name: "midi", type: "MIDI", slot: 0 }],
+  },
+  SaveMidi: {
+    inputs: [{ name: "midi", type: "MIDI", slot: 0 }],
+    outputs: [{ name: "path", type: "STRING", slot: 0 }],
   },
   SwitchImage: {
     inputs: [
@@ -2290,6 +2307,15 @@ export function estimateNodeSize(node: WorkflowNode): { width: number; height: n
       // Named inlet (prompt) + image/log outlets.
       width = 210;
       height = 112;
+      break;
+    case "GenerateMidi":
+      // Named inlet (prompt) + midi/log outlets.
+      width = 210;
+      height = 112;
+      break;
+    case "PreviewMidi":
+      width = 200;
+      height = 88;
       break;
     case "SaveGenerateLog":
       width = 210;

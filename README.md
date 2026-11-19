@@ -101,8 +101,8 @@
   </tr>
   <tr>
     <td align="center" width="50%">
-      <a href="https://youtu.be/E7ptLyn-NQU"><img src="https://img.youtube.com/vi/E7ptLyn-NQU/hqdefault.jpg" alt="GroovyUI template — music generation with ACE-Step 1.5 SFT" width="440" /></a><br />
-      <sub>GroovyUI template — music generation with ACE-Step 1.5 SFT</sub>
+      <a href="https://youtu.be/E7ptLyn-NQU"><img src="https://img.youtube.com/vi/E7ptLyn-NQU/hqdefault.jpg" alt="GroovyUI template — Text to MIDI/Music (ACE-Step 1.5 SFT)" width="440" /></a><br />
+      <sub>GroovyUI template — Text to MIDI/Music (ACE-Step 1.5 SFT)</sub>
     </td>
     <td align="center" width="50%">
       <a href="https://youtu.be/ULDvJlNXRio"><img src="https://img.youtube.com/vi/ULDvJlNXRio/hqdefault.jpg" alt="GroovyUI template — TTS with emotion editing" width="440" /></a><br />

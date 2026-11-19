@@ -592,7 +592,7 @@ class Executor:
                     "path": item,
                     "provenance_path": str(provenance_path).replace("\\", "/"),
                 }
-            elif node.type == "SaveImage":
+            elif node.type == "SaveImage" or node.type == "SaveMidi":
                 output_path = Path(item)
                 provenance_path = output_path.with_name(
                     f"{output_path.stem}.provenance.json"
@@ -604,7 +604,7 @@ class Executor:
                 )
                 if not resolved.is_file():
                     raise RuntimeError(
-                        f"SaveImage wrote image but provenance sidecar is missing: "
+                        f"{node.type} wrote file but provenance sidecar is missing: "
                         f"{provenance_path}"
                     )
                 meta = {

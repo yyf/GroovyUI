@@ -4263,6 +4263,179 @@
         "requires_cuda": false,
         "label": "Path demo · 0 GB"
       }
+    },
+    {
+      "id": "midi-llm",
+      "status": "published",
+      "trust": "verified",
+      "name": "MIDI-LLM (Llama 3.2 1B)",
+      "description": "Primary local text-to-MIDI for GenerateMidi. HF slseanwu/MIDI-LLM_Llama-3.2-1B (~1.4B, ~3.5 GB). Runs on Apple Silicon via PyTorch MPS (or CUDA/CPU). Llama 3.2 Community License — commercial use OK with attribution (“Built with Llama”). Path demo without weights: midi-gen.",
+      "task_types": [
+        "text-to-midi",
+        "symbolic-generation",
+        "generation"
+      ],
+      "tags": [
+        "midi",
+        "text-to-midi",
+        "symbolic",
+        "generation",
+        "llama",
+        "mps",
+        "apple-silicon",
+        "mac",
+        "open-weights"
+      ],
+      "author": "Wu et al. / MIDI-LLM",
+      "license": {
+        "spdx": "LicenseRef-Llama-3.2-Community",
+        "commercial_ok": true,
+        "attribution_required": true,
+        "confidence": 0.9,
+        "notes": "Subject to Llama 3.2 Community License; attribute “Built with Llama” for commercial use."
+      },
+      "vram_gb_estimate": 4,
+      "download_size_mb_estimate": 3500,
+      "compatible_nodes": [
+        "GenerateMidi"
+      ],
+      "hf_repo": "slseanwu/MIDI-LLM_Llama-3.2-1B",
+      "install": {
+        "dev_stub": false,
+        "python_deps": [
+          {
+            "package": "torch",
+            "version": ">=2.1.0"
+          },
+          {
+            "package": "transformers",
+            "version": ">=4.44.0"
+          },
+          {
+            "package": "anticipation @ git+https://github.com/jthickstun/anticipation.git@af37397922665a0fb8d474d7988b0f3755a38d45"
+          },
+          {
+            "package": "pretty-midi",
+            "version": ">=0.2.10"
+          }
+        ],
+        "verify_imports": [
+          "torch",
+          "transformers",
+          "anticipation.convert",
+          "pretty_midi"
+        ]
+      },
+      "inference_params": [
+        {
+          "name": "max_tokens",
+          "type": "INT",
+          "default": 1024,
+          "min": 64,
+          "max": 2046
+        },
+        {
+          "name": "temperature",
+          "type": "FLOAT",
+          "default": 1.0,
+          "min": 0.01,
+          "max": 2.0
+        },
+        {
+          "name": "top_p",
+          "type": "FLOAT",
+          "default": 0.98,
+          "min": 0.01,
+          "max": 1.0
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "default": -1,
+          "min": -1,
+          "max": 2147483647
+        }
+      ],
+      "similar_models": [
+        "midi-gen"
+      ],
+      "architecture_notes": "GenerateMidi Real path: HF CausalLM + anticipation events_to_midi. Path demo is midi-gen.",
+      "compute": {
+        "runtimes": [
+          "mps",
+          "cuda",
+          "cpu"
+        ],
+        "requires_cuda": false,
+        "label": "Apple Silicon MPS / CUDA · ~3.5 GB",
+        "memory_note": "1.4B params; comfortable on 32 GB Mac; first download ~3.5 GB"
+      }
+    },
+    {
+      "id": "midi-gen",
+      "status": "published",
+      "trust": "verified",
+      "name": "MIDI Gen (path demo)",
+      "description": "Path-demo only for GenerateMidi (pretty_midi melody from the prompt). Instant ~0 GB. For real Mac text→MIDI use midi-llm after Model Browser install.",
+      "task_types": [
+        "text-to-midi",
+        "symbolic-generation",
+        "generation"
+      ],
+      "tags": [
+        "midi",
+        "text-to-midi",
+        "symbolic",
+        "generation",
+        "mac",
+        "apple-silicon",
+        "lightweight",
+        "stub"
+      ],
+      "author": "GroovyUI",
+      "license": {
+        "spdx": "Apache-2.0",
+        "commercial_ok": true,
+        "attribution_required": false,
+        "confidence": 1.0,
+        "notes": "Local placeholder SMF only."
+      },
+      "vram_gb_estimate": 0,
+      "download_size_mb_estimate": 0,
+      "compatible_nodes": [
+        "GenerateMidi"
+      ],
+      "install": {
+        "dev_stub": true
+      },
+      "inference_params": [
+        {
+          "name": "duration",
+          "type": "FLOAT",
+          "default": 8.0,
+          "min": 2.0,
+          "max": 32.0
+        },
+        {
+          "name": "seed",
+          "type": "INT",
+          "default": -1,
+          "min": -1,
+          "max": 2147483647
+        }
+      ],
+      "similar_models": [
+        "midi-llm"
+      ],
+      "architecture_notes": "GenerateMidi path-demo: pretty_midi plate. Real Mac T2MIDI is midi-llm.",
+      "compute": {
+        "runtimes": [
+          "cpu",
+          "mps"
+        ],
+        "requires_cuda": false,
+        "label": "Path demo · 0 GB"
+      }
     }
   ]
 }
