@@ -64,6 +64,10 @@
   <img src="assets/media/generate-video.gif" alt="GroovyUI Text to Video: LoadImage I2V into GenerateVideo with PreviewVideo and SaveGenerateLog" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/text-to-midi.gif" alt="GroovyUI Text to MIDI: Prompt into GenerateMidi, PreviewMidi roll, SynthMidi DSP to SaveAudio" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -148,6 +152,13 @@
       <a href="https://youtu.be/Gu3cCK1T2Ys"><img src="https://img.youtube.com/vi/Gu3cCK1T2Ys/hqdefault.jpg" alt="GroovyUI pack — Rescore Video" width="440" /></a><br />
       <sub>GroovyUI pack — Rescore Video</sub>
     </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/BrBK-5zJvhQ"><img src="https://img.youtube.com/vi/BrBK-5zJvhQ/hqdefault.jpg" alt="GroovyUI template — Text to MIDI" width="440" /></a><br />
+      <sub>GroovyUI template — Text to MIDI</sub>
+    </td>
+    <td align="center" width="50%"></td>
   </tr>
 </table>
 
