@@ -26,7 +26,10 @@ export type GroovyNodeData = {
   kind?: CanvasNodeKind;
   status: NodeRenderStatus;
   nodeId: string;
+  /** Show headphone cue — node type can audition (AUDIO/MIDI/…). */
   canAudition?: boolean;
+  /** True when cached PCM/MIDI is ready to play. */
+  auditionReady?: boolean;
   issue?: string;
   /** Live render hint (e.g. model download on a slow AI hop). */
   activityLabel?: string;
@@ -281,14 +284,25 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             {nodeData.canAudition ? (
               <button
                 type="button"
-                className="groovy-node__headphone"
-                title="Audition node"
+                className={`groovy-node__headphone${nodeData.auditionReady ? "" : " groovy-node__headphone--idle"}`}
+                title={
+                  nodeData.auditionReady
+                    ? nodeData.channelLabel
+                      ? `Audition (${nodeData.channelLabel})`
+                      : "Audition node"
+                    : "Render to audition"
+                }
+                disabled={!nodeData.auditionReady}
                 onClick={(event) => {
                   event.stopPropagation();
+                  if (!nodeData.auditionReady) return;
                   audition(nodeData.nodeId);
                 }}
               >
                 🎧
+                {nodeData.channelLabel ? (
+                  <span className="groovy-node__headphone-ch">{nodeData.channelLabel}</span>
+                ) : null}
               </button>
             ) : null}
             {nodeData.cornerLabel ? (
@@ -327,7 +341,7 @@ function GroovyFlowNode({ data, selected }: NodeProps) {
             ))}
           </ul>
         ) : null}
-        {nodeData.channelLabel ? (
+        {nodeData.channelLabel && !nodeData.canAudition ? (
           <p className="groovy-node__channel" title={`Channel layout: ${nodeData.channelLabel}`}>
             {nodeData.channelLabel}
           </p>

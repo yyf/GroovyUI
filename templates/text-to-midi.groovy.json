@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a1b2c3d4-e5f6-7890-abcd-111122223333",
+  "metadata": {
+    "title": "Text to MIDI",
+    "author": "groovy",
+    "description": "Text → MIDI (midi-llm) → PreviewMidi / SaveMidi, plus SynthMidi (pretty_midi DSP) → Normalize → Preview/SaveAudio. No MusicGen — commercially clear render path. Install midi-llm (Mac MPS) before real Render; path demo: midi-gen.",
+    "tags": [
+      "starter",
+      "featured",
+      "generation",
+      "text-to-midi",
+      "midi",
+      "symbolic",
+      "synth"
+    ],
+    "created_at": "2026-11-19T00:00:00Z",
+    "modified_at": "2026-11-19T19:30:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-overview",
+      "type": "Note",
+      "pos": { "x": 0, "y": 360.0 },
+      "widgets": {
+        "text": "Text → MIDI (+ DSP audio)\nPrompt → GenerateMidi → PreviewMidi → SaveMidi\nGenerateMidi → SynthMidi (pretty_midi) → Normalize → Preview/Save\nGenerateMidi.log → SaveGenerateLog\nReal MIDI: midi-llm (Mac MPS) · path demo: midi-gen\nPlay = cached audition, not live inference"
+      }
+    },
+    {
+      "id": "n-midi-prompt",
+      "type": "Prompt",
+      "pos": { "x": 0, "y": 40.0 },
+      "widgets": {
+        "text": "30-second experimental IDM piano piece with Bohlen-Pierce microtonality, glitchy repetitions, fragmented arpeggios, irregular rhythms, and angular melodies. Notes 0-127 only.",
+        "language": "en"
+      }
+    },
+    {
+      "id": "n-gen-midi",
+      "type": "GenerateMidi",
+      "pos": { "x": 280, "y": 40.0 },
+      "widgets": {
+        "model": "midi-llm",
+        "prompt": "30-second experimental IDM piano piece with Bohlen-Pierce microtonality, glitchy repetitions, fragmented arpeggios, irregular rhythms, and angular melodies. Notes 0-127 only.",
+        "max_tokens": 1024,
+        "temperature": 1.0,
+        "top_p": 0.98,
+        "duration": 30.0,
+        "seed": 42
+      }
+    },
+    {
+      "id": "n-preview-midi",
+      "type": "PreviewMidi",
+      "pos": { "x": 560, "y": 40.0 },
+      "widgets": {}
+    },
+    {
+      "id": "n-save-midi",
+      "type": "SaveMidi",
+      "pos": { "x": 840, "y": 40.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-midi.mid"
+      }
+    },
+    {
+      "id": "n-midi-log",
+      "type": "SaveGenerateLog",
+      "pos": { "x": 560, "y": 180.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-midi-log.json"
+      }
+    },
+    {
+      "id": "n-synth-midi",
+      "type": "SynthMidi",
+      "pos": { "x": 560, "y": 280.0 },
+      "widgets": {
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "n-norm",
+      "type": "Normalize",
+      "pos": { "x": 840, "y": 280.0 },
+      "widgets": {
+        "mode": "lufs",
+        "target_lufs": -16.0
+      }
+    },
+    {
+      "id": "n-preview-audio",
+      "type": "Preview",
+      "pos": { "x": 1120, "y": 280.0 },
+      "widgets": {}
+    },
+    {
+      "id": "n-save-audio",
+      "type": "SaveAudio",
+      "pos": { "x": 1120, "y": 404.0 },
+      "widgets": {
+        "path": "exports",
+        "filename": "text-to-midi.wav",
+        "format": "wav",
+        "bit_depth": "16"
+      }
+    }
+  ],
+  "links": [
+    { "id": "l-midi-prompt", "from": ["n-midi-prompt", 0], "to": ["n-gen-midi", 0], "type": "TEXT" },
+    { "id": "l-gen-preview", "from": ["n-gen-midi", 0], "to": ["n-preview-midi", 0], "type": "MIDI" },
+    { "id": "l-preview-save", "from": ["n-preview-midi", 0], "to": ["n-save-midi", 0], "type": "MIDI" },
+    { "id": "l-gen-log", "from": ["n-gen-midi", 1], "to": ["n-midi-log", 0], "type": "GENERATE_LOG" },
+    { "id": "l-gen-synth", "from": ["n-gen-midi", 0], "to": ["n-synth-midi", 0], "type": "MIDI" },
+    { "id": "l-synth-norm", "from": ["n-synth-midi", 0], "to": ["n-norm", 0], "type": "AUDIO" },
+    { "id": "l-norm-preview", "from": ["n-norm", 0], "to": ["n-preview-audio", 0], "type": "AUDIO" },
+    { "id": "l-norm-save", "from": ["n-norm", 0], "to": ["n-save-audio", 0], "type": "AUDIO" }
+  ],
+  "groups": [],
+  "view": { "zoom": 1.0, "pan": { "x": 0, "y": 0 } }
+}

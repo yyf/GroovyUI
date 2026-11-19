@@ -52,6 +52,7 @@ OFFLINE_TYPES = {
     "Preview",
     "PreviewImage",
     "PreviewMidi",
+    "SynthMidi",
     "PreviewVideo",
     "Prompt",
     "Quantizer",

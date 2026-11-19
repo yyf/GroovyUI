@@ -39,6 +39,7 @@ import {
   shortLoraHint,
   resolveRenderAllTargets,
   nodeHasListenableOutput,
+  nodeSupportsAudition,
   cachedStatusFromOutputs,
   jobOutputAtSlot,
   authenticityReportId,
@@ -757,6 +758,125 @@ describe("workflowToFlowNodes", () => {
     ]);
     expect((load?.data as { kind?: string; channelLabel?: string }).kind).toBe("core");
     expect((load?.data as { channelLabel?: string }).channelLabel).toBe("stereo");
+  });
+
+  it("keeps headphone cues on audition-capable nodes before render", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "load", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
+        { id: "synth", type: "SynthMidi", pos: { x: 200, y: 0 }, widgets: {} },
+        { id: "prev", type: "Preview", pos: { x: 400, y: 0 }, widgets: {} },
+        { id: "note", type: "Note", pos: { x: 600, y: 0 }, widgets: { text: "hi" } },
+      ],
+      links: [],
+    };
+    const schemas: Record<string, import("./types").NodeSchema> = {
+      LoadAudio: {
+        type: "LoadAudio",
+        category: "GroovyUI/Core",
+        inputs: [],
+        outputs: [{ name: "output_0", type: "AUDIO" }],
+        widgets: [],
+      },
+      SynthMidi: {
+        type: "SynthMidi",
+        category: "GroovyUI/Core",
+        inputs: [{ name: "midi", type: "MIDI" }],
+        outputs: [{ name: "audio", type: "AUDIO" }],
+        widgets: [],
+      },
+      Preview: {
+        type: "Preview",
+        category: "GroovyUI/Core",
+        inputs: [{ name: "audio", type: "AUDIO", optional: true }],
+        outputs: [{ name: "audio", type: "AUDIO" }],
+        widgets: [],
+      },
+      Note: {
+        type: "Note",
+        category: "GroovyUI/Core",
+        inputs: [],
+        outputs: [],
+        widgets: [{ name: "text", type: "STRING", default: "" }],
+      },
+    };
+    expect(nodeSupportsAudition("SynthMidi", [{ type: "AUDIO" }])).toBe(true);
+    expect(nodeSupportsAudition("Note", [])).toBe(false);
+    const nodes = workflowToFlowNodes(workflow, {}, undefined, schemas, undefined, { load: 2 });
+    const byId = Object.fromEntries(
+      nodes.map((node) => [
+        node.id,
+        node.data as { canAudition?: boolean; auditionReady?: boolean },
+      ]),
+    );
+    expect(byId.load?.canAudition).toBe(true);
+    expect(byId.load?.auditionReady).toBe(false);
+    expect(byId.synth?.canAudition).toBe(true);
+    expect(byId.synth?.auditionReady).toBe(false);
+    expect(byId.prev?.canAudition).toBe(true);
+    expect(byId.prev?.auditionReady).toBe(false);
+    expect(byId.note?.canAudition).toBe(false);
+  });
+
+  it("labels SynthMidi and upstream headphone nodes with channel count", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        { id: "gen", type: "GenerateMidi", pos: { x: 0, y: 0 }, widgets: {} },
+        { id: "synth", type: "SynthMidi", pos: { x: 200, y: 0 }, widgets: { sample_rate: 48000 } },
+        { id: "norm", type: "Normalize", pos: { x: 400, y: 0 }, widgets: {} },
+        { id: "prev", type: "Preview", pos: { x: 600, y: 0 }, widgets: {} },
+      ],
+      links: [
+        { id: "l1", from: ["gen", 0], to: ["synth", 0], type: "MIDI" },
+        { id: "l2", from: ["synth", 0], to: ["norm", 0], type: "AUDIO" },
+        { id: "l3", from: ["norm", 0], to: ["prev", 0], type: "AUDIO" },
+      ],
+    };
+    const schemas: Record<string, import("./types").NodeSchema> = {
+      GenerateMidi: {
+        type: "GenerateMidi",
+        category: "GroovyUI/AI",
+        inputs: [{ name: "text", type: "TEXT", optional: true }],
+        outputs: [
+          { name: "midi", type: "MIDI" },
+          { name: "log", type: "GENERATE_LOG" },
+        ],
+        widgets: [],
+      },
+      SynthMidi: {
+        type: "SynthMidi",
+        category: "GroovyUI/Core",
+        inputs: [{ name: "midi", type: "MIDI" }],
+        outputs: [{ name: "audio", type: "AUDIO" }],
+        widgets: [{ name: "sample_rate", type: "INT", default: 48000 }],
+      },
+      Normalize: {
+        type: "Normalize",
+        category: "GroovyUI/Core",
+        inputs: [{ name: "audio", type: "AUDIO" }],
+        outputs: [{ name: "audio", type: "AUDIO" }],
+        widgets: [],
+      },
+      Preview: {
+        type: "Preview",
+        category: "GroovyUI/Core",
+        inputs: [
+          { name: "audio", type: "AUDIO", optional: true },
+          { name: "text", type: "TEXT", optional: true },
+        ],
+        outputs: [{ name: "audio", type: "AUDIO" }],
+        widgets: [],
+      },
+    };
+    const nodes = workflowToFlowNodes(workflow, {}, undefined, schemas);
+    const byId = Object.fromEntries(
+      nodes.map((node) => [node.id, node.data as { channelLabel?: string }]),
+    );
+    expect(byId.synth?.channelLabel).toBe("mono");
+    expect(byId.norm?.channelLabel).toBe("mono");
+    expect(byId.prev?.channelLabel).toBe("mono");
   });
 
   it("always labels LoadAudio / Preview / SaveAudio channel layout", () => {

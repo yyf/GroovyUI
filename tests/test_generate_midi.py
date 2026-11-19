@@ -36,6 +36,15 @@ def test_preview_midi_registered() -> None:
     assert req["midi"][0] == "MIDI"
 
 
+def test_synth_midi_registered() -> None:
+    assert "SynthMidi" in NODE_REGISTRY
+    assert NODE_REGISTRY["SynthMidi"].RETURN_TYPES == ("AUDIO",)
+    req = NODE_REGISTRY["SynthMidi"].INPUT_TYPES()["required"]
+    assert req["midi"][0] == "MIDI"
+    opt = NODE_REGISTRY["SynthMidi"].INPUT_TYPES()["optional"]
+    assert opt["sample_rate"][1]["default"] == 48000
+
+
 def test_save_midi_registered() -> None:
     assert "SaveMidi" in NODE_REGISTRY
     assert NODE_REGISTRY["SaveMidi"].RETURN_TYPES == ("STRING",)
@@ -97,18 +106,27 @@ def test_generate_midi_stub_render(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert out.outputs["n2"].get("midi_id") == out.outputs["n1"]["outputs"][0].get("midi_id")
 
 
-def test_text_to_midi_music_midi_branch_stub(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_text_to_midi_template_stub(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
-    path = require_template("text-to-midi-music")
+    path = require_template("text-to-midi")
     data = json.loads(path.read_text())
     assert "text-to-midi" in data["metadata"]["tags"]
-    assert data["metadata"]["title"] == "Text to MIDI/Music"
+    assert data["metadata"]["title"] == "Text to MIDI"
+    assert path.as_posix().endswith("/templates/text-to-midi.groovy.json")
+    prompt = next(node for node in data["nodes"] if node["id"] == "n-midi-prompt")
+    assert "Bohlen-Pierce microtonality" in prompt["widgets"]["text"]
+    assert "Notes 0-127 only" in prompt["widgets"]["text"]
     gen = next(node for node in data["nodes"] if node["type"] == "GenerateMidi")
     assert gen["widgets"]["model"] == "midi-llm"
+    assert gen["widgets"]["duration"] == 30.0
     assert any(node["type"] == "PreviewMidi" for node in data["nodes"])
     assert any(node["type"] == "SaveMidi" for node in data["nodes"])
     assert any(node["type"] == "SaveGenerateLog" for node in data["nodes"])
-    assert any(node["type"] == "GenerateAudio" for node in data["nodes"])
+    synth = next(node for node in data["nodes"] if node["type"] == "SynthMidi")
+    assert synth["widgets"]["sample_rate"] == 48000
+    assert any(node["type"] == "SaveAudio" for node in data["nodes"])
+    assert not any(node["type"] == "GenerateAudio" for node in data["nodes"])
+    assert not any(node["type"] == "MIDIToAudio" for node in data["nodes"])
     assert any(
         link["from"] == ["n-midi-prompt", 0] and link["to"] == ["n-gen-midi", 0] and link["type"] == "TEXT"
         for link in data["links"]
@@ -122,9 +140,9 @@ def test_text_to_midi_music_midi_branch_stub(tmp_path: Path, monkeypatch: pytest
         for link in data["links"]
     )
     assert any(
-        link["from"] == ["n-preview-midi", 0] and link["to"] == ["n1", 1] and link["type"] == "MIDI"
+        link["from"] == ["n-gen-midi", 0] and link["to"] == ["n-synth-midi", 0] and link["type"] == "MIDI"
         for link in data["links"]
-    ), "PreviewMidi must wire to GenerateAudio.midi"
+    ), "GenerateMidi must wire to SynthMidi"
     assert any(
         link["from"] == ["n-gen-midi", 1]
         and link["to"] == ["n-midi-log", 0]
@@ -137,7 +155,14 @@ def test_text_to_midi_music_midi_branch_stub(tmp_path: Path, monkeypatch: pytest
     registry = ModelRegistry(tmp_path)
     registry.installer.install("midi-llm")
     out = Executor(tmp_path).execute(
-        workflow, target_nodes=["n-preview-midi", "n-save-midi", "n-midi-log"]
+        workflow,
+        target_nodes=[
+            "n-preview-midi",
+            "n-save-midi",
+            "n-midi-log",
+            "n-preview-audio",
+            "n-save-audio",
+        ],
     )
     assert out.status == "completed", out.error
     assert out.outputs["n-gen-midi"]["type"] == "MULTI"
@@ -153,3 +178,11 @@ def test_text_to_midi_music_midi_branch_stub(tmp_path: Path, monkeypatch: pytest
     log_rel = out.outputs["n-midi-log"]["path"]
     assert isinstance(log_rel, str) and log_rel.startswith("exports/")
     assert (tmp_path / log_rel).is_file()
+    assert out.outputs["n-preview-audio"]["type"] == "AUDIO"
+    assert out.outputs["n-save-audio"]["type"] == "STRING"
+    audio_rel = out.outputs["n-save-audio"]["path"]
+    assert isinstance(audio_rel, str) and "exports/" in audio_rel.replace("\\", "/")
+    audio_path = Path(audio_rel)
+    if not audio_path.is_absolute():
+        audio_path = tmp_path / audio_rel
+    assert audio_path.is_file()

@@ -152,15 +152,23 @@ TEMPLATE_OVERRIDES: dict[str, dict[str, Any]] = {
             ("n-img-log", "STRING"),
         ),
     },
-    "text-to-midi-music": {
+    "text-to-midi": {
         "fixture": "none",
         "sample_path": None,
-        "models": ("midi-llm", "ace-step-1.5-sft"),
+        "models": ("midi-llm",),
         "required_outputs": (
             ("n-preview-midi", "MIDI"),
             ("n-save-midi", "STRING"),
-            ("n3", "AUDIO"),
+            ("n-midi-log", "STRING"),
+            ("n-preview-audio", "AUDIO"),
+            ("n-save-audio", "STRING"),
         ),
+    },
+    "ace-step-1.5-sft": {
+        "fixture": "none",
+        "sample_path": None,
+        "models": ("ace-step-1.5-sft",),
+        "required_outputs": (("n3", "AUDIO"),),
     },
     "ace-step-1.5": {
         "fixture": "none",

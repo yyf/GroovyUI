@@ -2588,6 +2588,7 @@ type WidgetInputProps = {
     min?: number;
     max?: number;
     step?: number;
+    multiline?: boolean;
   };
   value: unknown;
   onChange: (value: unknown) => void;
@@ -3027,30 +3028,25 @@ function WidgetInput({
 
   if (
     nodeType &&
-    GENERATIVE_NODE_TYPES.has(nodeType) &&
-    isPromptLikeWidget(spec.name) &&
-    (spec.type === "STRING" || spec.type === "TEXT")
+    (spec.type === "STRING" || spec.type === "TEXT") &&
+    (spec.multiline === true ||
+      (nodeType === "Prompt" && spec.name === "text") ||
+      (nodeType === "Note" && spec.name === "text") ||
+      (GENERATIVE_NODE_TYPES.has(nodeType) && isPromptLikeWidget(spec.name)))
   ) {
     const str = typeof value === "string" ? value : String(value ?? "");
+    const rows =
+      nodeType === "Note" ? 5 : nodeType === "Prompt" || isPromptLikeWidget(spec.name) ? 6 : 3;
     return (
       <textarea
-        rows={3}
+        rows={rows}
         value={str}
         disabled={disabled}
-        placeholder={promptPlaceholder(spec.name, nodeType)}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    );
-  }
-
-  if (nodeType === "Note" && spec.name === "text" && (spec.type === "STRING" || spec.type === "TEXT")) {
-    const str = typeof value === "string" ? value : String(value ?? "");
-    return (
-      <textarea
-        rows={5}
-        value={str}
-        disabled={disabled}
-        placeholder="Add a comment for this patch…"
+        placeholder={
+          nodeType === "Note"
+            ? "Add a comment for this patch…"
+            : promptPlaceholder(spec.name, nodeType)
+        }
         onChange={(e) => onChange(e.target.value)}
       />
     );

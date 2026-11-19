@@ -1582,6 +1582,26 @@
     ],
     "widgets": []
   },
+  "SynthMidi": {
+    "inputs": [
+      {
+        "name": "midi",
+        "type": "MIDI",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "sample_rate"
+    ]
+  },
   "PreviewVideo": {
     "inputs": [
       {

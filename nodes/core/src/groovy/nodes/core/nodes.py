@@ -61,6 +61,7 @@ def register_all() -> None:
         PreviewImage,
         PreviewMidi,
         PreviewVideo,
+        SynthMidi,
         SaveImage,
         SaveMidi,
         SaveVideo,
@@ -777,6 +778,55 @@ class PreviewMidi(GroovyNode):
         if not isinstance(midi_in, MidiBuffer):
             raise TypeError("PreviewMidi needs MIDI input (wire GenerateMidi / LoadMIDI / AudioToMIDI).")
         return (midi_in,)
+
+
+@register_node
+class SynthMidi(GroovyNode):
+    """Offline MIDI → AUDIO via pretty_midi.synthesize (same path as PreviewMidi audition)."""
+
+    CATEGORY = "GroovyUI/Core"
+    EXPORT_TIER = "EXPORTABLE"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    DURATION_LOCKED = True
+    PROVENANCE_CLASS = "human_edited"
+    RETURN_TYPES = ("AUDIO",)
+    OUTPUT_NAMES = ("audio",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"midi": ("MIDI",)},
+            "optional": {
+                "sample_rate": (
+                    "INT",
+                    {
+                        "default": 48000,
+                        "min": 8000,
+                        "max": 192000,
+                        "description": "Output sample rate for pretty_midi synthesize (Hz).",
+                    },
+                ),
+            },
+        }
+
+    def run(self, **kwargs) -> tuple[AudioBuffer]:
+        from groovy.executor.midi_synth import synthesize_midi_pcm
+
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        midi_in = kwargs.get("midi")
+        if not isinstance(midi_in, MidiBuffer):
+            raise TypeError("SynthMidi needs MIDI input (wire GenerateMidi / LoadMIDI / PreviewMidi).")
+        sample_rate = int(kwargs.get("sample_rate", 48000) or 48000)
+        mid_path = self._ctx.cache.cache_dir / f"{midi_in.id}.mid"
+        if midi_in.path and Path(midi_in.path).is_file():
+            mid_path = Path(midi_in.path)
+        pcm = synthesize_midi_pcm(midi_in, sample_rate=sample_rate, mid_path=mid_path)
+        buffer = AudioBuffer.from_planar(pcm, sample_rate, source_node_type="SynthMidi")
+        self._ctx.cache.write_audio(buffer, pcm)
+        return (buffer,)
 
 
 @register_node

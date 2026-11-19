@@ -98,6 +98,7 @@ const CORE_IO = new Set([
   "PreviewImage",
   "PreviewMidi",
   "PreviewVideo",
+  "SynthMidi",
   "Mix",
   "ChannelMerge",
   "Note",
@@ -162,7 +163,7 @@ const GROUP_ORDER: GroupId[] = [
 const GROUP_META: Record<GroupId, { title: string; hint: string; tiers: PaletteTier[] }> = {
   "core-io": {
     title: "I/O",
-    hint: "Load, save, mix, preview, notes, prompts",
+    hint: "Load, save, mix, preview, SynthMidi, notes, prompts",
     tiers: ["core", "all"],
   },
   "core-dsp": {
@@ -224,16 +225,26 @@ function tierForNode(node: NodeTypeInfo): PaletteTier[] {
     tiers.push("core", "modular");
     return tiers;
   }
-  if (MODULAR_NODES.has(node.type) || node.type.includes("MIDI") || node.type.includes("Automation")) {
+  // Core I/O MIDI helpers (PreviewMidi / SaveMidi / SynthMidi) stay on Core — not Modular.
+  if (CORE_IO.has(node.type) || CORE_DSP_EXTRA.has(node.type)) {
+    tiers.push("core");
+  }
+  if (
+    MODULAR_NODES.has(node.type) ||
+    node.type.includes("Automation") ||
+    node.type === "LoadMIDI" ||
+    node.type === "MIDIToFloat" ||
+    node.type === "MIDINoteGate" ||
+    node.type === "MIDIInDevice" ||
+    node.type === "MIDIOutDevice" ||
+    node.type === "AutomationToMIDI"
+  ) {
     tiers.push("modular");
   }
   if (node.category.includes("Modular")) {
     tiers.push("modular");
   }
-  if (node.category.includes("Core") && !MODULAR_NODES.has(node.type)) {
-    tiers.push("core");
-  }
-  if (CORE_IO.has(node.type) || CORE_DSP_EXTRA.has(node.type)) {
+  if (node.category.includes("Core") && !MODULAR_NODES.has(node.type) && !CORE_IO.has(node.type)) {
     tiers.push("core");
   }
   return tiers;

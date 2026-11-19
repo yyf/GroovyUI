@@ -502,6 +502,7 @@ def test_registry_covers_help_focus_types() -> None:
         "LoadImage",
         "PreviewImage",
         "PreviewMidi",
+        "SynthMidi",
         "SaveMidi",
         "LoadMIDI",
         "MIDINoteGate",

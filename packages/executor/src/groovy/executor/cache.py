@@ -262,37 +262,11 @@ class CacheStore:
 
         import soundfile as sf
 
+        from groovy.executor.midi_synth import synthesize_midi_pcm
+
         midi = self.load_midi(midi_id)
         mid_path = self.cache_dir / f"{midi_id}.mid"
-        # Empty LoadMIDI placeholder — silent stub WAV (no SMF on disk).
-        if not mid_path.exists() or int(midi.frame_count or 0) <= 0:
-            buf = io.BytesIO()
-            sf.write(buf, np.zeros(int(0.25 * sample_rate), dtype=np.float64), sample_rate, format="WAV", subtype="FLOAT")
-            return buf.getvalue()
-
-        duration = max(0.25, midi.frame_count / max(midi.sample_rate, 1))
-        pcm: np.ndarray | None = None
-        try:
-            from pretty_midi import PrettyMIDI
-
-            pm = PrettyMIDI(str(mid_path))
-            duration = max(duration, float(pm.get_end_time()))
-            audio = pm.synthesize(fs=sample_rate)
-            if audio.size:
-                target_frames = int(round(duration * sample_rate))
-                if audio.size < target_frames:
-                    padded = np.zeros(target_frames, dtype=np.float64)
-                    padded[: audio.size] = audio
-                    audio = padded
-                elif audio.size > target_frames:
-                    audio = audio[:target_frames]
-                pcm = np.asarray(audio, dtype=np.float64).reshape(1, -1)
-        except ImportError:
-            pass
-
-        if pcm is None:
-            pcm = np.zeros((1, int(duration * sample_rate)), dtype=np.float64)
-
+        pcm = synthesize_midi_pcm(midi, sample_rate=sample_rate, mid_path=mid_path)
         buf = io.BytesIO()
         sf.write(buf, pcm.reshape(-1), sample_rate, format="WAV", subtype="FLOAT")
         return buf.getvalue()

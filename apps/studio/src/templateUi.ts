@@ -6,6 +6,7 @@ import type { TemplateListItem } from "./api";
  * featured picker list (local `docs/internal/templates/` when present) and full node palette.
  */
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
+  "ace-step-1.5-sft",
   "ace-step-dual-lora-ab",
   "asr-benchmark-wer-cer",
   "demucs-vs-openunmix",
@@ -15,7 +16,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "isolate-vocals-to-transcribe-translate",
   "podcast-denoise",
   "prompt-modular-synth",
-  "text-to-midi-music",
+  "text-to-midi",
   "text-to-video",
   "tts-emotion-edit",
   "watermark-embed-detect",
@@ -24,6 +25,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
 /** Bundled templates shown in the workflow template picker in studio dev mode. */
 export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5",
+  "ace-step-1.5-sft",
   "ace-step-lora-demo",
   "ace-step-dual-lora-ab",
   "ambisonic-trajectory-demo",
@@ -57,7 +59,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "stereo-to-binaural",
   "stem-lyrics-to-ace",
   "stem-separation",
-  "text-to-midi-music",
+  "text-to-midi",
   "text-to-music",
   "text-to-video",
   "transcribe-and-diarize",
@@ -146,11 +148,12 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "stem-lyrics-to-ace": "stems",
   "compare-stemmers": "compare",
 
-  "text-to-midi-music": "generate",
+  "text-to-midi": "generate",
   "text-to-music": "generate",
   "stable-audio": "generate",
   "layered-music-sfx": "generate",
   "ace-step-1.5": "generate",
+  "ace-step-1.5-sft": "generate",
   "ace-step-lora-demo": "compare",
   "ace-step-dual-lora-ab": "compare",
   "extract-lyrics-to-music-with-ace-step": "generate",
@@ -218,6 +221,7 @@ export const STANDARD_MODE_NODE_TYPES = [
   "SaveMidi",
   "SaveVideo",
   "SeparateStems",
+  "SynthMidi",
   "TranslateText",
   "VoiceConvert",
   "WhisperSTT",

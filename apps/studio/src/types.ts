@@ -61,6 +61,8 @@ export type NodeWidgetSpec = {
   min?: number;
   max?: number;
   step?: number;
+  /** When true (from node INPUT_TYPES meta), Inspector uses a multi-line textarea. */
+  multiline?: boolean;
 };
 
 export type InferenceParamSpec = {
