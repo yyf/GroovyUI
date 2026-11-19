@@ -1713,6 +1713,40 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l2", "n2", "n3", "MIDI"),
     ],
   },
+  SynthMidi: {
+    title: "Synth MIDI",
+    description: "GenerateMidi → SynthMidi (pretty_midi DSP) → Preview / SaveAudio.",
+    focusNodeId: "n3",
+    nodes: [
+      {
+        id: "n1",
+        type: "Prompt",
+        x: 0,
+        widgets: { text: "A short melodic phrase." },
+      },
+      {
+        id: "n2",
+        type: "GenerateMidi",
+        x: 280,
+        widgets: { model: "midi-gen", duration: 4.0, seed: 7 },
+      },
+      { id: "n3", type: "SynthMidi", x: 560, widgets: { sample_rate: 48000 } },
+      { id: "n4", type: "Preview", x: 840, widgets: {} },
+      {
+        id: "n5",
+        type: "SaveAudio",
+        x: 840,
+        y: 140,
+        widgets: { path: "exports", filename: "synth-midi.wav", format: "wav", bit_depth: "16" },
+      },
+    ],
+    links: [
+      link("l1", "n1", "n2", "TEXT"),
+      link("l2", "n2", "n3", "MIDI"),
+      link("l3", "n3", "n4", "AUDIO"),
+      link("l4", "n3", "n5", "AUDIO"),
+    ],
+  },
   SwitchImage: {
     title: "Switch Image",
     description: "Pick LoadImage or GenerateImage for GenerateVideo I2V.",

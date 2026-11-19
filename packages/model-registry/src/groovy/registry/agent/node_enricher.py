@@ -397,6 +397,16 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         ),
         "inputs": {"midi": "MIDI from GenerateMidi, LoadMIDI, or AudioToMIDI."},
     },
+    "SynthMidi": {
+        "description": (
+            "Offline MIDI → AUDIO via pretty_midi.synthesize — same DSP as PreviewMidi audition. "
+            "No ML weights. Wire Normalize / Preview / SaveAudio after it."
+        ),
+        "inputs": {"midi": "MIDI from GenerateMidi, LoadMIDI, PreviewMidi, or AudioToMIDI."},
+        "widgets": {
+            "sample_rate": "Output sample rate for synthesize (default 48000 Hz).",
+        },
+    },
     "SaveMidi": {
         "description": "Copy a MIDI clip (SMF .mid) into the project exports folder.",
         "inputs": {"midi": "MIDI clip to export (GenerateMidi / LoadMIDI / PreviewMidi)."},

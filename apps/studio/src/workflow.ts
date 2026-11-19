@@ -289,6 +289,25 @@ export function nodeHasListenableOutput(
   return resolveNodeListenId(workflow, nodeId, outputs) != null;
 }
 
+const AUDITION_OUTPUT_TYPES = new Set(["AUDIO", "MIDI", "STEMS", "AMBISONICS"]);
+
+/** Nodes that can audition (headphones always visible — cue for users). */
+export function nodeSupportsAudition(
+  nodeType: string,
+  outputSockets: Array<{ type: string }>,
+): boolean {
+  if (
+    nodeType === "Preview" ||
+    nodeType === "PreviewMidi" ||
+    nodeType === "PreviewVideo" ||
+    nodeType === "SaveAudio" ||
+    nodeType === "MuxVideo"
+  ) {
+    return true;
+  }
+  return outputSockets.some((socket) => AUDITION_OUTPUT_TYPES.has(socket.type));
+}
+
 export function cachedStatusFromOutputs(
   workflow: Workflow,
   outputs: Record<string, JobOutput>,
@@ -716,6 +735,10 @@ const NODE_SOCKET_FALLBACKS: Record<
     inputs: [{ name: "midi", type: "MIDI", slot: 0 }],
     outputs: [{ name: "midi", type: "MIDI", slot: 0 }],
   },
+  SynthMidi: {
+    inputs: [{ name: "midi", type: "MIDI", slot: 0 }],
+    outputs: [{ name: "audio", type: "AUDIO", slot: 0 }],
+  },
   SaveMidi: {
     inputs: [{ name: "midi", type: "MIDI", slot: 0 }],
     outputs: [{ name: "path", type: "STRING", slot: 0 }],
@@ -967,6 +990,9 @@ export function loadAudioChannelOutletSockets(channelCount: number): NodeSocketS
   }));
 }
 
+/** Always-on I/O chips (even before first render). */
+const IO_CHANNEL_NODE_TYPES = new Set(["LoadAudio", "Preview", "SaveAudio"]);
+
 /** Channel layout / count chip for LoadAudio, Preview, SaveAudio (and selection lists). */
 export function resolveIoChannelLabel(
   workflow: Workflow,
@@ -980,8 +1006,6 @@ export function resolveIoChannelLabel(
   if (count == null) return null;
   return channelLayoutLabel(count);
 }
-
-const IO_CHANNEL_NODE_TYPES = new Set(["LoadAudio", "Preview", "SaveAudio"]);
 
 /** Best-effort channel count for canvas / selection labels. */
 export function resolveIoChannelCount(
@@ -1002,12 +1026,14 @@ export function resolveIoChannelCount(
     return 1;
   }
 
+  // DSP MIDI→PCM is always mono (pretty_midi synthesize).
+  if (node.type === "SynthMidi") return 1;
+
   const direct = outputs?.[nodeId];
   if (direct?.type === "MULTI" && direct.outputs?.length) return direct.outputs.length;
 
-  if (!IO_CHANNEL_NODE_TYPES.has(node.type)) return null;
-
-  // Preview / SaveAudio: walk upstream toward a known channel count.
+  // Walk AUDIO / STEM / AMBISONICS upstream toward a known channel count
+  // (Preview / SaveAudio / Normalize / Mix / any headphone-audition hop).
   const visited = new Set<string>();
   const queue: string[] = [nodeId];
   while (queue.length) {
@@ -1016,6 +1042,8 @@ export function resolveIoChannelCount(
     visited.add(current);
 
     if (current !== nodeId) {
+      const currentNode = workflow.nodes.find((item) => item.id === current);
+      if (currentNode?.type === "SynthMidi") return 1;
       const probed = loadAudioChannels?.[current];
       if (typeof probed === "number" && probed > 0) return probed;
       const jobOut = outputs?.[current];
@@ -1259,10 +1287,27 @@ export function workflowToFlowNodes(
             : String(n.widgets.text ?? "")
           : undefined;
       const channelCount = resolveIoChannelCount(workflow, n.id, loadAudioChannels, outputs);
-      const channelLabel = IO_CHANNEL_NODE_TYPES.has(n.type)
-        ? channelLayouts?.[n.id] ||
-          (channelCount != null ? channelLayoutLabel(channelCount) : "—")
-        : undefined;
+      const listenOut = resolveNodeListenOutput(workflow, n.id, outputs);
+      const auditionReady = nodeHasListenableOutput(workflow, n.id, outputs);
+      const canAudition = nodeSupportsAudition(n.type, outputSockets);
+      // Channel chip: always for Load/Preview/SaveAudio; also for headphone-capable nodes
+      // once metrics / upstream count / MIDI→mono synth is known.
+      const channelLabel = (() => {
+        if (channelLayouts?.[n.id]) return channelLayouts[n.id];
+        if (IO_CHANNEL_NODE_TYPES.has(n.type)) {
+          return channelCount != null ? channelLayoutLabel(channelCount) : "—";
+        }
+        if (channelCount != null) return channelLayoutLabel(channelCount);
+        // PreviewMidi / MIDI-only audition → transport synth is mono.
+        if (
+          canAudition &&
+          (n.type === "PreviewMidi" ||
+            (previewMidiId(listenOut) && !previewCacheId(listenOut)))
+        ) {
+          return "mono";
+        }
+        return undefined;
+      })();
       const trajectoryRole: "input" | "output" | undefined =
         n.type === "TrajectoryMonitor"
           ? String(n.widgets.role ?? "input").toLowerCase() === "output"
@@ -1305,7 +1350,8 @@ export function workflowToFlowNodes(
           kind: canvasNodeKind(n.type, schema?.category),
           status: nodeStatus[n.id] ?? "idle",
           nodeId: n.id,
-          canAudition: nodeHasListenableOutput(workflow, n.id, outputs),
+          canAudition,
+          auditionReady,
           issue: nodeIssues?.[n.id],
           modelHint: nodeModelHint(workflow, n) ?? undefined,
           previewText:

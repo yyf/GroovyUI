@@ -179,24 +179,22 @@ def test_ace_step_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -
     assert out.outputs["n3"]["type"] == "AUDIO"
 
 
-def test_text_to_midi_music_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -> None:
+def test_ace_step_sft_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
-    path = require_template("text-to-midi-music")
+    path = require_template("ace-step-1.5-sft")
     data = json.loads(path.read_text())
-    assert data["metadata"]["title"] == "Text to MIDI/Music"
+    assert data["metadata"]["title"] == "Text to Music"
     assert "starter" in data["metadata"]["tags"]
     assert "featured" in data["metadata"]["tags"]
     assert "sft" in data["metadata"]["tags"]
-    assert "text-to-midi" in data["metadata"]["tags"]
-    assert path.as_posix().endswith("/templates/text-to-midi-music.groovy.json")
+    assert "text-to-music" in data["metadata"]["tags"]
+    assert path.as_posix().endswith("/templates/ace-step-1.5-sft.groovy.json")
     gen = next(node for node in data["nodes"] if node["type"] == "GenerateAudio")
-    gen_midi = next(node for node in data["nodes"] if node["type"] == "GenerateMidi")
-    assert gen_midi["widgets"]["model"] == "midi-llm"
-    assert any(node["type"] == "PreviewMidi" for node in data["nodes"])
-    assert any(node["type"] == "SaveMidi" for node in data["nodes"])
-    assert any(node["type"] == "SaveGenerateLog" for node in data["nodes"])
-    style = next(node for node in data["nodes"] if node["id"] == "n0")
-    lyrics = next(node for node in data["nodes"] if node["id"] == "n0b")
+    assert not any(node["type"] == "GenerateMidi" for node in data["nodes"])
+    prompts = [node for node in data["nodes"] if node["type"] == "Prompt"]
+    assert len(prompts) == 2
+    style = next(node for node in prompts if node["id"] == "n0")
+    lyrics = next(node for node in prompts if node["id"] == "n0b")
     assert gen["widgets"]["model"] == "ace-step-1.5-sft"
     assert gen["widgets"]["num_inference_steps"] == 50
     assert gen["widgets"]["guidance_scale"] == 7.0
@@ -206,10 +204,6 @@ def test_text_to_midi_music_template_schema_and_stub_render(tmp_path: Path, monk
         link["from"] == ["n0", 0] and link["to"] == ["n1", 0] and link["type"] == "TEXT"
         for link in data["links"]
     )
-    assert any(
-        link["from"] == ["n-preview-midi", 0] and link["to"] == ["n1", 1] and link["type"] == "MIDI"
-        for link in data["links"]
-    ), "PreviewMidi must wire to GenerateAudio.midi"
     assert any(
         link["from"] == ["n0b", 0] and link["to"] == ["n1", 3] and link["type"] == "TEXT"
         for link in data["links"]
@@ -222,13 +216,9 @@ def test_text_to_midi_music_template_schema_and_stub_render(tmp_path: Path, monk
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)
-    registry.installer.install("midi-llm")
     registry.installer.install("ace-step-1.5-sft")
-    out = Executor(tmp_path).execute(
-        workflow, target_nodes=["n-preview-midi", "n-save-midi", "n-midi-log", "n3", "n4"]
-    )
+    out = Executor(tmp_path).execute(workflow, target_nodes=["n3", "n4"])
     assert out.status == "completed", out.error
-    assert out.outputs["n-preview-midi"]["type"] == "MIDI"
     assert out.outputs["n3"]["type"] == "AUDIO"
 
 

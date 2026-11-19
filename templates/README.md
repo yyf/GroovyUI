@@ -13,7 +13,8 @@ Dev-only / featured templates live locally under `docs/internal/templates/` (git
 | Isolate → STT → Translate → TTS | [isolate-vocals-to-transcribe-translate.groovy.json](isolate-vocals-to-transcribe-translate.groovy.json) | `demucs-v4`, Whisper, `m2m100-418m`, `kokoro-82m` (zh) |
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | `kokoro-82m` |
 | TTS with Emotion Editing | [tts-emotion-edit.groovy.json](tts-emotion-edit.groovy.json) | `kokoro-82m`, `step-audio-editx` (Step = MLX on Apple Silicon or CUDA+vLLM on Linux) |
-| Text to MIDI/Music | [text-to-midi-music.groovy.json](text-to-midi-music.groovy.json) | `midi-llm` → PreviewMidi → `ace-step-1.5-sft` (MIT; prefer CUDA); path demo MIDI: `midi-gen` |
+| Text to MIDI | [text-to-midi.groovy.json](text-to-midi.groovy.json) | `midi-llm` → PreviewMidi / SaveMidi; SynthMidi (pretty_midi DSP) → SaveAudio; path demo: `midi-gen` |
+| Text to Music | [ace-step-1.5-sft.groovy.json](ace-step-1.5-sft.groovy.json) | `ace-step-1.5-sft` (MIT; prefer NVIDIA CUDA) — style + optional lyrics Prompts |
 | ASR Benchmark — WER / CER | [asr-benchmark-wer-cer.groovy.json](asr-benchmark-wer-cer.groovy.json) | `kokoro-82m` → `whisper-small-en` ∥ `whisper-large-v3-turbo`; drag-select transcript Previews for WER A/B |
 | Demucs vs Open-Unmix — Stem A/B | [demucs-vs-openunmix.groovy.json](demucs-vs-openunmix.groovy.json) | `demucs-v4` ∥ `openunmix-umx` vocals; A/B pairwise (no GT): loudness / waveform / SDR / SI-SDR / mel cosine / LSD |
 | ACE-Step Dual LoRA A/B | [ace-step-dual-lora-ab.groovy.json](ace-step-dual-lora-ab.groovy.json) | Experimental: turbo + `ace-step-cny-lora` ∥ `ace-step-ambient-lora` (NC / community); Inspector A/B |

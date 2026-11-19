@@ -2819,7 +2819,8 @@ body {
 }
 
 .node-helper__field--prompt textarea {
-  min-height: 4.5rem;
+  min-height: 6.5rem;
+  max-height: 18rem;
   resize: vertical;
   line-height: 1.35;
 }
@@ -5622,6 +5623,9 @@ body {
 }
 
 .groovy-node__headphone {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -5629,10 +5633,28 @@ body {
   line-height: 1;
   padding: 0;
   opacity: 0.85;
+  color: inherit;
 }
 
-.groovy-node__headphone:hover {
+.groovy-node__headphone:hover:not(:disabled) {
   opacity: 1;
+}
+
+.groovy-node__headphone--idle {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.groovy-node__headphone-ch {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .groovy-node__corner {

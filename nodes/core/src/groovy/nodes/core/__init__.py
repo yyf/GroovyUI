@@ -17,6 +17,7 @@ from groovy.nodes.core.nodes import (
     SaveImage,
     SaveMidi,
     SaveVideo,
+    SynthMidi,
     Trim,
     register_all,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "SaveImage",
     "SaveMidi",
     "SaveVideo",
+    "SynthMidi",
     "Trim",
     "register_all",
 ]
