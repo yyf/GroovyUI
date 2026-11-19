@@ -89,7 +89,7 @@ function PitchScale({
 }: {
   minPitch: number;
   maxPitch: number;
-  scaleRef: React.RefObject<HTMLDivElement | null>;
+  scaleRef: React.Ref<HTMLDivElement>;
 }) {
   const mid = Math.round((minPitch + maxPitch) / 2);
   return (
