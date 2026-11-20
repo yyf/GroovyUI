@@ -1,6 +1,6 @@
 /**
  * Curated template × model license overview for the public OSS template set.
- * Source of truth for Settings → Template licenses (studio dev mode / ⌘⇧D only).
+ * Source of truth for Settings → Template licenses (studio dev mode only).
  * Keep in sync with `STANDARD_BUNDLED_TEMPLATE_IDS` / repo `templates/` (not docs/internal).
  */
 
@@ -90,6 +90,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     title: "Prompt Modular Synth",
     models: "kokoro-82m",
     licenses: "kokoro-82m: Apache-2.0",
+    impact: "Med",
+    cluster: "Modular teach",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
+    id: "moving-clouds",
+    title: "Moving Clouds",
+    models: "— (modular DSP / no AI weights)",
+    licenses: "— (DSP / no AI weights)",
     impact: "Med",
     cluster: "Modular teach",
     commercial: "Safe",

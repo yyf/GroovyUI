@@ -5,7 +5,7 @@ export type StudioSettingsMenuProps = {
   paletteOpen: boolean;
   helperOpen: boolean;
   workflowBarOpen: boolean;
-  /** ⌘⇧D studio dev mode — reveals template license matrix (not for OSS alpha UX). */
+  /** Studio dev mode — reveals template license matrix (not for OSS alpha UX). */
   studioDevMode?: boolean;
   onImportWorkflow: (file: File) => void;
   onSaveAsTemplate: () => void;

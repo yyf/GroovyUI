@@ -3,7 +3,7 @@ import {
   templateLicenseSummary,
 } from "../templateLicenseMatrix";
 
-/** Template license matrix for the Inspector (studio dev mode / ⌘⇧D). */
+/** Template license matrix for the Inspector (studio dev mode). */
 export default function TemplateLicensePanel() {
   const summary = templateLicenseSummary();
 

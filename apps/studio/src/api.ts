@@ -956,7 +956,7 @@ export async function downloadComplianceReport(
   options?: {
     outputs?: Record<string, JobOutput>;
     targetNodeId?: string | null;
-    /** When true, PDF includes Authenticity (Compliance drawer tab visible in ⌘⇧D). */
+    /** When true, PDF includes Authenticity (Compliance drawer tab visible in studio dev mode). */
     includeAuthenticity?: boolean;
   },
 ): Promise<Blob> {

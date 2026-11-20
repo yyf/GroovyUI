@@ -2,8 +2,8 @@ import type { TemplateListItem } from "./api";
 
 /**
  * Bundled templates shown in standard (demo) mode — ISMIR 2026 LBD hero set.
- * Files live in repo `templates/`. Toggle studio dev mode (⌘⇧D) to reveal the full
- * featured picker list (local `docs/internal/templates/` when present) and full node palette.
+ * Files live in repo `templates/`. Studio dev mode reveals the full featured picker list
+ * (local `docs/internal/templates/` when present) and full node palette.
  */
 export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "ace-step-1.5-sft",
@@ -14,6 +14,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "hello-groovy",
   "isolate-vocals-to-transcribe",
   "isolate-vocals-to-transcribe-translate",
+  "moving-clouds",
   "podcast-denoise",
   "prompt-modular-synth",
   "text-to-midi",
@@ -37,6 +38,8 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "compare-whisper-sizes",
   "empty-canvas",
   "extract-lyrics-to-music-with-ace-step",
+  "groove-systems-replica",
+  "groove-systems-study",
   "hello-groovy",
   "instrumental-tts-dub",
   "isolate-vocals-to-transcribe",
@@ -54,6 +57,8 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "script-to-vo-master",
   "neural-modular-rack",
   "song-cover-remix",
+  "moving-clouds",
+  "spiegel-drums-1975",
   "stable-audio",
   "stereo-to-atmos-bed",
   "stereo-to-binaural",
@@ -77,7 +82,7 @@ export const PICKER_HIDDEN_BUNDLED_TEMPLATE_IDS = [
   "video-to-audio",
 ] as const;
 
-/** Node types hidden from palette / canvas picker (even in ⌘⇧D). CUDA-only / experimental. */
+/** Node types hidden from palette / canvas picker (even in studio dev mode). CUDA-only / experimental. */
 export const PICKER_HIDDEN_NODE_TYPES = ["Video2Audio"] as const;
 
 export type TemplateDomainId =
@@ -118,6 +123,9 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "empty-canvas": "start",
   "hello-groovy": "start",
   "tab-creative-grow": "experimental",
+  "groove-systems-replica": "experimental",
+  "groove-systems-study": "experimental",
+  "spiegel-drums-1975": "experimental",
 
   "podcast-denoise": "speech",
   "transcribe-dialogue": "speech",
@@ -139,6 +147,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
   "ab-compare-demo": "compare",
 
   "prompt-modular-synth": "modular",
+  "moving-clouds": "modular",
 
   "stem-separation": "stems",
   "karaoke-stems": "stems",
@@ -188,7 +197,7 @@ const pickerHiddenNodeTypes = new Set<string>(PICKER_HIDDEN_NODE_TYPES);
 
 /**
  * Node types used by {@link STANDARD_BUNDLED_TEMPLATE_IDS} graphs.
- * Standard mode (non-⌘⇧D) palette / canvas picker only lists these.
+ * Standard mode (non–studio-dev) palette / canvas picker only lists these.
  * Keep in sync when ISMIR demo templates change.
  */
 export const STANDARD_MODE_NODE_TYPES = [
@@ -229,7 +238,7 @@ export const STANDARD_MODE_NODE_TYPES = [
 
 /**
  * Modular synth + control-rate nodes always available in Modular / All tiers
- * (without requiring ⌘⇧D studio-dev mode). Keep in sync with NodePalette MODULAR_NODES.
+ * (without requiring studio dev mode). Keep in sync with NodePalette MODULAR_NODES.
  */
 export const MODULAR_MODE_NODE_TYPES = [
   "Amplifier",
@@ -252,8 +261,10 @@ export const MODULAR_MODE_NODE_TYPES = [
   "MatrixMixer",
   "MIDINoteGate",
   "MIDIToFloat",
+  "Mix",
   "NoiseGenerator",
   "Oscillator",
+  "Pan",
   "Quantizer",
   "Reverb",
   "SampleAndHold",
@@ -263,7 +274,7 @@ export const MODULAR_MODE_NODE_TYPES = [
 const standardModeNodeTypes = new Set<string>(STANDARD_MODE_NODE_TYPES);
 const modularModeNodeTypes = new Set<string>(MODULAR_MODE_NODE_TYPES);
 
-/** Standard mode: ISMIR demo nodes + modular synth set. Dev mode (⌘⇧D): all palette-eligible except picker-hidden. */
+/** Standard mode: ISMIR demo nodes + modular synth set. Studio dev mode: all palette-eligible except picker-hidden. */
 export function isNodeVisibleInStudio(nodeType: string, studioDevMode = false): boolean {
   if (pickerHiddenNodeTypes.has(nodeType)) return false;
   if (studioDevMode) return true;
@@ -276,7 +287,7 @@ export function domainIdForTemplate(templateId: string): TemplateDomainId {
 
 /**
  * Hide non-featured bundled templates from the studio UI; user templates always show.
- * Standard mode: ISMIR demo set only (Immersive not included). Studio dev mode (⌘⇧D): full featured list.
+ * Standard mode: ISMIR demo set only (Immersive not included). Studio dev mode: full featured list.
  */
 export function templatesVisibleInUi(
   templates: TemplateListItem[],

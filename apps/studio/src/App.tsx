@@ -239,7 +239,7 @@ export default function App() {
       return false;
     }
   });
-  /** Template picker: false = ISMIR demo set; true (⌘⇧D) = full featured list + nodes. */
+  /** Template picker: false = ISMIR demo set; true = studio dev mode (full featured list + nodes). */
   const [studioDevMode, setStudioDevMode] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);

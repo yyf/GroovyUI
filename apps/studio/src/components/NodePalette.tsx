@@ -21,7 +21,7 @@ type Props = {
   onAddNode: (nodeType: string) => void;
   /** Live /api/nodes catalog from App — keeps BeatTrack etc. in sync after server restart. */
   catalog?: NodeTypeInfo[];
-  /** ⌘⇧D — show full palette; otherwise only nodes used by ISMIR demo templates. */
+  /** Studio dev mode — show full palette; otherwise only nodes used by ISMIR demo templates. */
   studioDevMode?: boolean;
 };
 
