@@ -1,0 +1,1086 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "e5f6a7b8-c9d0-4123-e456-movingclouds001",
+  "metadata": {
+    "title": "Moving Clouds",
+    "author": "groovy",
+    "description": "Modular synth grain cloud: polyrhythmic pulse\u2192resonators; two higher voices Granulated, then opposite-phase Pan LFOs for oscillating stereo imaging over a dry pulse bed. No models.",
+    "tags": [
+      "modular",
+      "featured",
+      "granular",
+      "stereo",
+      "spiegel"
+    ],
+    "created_at": "2026-11-20T00:00:00Z",
+    "modified_at": "2026-11-20T00:20:00Z"
+  },
+  "nodes": [
+    {
+      "id": "amp-env-a",
+      "type": "ControlCurve",
+      "pos": {
+        "x": 0,
+        "y": 180
+      },
+      "widgets": {
+        "start_value": 0.55,
+        "end_value": 0.65,
+        "frame_count": 1152000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":0.55},{\"t\":0.25,\"v\":0.9},{\"t\":0.55,\"v\":0.45},{\"t\":1,\"v\":0.65}]"
+      }
+    },
+    {
+      "id": "amp-env-b",
+      "type": "ControlCurve",
+      "pos": {
+        "x": 0,
+        "y": 320
+      },
+      "widgets": {
+        "start_value": 0.65,
+        "end_value": 0.55,
+        "frame_count": 1152000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":0.65},{\"t\":0.4,\"v\":0.35},{\"t\":0.7,\"v\":0.85},{\"t\":1,\"v\":0.55}]"
+      }
+    },
+    {
+      "id": "amp-env-c",
+      "type": "ControlCurve",
+      "pos": {
+        "x": 0,
+        "y": 460
+      },
+      "widgets": {
+        "start_value": 0.5,
+        "end_value": 0.8,
+        "frame_count": 1152000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":0.5},{\"t\":0.3,\"v\":0.95},{\"t\":0.6,\"v\":0.4},{\"t\":1,\"v\":0.8}]"
+      }
+    },
+    {
+      "id": "amp-env-d",
+      "type": "ControlCurve",
+      "pos": {
+        "x": 0,
+        "y": 600
+      },
+      "widgets": {
+        "start_value": 0.8,
+        "end_value": 0.7,
+        "frame_count": 1152000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":0.8},{\"t\":0.35,\"v\":0.45},{\"t\":0.65,\"v\":0.9},{\"t\":1,\"v\":0.7}]"
+      }
+    },
+    {
+      "id": "pulse-a",
+      "type": "Clock",
+      "pos": {
+        "x": 260,
+        "y": 180
+      },
+      "widgets": {
+        "bpm": 120.0,
+        "pulse_ms": 1.5,
+        "duration_sec": 24.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "pulse-amp-a",
+      "type": "FloatMath",
+      "pos": {
+        "x": 520,
+        "y": 180
+      },
+      "widgets": {
+        "operation": "multiply"
+      }
+    },
+    {
+      "id": "pulse-b",
+      "type": "Clock",
+      "pos": {
+        "x": 260,
+        "y": 320
+      },
+      "widgets": {
+        "bpm": 90.0,
+        "pulse_ms": 1.5,
+        "duration_sec": 24.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "pulse-amp-b",
+      "type": "FloatMath",
+      "pos": {
+        "x": 520,
+        "y": 320
+      },
+      "widgets": {
+        "operation": "multiply"
+      }
+    },
+    {
+      "id": "pulse-c",
+      "type": "Clock",
+      "pos": {
+        "x": 260,
+        "y": 460
+      },
+      "widgets": {
+        "bpm": 150.0,
+        "pulse_ms": 1.0,
+        "duration_sec": 24.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "pulse-amp-c",
+      "type": "FloatMath",
+      "pos": {
+        "x": 520,
+        "y": 460
+      },
+      "widgets": {
+        "operation": "multiply"
+      }
+    },
+    {
+      "id": "pulse-d",
+      "type": "Clock",
+      "pos": {
+        "x": 260,
+        "y": 600
+      },
+      "widgets": {
+        "bpm": 180.0,
+        "pulse_ms": 1.0,
+        "duration_sec": 24.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "pulse-amp-d",
+      "type": "FloatMath",
+      "pos": {
+        "x": 520,
+        "y": 600
+      },
+      "widgets": {
+        "operation": "multiply"
+      }
+    },
+    {
+      "id": "noise",
+      "type": "NoiseGenerator",
+      "pos": {
+        "x": 780,
+        "y": 380
+      },
+      "widgets": {
+        "color": "white",
+        "amplitude": 1.0,
+        "duration_sec": 24.0,
+        "sample_rate": 48000,
+        "seed": 19750301
+      }
+    },
+    {
+      "id": "gate-a",
+      "type": "Amplifier",
+      "pos": {
+        "x": 1040,
+        "y": 180
+      },
+      "widgets": {
+        "gain": 1.8
+      }
+    },
+    {
+      "id": "filt-a",
+      "type": "Filter",
+      "pos": {
+        "x": 1300,
+        "y": 180
+      },
+      "widgets": {
+        "filter_type": "bandpass",
+        "cutoff_hz": 110.0,
+        "q": 18.0
+      }
+    },
+    {
+      "id": "gate-b",
+      "type": "Amplifier",
+      "pos": {
+        "x": 1040,
+        "y": 320
+      },
+      "widgets": {
+        "gain": 1.8
+      }
+    },
+    {
+      "id": "filt-b",
+      "type": "Filter",
+      "pos": {
+        "x": 1300,
+        "y": 320
+      },
+      "widgets": {
+        "filter_type": "bandpass",
+        "cutoff_hz": 185.0,
+        "q": 18.0
+      }
+    },
+    {
+      "id": "gate-c",
+      "type": "Amplifier",
+      "pos": {
+        "x": 1040,
+        "y": 460
+      },
+      "widgets": {
+        "gain": 1.8
+      }
+    },
+    {
+      "id": "filt-c",
+      "type": "Filter",
+      "pos": {
+        "x": 1300,
+        "y": 460
+      },
+      "widgets": {
+        "filter_type": "bandpass",
+        "cutoff_hz": 311.0,
+        "q": 17.0
+      }
+    },
+    {
+      "id": "gate-d",
+      "type": "Amplifier",
+      "pos": {
+        "x": 1040,
+        "y": 600
+      },
+      "widgets": {
+        "gain": 1.8
+      }
+    },
+    {
+      "id": "filt-d",
+      "type": "Filter",
+      "pos": {
+        "x": 1300,
+        "y": 600
+      },
+      "widgets": {
+        "filter_type": "bandpass",
+        "cutoff_hz": 523.0,
+        "q": 16.0
+      }
+    },
+    {
+      "id": "mix-ab",
+      "type": "Mix",
+      "pos": {
+        "x": 1560,
+        "y": 220
+      },
+      "widgets": {
+        "gain_a": 0.85,
+        "gain_b": 0.8
+      }
+    },
+    {
+      "id": "bed-stereo",
+      "type": "Pan",
+      "pos": {
+        "x": 1820,
+        "y": 220
+      },
+      "widgets": {
+        "pan": 0.0,
+        "output_layout": "stereo"
+      }
+    },
+    {
+      "id": "grain-pitch",
+      "type": "ControlCurve",
+      "pos": {
+        "x": 1560,
+        "y": 660
+      },
+      "widgets": {
+        "start_value": 40.0,
+        "end_value": 160.0,
+        "frame_count": 1152000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":40},{\"t\":0.4,\"v\":120},{\"t\":0.75,\"v\":220},{\"t\":1,\"v\":160}]"
+      }
+    },
+    {
+      "id": "grain-density",
+      "type": "ControlCurve",
+      "pos": {
+        "x": 1560,
+        "y": 800
+      },
+      "widgets": {
+        "start_value": 18.0,
+        "end_value": 35.0,
+        "frame_count": 1152000,
+        "sample_rate": 48000,
+        "points": "[{\"t\":0,\"v\":18},{\"t\":0.5,\"v\":55},{\"t\":1,\"v\":35}]"
+      }
+    },
+    {
+      "id": "pan-lfo-c",
+      "type": "LFO",
+      "pos": {
+        "x": 2080,
+        "y": 460
+      },
+      "widgets": {
+        "waveform": "sine",
+        "rate_hz": 0.11,
+        "amplitude": 0.72,
+        "offset": 0.0,
+        "duration_sec": 24.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "pan-phase-inv",
+      "type": "Float",
+      "pos": {
+        "x": 2080,
+        "y": 620
+      },
+      "widgets": {
+        "value": -1.0,
+        "duration_sec": 24.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "pan-lfo-d",
+      "type": "FloatMath",
+      "pos": {
+        "x": 2340,
+        "y": 580
+      },
+      "widgets": {
+        "operation": "multiply"
+      }
+    },
+    {
+      "id": "grain-c",
+      "type": "Granulate",
+      "pos": {
+        "x": 1820,
+        "y": 460
+      },
+      "widgets": {
+        "grain_ms": 28.0,
+        "hop_ms": 9.0,
+        "pitch_cents": 80.0,
+        "density": 30.0,
+        "spray": 6,
+        "width": 0.0,
+        "window": "hann",
+        "window_alpha": 0.45,
+        "scatter_ms": 110.0,
+        "wet_start": 0.7,
+        "wet_end": 1.0,
+        "seed": 311
+      }
+    },
+    {
+      "id": "pan-c",
+      "type": "Pan",
+      "pos": {
+        "x": 2600,
+        "y": 460
+      },
+      "widgets": {
+        "pan": 0.0,
+        "output_layout": "stereo"
+      }
+    },
+    {
+      "id": "grain-d",
+      "type": "Granulate",
+      "pos": {
+        "x": 1820,
+        "y": 620
+      },
+      "widgets": {
+        "grain_ms": 22.0,
+        "hop_ms": 7.0,
+        "pitch_cents": 80.0,
+        "density": 30.0,
+        "spray": 6,
+        "width": 0.0,
+        "window": "hann",
+        "window_alpha": 0.45,
+        "scatter_ms": 110.0,
+        "wet_start": 0.7,
+        "wet_end": 1.0,
+        "seed": 523
+      }
+    },
+    {
+      "id": "pan-d",
+      "type": "Pan",
+      "pos": {
+        "x": 2600,
+        "y": 620
+      },
+      "widgets": {
+        "pan": 0.0,
+        "output_layout": "stereo"
+      }
+    },
+    {
+      "id": "mix-grains",
+      "type": "Mix",
+      "pos": {
+        "x": 2860,
+        "y": 520
+      },
+      "widgets": {
+        "gain_a": 1.0,
+        "gain_b": 1.0
+      }
+    },
+    {
+      "id": "mix-all",
+      "type": "Mix",
+      "pos": {
+        "x": 3120,
+        "y": 340
+      },
+      "widgets": {
+        "gain_a": 0.45,
+        "gain_b": 1.15
+      }
+    },
+    {
+      "id": "reverb",
+      "type": "Reverb",
+      "pos": {
+        "x": 3380,
+        "y": 340
+      },
+      "widgets": {
+        "mix": 0.18,
+        "room_sec": 1.8,
+        "damping": 0.35
+      }
+    },
+    {
+      "id": "norm",
+      "type": "Normalize",
+      "pos": {
+        "x": 3640,
+        "y": 340
+      },
+      "widgets": {
+        "mode": "peak",
+        "target_peak_db": -1.5
+      }
+    },
+    {
+      "id": "preview",
+      "type": "Preview",
+      "pos": {
+        "x": 3900,
+        "y": 280
+      },
+      "widgets": {}
+    },
+    {
+      "id": "save",
+      "type": "SaveAudio",
+      "pos": {
+        "x": 3900,
+        "y": 420
+      },
+      "widgets": {
+        "path": "exports",
+        "filename": "moving-clouds.wav",
+        "format": "wav"
+      }
+    }
+  ],
+  "links": [
+    {
+      "id": "l-p-a",
+      "from": [
+        "pulse-a",
+        0
+      ],
+      "to": [
+        "pulse-amp-a",
+        0
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-e-a",
+      "from": [
+        "amp-env-a",
+        0
+      ],
+      "to": [
+        "pulse-amp-a",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-p-b",
+      "from": [
+        "pulse-b",
+        0
+      ],
+      "to": [
+        "pulse-amp-b",
+        0
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-e-b",
+      "from": [
+        "amp-env-b",
+        0
+      ],
+      "to": [
+        "pulse-amp-b",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-p-c",
+      "from": [
+        "pulse-c",
+        0
+      ],
+      "to": [
+        "pulse-amp-c",
+        0
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-e-c",
+      "from": [
+        "amp-env-c",
+        0
+      ],
+      "to": [
+        "pulse-amp-c",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-p-d",
+      "from": [
+        "pulse-d",
+        0
+      ],
+      "to": [
+        "pulse-amp-d",
+        0
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-e-d",
+      "from": [
+        "amp-env-d",
+        0
+      ],
+      "to": [
+        "pulse-amp-d",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-n-a",
+      "from": [
+        "noise",
+        0
+      ],
+      "to": [
+        "gate-a",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-g-a",
+      "from": [
+        "pulse-amp-a",
+        0
+      ],
+      "to": [
+        "gate-a",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-f-a",
+      "from": [
+        "gate-a",
+        0
+      ],
+      "to": [
+        "filt-a",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-n-b",
+      "from": [
+        "noise",
+        0
+      ],
+      "to": [
+        "gate-b",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-g-b",
+      "from": [
+        "pulse-amp-b",
+        0
+      ],
+      "to": [
+        "gate-b",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-f-b",
+      "from": [
+        "gate-b",
+        0
+      ],
+      "to": [
+        "filt-b",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-n-c",
+      "from": [
+        "noise",
+        0
+      ],
+      "to": [
+        "gate-c",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-g-c",
+      "from": [
+        "pulse-amp-c",
+        0
+      ],
+      "to": [
+        "gate-c",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-f-c",
+      "from": [
+        "gate-c",
+        0
+      ],
+      "to": [
+        "filt-c",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-n-d",
+      "from": [
+        "noise",
+        0
+      ],
+      "to": [
+        "gate-d",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-g-d",
+      "from": [
+        "pulse-amp-d",
+        0
+      ],
+      "to": [
+        "gate-d",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-f-d",
+      "from": [
+        "gate-d",
+        0
+      ],
+      "to": [
+        "filt-d",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#ff002b"
+    },
+    {
+      "id": "l-mab-a",
+      "from": [
+        "filt-a",
+        0
+      ],
+      "to": [
+        "mix-ab",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-mab-b",
+      "from": [
+        "filt-b",
+        0
+      ],
+      "to": [
+        "mix-ab",
+        1
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-bed",
+      "from": [
+        "mix-ab",
+        0
+      ],
+      "to": [
+        "bed-stereo",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-pan-inv-a",
+      "from": [
+        "pan-lfo-c",
+        0
+      ],
+      "to": [
+        "pan-lfo-d",
+        0
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-pan-inv-b",
+      "from": [
+        "pan-phase-inv",
+        0
+      ],
+      "to": [
+        "pan-lfo-d",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-gi-c",
+      "from": [
+        "filt-c",
+        0
+      ],
+      "to": [
+        "grain-c",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#8a8a8a"
+    },
+    {
+      "id": "l-gout-c",
+      "from": [
+        "grain-c",
+        0
+      ],
+      "to": [
+        "pan-c",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#8a8a8a"
+    },
+    {
+      "id": "l-gi-d",
+      "from": [
+        "filt-d",
+        0
+      ],
+      "to": [
+        "grain-d",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#8a8a8a"
+    },
+    {
+      "id": "l-gout-d",
+      "from": [
+        "grain-d",
+        0
+      ],
+      "to": [
+        "pan-d",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#8a8a8a"
+    },
+    {
+      "id": "l-gp-c",
+      "from": [
+        "grain-pitch",
+        0
+      ],
+      "to": [
+        "grain-c",
+        3
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-gd-c",
+      "from": [
+        "grain-density",
+        0
+      ],
+      "to": [
+        "grain-c",
+        4
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-gp-d",
+      "from": [
+        "grain-pitch",
+        0
+      ],
+      "to": [
+        "grain-d",
+        3
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-gd-d",
+      "from": [
+        "grain-density",
+        0
+      ],
+      "to": [
+        "grain-d",
+        4
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-pan-c",
+      "from": [
+        "pan-lfo-c",
+        0
+      ],
+      "to": [
+        "pan-c",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-pan-d",
+      "from": [
+        "pan-lfo-d",
+        0
+      ],
+      "to": [
+        "pan-d",
+        1
+      ],
+      "type": "AUTOMATION",
+      "color": "#a3a3a3"
+    },
+    {
+      "id": "l-mg-c",
+      "from": [
+        "pan-c",
+        0
+      ],
+      "to": [
+        "mix-grains",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-mg-d",
+      "from": [
+        "pan-d",
+        0
+      ],
+      "to": [
+        "mix-grains",
+        1
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-mall-bed",
+      "from": [
+        "bed-stereo",
+        0
+      ],
+      "to": [
+        "mix-all",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-mall-g",
+      "from": [
+        "mix-grains",
+        0
+      ],
+      "to": [
+        "mix-all",
+        1
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-rev",
+      "from": [
+        "mix-all",
+        0
+      ],
+      "to": [
+        "reverb",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-norm",
+      "from": [
+        "reverb",
+        0
+      ],
+      "to": [
+        "norm",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-prev",
+      "from": [
+        "norm",
+        0
+      ],
+      "to": [
+        "preview",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    },
+    {
+      "id": "l-save",
+      "from": [
+        "norm",
+        0
+      ],
+      "to": [
+        "save",
+        0
+      ],
+      "type": "AUDIO",
+      "color": "#1a1a1a"
+    }
+  ]
+}

@@ -33,6 +33,7 @@ describe("templatesVisibleInUi", () => {
     bundled("voice-cloning"),
     bundled("tts-emotion-edit"),
     bundled("prompt-modular-synth"),
+    bundled("moving-clouds", "Moving Clouds"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
     bundled("ace-step-1.5-sft"),
@@ -84,6 +85,7 @@ describe("templatesVisibleInUi", () => {
       "hello-groovy",
       "isolate-vocals-to-transcribe",
       "isolate-vocals-to-transcribe-translate",
+      "moving-clouds", // title Moving Clouds
       "podcast-denoise",
       "prompt-modular-synth",
       "text-to-midi",
@@ -93,7 +95,7 @@ describe("templatesVisibleInUi", () => {
     ]);
   });
 
-  it("keeps Immersive templates off the standard picker (⌘⇧D only)", () => {
+  it("keeps Immersive templates off the standard picker (studio-dev only)", () => {
     const withImmersive = [
       ...allBundled,
       bundled("stereo-to-binaural"),
@@ -145,6 +147,7 @@ describe("templatesVisibleInUi", () => {
       "layered-music-sfx",
       "localize-dialogue-a-to-b",
       "modular-generative-rack",
+      "moving-clouds",
       "neural-modular-rack",
       "podcast-denoise",
       "prompt-modular-synth",
@@ -305,6 +308,23 @@ describe("groupBundledTemplatesByDomain", () => {
     expect(domainIdForTemplate("tab-creative-grow")).toBe("experimental");
   });
 
+  it("maps groove-systems-study to Experimental", () => {
+    expect(domainIdForTemplate("groove-systems-study")).toBe("experimental");
+  });
+
+  it("maps groove-systems-replica to Experimental", () => {
+    expect(domainIdForTemplate("groove-systems-replica")).toBe("experimental");
+  });
+
+  it("maps spiegel-drums-1975 to Experimental", () => {
+    expect(domainIdForTemplate("spiegel-drums-1975")).toBe("experimental");
+  });
+
+  it("maps moving-clouds to Modular Synth", () => {
+    expect(domainIdForTemplate("moving-clouds")).toBe("modular");
+    expect(STANDARD_BUNDLED_TEMPLATE_IDS).toContain("moving-clouds");
+  });
+
   it("uses the renamed picker domain labels", () => {
     const byId = Object.fromEntries(TEMPLATE_DOMAINS.map((d) => [d.id, d.label]));
     expect(byId.start).toBe("Starter Templates");
@@ -377,7 +397,8 @@ describe("isNodeVisibleInStudio", () => {
     expect(isNodeVisibleInStudio("Oscillator")).toBe(true);
     expect(isNodeVisibleInStudio("Filter")).toBe(true);
     expect(isNodeVisibleInStudio("AutomationToMIDI")).toBe(true);
-    expect(isNodeVisibleInStudio("Mix")).toBe(false);
+    expect(isNodeVisibleInStudio("Mix")).toBe(true);
+    expect(isNodeVisibleInStudio("Pan")).toBe(true);
     expect(STANDARD_MODE_NODE_TYPES).toContain("GenerateSpeech");
     expect(STANDARD_MODE_NODE_TYPES).toContain("VoiceConvert");
     expect(STANDARD_MODE_NODE_TYPES).toContain("TranslateText");

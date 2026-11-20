@@ -138,7 +138,7 @@ type Props = {
   showApiStatus?: boolean;
   /** When true, show Studio settings in the Inspector instead of node/empty state. */
   showStudioSettings?: boolean;
-  /** When true, show Template licenses in the Inspector (⌘⇧D / studio dev mode). */
+  /** When true, show Template licenses in the Inspector (studio dev mode). */
   showTemplateLicenses?: boolean;
   onSettingsChange?: (settings: StudioSettings) => void;
   onForceRebuildNext?: () => void;

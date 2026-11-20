@@ -32,7 +32,7 @@ def resolve_templates_dir(bundle_root: Path | None = None) -> Path:
 
 
 def resolve_dev_templates_dir(bundle_root: Path | None = None) -> Path:
-    """Local-only templates (⌘⇧D / featured). Never shipped — under docs/internal/."""
+    """Local-only templates (studio-dev / featured). Never shipped — under docs/internal/."""
     root = bundle_root or resolve_bundle_root()
     env = (os.environ.get("GROOVY_DEV_TEMPLATES_DIR") or "").strip()
     if env:

@@ -1,6 +1,6 @@
 /**
  * Curated template × model license overview for the public OSS template set.
- * Source of truth for Settings → Template licenses (studio dev mode / ⌘⇧D only).
+ * Source of truth for Settings → Template licenses (studio dev mode only).
  * Keep in sync with `STANDARD_BUNDLED_TEMPLATE_IDS` / repo `templates/` (not docs/internal).
  */
 

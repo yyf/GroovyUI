@@ -68,6 +68,10 @@
   <img src="assets/media/text-to-midi.gif" alt="GroovyUI Text to MIDI: Prompt into GenerateMidi, PreviewMidi roll, SynthMidi DSP to SaveAudio" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/moving-clouds.gif" alt="GroovyUI Moving Clouds: modular pulse resonators into a stereo granular cloud" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -158,7 +162,10 @@
       <a href="https://youtu.be/BrBK-5zJvhQ"><img src="https://img.youtube.com/vi/BrBK-5zJvhQ/hqdefault.jpg" alt="GroovyUI template — Text to MIDI" width="440" /></a><br />
       <sub>GroovyUI template — Text to MIDI</sub>
     </td>
-    <td align="center" width="50%"></td>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/rxMo_S-di_0"><img src="https://img.youtube.com/vi/rxMo_S-di_0/hqdefault.jpg" alt="GroovyUI template — Moving Clouds" width="440" /></a><br />
+      <sub>GroovyUI template — Moving Clouds</sub>
+    </td>
   </tr>
 </table>
 

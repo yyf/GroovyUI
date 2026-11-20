@@ -8,7 +8,7 @@ type Props = {
   clientY: number;
   onClose: () => void;
   onPick: (nodeType: string, flowPos: { x: number; y: number }) => void;
-  /** ⌘⇧D — full node list; otherwise ISMIR-demo nodes only. */
+  /** Studio dev mode — full node list; otherwise ISMIR-demo nodes only. */
   studioDevMode?: boolean;
 };
 

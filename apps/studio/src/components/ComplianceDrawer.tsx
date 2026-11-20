@@ -69,7 +69,7 @@ type Props = {
   onApplyModelSwap?: (nodeId: string, modelId: string, widget?: string) => void;
   onApplyModelSwaps?: (swaps: Array<{ nodeId: string; modelId: string; widget?: string }>) => void;
   fastPath?: boolean;
-  /** ⌘⇧D studio dev mode — reveals Authenticity tab. */
+  /** Studio dev mode — reveals Authenticity tab. */
   studioDevMode?: boolean;
   onInstallRenderAudition?: () => Promise<FastPathRunResult>;
   onCancelInstall?: () => void;
