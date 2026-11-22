@@ -72,6 +72,10 @@
   <img src="assets/media/moving-clouds.gif" alt="GroovyUI Moving Clouds: modular pulse resonators into a stereo granular cloud" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/shepard-tone.gif" alt="GroovyUI Shepard Tone: Shepard–Risset endless rising pitch in a modular patch" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -166,6 +170,13 @@
       <a href="https://youtu.be/rxMo_S-di_0"><img src="https://img.youtube.com/vi/rxMo_S-di_0/hqdefault.jpg" alt="GroovyUI template — Moving Clouds" width="440" /></a><br />
       <sub>GroovyUI template — Moving Clouds</sub>
     </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/4anlG-2zRqo"><img src="https://img.youtube.com/vi/4anlG-2zRqo/hqdefault.jpg" alt="GroovyUI template — Shepard Tone (Shepard–Risset)" width="440" /></a><br />
+      <sub>GroovyUI template — Shepard Tone (Shepard–Risset)</sub>
+    </td>
+    <td align="center" width="50%"></td>
   </tr>
 </table>
 

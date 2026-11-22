@@ -110,6 +110,18 @@ const PUBLIC_TEMPLATE_LICENSE_ROWS: TemplateLicenseRow[] = [
     tone: "safe",
   },
   {
+    id: "shepard-tone",
+    title: "Shepard Tone",
+    models: "— (modular DSP / no AI weights)",
+    licenses: "— (DSP / no AI weights)",
+    impact: "Med",
+    cluster: "Modular teach",
+    commercial: "Safe",
+    conference: "Safe",
+    final: "Commercial Safe",
+    tone: "safe",
+  },
+  {
     id: "tts-emotion-edit",
     title: "TTS with Emotion Editing",
     models: "kokoro-82m, step-audio-editx",
