@@ -21,6 +21,7 @@ describe("templateLicenseMatrix", () => {
     expect(isCommerciallyCleared("isolate-vocals-to-transcribe-translate")).toBe(true);
     expect(isCommerciallyCleared("prompt-modular-synth")).toBe(true);
     expect(isCommerciallyCleared("moving-clouds")).toBe(true);
+    expect(isCommerciallyCleared("shepard-tone")).toBe(true);
     expect(isCommerciallyCleared("tts-emotion-edit")).toBe(true);
     expect(isCommerciallyCleared("text-to-midi")).toBe(true);
     expect(isCommerciallyCleared("ace-step-1.5-sft")).toBe(true);

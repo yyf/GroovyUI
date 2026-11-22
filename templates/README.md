@@ -13,6 +13,7 @@ This README lists **only** `STANDARD_BUNDLED_TEMPLATE_IDS` from `apps/studio/src
 | Isolate → STT → Translate → TTS | [isolate-vocals-to-transcribe-translate.groovy.json](isolate-vocals-to-transcribe-translate.groovy.json) | `demucs-v4`, Whisper, `m2m100-418m`, `kokoro-82m` (zh) |
 | Prompt Modular Synth | [prompt-modular-synth.groovy.json](prompt-modular-synth.groovy.json) | `kokoro-82m` |
 | Moving Clouds | [moving-clouds.groovy.json](moving-clouds.groovy.json) | — (modular grain cloud + opposite-phase stereo pans) |
+| Shepard Tone | [shepard-tone.groovy.json](shepard-tone.groovy.json) | — (periodic Shepard–Risset / Dunkirk-style endless rise; modular DSP) |
 | TTS with Emotion Editing | [tts-emotion-edit.groovy.json](tts-emotion-edit.groovy.json) | `kokoro-82m`, `step-audio-editx` (Step = MLX on Apple Silicon or CUDA+vLLM on Linux) |
 | Text to MIDI | [text-to-midi.groovy.json](text-to-midi.groovy.json) | `midi-llm` → PreviewMidi / SaveMidi; SynthMidi (pretty_midi DSP) → SaveAudio; path demo: `midi-gen` |
 | Text to Music | [ace-step-1.5-sft.groovy.json](ace-step-1.5-sft.groovy.json) | `ace-step-1.5-sft` (MIT; prefer NVIDIA CUDA) — style + optional lyrics Prompts |

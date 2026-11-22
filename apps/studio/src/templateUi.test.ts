@@ -34,6 +34,7 @@ describe("templatesVisibleInUi", () => {
     bundled("tts-emotion-edit"),
     bundled("prompt-modular-synth"),
     bundled("moving-clouds", "Moving Clouds"),
+    bundled("shepard-tone", "Shepard Tone"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
     bundled("ace-step-1.5-sft"),
@@ -88,6 +89,7 @@ describe("templatesVisibleInUi", () => {
       "moving-clouds", // title Moving Clouds
       "podcast-denoise",
       "prompt-modular-synth",
+      "shepard-tone", // title Shepard Tone
       "text-to-midi",
       "text-to-video",
       "tts-emotion-edit",
@@ -153,6 +155,7 @@ describe("templatesVisibleInUi", () => {
       "prompt-modular-synth",
       "rave-timbre-transfer",
       "script-to-vo-master",
+      "shepard-tone",
       "song-cover-remix",
       "stable-audio",
       "stem-lyrics-to-ace",
@@ -323,6 +326,12 @@ describe("groupBundledTemplatesByDomain", () => {
   it("maps moving-clouds to Modular Synth", () => {
     expect(domainIdForTemplate("moving-clouds")).toBe("modular");
     expect(STANDARD_BUNDLED_TEMPLATE_IDS).toContain("moving-clouds");
+  });
+
+  it("maps shepard-tone to Modular Synth", () => {
+    expect(domainIdForTemplate("shepard-tone")).toBe("modular");
+    expect(STANDARD_BUNDLED_TEMPLATE_IDS).toContain("shepard-tone");
+    expect(FEATURED_BUNDLED_TEMPLATE_IDS).toContain("shepard-tone");
   });
 
   it("uses the renamed picker domain labels", () => {

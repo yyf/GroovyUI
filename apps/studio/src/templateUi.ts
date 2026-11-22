@@ -17,6 +17,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "moving-clouds",
   "podcast-denoise",
   "prompt-modular-synth",
+  "shepard-tone",
   "text-to-midi",
   "text-to-video",
   "tts-emotion-edit",
@@ -58,6 +59,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "neural-modular-rack",
   "song-cover-remix",
   "moving-clouds",
+  "shepard-tone",
   "spiegel-drums-1975",
   "stable-audio",
   "stereo-to-atmos-bed",
@@ -148,6 +150,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
 
   "prompt-modular-synth": "modular",
   "moving-clouds": "modular",
+  "shepard-tone": "modular",
 
   "stem-separation": "stems",
   "karaoke-stems": "stems",
