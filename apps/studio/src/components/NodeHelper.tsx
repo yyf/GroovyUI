@@ -21,7 +21,7 @@ import {
   type StudioSettings,
 } from "../api";
 import type { JobOutput, ModelCard, NodeSchema, Workflow, WorkflowLink, WorkflowNode } from "../types";
-import type { CompareHop, TextCompareEntry } from "../workflow";
+import type { CompareHop, CurveCompareEntry, TextCompareEntry } from "../workflow";
 import {
   joinSaveAudioPath,
   jobOutputAtSlot,
@@ -34,6 +34,7 @@ import {
   wiredOutputsForNode,
   wiredPromptPreview,
 } from "../workflow";
+import ControlCurveCompare from "./ControlCurveCompare";
 import { alignTextDiff, type DiffSpan } from "../textCompare";
 import { hasMinimalPatch } from "../nodeMinimalPatches";
 import { EDGE_COLOR_PALETTE, normalizeEdgeColor, socketTypeColor } from "../socketTypes";
@@ -107,7 +108,8 @@ type Props = {
   previewUrl?: string | null;
   comparePair?: CompareEntry[] | null;
   textComparePair?: TextCompareEntry[] | null;
-  compareKind?: "audio" | "text" | null;
+  curveComparePair?: CurveCompareEntry[] | null;
+  compareKind?: "audio" | "text" | "curve" | null;
   compareNote?: string | null;
   compareMissingRender?: boolean;
   chainHops?: CompareHop[];
@@ -157,6 +159,7 @@ export default function NodeHelper({
   previewUrl,
   comparePair,
   textComparePair = null,
+  curveComparePair = null,
   compareKind = null,
   compareNote,
   compareMissingRender = false,
@@ -356,7 +359,9 @@ export default function NodeHelper({
     return (
       <aside className="node-helper node-helper--compare-only">
         <div className="node-helper__scroll">
-          {compareKind === "text" || (textComparePair && textComparePair.length === 2) ? (
+          {compareKind === "curve" || (curveComparePair && curveComparePair.length === 2) ? (
+            <CurveComparePanel curvePair={curveComparePair} compareNote={compareNote} />
+          ) : compareKind === "text" || (textComparePair && textComparePair.length === 2) ? (
             <TextComparePanel
               textPair={textComparePair}
               compareNote={compareNote}
@@ -733,6 +738,12 @@ export default function NodeHelper({
                         }
                         onWidgetChange(node.id, mergedWidget.name, value);
                         if (
+                          node.type === "ScanProcessor" &&
+                          mergedWidget.name === "look"
+                        ) {
+                          applyScanProcessorLook(node.id, value, onWidgetChange);
+                        }
+                        if (
                           node.type === "SaveAudio" &&
                           mergedWidget.name === "format" &&
                           String(value).toLowerCase() === "flac"
@@ -969,7 +980,12 @@ export default function NodeHelper({
                           spec={mergedWidget}
                           value={node.widgets[mergedWidget.name] ?? mergedWidget.default ?? ""}
                           disabled={Boolean(supersededBy)}
-                          onChange={(value) => onWidgetChange(node.id, mergedWidget.name, value)}
+                          onChange={(value) => {
+                            onWidgetChange(node.id, mergedWidget.name, value);
+                            if (node.type === "ScanProcessor" && mergedWidget.name === "look") {
+                              applyScanProcessorLook(node.id, value, onWidgetChange);
+                            }
+                          }}
                           nodeType={node.type}
                           nodeWidgets={node.widgets}
                           onMultiWidgetChange={(name, value) => onWidgetChange(node.id, name, value)}
@@ -1289,8 +1305,48 @@ function MultiSelectSummary({
       </div>
 
       <p className="node-helper__hint">
-        Select one node to edit, or exactly two Preview nodes for A/B (audio or text).
+        Select one node to edit, or exactly two Preview / ControlCurve nodes for A/B.
       </p>
+    </section>
+  );
+}
+
+function CurveComparePanel({
+  curvePair,
+  compareNote,
+}: {
+  curvePair?: CurveCompareEntry[] | null;
+  compareNote?: string | null;
+}) {
+  const a = curvePair?.[0];
+  const b = curvePair?.[1];
+  if (!a || !b) {
+    return (
+      <section className="node-helper__compare">
+        <header className="node-helper__compare-header">
+          <h3 className="node-helper__compare-title">A/B control curves</h3>
+        </header>
+        <p className="node-helper__hint">Select two ControlCurve nodes to overlay.</p>
+      </section>
+    );
+  }
+  const labelA = `${a.node.type} · ${a.node.id}`;
+  const labelB = `${b.node.type} · ${b.node.id}`;
+  return (
+    <section className="node-helper__compare">
+      <header className="node-helper__compare-header">
+        <h3 className="node-helper__compare-title">A/B control curves</h3>
+      </header>
+      {compareNote ? <p className="node-helper__compare-info">{compareNote}</p> : null}
+      <p className="node-helper__hint">Widget curves overlaid (normalized time). No PCM metrics.</p>
+      <ControlCurveCompare
+        widgetsA={a.widgets}
+        widgetsB={b.widgets}
+        labelA={a.node.type}
+        labelB={b.node.type}
+        titleA={labelA}
+        titleB={labelB}
+      />
     </section>
   );
 }
@@ -2507,7 +2563,356 @@ function splitFact(fact: string): { label: string; value: string } {
   };
 }
 
+/**
+ * ScanProcessor look presets — DCU snapshots inspired by ruttetraweb.com factory chips
+ * (Classic 1974 … Worley Cells) plus Vasulka Scan Processor Studies gestures (Display 90).
+ * Applied when Inspector ``look`` changes; values then stay editable.
+ */
+type ScanLookValue = number | boolean;
+const SCAN_PROCESSOR_LOOK_PRESETS: Record<string, Record<string, ScanLookValue>> = {
+  // Period RE-4 brochure: mid Z Push, modest bloom, green P1, slight orbit tilt.
+  "classic 1974": {
+    h_position: 0.0,
+    v_position: 0.0,
+    h_size: 1.0,
+    v_size: 1.0,
+    aspect: 1.333,
+    z_push: 1.2,
+    z_bias: 0.0,
+    z_invert: false,
+    intensity: 0.95,
+    focus: 0.32,
+    phosphor_hue: 0.33,
+    phosphor_sat: 0.85,
+    rotation_deg: -18.0,
+    display_90: false,
+    h_spin_rate: 0.0,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.08,
+    luma_contrast: 1.3,
+    luma_gamma: 0.95,
+    h_linearity: 0.1,
+    v_linearity: 0.08,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 120,
+    scan_rate: 1.0,
+  },
+  // ruttetraweb Quick Start chip — clearest brightness→terrain read.
+  "phosphor green": {
+    h_position: 0.0,
+    v_position: 0.05,
+    h_size: 1.05,
+    v_size: 0.98,
+    aspect: 1.333,
+    z_push: 1.55,
+    z_bias: 0.05,
+    z_invert: false,
+    intensity: 1.05,
+    focus: 0.4,
+    phosphor_hue: 0.33,
+    phosphor_sat: 0.85,
+    rotation_deg: -22.0,
+    display_90: false,
+    h_spin_rate: 0.06,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.06,
+    luma_contrast: 1.45,
+    luma_gamma: 0.88,
+    h_linearity: 0.12,
+    v_linearity: 0.1,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 128,
+    scan_rate: 1.0,
+  },
+  // Phosphor Amber terminal — warm CRT, softer beam.
+  "amber terminal": {
+    h_position: 0.0,
+    v_position: 0.02,
+    h_size: 1.0,
+    v_size: 0.95,
+    aspect: 1.333,
+    z_push: 1.35,
+    z_bias: 0.0,
+    z_invert: false,
+    intensity: 1.1,
+    focus: 0.48,
+    phosphor_hue: 0.08,
+    phosphor_sat: 0.9,
+    rotation_deg: -12.0,
+    display_90: false,
+    h_spin_rate: 0.0,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.07,
+    luma_contrast: 1.4,
+    luma_gamma: 0.85,
+    h_linearity: 0.05,
+    v_linearity: 0.05,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 112,
+    scan_rate: 1.0,
+  },
+  // Wireframe render-mode analogue — hard single-pixel lines, high edge contrast.
+  wireframe: {
+    h_position: 0.0,
+    v_position: 0.0,
+    h_size: 1.1,
+    v_size: 1.05,
+    aspect: 1.333,
+    z_push: 1.7,
+    z_bias: 0.0,
+    z_invert: false,
+    intensity: 0.85,
+    focus: 0.0,
+    phosphor_hue: 0.33,
+    phosphor_sat: 0.7,
+    rotation_deg: -25.0,
+    display_90: false,
+    h_spin_rate: 0.0,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.12,
+    luma_contrast: 2.1,
+    luma_gamma: 1.05,
+    h_linearity: 0.0,
+    v_linearity: 0.0,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 160,
+    scan_rate: 1.1,
+  },
+  // Heavy Bloom / shiny — soft CRT glow + specular sheen.
+  "heavy bloom": {
+    h_position: 0.0,
+    v_position: 0.05,
+    h_size: 1.05,
+    v_size: 0.95,
+    aspect: 1.333,
+    z_push: 1.95,
+    z_bias: 0.1,
+    z_invert: false,
+    intensity: 1.45,
+    focus: 0.82,
+    phosphor_hue: 0.34,
+    phosphor_sat: 0.85,
+    rotation_deg: -22.0,
+    display_90: false,
+    h_spin_rate: 0.08,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.03,
+    luma_contrast: 1.8,
+    luma_gamma: 0.7,
+    h_linearity: 0.15,
+    v_linearity: 0.1,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 144,
+    scan_rate: 1.0,
+  },
+  // Burn-In Feedback analogue — long soft phosphor trails / aged tube.
+  "burn-in": {
+    h_position: 0.0,
+    v_position: 0.0,
+    h_size: 1.0,
+    v_size: 1.0,
+    aspect: 1.333,
+    z_push: 1.4,
+    z_bias: 0.15,
+    z_invert: false,
+    intensity: 1.6,
+    focus: 0.95,
+    phosphor_hue: 0.32,
+    phosphor_sat: 0.8,
+    rotation_deg: -8.0,
+    display_90: false,
+    h_spin_rate: 0.03,
+    v_spin_rate: 0.02,
+    luma_threshold: 0.02,
+    luma_contrast: 1.25,
+    luma_gamma: 0.65,
+    h_linearity: 0.2,
+    v_linearity: 0.18,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 100,
+    scan_rate: 0.9,
+  },
+  // Noise Terrain — aggressive luma→Z landscape (Vasulka face topography).
+  "noise terrain": {
+    h_position: 0.0,
+    v_position: 0.08,
+    h_size: 1.08,
+    v_size: 1.0,
+    aspect: 1.333,
+    z_push: 2.85,
+    z_bias: 0.05,
+    z_invert: false,
+    intensity: 1.15,
+    focus: 0.38,
+    phosphor_hue: 0.33,
+    phosphor_sat: 0.85,
+    rotation_deg: -28.0,
+    display_90: false,
+    h_spin_rate: 0.0,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.05,
+    luma_contrast: 1.95,
+    luma_gamma: 0.8,
+    h_linearity: 0.25,
+    v_linearity: 0.2,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 180,
+    scan_rate: 1.15,
+  },
+  // Lissajous Scope energy — continuous spin / tumble of the mesh.
+  "lissajous spin": {
+    h_position: 0.0,
+    v_position: 0.0,
+    h_size: 0.95,
+    v_size: 0.95,
+    aspect: 1.0,
+    z_push: 1.5,
+    z_bias: 0.0,
+    z_invert: false,
+    intensity: 1.15,
+    focus: 0.45,
+    phosphor_hue: 0.36,
+    phosphor_sat: 0.85,
+    rotation_deg: 15.0,
+    display_90: false,
+    h_spin_rate: 0.55,
+    v_spin_rate: 0.35,
+    luma_threshold: 0.08,
+    luma_contrast: 1.5,
+    luma_gamma: 0.9,
+    h_linearity: 0.0,
+    v_linearity: 0.0,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 96,
+    scan_rate: 1.0,
+  },
+  // Worley Cells — high threshold punches cellular pits into the terrain.
+  "worley cells": {
+    h_position: 0.0,
+    v_position: 0.04,
+    h_size: 1.05,
+    v_size: 1.0,
+    aspect: 1.333,
+    z_push: 2.4,
+    z_bias: -0.05,
+    z_invert: false,
+    intensity: 1.2,
+    focus: 0.28,
+    phosphor_hue: 0.3,
+    phosphor_sat: 0.75,
+    rotation_deg: -20.0,
+    display_90: false,
+    h_spin_rate: 0.0,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.32,
+    luma_contrast: 2.4,
+    luma_gamma: 0.75,
+    h_linearity: 0.15,
+    v_linearity: 0.12,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 140,
+    scan_rate: 1.05,
+  },
+  // Display 90 — sideways raster (Scan Processor Studies orientation play).
+  "display 90": {
+    h_position: 0.0,
+    v_position: 0.0,
+    h_size: 1.0,
+    v_size: 1.05,
+    aspect: 1.333,
+    z_push: 1.85,
+    z_bias: 0.05,
+    z_invert: false,
+    intensity: 1.1,
+    focus: 0.42,
+    phosphor_hue: 0.33,
+    phosphor_sat: 0.85,
+    rotation_deg: 0.0,
+    display_90: true,
+    h_spin_rate: 0.0,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.06,
+    luma_contrast: 1.55,
+    luma_gamma: 0.88,
+    h_linearity: 0.1,
+    v_linearity: 0.15,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 128,
+    scan_rate: 1.0,
+  },
+  // Scan Studies — Vasulka B&W skeletal terrain (film-of-CRT / Time/Energy Objects).
+  "scan studies": {
+    h_position: 0.0,
+    v_position: 0.06,
+    h_size: 1.08,
+    v_size: 1.02,
+    aspect: 1.333,
+    z_push: 2.35,
+    z_bias: 0.02,
+    z_invert: false,
+    intensity: 1.05,
+    focus: 0.18,
+    phosphor_hue: 0.0,
+    phosphor_sat: 0.0,
+    rotation_deg: -32.0,
+    display_90: false,
+    h_spin_rate: 0.0,
+    v_spin_rate: 0.0,
+    luma_threshold: 0.05,
+    luma_contrast: 1.85,
+    luma_gamma: 0.92,
+    h_linearity: 0.18,
+    v_linearity: 0.14,
+    mirror_h: false,
+    mirror_v: true,
+    scan_lines: 168,
+    scan_rate: 1.05,
+  },
+};
+
+/** Legacy look ids → factory chip names. */
+const SCAN_LOOK_ALIASES: Record<string, string> = {
+  classic: "classic 1974",
+  shiny: "heavy bloom",
+  "heavy-bloom": "heavy bloom",
+  "burn in": "burn-in",
+  grayscale: "scan studies",
+  "scan studies grayscale": "scan studies",
+  vasulka: "scan studies",
+};
+
+function applyScanProcessorLook(
+  nodeId: string,
+  value: unknown,
+  onWidgetChange: (nodeId: string, name: string, value: unknown) => void,
+) {
+  const raw = String(value).toLowerCase().trim();
+  const key = SCAN_LOOK_ALIASES[raw] ?? raw;
+  const preset = SCAN_PROCESSOR_LOOK_PRESETS[key];
+  if (!preset) return;
+  for (const [name, next] of Object.entries(preset)) {
+    onWidgetChange(nodeId, name, next);
+  }
+}
+
 function widgetLabel(name: string, nodeType: string): string {
+  if (nodeType === "ScanProcessor") {
+    if (name === "look") return "Look preset";
+    if (name === "z_push") return "Z Push";
+    if (name === "focus") return "Focus";
+    if (name === "intensity") return "Intensity";
+    if (name === "phosphor_hue") return "Phosphor hue";
+  }
   if (
     nodeType === "SaveAudio" ||
     nodeType === "SaveVideo" ||
@@ -3052,7 +3457,7 @@ function WidgetInput({
     );
   }
 
-  const control = resolveWidgetControl(spec);
+  const control = resolveWidgetControl(spec, nodeType);
 
   if (control.kind === "switch") {
     return (

@@ -44,7 +44,7 @@ function load(id: string, x: number, y = 0, path = SAMPLE): PatchNode {
 }
 
 function preview(id: string, x: number, y = 0): PatchNode {
-  return { id, type: "Preview", x, y, widgets: {} };
+  return { id, type: "PreviewAudio", x, y, widgets: {} };
 }
 
 function link(id: string, from: string, to: string, type: string, fromSlot = 0, toSlot = 0): PatchLink {
@@ -278,8 +278,8 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
     nodes: [load("n1", 0), { id: "n2", type: "MultichannelNormalize", x: 260, widgets: { mode: "lufs" } }, preview("n3", 520)],
     links: [link("l1", "n1", "n2", "AUDIO"), link("l2", "n2", "n3", "AUDIO")],
   },
-  Preview: {
-    title: "Preview",
+  PreviewAudio: {
+    title: "PreviewAudio",
     description: "Terminal sink — wire audio for audition or text for on-canvas transcript.",
     focusNodeId: "n3",
     nodes: [load("n1", 0), { id: "n2", type: "Normalize", x: 260, widgets: { mode: "lufs" } }, preview("n3", 520)],
@@ -1095,7 +1095,7 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
         x: 260,
         widgets: { model: "m2m100-418m", src_lang: "en", tgt_lang: "zh" },
       },
-      { id: "n3", type: "Preview", x: 520, widgets: {} },
+      { id: "n3", type: "PreviewAudio", x: 520, widgets: {} },
     ],
     links: [link("l1", "n1", "n2", "TEXT"), link("l2", "n2", "n3", "TEXT", 0, 1)],
   },
@@ -1123,7 +1123,7 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       { id: "n1", type: "Prompt", x: 0, widgets: { text: "hello groovy" } },
       { id: "n2", type: "Prompt", x: 0, y: 120, widgets: { text: "hello groovy" } },
       { id: "n3", type: "Benchmark", x: 280, widgets: { metric: "wer_cer", normalize: true } },
-      { id: "n4", type: "Preview", x: 540, widgets: {} },
+      { id: "n4", type: "PreviewAudio", x: 540, widgets: {} },
     ],
     links: [
       link("l1", "n2", "n3", "TEXT", 0, 0),
@@ -1304,6 +1304,46 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l1", "n2", "n3", "AUDIO", 0, 0),
       link("l2", "n1", "n3", "AUTOMATION", 0, 1),
       link("l3", "n3", "n4", "AUDIO"),
+    ],
+  },
+  EnvelopeFollower: {
+    title: "Envelope Follower",
+    description: "Oscillator AM → EnvelopeFollower → AUTOMATION (Help example).",
+    focusNodeId: "n4",
+    nodes: [
+      {
+        id: "n1",
+        type: "Oscillator",
+        x: 0,
+        widgets: {
+          waveform: "sine",
+          frequency_hz: 220,
+          amplitude_default: 0.6,
+          duration_sec: 1.0,
+          sample_rate: 48000,
+        },
+      },
+      {
+        id: "n2",
+        type: "LFO",
+        x: 0,
+        y: 160,
+        widgets: { rate_hz: 0.5, amplitude: 0.4, offset: 0.55, duration_sec: 1.0, sample_rate: 48000 },
+      },
+      { id: "n3", type: "Amplifier", x: 260, widgets: { gain: 1 } },
+      {
+        id: "n4",
+        type: "EnvelopeFollower",
+        x: 520,
+        widgets: { attack_ms: 80, release_ms: 300, amount: 1.0, floor: 0 },
+      },
+      preview("n5", 520, 160),
+    ],
+    links: [
+      link("l1", "n1", "n3", "AUDIO", 0, 0),
+      link("l2", "n2", "n3", "AUTOMATION", 0, 1),
+      link("l3", "n3", "n4", "AUDIO"),
+      link("l4", "n3", "n5", "AUDIO"),
     ],
   },
   LFO: {
@@ -1660,6 +1700,58 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
       link("l4", "n2", "n5", "GENERATE_LOG", 1, 0),
     ],
   },
+  ScanProcessor: {
+    title: "Scan Processor",
+    description: "LoadVideo luma → Z Push terrain → MuxVideo → PreviewVideo (Rutt/Etra).",
+    focusNodeId: "n2",
+    nodes: [
+      {
+        id: "n1",
+        type: "LoadVideo",
+        x: 0,
+        y: 40,
+        widgets: { path: "assets/samples/video480p.mov" },
+      },
+      {
+        id: "n2",
+        type: "ScanProcessor",
+        x: 280,
+        y: 40,
+        widgets: {
+          look: "Scan Studies",
+          z_push: 2.35,
+          focus: 0.18,
+          intensity: 1.05,
+          phosphor_sat: 0.0,
+          h_size: 1.08,
+          v_size: 1.02,
+          aspect: 1.333,
+          rotation_deg: -32,
+          mirror_v: true,
+          scan_lines: 96,
+          width: 480,
+          height: 360,
+          fps: 12,
+          duration_sec: 2.0,
+        },
+      },
+      {
+        id: "n3",
+        type: "Oscillator",
+        x: 0,
+        y: 220,
+        widgets: { waveform: "sine", frequency_hz: 220, amplitude_default: 0.25, duration_sec: 2.0 },
+      },
+      { id: "n4", type: "MuxVideo", x: 560, y: 80, widgets: {} },
+      { id: "n5", type: "PreviewVideo", x: 840, y: 80, widgets: { preview_width: 280, preview_height: 210 } },
+    ],
+    links: [
+      link("l1", "n1", "n2", "VIDEO", 0, 8),
+      link("l2", "n2", "n4", "VIDEO", 0, 1),
+      link("l3", "n3", "n4", "AUDIO", 0, 0),
+      link("l4", "n4", "n5", "VIDEO"),
+    ],
+  },
   PreviewMidi: {
     title: "Preview MIDI",
     description: "GenerateMidi into PreviewMidi — audition on the bottom piano roll.",
@@ -1731,7 +1823,7 @@ const PATCH_RECIPES: Record<string, PatchRecipe> = {
         widgets: { model: "midi-gen", duration: 4.0, seed: 7 },
       },
       { id: "n3", type: "SynthMidi", x: 560, widgets: { sample_rate: 48000 } },
-      { id: "n4", type: "Preview", x: 840, widgets: {} },
+      { id: "n4", type: "PreviewAudio", x: 840, widgets: {} },
       {
         id: "n5",
         type: "SaveAudio",
@@ -1887,7 +1979,7 @@ const PATCH_Y_STEP = 140;
 
 /** Terminal nodes — Tab wires upstream only, not another chain leg downstream. */
 const SKIP_DOWNSTREAM_TYPES = new Set([
-  "Preview",
+  "PreviewAudio",
   "PreviewImage",
   "PreviewVideo",
   "SaveAudio",
@@ -2067,7 +2159,7 @@ function appendSinkForOutput(
   const sinkId = nextAugmentPatchNodeId(patchNodes, reservedIds);
 
   if (output.type === "AUDIO") {
-    patchNodes.push({ id: sinkId, type: "Preview", x: sinkX, y: sinkY, widgets: {} });
+    patchNodes.push({ id: sinkId, type: "PreviewAudio", x: sinkX, y: sinkY, widgets: {} });
     links.push(link(`l${linkIndex.value++}`, focusNodeId, sinkId, "AUDIO", outputSlot, 0));
     return;
   }

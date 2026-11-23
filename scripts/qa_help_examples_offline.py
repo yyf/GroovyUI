@@ -49,7 +49,7 @@ OFFLINE_TYPES = {
     "Note",
     "Oscillator",
     "Pan",
-    "Preview",
+    "PreviewAudio",
     "PreviewImage",
     "PreviewMidi",
     "SynthMidi",
@@ -247,7 +247,7 @@ def main() -> int:
             targets = [item["focusNodeId"]]
             for node in reversed(nodes):
                 if node.type in {
-                    "Preview",
+                    "PreviewAudio",
                     "PreviewImage",
                     "PreviewVideo",
                     "SaveAudio",

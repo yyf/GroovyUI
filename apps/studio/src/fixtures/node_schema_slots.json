@@ -609,6 +609,29 @@
       "sample_rate"
     ]
   },
+  "EnvelopeFollower": {
+    "inputs": [
+      {
+        "name": "audio",
+        "type": "AUDIO",
+        "optional": false,
+        "slot": 0
+      }
+    ],
+    "outputs": [
+      {
+        "name": "envelope",
+        "type": "AUTOMATION",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "attack_ms",
+      "release_ms",
+      "amount",
+      "floor"
+    ]
+  },
   "Filter": {
     "inputs": [
       {
@@ -792,6 +815,12 @@
         "type": "IMAGE",
         "optional": true,
         "slot": 1
+      },
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "optional": true,
+        "slot": 2
       }
     ],
     "outputs": [
@@ -1519,7 +1548,7 @@
       "output_layout"
     ]
   },
-  "Preview": {
+  "PreviewAudio": {
     "inputs": [
       {
         "name": "audio",
@@ -1757,6 +1786,110 @@
     ],
     "widgets": [
       "threshold"
+    ]
+  },
+  "ScanProcessor": {
+    "inputs": [
+      {
+        "name": "x",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 0
+      },
+      {
+        "name": "y",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 1
+      },
+      {
+        "name": "beam",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 2
+      },
+      {
+        "name": "z_push_cv",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 3
+      },
+      {
+        "name": "rotation_cv",
+        "type": "AUTOMATION",
+        "optional": true,
+        "slot": 4
+      },
+      {
+        "name": "x_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 5
+      },
+      {
+        "name": "y_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 6
+      },
+      {
+        "name": "beam_audio",
+        "type": "AUDIO",
+        "optional": true,
+        "slot": 7
+      },
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "optional": true,
+        "slot": 8
+      },
+      {
+        "name": "image",
+        "type": "IMAGE",
+        "optional": true,
+        "slot": 9
+      }
+    ],
+    "outputs": [
+      {
+        "name": "video",
+        "type": "VIDEO",
+        "slot": 0
+      }
+    ],
+    "widgets": [
+      "look",
+      "h_position",
+      "v_position",
+      "h_size",
+      "v_size",
+      "aspect",
+      "z_push",
+      "z_bias",
+      "z_invert",
+      "intensity",
+      "focus",
+      "phosphor_hue",
+      "phosphor_sat",
+      "rotation_deg",
+      "display_90",
+      "h_spin_rate",
+      "v_spin_rate",
+      "luma_threshold",
+      "luma_contrast",
+      "luma_gamma",
+      "h_linearity",
+      "v_linearity",
+      "mirror_h",
+      "mirror_v",
+      "scan_lines",
+      "scan_rate",
+      "width",
+      "height",
+      "fps",
+      "duration_sec",
+      "sample_rate"
     ]
   },
   "SaveAudio": {

@@ -45,6 +45,14 @@ describe("resolveWidgetControl", () => {
     expect(sr.kind).toBe("stepped");
     expect(sr.options?.includes("48000")).toBe(true);
   });
+
+  it("forces ScanProcessor sample_rate to a horizontal fader (no rotary dial)", () => {
+    const sr = resolveWidgetControl(
+      { name: "sample_rate", type: "INT", default: 48000, min: 8000, max: 96000 },
+      "ScanProcessor",
+    );
+    expect(sr.kind).toBe("fader");
+  });
 });
 
 describe("snapToStep", () => {

@@ -80,7 +80,7 @@ describe("nodeMinimalPatches", () => {
   it("has recipes for core studio nodes", () => {
     expect(hasMinimalPatch("LoadAudio")).toBe(true);
     expect(hasMinimalPatch("Denoise")).toBe(true);
-    expect(hasMinimalPatch("Preview")).toBe(true);
+    expect(hasMinimalPatch("PreviewAudio")).toBe(true);
   });
 
   it("builds a denoise example with focus on the denoise node", () => {
@@ -110,7 +110,7 @@ describe("nodeMinimalPatches", () => {
       },
     });
     expect(patch).not.toBeNull();
-    expect(patch!.workflow.nodes.map((node) => node.type)).toEqual(["CustomNode", "LoadAudio", "Preview"]);
+    expect(patch!.workflow.nodes.map((node) => node.type)).toEqual(["CustomNode", "LoadAudio", "PreviewAudio"]);
   });
 
   it("wires all required inputs for multi-input schema nodes", () => {
@@ -149,7 +149,7 @@ describe("nodeMinimalPatches", () => {
     expect(patch).not.toBeNull();
     const fromFocus = patch!.workflow.links.filter((edge) => edge.from[0] === patch!.focusNodeId);
     expect(fromFocus.map((edge) => edge.from[1]).sort()).toEqual([0, 1]);
-    expect(patch!.workflow.nodes.some((node) => node.type === "Preview")).toBe(true);
+    expect(patch!.workflow.nodes.some((node) => node.type === "PreviewAudio")).toBe(true);
     expect(patch!.workflow.nodes.some((node) => node.type === "AuthenticitySummary")).toBe(true);
   });
 
@@ -186,7 +186,7 @@ describe("nodeMinimalPatches", () => {
     };
 
     const previewSchema = {
-      type: "Preview",
+      type: "PreviewAudio",
       category: "GroovyUI/Core",
       inputs: [{ name: "audio", type: "AUDIO" }],
       outputs: [{ name: "output_0", type: "AUDIO" }],
@@ -214,8 +214,8 @@ describe("nodeMinimalPatches", () => {
       const patch = getMinimalPatch("LoadAudio", { LoadAudio: loadAudioSchema })!;
       const { workflow: next, changed } = augmentNodeWithExample(workflow, "n1", loadAudioSchema, patch);
       expect(changed).toBe(true);
-      expect(next.nodes.some((node) => node.type === "Preview")).toBe(true);
-      const previewId = next.nodes.find((node) => node.type === "Preview")!.id;
+      expect(next.nodes.some((node) => node.type === "PreviewAudio")).toBe(true);
+      const previewId = next.nodes.find((node) => node.type === "PreviewAudio")!.id;
       expect(next.links).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ from: ["n1", 0], to: [previewId, 0], type: "AUDIO" }),
@@ -229,11 +229,11 @@ describe("nodeMinimalPatches", () => {
         groovy_version: "0.1.0",
         id: "wf",
         metadata: { title: "Test" },
-        nodes: [{ id: "n3", type: "Preview", pos: { x: 520, y: 0 }, widgets: {} }],
+        nodes: [{ id: "n3", type: "PreviewAudio", pos: { x: 520, y: 0 }, widgets: {} }],
         links: [],
         groups: [],
       };
-      const patch = getMinimalPatch("Preview", { Preview: previewSchema })!;
+      const patch = getMinimalPatch("PreviewAudio", { PreviewAudio: previewSchema })!;
       const { workflow: next, changed } = augmentNodeWithExample(workflow, "n3", previewSchema, patch);
       expect(changed).toBe(true);
       expect(next.nodes.some((node) => node.type === "LoadAudio")).toBe(true);
@@ -251,15 +251,15 @@ describe("nodeMinimalPatches", () => {
       };
       const previewOnly: import("./types").Workflow = {
         ...loadOnly,
-        nodes: [{ id: "n3", type: "Preview", pos: { x: 520, y: 0 }, widgets: {} }],
+        nodes: [{ id: "n3", type: "PreviewAudio", pos: { x: 520, y: 0 }, widgets: {} }],
       };
       const loadPatch = getMinimalPatch("LoadAudio", { LoadAudio: loadAudioSchema })!;
-      const previewPatch = getMinimalPatch("Preview", { Preview: previewSchema })!;
+      const previewPatch = getMinimalPatch("PreviewAudio", { PreviewAudio: previewSchema })!;
       const fromLoad = augmentNodeWithExample(loadOnly, "n1", loadAudioSchema, loadPatch);
       const fromPreview = augmentNodeWithExample(previewOnly, "n3", previewSchema, previewPatch);
       expect(fromLoad.changed).toBe(true);
       expect(fromPreview.changed).toBe(true);
-      const previewId = fromLoad.workflow.nodes.find((node) => node.type === "Preview")!.id;
+      const previewId = fromLoad.workflow.nodes.find((node) => node.type === "PreviewAudio")!.id;
       expect(fromLoad.workflow.links).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ from: ["n1", 0], to: [previewId, 0], type: "AUDIO" }),
@@ -285,7 +285,7 @@ describe("nodeMinimalPatches", () => {
       const patch = getMinimalPatch("Normalize", { Normalize: normalizeSchema })!;
       const { workflow: next, changed } = augmentNodeWithExample(workflow, "n2", normalizeSchema, patch);
       expect(changed).toBe(true);
-      expect(next.nodes.some((node) => node.type === "Preview")).toBe(true);
+      expect(next.nodes.some((node) => node.type === "PreviewAudio")).toBe(true);
     });
 
     it("augments lone LoadAudio without schema using patch io fallback", () => {
@@ -301,7 +301,7 @@ describe("nodeMinimalPatches", () => {
       const patch = getMinimalPatch("LoadAudio")!;
       const { workflow: next, changed } = augmentNodeWithExample(workflow, "wf_n1", undefined, patch);
       expect(changed).toBe(true);
-      expect(next.nodes.some((node) => node.type === "Preview")).toBe(true);
+      expect(next.nodes.some((node) => node.type === "PreviewAudio")).toBe(true);
     });
 
     const denoiseSchema = {
@@ -333,7 +333,7 @@ describe("nodeMinimalPatches", () => {
       expect(focusNodeId).toBe("n9");
       expect(next.nodes.some((node) => node.id === "n9" && node.type === "Denoise")).toBe(true);
       expect(next.nodes.some((node) => node.type === "LoadAudio")).toBe(true);
-      expect(next.nodes.some((node) => node.type === "Preview")).toBe(true);
+      expect(next.nodes.some((node) => node.type === "PreviewAudio")).toBe(true);
     });
 
     it("does not duplicate preview when output is already wired", () => {
@@ -345,7 +345,7 @@ describe("nodeMinimalPatches", () => {
         nodes: [
           { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
           { id: "n2", type: "Denoise", pos: { x: 260, y: 0 }, widgets: {} },
-          { id: "n3", type: "Preview", pos: { x: 520, y: 0 }, widgets: {} },
+          { id: "n3", type: "PreviewAudio", pos: { x: 520, y: 0 }, widgets: {} },
         ],
         links: [
           { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -353,9 +353,9 @@ describe("nodeMinimalPatches", () => {
         ],
         groups: [],
       };
-      const patch = getMinimalPatch("Preview")!;
+      const patch = getMinimalPatch("PreviewAudio")!;
       const previewSchema = {
-        type: "Preview",
+        type: "PreviewAudio",
         category: "GroovyUI/Core",
         inputs: [{ name: "audio", type: "AUDIO" }],
         outputs: [{ name: "output_0", type: "AUDIO" }],
@@ -368,7 +368,7 @@ describe("nodeMinimalPatches", () => {
         patch,
       );
       expect(changed).toBe(false);
-      expect(next.nodes.filter((node) => node.type === "Preview")).toHaveLength(1);
+      expect(next.nodes.filter((node) => node.type === "PreviewAudio")).toHaveLength(1);
     });
 
     it("only adds missing downstream when inputs are already wired", () => {
@@ -387,7 +387,7 @@ describe("nodeMinimalPatches", () => {
       const patch = getMinimalPatch("Denoise", { Denoise: denoiseSchema })!;
       const { workflow: next, changed } = augmentNodeWithExample(workflow, "n2", denoiseSchema, patch);
       expect(changed).toBe(true);
-      expect(next.nodes.some((node) => node.type === "Preview")).toBe(true);
+      expect(next.nodes.some((node) => node.type === "PreviewAudio")).toBe(true);
       expect(next.nodes.filter((node) => node.type === "LoadAudio")).toHaveLength(1);
     });
     it("wires text output to tts and preview", () => {
@@ -412,7 +412,7 @@ describe("nodeMinimalPatches", () => {
       expect(changed).toBe(true);
       expect(next.nodes.some((node) => node.type === "LoadAudio")).toBe(true);
       expect(next.nodes.some((node) => node.type === "TTS")).toBe(false);
-      expect(next.nodes.some((node) => node.type === "Preview")).toBe(false);
+      expect(next.nodes.some((node) => node.type === "PreviewAudio")).toBe(false);
     });
 
     it("does not duplicate links when tab wiring runs twice", () => {
@@ -554,7 +554,7 @@ describe("nodeMinimalPatches", () => {
       expect(focusNodeId).toBe("dropped");
       expect(next.nodes.filter((node) => node.type === "Denoise")).toHaveLength(beforeCount);
       expect(next.nodes.some((node) => node.type === "LoadAudio")).toBe(true);
-      expect(next.nodes.some((node) => node.type === "Preview")).toBe(true);
+      expect(next.nodes.some((node) => node.type === "PreviewAudio")).toBe(true);
       expect(next.links.some((link) => link.to[0] === "dropped")).toBe(true);
       expect(next.links.some((link) => link.from[0] === "dropped")).toBe(true);
       // Example widgets land on the existing node so Cmd+J renders the demo.

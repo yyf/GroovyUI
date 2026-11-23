@@ -130,9 +130,11 @@ function intRange(spec: SpecLike): { min: number; max: number; step: number } {
   return { min, max, step: spec.step ?? 1 };
 }
 
-export function resolveWidgetControl(spec: SpecLike): ResolvedControl {
+export function resolveWidgetControl(spec: SpecLike, nodeType?: string): ResolvedControl {
   const type = spec.type.toUpperCase();
   const name = spec.name;
+  /** ScanProcessor Inspector: horizontal faders only — no rotary sample-rate dial. */
+  const forceHorizontal = nodeType === "ScanProcessor";
 
   if (type === "BOOLEAN" || type === "BOOL") {
     return { kind: "switch", min: 0, max: 1, step: 1 };
@@ -151,7 +153,7 @@ export function resolveWidgetControl(spec: SpecLike): ResolvedControl {
   }
 
   if (type === "INT") {
-    if (/sample_rate|samplerate/.test(name.toLowerCase())) {
+    if (!forceHorizontal && /sample_rate|samplerate/.test(name.toLowerCase())) {
       return {
         kind: "stepped",
         min: 0,

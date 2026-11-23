@@ -71,7 +71,7 @@ def register_all() -> None:
         Mix,
         Pan,
         Normalize,
-        Preview,
+        PreviewAudio,
         Note,
         VerifyProvenance,
         VerifySamples,
@@ -542,7 +542,7 @@ class SaveAudio(GroovyNode):
         if not isinstance(audio_in, AudioBuffer):
             raise TypeError(
                 "SaveAudio needs AUDIO input — wire LoadAudio/Denoise/etc., "
-                "not Preview text (wire Preview.audio or the original LoadAudio instead)"
+                "not PreviewAudio text (wire PreviewAudio.audio or the original LoadAudio instead)"
             )
         folder = str(kwargs.get("path", path))
         name = str(kwargs.get("filename", filename))
@@ -1788,7 +1788,7 @@ class Meter(GroovyNode):
 
 
 @register_node
-class Preview(GroovyNode):
+class PreviewAudio(GroovyNode):
     """Terminal audition/inspection sink — wire audio and/or text."""
 
     PROVENANCE_PASSTHROUGH = True
@@ -1812,10 +1812,14 @@ class Preview(GroovyNode):
         audio_in = kwargs.get("audio")
         text_in = kwargs.get("text")
         if audio_in is None and text_in is None:
-            raise ValueError("Preview needs a wired audio or text input")
+            raise ValueError("PreviewAudio needs a wired audio or text input")
         if audio_in is not None:
             return (audio_in,)
         return (str(text_in),)
+
+
+# Legacy workflow / template type name.
+register_node_alias("Preview", "PreviewAudio")
 
 
 @register_node

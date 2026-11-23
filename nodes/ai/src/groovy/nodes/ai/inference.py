@@ -1328,6 +1328,7 @@ def run_generate_video(cache: CacheStore, kwargs: dict) -> list[dict]:
         GenerateLogReport,
         image_file_info,
         probe_hardware,
+        video_file_info,
         video_output_info,
     )
     from groovy.executor.media_io import probe_video_dimensions
@@ -1353,6 +1354,28 @@ def run_generate_video(cache: CacheStore, kwargs: dict) -> list[dict]:
         if str(getattr(image, "path", "") or "").strip():
             image_rel = str(image.path)
             image_path = cache.resolve_project_path(image.path)
+
+    video_path: Path | None = None
+    video_rel: str | None = None
+    video_id = kwargs.get("video_id")
+    if video_id:
+        ref_clip = cache.load_video(str(video_id))
+        if str(getattr(ref_clip, "path", "") or "").strip():
+            video_rel = str(ref_clip.path)
+            video_path = cache.resolve_project_path(ref_clip.path)
+            if not video_path.is_file():
+                video_path = None
+                video_rel = None
+
+    # IMAGE wins when both are wired. VIDEO-only → first-frame I2V for backends that
+    # lack native V2V yet (path kept in the log / generate_video_file for future packs).
+    conditioning_image = image_path
+    if conditioning_image is None and video_path is not None:
+        from groovy.executor.media_io import extract_video_frame_png
+
+        frame_png = cache.cache_dir / f"genvideo-ref-frame-{stub_seed % 10_000}.png"
+        conditioning_image = extract_video_frame_png(video_path, frame_png, frame_index=0)
+
     image_strength = float_param(kwargs, "image_strength", 1.0)
 
     t0 = time.perf_counter()
@@ -1367,8 +1390,9 @@ def run_generate_video(cache: CacheStore, kwargs: dict) -> list[dict]:
         seed=seed,
         stub_seed=stub_seed,
         cache_dir=cache.cache_dir,
-        image_path=image_path,
+        image_path=conditioning_image,
         image_strength=image_strength,
+        video_path=video_path,
     )
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
     clip = VideoClip.create(
@@ -1393,6 +1417,7 @@ def run_generate_video(cache: CacheStore, kwargs: dict) -> list[dict]:
             "prompt": prompt,
             "negative_prompt": negative_prompt,
             "reference_image": image_file_info(image_path, project_relative=image_rel),
+            "reference_video": video_file_info(video_path, project_relative=video_rel),
             "timing": {
                 "generate_ms": elapsed_ms,
                 "generate_s": round(elapsed_ms / 1000.0, 3),
@@ -1404,7 +1429,9 @@ def run_generate_video(cache: CacheStore, kwargs: dict) -> list[dict]:
                 "width": width,
                 "height": height,
                 "num_steps": num_steps,
-                "image_strength": image_strength if image_path is not None else None,
+                "image_strength": (
+                    image_strength if (image_path is not None or video_path is not None) else None
+                ),
                 "seed": seed if seed is not None else stub_seed,
             },
             "hardware": probe_hardware(),
@@ -2122,8 +2149,13 @@ def generate_video_file(
     cache_dir,
     image_path=None,
     image_strength: float = 1.0,
+    video_path=None,
 ):
-    """Model-agnostic text → video file. Dispatch by registry ``model_id``."""
+    """Model-agnostic text → video file. Dispatch by registry ``model_id``.
+
+    ``video_path`` is reserved for native V2V backends (commercial pack models). Today
+    LTX uses ``image_path`` (still or first frame extracted upstream from VIDEO).
+    """
     from pathlib import Path
 
     from groovy.nodes.ai.inference_env import inference_stub_enabled
@@ -2132,9 +2164,10 @@ def generate_video_file(
     out_dir = Path(cache_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     tmp = out_dir / f"generate-video-{model_id.replace('/', '_')}-{effective_stub % 10_000}.mp4"
-    # Stub / path-demo ignore image_path (I2V is Real LTX only).
+    # Stub / path-demo ignore image/video conditioning (Real LTX uses image_path).
     _ = image_path
     _ = image_strength
+    _ = video_path
 
     # Path-demo plate (no weights).
     if model_id == "ltx-video":

@@ -38,7 +38,7 @@ from groovy.executor.image import ImageClip
 from groovy.executor.video import VideoClip
 from groovy.executor.provenance import build_record, parent_refs, read_provenance
 from groovy.executor.signal_integrity import attach_signal_metadata
-from groovy.node import NODE_REGISTRY, get_node_class, known_node_types
+from groovy.node import NODE_REGISTRY, get_node_class, known_node_types, resolve_node_type
 from groovy.schema.models import Link, NodeInstance, Workflow
 from groovy.schema.validate import validate_workflow
 
@@ -545,7 +545,10 @@ class Executor:
             ):
                 self._write_provenance(ctx, workflow, node, item, kwargs, node_cls)
             meta = {"cache_id": item.id, "type": "AUDIO"}
-            if node.type == "Preview" and kwargs.get("text") is not None:
+            if (
+                resolve_node_type(node.type) == "PreviewAudio"
+                and kwargs.get("text") is not None
+            ):
                 meta["text"] = str(kwargs["text"])
         elif isinstance(item, StemsBuffer):
             meta = {

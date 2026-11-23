@@ -42,6 +42,7 @@ def test_generate_video_lists_ltx_video() -> None:
     assert NODE_REGISTRY["SaveGenerateLog"].RETURN_TYPES == ("STRING",)
     assert NODE_REGISTRY["GenerateVideo"].INPUT_TYPES()["required"]["model"][1]["default"] == "ltx-2.3-q4"
     assert NODE_REGISTRY["GenerateVideo"].INPUT_TYPES()["optional"]["image"][0] == "IMAGE"
+    assert NODE_REGISTRY["GenerateVideo"].INPUT_TYPES()["optional"]["video"][0] == "VIDEO"
     assert "LoadImage" in NODE_REGISTRY
     assert NODE_REGISTRY["LoadImage"].RETURN_TYPES == ("IMAGE",)
 
@@ -104,6 +105,65 @@ def test_load_image_and_optional_wire_to_generate_video(
     assert out.status == "completed", out.error
     assert out.outputs["img"]["type"] == "IMAGE"
     assert out.outputs["img"]["path"] == "assets/uploads/ref.png"
+    assert _video_slot(out.outputs["n1"])["type"] == "VIDEO"
+
+
+def test_optional_video_reference_wire_to_generate_video(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """LoadVideo / ScanProcessor-style VIDEO → GenerateVideo.video validates and runs (stub)."""
+    if not ffmpeg_available():
+        pytest.skip("ffmpeg not on PATH")
+    monkeypatch.setenv("GROOVY_INFERENCE_STUB", "1")
+
+    sample = Path(__file__).resolve().parents[1] / "assets" / "samples" / "video480p.mov"
+    if not sample.is_file():
+        pytest.skip("assets/samples/video480p.mov not present")
+    dest = tmp_path / "assets" / "samples" / "video480p.mov"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(sample.read_bytes())
+
+    workflow = Workflow(
+        schema_version="1.0.0",
+        groovy_version="0.0.0",
+        id="generate-video-vref-optional",
+        metadata=WorkflowMetadata(title="generate-video-vref-optional"),
+        nodes=[
+            NodeInstance(
+                id="vid",
+                type="LoadVideo",
+                pos={"x": 0, "y": 0},
+                widgets={"path": "assets/samples/video480p.mov"},
+            ),
+            NodeInstance(
+                id="n1",
+                type="GenerateVideo",
+                pos={"x": 240, "y": 0},
+                widgets={
+                    "model": "ltx-video",
+                    "prompt": "restyle the reference clip",
+                    "duration": 1.0,
+                    "width": 320,
+                    "height": 180,
+                    "seed": 3,
+                    "image_strength": 0.85,
+                },
+            ),
+            NodeInstance(id="n2", type="PreviewVideo", pos={"x": 480, "y": 0}, widgets={}),
+        ],
+        links=[
+            # GenerateVideo.video is slot 2 (text=0, image=1, video=2)
+            Link(id="l-vid", **{"from": ["vid", 0], "to": ["n1", 2], "type": "VIDEO"}),
+            Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "VIDEO"}),
+        ],
+    )
+    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    assert result.valid, [e.message for e in result.errors]
+    registry = ModelRegistry(tmp_path)
+    assert registry.installer.install("ltx-video").status == "ready"
+    out = Executor(tmp_path).execute(workflow, target_nodes=["n2"])
+    assert out.status == "completed", out.error
+    assert out.outputs["vid"]["type"] == "VIDEO"
     assert _video_slot(out.outputs["n1"])["type"] == "VIDEO"
 
 
@@ -436,6 +496,8 @@ def test_text_to_video_template_schema_and_stub_render(
     gen_inputs = NODE_REGISTRY["GenerateVideo"].INPUT_TYPES()["optional"]
     assert "image" in gen_inputs
     assert gen_inputs["image"][0] == "IMAGE"
+    assert "video" in gen_inputs
+    assert gen_inputs["video"][0] == "VIDEO"
     assert "image_strength" in gen_inputs
     assert "GenerateImage" in NODE_REGISTRY
     assert "SwitchImage" in NODE_REGISTRY

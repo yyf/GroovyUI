@@ -62,7 +62,7 @@ def _project_with_samples(tmp_path: Path, name: str, files: list[str]) -> Path:
                             "sample_rate": 48000,
                         },
                     ),
-                    NodeInstance(id="n2", type="Preview", pos={"x": 260, "y": 0}, widgets={}),
+                    NodeInstance(id="n2", type="PreviewAudio", pos={"x": 260, "y": 0}, widgets={}),
                 ],
                 [Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO"})],
             ),
@@ -91,7 +91,7 @@ def _project_with_samples(tmp_path: Path, name: str, files: list[str]) -> Path:
                         pos={"x": 260, "y": 0},
                         widgets={"filter_type": "lowpass", "cutoff_hz": 1200.0, "q": 0.7},
                     ),
-                    NodeInstance(id="n3", type="Preview", pos={"x": 520, "y": 0}, widgets={}),
+                    NodeInstance(id="n3", type="PreviewAudio", pos={"x": 520, "y": 0}, widgets={}),
                 ],
                 [
                     Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO"}),
@@ -131,7 +131,7 @@ def _project_with_samples(tmp_path: Path, name: str, files: list[str]) -> Path:
                         },
                     ),
                     NodeInstance(id="n3", type="Amplifier", pos={"x": 280, "y": 0}, widgets={"gain": 0.9}),
-                    NodeInstance(id="n4", type="Preview", pos={"x": 540, "y": 0}, widgets={}),
+                    NodeInstance(id="n4", type="PreviewAudio", pos={"x": 540, "y": 0}, widgets={}),
                 ],
                 [
                     Link(id="l1", **{"from": ["n1", 0], "to": ["n3", 0], "type": "AUDIO"}),
@@ -195,7 +195,7 @@ def _project_with_samples(tmp_path: Path, name: str, files: list[str]) -> Path:
                         pos={"x": 260, "y": 40},
                         widgets={"metric": "wer_cer", "normalize": True},
                     ),
-                    NodeInstance(id="n4", type="Preview", pos={"x": 520, "y": 40}, widgets={}),
+                    NodeInstance(id="n4", type="PreviewAudio", pos={"x": 520, "y": 40}, widgets={}),
                 ],
                 [
                     Link(id="l1", **{"from": ["n2", 0], "to": ["n3", 0], "type": "TEXT"}),
@@ -216,7 +216,7 @@ def _project_with_samples(tmp_path: Path, name: str, files: list[str]) -> Path:
                         pos={"x": 0, "y": 0},
                         widgets={"text": "Hello from GroovyUI."},
                     ),
-                    NodeInstance(id="n2", type="Preview", pos={"x": 260, "y": 0}, widgets={}),
+                    NodeInstance(id="n2", type="PreviewAudio", pos={"x": 260, "y": 0}, widgets={}),
                 ],
                 [Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 1], "type": "TEXT"})],
             ),
@@ -257,7 +257,7 @@ def _project_with_samples(tmp_path: Path, name: str, files: list[str]) -> Path:
                         pos={"x": 280, "y": 40},
                         widgets={"output_layout": "stereo"},
                     ),
-                    NodeInstance(id="n4", type="Preview", pos={"x": 540, "y": 40}, widgets={}),
+                    NodeInstance(id="n4", type="PreviewAudio", pos={"x": 540, "y": 40}, widgets={}),
                 ],
                 [
                     Link(id="l1", **{"from": ["n1", 0], "to": ["n3", 0], "type": "AUDIO"}),
@@ -370,7 +370,7 @@ def test_help_example_offline_render(tmp_path: Path, name: str, workflow: Workfl
                         widgets={"cc": 7, "default_value": 0.5},
                     ),
                     NodeInstance(id="n4", type="AutomationApply", pos={"x": 520, "y": 0}, widgets={}),
-                    NodeInstance(id="n5", type="Preview", pos={"x": 780, "y": 0}, widgets={}),
+                    NodeInstance(id="n5", type="PreviewAudio", pos={"x": 780, "y": 0}, widgets={}),
                 ],
                 [
                     Link(id="l1", **{"from": ["n1", 0], "to": ["n4", 0], "type": "AUDIO"}),
@@ -412,7 +412,7 @@ def test_help_example_offline_render(tmp_path: Path, name: str, workflow: Workfl
                         },
                     ),
                     NodeInstance(id="n4", type="Amplifier", pos={"x": 520, "y": 0}, widgets={"gain": 1}),
-                    NodeInstance(id="n5", type="Preview", pos={"x": 780, "y": 0}, widgets={}),
+                    NodeInstance(id="n5", type="PreviewAudio", pos={"x": 780, "y": 0}, widgets={}),
                 ],
                 [
                     Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "MIDI"}),

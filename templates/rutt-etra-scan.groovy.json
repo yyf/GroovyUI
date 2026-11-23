@@ -1,0 +1,249 @@
+{
+  "schema_version": "1.0.0",
+  "groovy_version": "0.1.0",
+  "id": "a1b2c3d4-e5f6-4789-a012-ruttetrascan01",
+  "metadata": {
+    "title": "Rutt/Etra Scan Processor",
+    "author": "groovy",
+    "description": "Offline Rutt/Etra Scan Processor: LoadVideo luma \u2192 Z Push grayscale terrain (Scan Studies). Sine AM'd by a slow LFO \u2192 EnvelopeFollower \u2192 z_push_cv for subtle audio-reactive depth; soft X/Y oscs. Source PreviewVideo beside scan. Eleven Look presets. Render, scrub. No models / no live camera.",
+    "tags": [
+      "modular",
+      "featured",
+      "rutt-etra",
+      "scan",
+      "video",
+      "vasulka"
+    ],
+    "created_at": "2026-11-23T00:00:00Z",
+    "modified_at": "2026-11-23T21:00:00Z"
+  },
+  "nodes": [
+    {
+      "id": "note-guide",
+      "type": "Note",
+      "pos": { "x": -40, "y": -160 },
+      "widgets": {
+        "text": "RUTT/ETRA SCAN PROCESSOR (offline)\n1) LoadVideo luma \u2192 Z Push (Scan Studies = grayscale).\n2) Sine \u2192 Amp (slow LFO CV) \u2192 EnvelopeFollower \u2192 z_push_cv: hear the swell, see depth breathe.\n3) Soft oscs nudge X/Y. Left preview = source; right = scan.\n4) Inspector Look presets for other factory looks. Render, scrub."
+      }
+    },
+    {
+      "id": "load-video",
+      "type": "LoadVideo",
+      "pos": { "x": 0, "y": 40 },
+      "widgets": {
+        "path": "assets/samples/video480p.mov"
+      }
+    },
+    {
+      "id": "osc-x",
+      "type": "Oscillator",
+      "pos": { "x": 0, "y": 200 },
+      "widgets": {
+        "waveform": "sine",
+        "frequency_hz": 0.35,
+        "amplitude_default": 0.12,
+        "duration_sec": 4.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "osc-y",
+      "type": "Oscillator",
+      "pos": { "x": 0, "y": 360 },
+      "widgets": {
+        "waveform": "sine",
+        "frequency_hz": 0.22,
+        "amplitude_default": 0.1,
+        "duration_sec": 4.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "osc-tone",
+      "type": "Oscillator",
+      "pos": { "x": 0, "y": 520 },
+      "widgets": {
+        "waveform": "sine",
+        "frequency_hz": 220.0,
+        "amplitude_default": 0.55,
+        "duration_sec": 4.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "lfo-am",
+      "type": "LFO",
+      "pos": { "x": 0, "y": 680 },
+      "widgets": {
+        "waveform": "sine",
+        "rate_hz": 0.18,
+        "amplitude": 0.4,
+        "offset": 0.55,
+        "duration_sec": 4.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "amp-am",
+      "type": "Amplifier",
+      "pos": { "x": 280, "y": 560 },
+      "widgets": {
+        "gain": 1.0
+      }
+    },
+    {
+      "id": "env-follow",
+      "type": "EnvelopeFollower",
+      "pos": { "x": 280, "y": 720 },
+      "widgets": {
+        "attack_ms": 120.0,
+        "release_ms": 650.0,
+        "amount": 0.65,
+        "floor": 0.0
+      }
+    },
+    {
+      "id": "scan",
+      "type": "ScanProcessor",
+      "pos": { "x": 560, "y": 200 },
+      "widgets": {
+        "look": "Scan Studies",
+        "h_position": 0.0,
+        "v_position": 0.06,
+        "h_size": 1.08,
+        "v_size": 1.02,
+        "aspect": 1.333,
+        "z_push": 2.35,
+        "z_bias": 0.02,
+        "z_invert": false,
+        "intensity": 1.05,
+        "focus": 0.18,
+        "phosphor_hue": 0.0,
+        "phosphor_sat": 0.0,
+        "rotation_deg": -32.0,
+        "display_90": false,
+        "h_spin_rate": 0.0,
+        "v_spin_rate": 0.0,
+        "luma_threshold": 0.05,
+        "luma_contrast": 1.85,
+        "luma_gamma": 0.92,
+        "h_linearity": 0.18,
+        "v_linearity": 0.14,
+        "mirror_h": false,
+        "mirror_v": true,
+        "scan_lines": 168,
+        "scan_rate": 1.05,
+        "width": 640,
+        "height": 480,
+        "fps": 24,
+        "duration_sec": 4.0,
+        "sample_rate": 48000
+      }
+    },
+    {
+      "id": "mux",
+      "type": "MuxVideo",
+      "pos": { "x": 840, "y": 260 },
+      "widgets": {}
+    },
+    {
+      "id": "preview-source",
+      "type": "PreviewVideo",
+      "pos": { "x": 1120, "y": 200 },
+      "widgets": {
+        "preview_width": 320,
+        "preview_height": 240
+      }
+    },
+    {
+      "id": "preview-video",
+      "type": "PreviewVideo",
+      "pos": { "x": 1480, "y": 200 },
+      "widgets": {
+        "preview_width": 320,
+        "preview_height": 240
+      }
+    },
+    {
+      "id": "preview-audio",
+      "type": "PreviewAudio",
+      "pos": { "x": 840, "y": 460 },
+      "widgets": {}
+    }
+  ],
+  "links": [
+    {
+      "id": "l-vid",
+      "from": ["load-video", 0],
+      "to": ["scan", 8],
+      "type": "VIDEO"
+    },
+    {
+      "id": "l-vid-src-prev",
+      "from": ["load-video", 0],
+      "to": ["preview-source", 0],
+      "type": "VIDEO"
+    },
+    {
+      "id": "l-x",
+      "from": ["osc-x", 0],
+      "to": ["scan", 5],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l-y",
+      "from": ["osc-y", 0],
+      "to": ["scan", 6],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l-tone-amp",
+      "from": ["osc-tone", 0],
+      "to": ["amp-am", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l-lfo-amp",
+      "from": ["lfo-am", 0],
+      "to": ["amp-am", 1],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l-amp-env",
+      "from": ["amp-am", 0],
+      "to": ["env-follow", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l-env-z",
+      "from": ["env-follow", 0],
+      "to": ["scan", 3],
+      "type": "AUTOMATION"
+    },
+    {
+      "id": "l-scan-mux",
+      "from": ["scan", 0],
+      "to": ["mux", 1],
+      "type": "VIDEO"
+    },
+    {
+      "id": "l-amp-mux",
+      "from": ["amp-am", 0],
+      "to": ["mux", 0],
+      "type": "AUDIO"
+    },
+    {
+      "id": "l-mux-prev",
+      "from": ["mux", 0],
+      "to": ["preview-video", 0],
+      "type": "VIDEO"
+    },
+    {
+      "id": "l-amp-prev",
+      "from": ["amp-am", 0],
+      "to": ["preview-audio", 0],
+      "type": "AUDIO"
+    }
+  ],
+  "groups": []
+}

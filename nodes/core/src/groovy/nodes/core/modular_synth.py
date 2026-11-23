@@ -24,6 +24,8 @@ QUANTIZE_SCALES = ("chromatic", "major", "minor", "pentatonic")
 
 
 def register_modular_synth() -> None:
+    from groovy.nodes.core.scan_processor import ScanProcessor
+
     _ = (
         NoiseGenerator,
         Oscillator,
@@ -41,6 +43,8 @@ def register_modular_synth() -> None:
         Clock,
         BeatTrack,
         AutomationToMIDI,
+        ScanProcessor,
+        EnvelopeFollower,
     )
 
 
@@ -568,6 +572,107 @@ class Envelope(GroovyNode):
             release_ms=float(kwargs.get("release_ms", 200.0)),
         )
         return (_write_automation(self._ctx, values, sample_rate, "Envelope"),)
+
+
+def follow_envelope(
+    mono: np.ndarray,
+    *,
+    sample_rate: int,
+    attack_ms: float,
+    release_ms: float,
+) -> np.ndarray:
+    """Rectify + one-pole attack/release follower → non-negative envelope."""
+    x = np.abs(np.asarray(mono, dtype=np.float64).reshape(-1))
+    n = int(x.size)
+    if n < 1:
+        return np.zeros(0, dtype=np.float64)
+    sr = max(1, int(sample_rate))
+    atk = max(0.05, float(attack_ms)) * 0.001
+    rel = max(0.05, float(release_ms)) * 0.001
+    # coeff = e^(-1 / (tau * sr)); closer to 1 = slower.
+    ca = float(np.exp(-1.0 / max(1.0, atk * sr)))
+    cr = float(np.exp(-1.0 / max(1.0, rel * sr)))
+    out = np.empty(n, dtype=np.float64)
+    env = 0.0
+    for i in range(n):
+        sample = float(x[i])
+        c = ca if sample > env else cr
+        env = c * env + (1.0 - c) * sample
+        out[i] = env
+    return out
+
+
+@register_node
+class EnvelopeFollower(GroovyNode):
+    """AUDIO → AUTOMATION envelope follower (full-wave rectify + attack/release)."""
+
+    CATEGORY = "GroovyUI/Modular"
+    PROVENANCE_CLASS = "human_edited"
+    SAMPLE_ACCURATE = True
+    DETERMINISTIC = True
+    CACHEABLE = True
+    RETURN_TYPES = ("AUTOMATION",)
+    OUTPUT_NAMES = ("envelope",)
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {"audio": ("AUDIO",)},
+            "optional": {
+                "attack_ms": (
+                    "FLOAT",
+                    {
+                        "default": 80.0,
+                        "min": 0.5,
+                        "max": 5000.0,
+                        "description": "Rise time of the followed envelope (ms).",
+                    },
+                ),
+                "release_ms": (
+                    "FLOAT",
+                    {
+                        "default": 400.0,
+                        "min": 0.5,
+                        "max": 10000.0,
+                        "description": "Fall time of the followed envelope (ms).",
+                    },
+                ),
+                "amount": (
+                    "FLOAT",
+                    {
+                        "default": 1.0,
+                        "min": 0.0,
+                        "max": 8.0,
+                        "description": "Output scale (wire into ScanProcessor z_push_cv / beam, etc.).",
+                    },
+                ),
+                "floor": (
+                    "FLOAT",
+                    {
+                        "default": 0.0,
+                        "min": 0.0,
+                        "max": 2.0,
+                        "description": "DC offset added after scaling.",
+                    },
+                ),
+            },
+        }
+
+    def run(self, audio: AudioBuffer, **kwargs) -> tuple[AutomationBuffer]:
+        if not self._ctx:
+            raise RuntimeError("Node context not bound")
+        mono = _load_mono(self._ctx, audio)
+        sample_rate = int(audio.sample_rate) or 48000
+        env = follow_envelope(
+            mono,
+            sample_rate=sample_rate,
+            attack_ms=float(kwargs.get("attack_ms", 80.0)),
+            release_ms=float(kwargs.get("release_ms", 400.0)),
+        )
+        amount = float(np.clip(float(kwargs.get("amount", 1.0)), 0.0, 8.0))
+        floor = float(np.clip(float(kwargs.get("floor", 0.0)), 0.0, 2.0))
+        values = env * amount + floor
+        return (_write_automation(self._ctx, values, sample_rate, "EnvelopeFollower"),)
 
 
 @register_node

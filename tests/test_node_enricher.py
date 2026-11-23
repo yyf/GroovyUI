@@ -30,7 +30,7 @@ def test_schema_exposes_expected_provenance_class() -> None:
 
 
 def test_schema_exposes_provenance_passthrough_for_utility() -> None:
-    preview = get_node_class("Preview")
+    preview = get_node_class("PreviewAudio")
     described = preview.describe()
     assert described["provenance_passthrough"] is True
     load = get_node_class("LoadAudio")

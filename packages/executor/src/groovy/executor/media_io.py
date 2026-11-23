@@ -335,6 +335,171 @@ def _ffmpeg_drawtext_escape(text: str) -> str:
     )
 
 
+def read_video_gray_frames(
+    path: Path,
+    *,
+    width: int,
+    height: int,
+    max_frames: int,
+    fps: float | None = None,
+) -> np.ndarray:
+    """Decode up to ``max_frames`` grayscale frames via ffmpeg → ``(N, H, W)`` float64 0..1."""
+    if not path.is_file():
+        raise FileNotFoundError(f"Video not found: {path}")
+    if not ffmpeg_available():
+        raise RuntimeError("ffmpeg is required to decode VIDEO for ScanProcessor.")
+    w = max(16, int(width) - (int(width) % 2))
+    h = max(16, int(height) - (int(height) % 2))
+    n = max(1, int(max_frames))
+    vf_parts = [f"scale={w}:{h}:flags=lanczos", "format=gray"]
+    if fps is not None and float(fps) > 0:
+        vf_parts.insert(0, f"fps={float(fps)}")
+    vf = ",".join(vf_parts)
+    proc = subprocess.Popen(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-i",
+            str(path),
+            "-vf",
+            vf,
+            "-frames:v",
+            str(n),
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "gray",
+            "-",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert proc.stdout is not None
+    try:
+        raw, stderr = proc.communicate(timeout=max(60.0, n * 0.25))
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise RuntimeError("ffmpeg timed out decoding VIDEO frames") from None
+    if proc.returncode != 0:
+        detail = (stderr or b"ffmpeg failed").decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail[:500])
+    frame_bytes = w * h
+    if frame_bytes <= 0 or len(raw) < frame_bytes:
+        raise RuntimeError(f"No video frames decoded from {path.name}")
+    usable = (len(raw) // frame_bytes) * frame_bytes
+    arr = np.frombuffer(raw[:usable], dtype=np.uint8)
+    frames = arr.reshape(-1, h, w).astype(np.float64) / 255.0
+    return frames
+
+
+def extract_video_frame_png(
+    video_path: Path,
+    dest: Path,
+    *,
+    frame_index: int = 0,
+) -> Path:
+    """Extract a single frame from ``video_path`` to PNG via ffmpeg (for I2V / V2V prep)."""
+    if not video_path.is_file():
+        raise FileNotFoundError(f"Video not found: {video_path}")
+    if not ffmpeg_available():
+        raise RuntimeError("ffmpeg is required to extract a VIDEO frame (not found on PATH).")
+    dest = dest.with_suffix(".png")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    idx = max(0, int(frame_index))
+    proc = subprocess.run(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(video_path),
+            "-vf",
+            f"select=eq(n\\,{idx})",
+            "-frames:v",
+            "1",
+            "-update",
+            "1",
+            str(dest),
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if proc.returncode != 0 or not dest.is_file() or dest.stat().st_size < 32:
+        detail = (proc.stderr or b"ffmpeg failed").decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail[:500] or f"Failed to extract frame {idx} from {video_path.name}")
+    return dest
+
+
+def write_rgb_frames_to_mp4(
+    frames: np.ndarray,
+    dest: Path,
+    *,
+    fps: float = 24.0,
+) -> Path:
+    """Encode an ``(N, H, W, 3)`` uint8 RGB stack to H.264 mp4 via ffmpeg rawvideo pipe."""
+    if frames.ndim != 4 or frames.shape[-1] != 3:
+        raise ValueError(f"frames must be (N,H,W,3); got {getattr(frames, 'shape', None)}")
+    n_frames, height, width, _ = frames.shape
+    if n_frames < 1:
+        raise ValueError("frames must contain at least one frame")
+    w = int(width) - (int(width) % 2)
+    h = int(height) - (int(height) % 2)
+    if w < 16 or h < 16:
+        raise ValueError(f"frame size too small after even clamp: {w}x{h}")
+    if w != width or h != height:
+        frames = frames[:, :h, :w, :]
+    dest = dest.with_suffix(".mp4")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    rate = max(1.0, float(fps))
+    if not ffmpeg_available():
+        raise RuntimeError("ffmpeg is required to encode ScanProcessor VIDEO (not found on PATH).")
+    rgb = np.ascontiguousarray(frames, dtype=np.uint8)
+    proc = subprocess.Popen(
+        [
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "rgb24",
+            "-s",
+            f"{w}x{h}",
+            "-r",
+            str(rate),
+            "-i",
+            "-",
+            "-an",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            str(dest),
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    assert proc.stdin is not None
+    try:
+        stdout, stderr = proc.communicate(input=rgb.tobytes(), timeout=max(60.0, n_frames * 0.5))
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        raise RuntimeError("ffmpeg timed out encoding RGB frames to mp4") from None
+    if proc.returncode != 0:
+        detail = (stderr or stdout or b"ffmpeg failed").decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail[:500])
+    return dest
+
+
 def write_color_video(
     dest: Path,
     *,
