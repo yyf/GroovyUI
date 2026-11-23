@@ -5,12 +5,17 @@ import type { GroovyNodeData, NodeSocketSpec } from "./components/GroovyFlowNode
 import { canvasNodeKind } from "./nodeKinds";
 import { edgeTypeClass, normalizeEdgeColor, resolveEdgeStroke } from "./socketTypes";
 
+/** Canonical PreviewAudio plus legacy `Preview` type name. */
+export function isAudioPreviewType(type: string | undefined): boolean {
+  return type === "PreviewAudio" || type === "Preview";
+}
+
 export function previewOutputSlot(workflow: Workflow, nodeId: string): number {
   const outbound = workflow.links.filter((link) => link.from[0] === nodeId);
   if (!outbound.length) return 0;
   const previewLink = outbound.find((link) => {
     const target = workflow.nodes.find((node) => node.id === link.to[0]);
-    return target?.type === "PreviewAudio";
+    return isAudioPreviewType(target?.type);
   });
   return previewLink?.from[1] ?? outbound[0].from[1];
 }
@@ -61,7 +66,7 @@ export function resolveNodeListenOutput(
   if (!outputs) return undefined;
 
   const node = workflow.nodes.find((entry) => entry.id === nodeId);
-  if (node?.type === "PreviewAudio" || node?.type === "PreviewMidi") {
+  if (isAudioPreviewType(node?.type) || node?.type === "PreviewMidi") {
     const wired = listenOutputFromInboundLinks(workflow, nodeId, outputs);
     if (wired) return wired;
   }
@@ -106,7 +111,7 @@ export function preferredAuditionNodeId(
 ): string | null {
   const preview = workflow.nodes.find(
     (node) =>
-      (node.type === "PreviewAudio" || node.type === "PreviewMidi") &&
+      (isAudioPreviewType(node.type) || node.type === "PreviewMidi") &&
       resolveNodeListenId(workflow, node.id, outputs),
   );
   if (preview) return preview.id;
@@ -297,7 +302,7 @@ export function nodeSupportsAudition(
   outputSockets: Array<{ type: string }>,
 ): boolean {
   if (
-    nodeType === "PreviewAudio" ||
+    isAudioPreviewType(nodeType) ||
     nodeType === "PreviewMidi" ||
     nodeType === "PreviewVideo" ||
     nodeType === "SaveAudio" ||
@@ -1975,7 +1980,7 @@ export function resolveTargetNode(workflow: Workflow, selectedId: string | null)
   if (selectedId) {
     return selectedId;
   }
-  const preview = workflow.nodes.find((n: WorkflowNode) => n.type === "PreviewAudio");
+  const preview = workflow.nodes.find((n: WorkflowNode) => isAudioPreviewType(n.type));
   if (preview) {
     return preview.id;
   }
@@ -2001,7 +2006,7 @@ export function resolveRenderAllTargets(workflow: Workflow): string[] {
   if (terminals.length > 0) return terminals;
 
   const sinks = workflow.nodes
-    .filter((node) => node.type === "PreviewAudio" || node.type === "SaveAudio")
+    .filter((node) => isAudioPreviewType(node.type) || node.type === "SaveAudio")
     .map((node) => node.id);
   if (sinks.length > 0) return sinks;
 
