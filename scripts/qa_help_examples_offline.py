@@ -49,7 +49,7 @@ OFFLINE_TYPES = {
     "Note",
     "Oscillator",
     "Pan",
-    "Preview",
+    "PreviewAudio",
     "PreviewImage",
     "PreviewMidi",
     "SynthMidi",
@@ -184,7 +184,7 @@ def seed_project(project: Path, workflow: dict) -> None:
 
 def main() -> int:
     from groovy.executor import Executor
-    from groovy.node import NODE_REGISTRY
+    from groovy.node import NODE_REGISTRY, known_node_types
     from groovy.nodes.ai import register_all as register_ai
     from groovy.nodes.core import register_all as register_core
     from groovy.schema.models import Link, NodeInstance, Workflow, WorkflowMetadata
@@ -237,7 +237,7 @@ def main() -> int:
                 nodes=nodes,
                 links=links,
             )
-            validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+            validation = validate_workflow(workflow, known_node_types=known_node_types())
             if not validation.valid:
                 failures.append(f"{name} invalid: {[e.message for e in validation.errors]}")
                 continue
@@ -247,7 +247,7 @@ def main() -> int:
             targets = [item["focusNodeId"]]
             for node in reversed(nodes):
                 if node.type in {
-                    "Preview",
+                    "PreviewAudio",
                     "PreviewImage",
                     "PreviewVideo",
                     "SaveAudio",

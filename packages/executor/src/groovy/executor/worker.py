@@ -156,6 +156,13 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
         ):
             out[key] = {"type": "IMAGE", "image_id": value.id}
             out[f"{key}_id"] = value.id
+        elif (
+            hasattr(value, "id")
+            and hasattr(value, "path")
+            and type(value).__name__ == "VideoClip"
+        ):
+            out[key] = {"type": "VIDEO", "video_id": value.id}
+            out[f"{key}_id"] = value.id
         else:
             out[key] = value
     if "audio" in kwargs and hasattr(kwargs["audio"], "id"):
@@ -168,6 +175,8 @@ def _serialize_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
         out["audio_id"] = kwargs["reference_audio"].id
     if "image" in kwargs and hasattr(kwargs["image"], "id"):
         out["image_id"] = kwargs["image"].id
+    if "video" in kwargs and hasattr(kwargs["video"], "id"):
+        out["video_id"] = kwargs["video"].id
     if "ambisonics" in kwargs and hasattr(kwargs["ambisonics"], "id"):
         out["ambisonics_id"] = kwargs["ambisonics"].id
     if "trajectory" in kwargs and hasattr(kwargs["trajectory"], "id"):

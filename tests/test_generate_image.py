@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from groovy.executor import Executor
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
@@ -158,7 +158,7 @@ def test_generate_image_stub_render(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         ],
         links=[Link(id="l0", **{"from": ["n0", 0], "to": ["n1", 0], "type": "TEXT"})],
     )
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
     out = Executor(tmp_path).execute(workflow, target_nodes=["n1"])
     assert out.status == "completed", out.error
@@ -193,7 +193,7 @@ def test_preview_image_passthrough(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         ],
         links=[Link(id="l0", **{"from": ["n0", 0], "to": ["n1", 0], "type": "IMAGE"})],
     )
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
     out = Executor(tmp_path).execute(workflow, target_nodes=["n1"])
     assert out.status == "completed", out.error

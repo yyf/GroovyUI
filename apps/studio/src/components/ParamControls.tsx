@@ -348,7 +348,7 @@ export function ParamFader({
   );
 }
 
-/** Multi-position switch / stepped rotary for discrete options. */
+/** Multi-position switch / select for discrete options (no rotary knobs). */
 export function ParamStepped({
   value,
   options,
@@ -360,12 +360,10 @@ export function ParamStepped({
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
-  const index = Math.max(0, options.indexOf(value));
   const safeValue = options.includes(value) ? value : (options[0] ?? value);
   const groupId = useId();
-  const [open, setOpen] = useState(false);
 
-  // Compact: horizontal segmented switch when ≤5 options; otherwise dial + readout
+  // Compact: horizontal segmented switch when ≤5 options; otherwise a select.
   if (options.length <= 5) {
     return (
       <div className={`param-seg${disabled ? " param-seg--disabled" : ""}`} role="radiogroup" aria-labelledby={groupId}>
@@ -391,44 +389,20 @@ export function ParamStepped({
 
   return (
     <div className={`param-stepped${disabled ? " param-stepped--disabled" : ""}`}>
-      <ParamPot
-        value={index < 0 ? 0 : index}
-        min={0}
-        max={Math.max(0, options.length - 1)}
-        step={1}
-        isInt
+      <select
+        className="param-stepped__select"
+        value={safeValue}
         disabled={disabled}
-        onChange={(next) => {
-          const i = Math.round(next);
-          if (options[i] != null) onChange(options[i]);
-        }}
-      />
-      <button
-        type="button"
-        className="param-stepped__label"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        aria-label="Option"
+        onChange={(e) => onChange(e.target.value)}
+        onPointerDown={(e) => e.stopPropagation()}
       >
-        {safeValue}
-      </button>
-      {open ? (
-        <ul className="param-stepped__menu">
-          {options.map((opt) => (
-            <li key={opt}>
-              <button
-                type="button"
-                className={opt === safeValue ? "active" : undefined}
-                onClick={() => {
-                  onChange(opt);
-                  setOpen(false);
-                }}
-              >
-                {opt}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

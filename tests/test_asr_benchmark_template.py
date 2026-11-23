@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 
 from groovy.executor import Executor
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
@@ -38,9 +38,9 @@ def test_asr_benchmark_template_shape_and_validate(tmp_path: Path, monkeypatch) 
     assert nodes["n2"]["widgets"]["model"] == "kokoro-82m"
     assert nodes["n4"]["widgets"]["model"] == "whisper-small-en"
     assert nodes["n5"]["widgets"]["model"] == "whisper-large-v3-turbo"
-    assert nodes["n6"]["type"] == "Preview"
-    assert nodes["n7"]["type"] == "Preview"
-    assert nodes["n8"]["type"] == "Preview"
+    assert nodes["n6"]["type"] == "PreviewAudio"
+    assert nodes["n7"]["type"] == "PreviewAudio"
+    assert nodes["n8"]["type"] == "PreviewAudio"
     assert "Benchmark" not in {node["type"] for node in data["nodes"]}
 
     ref_preview = [
@@ -57,7 +57,7 @@ def test_asr_benchmark_template_shape_and_validate(tmp_path: Path, monkeypatch) 
     assert len(hyp_previews) == 2
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)

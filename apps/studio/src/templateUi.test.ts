@@ -34,6 +34,7 @@ describe("templatesVisibleInUi", () => {
     bundled("tts-emotion-edit"),
     bundled("prompt-modular-synth"),
     bundled("moving-clouds", "Moving Clouds"),
+    bundled("rutt-etra-scan", "Rutt/Etra Scan Processor"),
     bundled("shepard-tone", "Shepard Tone"),
     bundled("simple-fm-synth"),
     bundled("ace-step-1.5"),
@@ -89,6 +90,7 @@ describe("templatesVisibleInUi", () => {
       "moving-clouds", // title Moving Clouds
       "podcast-denoise",
       "prompt-modular-synth",
+      "rutt-etra-scan", // title Rutt/Etra Scan Processor
       "shepard-tone", // title Shepard Tone
       "text-to-midi",
       "text-to-video",
@@ -154,6 +156,7 @@ describe("templatesVisibleInUi", () => {
       "podcast-denoise",
       "prompt-modular-synth",
       "rave-timbre-transfer",
+      "rutt-etra-scan",
       "script-to-vo-master",
       "shepard-tone",
       "song-cover-remix",
@@ -334,6 +337,12 @@ describe("groupBundledTemplatesByDomain", () => {
     expect(FEATURED_BUNDLED_TEMPLATE_IDS).toContain("shepard-tone");
   });
 
+  it("maps rutt-etra-scan to Modular Synth", () => {
+    expect(domainIdForTemplate("rutt-etra-scan")).toBe("modular");
+    expect(STANDARD_BUNDLED_TEMPLATE_IDS).toContain("rutt-etra-scan");
+    expect(FEATURED_BUNDLED_TEMPLATE_IDS).toContain("rutt-etra-scan");
+  });
+
   it("uses the renamed picker domain labels", () => {
     const byId = Object.fromEntries(TEMPLATE_DOMAINS.map((d) => [d.id, d.label]));
     expect(byId.start).toBe("Starter Templates");
@@ -404,6 +413,7 @@ describe("isNodeVisibleInStudio", () => {
     expect(isNodeVisibleInStudio("GenerateSpeech")).toBe(true);
     expect(isNodeVisibleInStudio("Prompt")).toBe(true);
     expect(isNodeVisibleInStudio("Oscillator")).toBe(true);
+    expect(isNodeVisibleInStudio("ScanProcessor")).toBe(true);
     expect(isNodeVisibleInStudio("Filter")).toBe(true);
     expect(isNodeVisibleInStudio("AutomationToMIDI")).toBe(true);
     expect(isNodeVisibleInStudio("Mix")).toBe(true);

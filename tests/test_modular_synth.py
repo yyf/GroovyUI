@@ -18,6 +18,7 @@ MODULAR_TYPES = [
     "Filter",
     "Amplifier",
     "Envelope",
+    "EnvelopeFollower",
     "LFO",
     "Attenuator",
     "Reverb",
@@ -81,7 +82,7 @@ def test_noise_oscillator_filter_amp_chain(tmp_path: Path) -> None:
             ),
             NodeInstance(id="amp", type="Amplifier", pos={"x": 400, "y": 0}, widgets={"gain": 0.8}),
             NodeInstance(id="att", type="Attenuator", pos={"x": 600, "y": 0}, widgets={"amount": 0.5}),
-            NodeInstance(id="prev", type="Preview", pos={"x": 800, "y": 0}, widgets={}),
+            NodeInstance(id="prev", type="PreviewAudio", pos={"x": 800, "y": 0}, widgets={}),
         ],
         links=[
             Link(id="l1", **{"from": ["noise", 0], "to": ["filt", 0], "type": "AUDIO"}),
@@ -126,7 +127,7 @@ def test_reverb_mix_and_passthrough(tmp_path: Path) -> None:
                 pos={"x": 200, "y": 0},
                 widgets={"mix": 0.35, "room_sec": 0.8, "damping": 0.5},
             ),
-            NodeInstance(id="prev", type="Preview", pos={"x": 400, "y": 0}, widgets={}),
+            NodeInstance(id="prev", type="PreviewAudio", pos={"x": 400, "y": 0}, widgets={}),
         ],
         links=[
             Link(id="l1", **{"from": ["osc", 0], "to": ["rev", 0], "type": "AUDIO"}),
@@ -173,8 +174,8 @@ def test_oscillator_and_matrix_mixer(tmp_path: Path) -> None:
                     "gain_1_1": 1.0,
                 },
             ),
-            NodeInstance(id="prev0", type="Preview", pos={"x": 420, "y": 0}, widgets={}),
-            NodeInstance(id="prev1", type="Preview", pos={"x": 420, "y": 120}, widgets={}),
+            NodeInstance(id="prev0", type="PreviewAudio", pos={"x": 420, "y": 0}, widgets={}),
+            NodeInstance(id="prev1", type="PreviewAudio", pos={"x": 420, "y": 120}, widgets={}),
         ],
         links=[
             Link(id="l1", **{"from": ["o1", 0], "to": ["mix", 0], "type": "AUDIO"}),
@@ -216,7 +217,7 @@ def test_matrix_mixer_legacy_gain_widgets(tmp_path: Path) -> None:
                 widgets={"waveform": "sine", "frequency_hz": 200.0, "amplitude_default": 0.4, "duration_sec": 0.1},
             ),
             NodeInstance(id="mix", type="MatrixMixer", pos={"x": 200, "y": 0}, widgets={"gain_0": 0.8}),
-            NodeInstance(id="prev", type="Preview", pos={"x": 400, "y": 0}, widgets={}),
+            NodeInstance(id="prev", type="PreviewAudio", pos={"x": 400, "y": 0}, widgets={}),
         ],
         links=[
             Link(id="l1", **{"from": ["o1", 0], "to": ["mix", 0], "type": "AUDIO"}),
@@ -262,7 +263,7 @@ def test_control_modular_nodes(tmp_path: Path) -> None:
                 pos={"x": 640, "y": 80},
                 widgets={"waveform": "sine", "frequency_hz": 220.0, "amplitude_default": 0.3, "duration_sec": 0.25},
             ),
-            NodeInstance(id="prev", type="Preview", pos={"x": 860, "y": 80}, widgets={}),
+            NodeInstance(id="prev", type="PreviewAudio", pos={"x": 860, "y": 80}, widgets={}),
         ],
         links=[
             Link(id="l1", **{"from": ["lfo", 0], "to": ["cmp", 0], "type": "AUTOMATION"}),
@@ -303,7 +304,7 @@ def test_pink_brown_noise_deterministic(tmp_path: Path) -> None:
                     pos={"x": 0, "y": 0},
                     widgets={"color": color, "duration_sec": 0.1, "seed": 42, "amplitude": 0.5},
                 ),
-                NodeInstance(id="n2", type="Preview", pos={"x": 200, "y": 0}, widgets={}),
+                NodeInstance(id="n2", type="PreviewAudio", pos={"x": 200, "y": 0}, widgets={}),
             ],
             links=[Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO"})],
         )
@@ -417,3 +418,69 @@ def test_automation_to_midi_from_quantizer(tmp_path: Path) -> None:
     events = load_midi_events(ex.cache, midi_id)
     ons = [e for e in events if e.get("type") == "note_on"]
     assert ons, "expected at least one note_on from quantized CV"
+
+def test_envelope_follower_tracks_am_sine(tmp_path: Path) -> None:
+    from groovy.nodes.core.modular_synth import follow_envelope
+
+    sr = 48000
+    t = np.arange(sr, dtype=np.float64) / sr
+    am = 0.55 + 0.4 * np.sin(2.0 * np.pi * 2.0 * t)
+    tone = am * np.sin(2.0 * np.pi * 220.0 * t)
+    env = follow_envelope(tone, sample_rate=sr, attack_ms=40.0, release_ms=80.0)
+    assert env.shape == tone.shape
+    assert float(np.min(env)) >= -1e-9
+    # Slow AM peaks should lift the followed envelope above quiet troughs.
+    assert float(np.max(env)) > float(np.median(env)) * 1.2
+
+    workflow = Workflow(
+        schema_version="1.0.0",
+        groovy_version="0.1.0",
+        id="env-follow",
+        metadata=WorkflowMetadata(title="envelope follower"),
+        nodes=[
+            NodeInstance(
+                id="osc",
+                type="Oscillator",
+                pos={"x": 0, "y": 0},
+                widgets={
+                    "waveform": "sine",
+                    "frequency_hz": 220.0,
+                    "amplitude_default": 0.6,
+                    "duration_sec": 0.5,
+                    "sample_rate": 48000,
+                },
+            ),
+            NodeInstance(
+                id="lfo",
+                type="LFO",
+                pos={"x": 0, "y": 120},
+                widgets={
+                    "rate_hz": 2.0,
+                    "amplitude": 0.4,
+                    "offset": 0.55,
+                    "duration_sec": 0.5,
+                    "sample_rate": 48000,
+                },
+            ),
+            NodeInstance(id="amp", type="Amplifier", pos={"x": 220, "y": 40}, widgets={"gain": 1.0}),
+            NodeInstance(
+                id="fol",
+                type="EnvelopeFollower",
+                pos={"x": 440, "y": 40},
+                widgets={"attack_ms": 50.0, "release_ms": 120.0, "amount": 1.0, "floor": 0.0},
+            ),
+        ],
+        links=[
+            Link(id="l1", **{"from": ["osc", 0], "to": ["amp", 0], "type": "AUDIO"}),
+            Link(id="l2", **{"from": ["lfo", 0], "to": ["amp", 1], "type": "AUTOMATION"}),
+            Link(id="l3", **{"from": ["amp", 0], "to": ["fol", 0], "type": "AUDIO"}),
+        ],
+    )
+    ex = Executor(tmp_path)
+    result = ex.execute(workflow, target_nodes=["fol"])
+    assert result.status == "completed", result.error
+    assert result.outputs["fol"]["type"] == "AUTOMATION"
+    curve = ex.cache.load_automation(_auto_id(result.outputs["fol"]))
+    values = np.asarray(curve.values, dtype=np.float64)
+    assert values.size > 1000
+    assert float(np.max(values)) > float(np.median(values))

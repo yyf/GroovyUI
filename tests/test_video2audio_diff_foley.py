@@ -10,7 +10,7 @@ from groovy.executor import Executor
 from groovy.executor.media_io import ffmpeg_available
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.registry import ModelRegistry
 from groovy.registry.catalog import ModelCatalog
 from groovy.schema.models import Link, NodeInstance, Workflow, WorkflowMetadata
@@ -63,13 +63,13 @@ def test_video2audio_stub_render_diff_foley(tmp_path: Path, monkeypatch) -> None
                     "seed": 7,
                 },
             ),
-            NodeInstance(id="n2", type="Preview", pos={"x": 280, "y": 0}, widgets={}),
+            NodeInstance(id="n2", type="PreviewAudio", pos={"x": 280, "y": 0}, widgets={}),
         ],
         links=[
             Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "AUDIO"}),
         ],
     )
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)
@@ -111,7 +111,7 @@ def test_video_to_audio_template_schema_and_stub_render(
         pytest.skip("assets/samples/video480p.mov not present")
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)

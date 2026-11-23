@@ -55,13 +55,13 @@
     },
     {
       "id": "n4",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 780, "y": 80 },
       "widgets": {}
     },
     {
       "id": "n5",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 780, "y": 220 },
       "widgets": {}
     },

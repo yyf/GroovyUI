@@ -93,7 +93,7 @@
     },
     {
       "id": "n-preview-audio",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 1120, "y": 280.0 },
       "widgets": {}
     },

@@ -51,13 +51,13 @@
     },
     {
       "id": "n3",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 260, "y": 320 },
       "widgets": {}
     },
     {
       "id": "n8",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 0, "y": 320 },
       "widgets": {}
     },
@@ -81,13 +81,13 @@
     },
     {
       "id": "n6",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 780, "y": 40 },
       "widgets": {}
     },
     {
       "id": "n7",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 780, "y": 220 },
       "widgets": {}
     }

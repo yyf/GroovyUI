@@ -21,7 +21,7 @@ from groovy.executor.engine import GROOVY_VERSION
 from groovy.executor.live_midi import LiveIoState
 from groovy.executor.osc_live import OscCaptureStore
 from groovy.executor.provenance import summarize_workflow_outputs
-from groovy.node import NODE_REGISTRY, get_node_class
+from groovy.node import NODE_REGISTRY, get_node_class, known_node_types
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
@@ -687,7 +687,7 @@ def generate_template_endpoint(body: GenerateTemplateRequest) -> dict[str, Any]:
         title=body.title,
         description=body.description,
         tags=body.tags,
-        known_node_types=set(NODE_REGISTRY.keys()),
+        known_node_types=known_node_types(),
     )
 
 
@@ -1020,7 +1020,7 @@ def save_user_template(body: GenerateTemplateRequest) -> dict[str, Any]:
         title=body.title,
         description=body.description,
         tags=body.tags,
-        known_node_types=set(NODE_REGISTRY.keys()),
+        known_node_types=known_node_types(),
     )
     template_id = str(result["template_id"])
     path = _unique_user_template_path(template_id)
@@ -1307,7 +1307,7 @@ def agent_creative_endpoint(body: CreativeAgentRequest) -> dict[str, Any]:
         revise_step_id=body.revise_step_id,
         prior_steps=body.prior_steps,
         model=(body.llm_model or "").strip() or "claude-sonnet-5",
-        known_node_types=set(NODE_REGISTRY.keys()),
+        known_node_types=known_node_types(),
         catalog=_registry.catalog,
         node_model_defaults=_node_model_defaults(),
     )
@@ -1549,7 +1549,7 @@ def import_external_graph_endpoint(body: ExternalGraphImportRequest) -> dict[str
     converted = import_external_graph(body.workflow, title=body.title or "Imported graph")
     import_meta = converted.pop("import_meta", {})
     workflow = _workflow_from_dict(converted)
-    validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    validation = validate_workflow(workflow, known_node_types=known_node_types())
     missing_models = missing_models_for_workflow(workflow, _registry.catalog, _registry.store)
     return {
         "workflow": converted,
@@ -1589,7 +1589,7 @@ def workflow_suggest(body: WorkflowSuggestRequest) -> dict[str, Any]:
         templates_fallback=templates,
         api_key=_studio_settings.anthropic_api_key(),
         catalog=_registry.catalog,
-        known_node_types=set(NODE_REGISTRY.keys()),
+        known_node_types=known_node_types(),
         node_model_defaults=node_model_defaults,
         llm_model=body.llm_model,
         prefer_llm=body.prefer_llm,
@@ -1619,7 +1619,7 @@ def registry_approve_draft(model_id: str) -> dict[str, Any]:
 @app.post("/api/workflow/validate")
 def validate_workflow_endpoint(body: ValidateRequest) -> dict[str, Any]:
     workflow = _workflow_from_dict(body.workflow)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     return result.model_dump()
 
 

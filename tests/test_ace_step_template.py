@@ -8,7 +8,7 @@ from pathlib import Path
 from groovy.executor import Executor
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.registry import ModelRegistry
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
@@ -100,7 +100,7 @@ def test_ace_step_lora_demo_template_schema_and_stub_render(tmp_path: Path, monk
     assert any(link["from"] == ["n0", 0] and link["to"] == ["n2", 0] for link in data["links"])
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)
@@ -141,7 +141,7 @@ def test_ace_step_dual_lora_ab_template_schema_and_stub_render(
     assert any(link["from"] == ["n0", 0] and link["to"] == ["n2", 0] for link in data["links"])
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)
@@ -169,7 +169,7 @@ def test_ace_step_template_schema_and_stub_render(tmp_path: Path, monkeypatch) -
     )
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)
@@ -212,7 +212,7 @@ def test_ace_step_sft_template_schema_and_stub_render(tmp_path: Path, monkeypatc
     assert schema_inputs == ["text", "midi", "reference_audio", "lyrics"]
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)
@@ -244,7 +244,7 @@ def test_layered_music_sfx_template_parallel_and_series(tmp_path: Path, monkeypa
     assert any(link["from"] == ["n4", 0] and link["to"] == ["n5", 0] for link in data["links"])
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)

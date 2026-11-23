@@ -1266,7 +1266,7 @@ export default function App() {
                       ? `Saved MIDI to ${saved}`
                       : `Saved to ${saved}`
                 : autoAudition && !auditionNodeId && !videoPreviewId
-                  ? "Render complete — Preview produced no listenable output"
+                  ? "Render complete — PreviewAudio produced no listenable output"
                   : videoPreviewId
                     ? "Render complete — play muxed video in Node Helper → Outputs"
                     : "Render complete — click Play to audition",
@@ -2085,6 +2085,7 @@ export default function App() {
   const compareKind = compareResolution?.kind ?? null;
   const comparePair = compareResolution?.pair.length ? compareResolution.pair : null;
   const textComparePair = compareResolution?.textPair.length ? compareResolution.textPair : null;
+  const curveComparePair = compareResolution?.curvePair.length ? compareResolution.curvePair : null;
   const compareNote = compareResolution?.note ?? null;
   const compareMissingRender = compareResolution?.missingRender ?? false;
   const chainHops = useMemo(
@@ -2288,7 +2289,7 @@ export default function App() {
     const previewTarget = resolveFastPathPreviewTarget(current);
     if (!previewTarget) {
       finishActivationSession("failed", { reason: "preview_missing" });
-      throw new Error("Fast audition needs a Preview node.");
+      throw new Error("Fast audition needs a PreviewAudio node.");
     }
     if (!hasActiveActivationSession()) {
       startActivationSession({ source: "fast_path_commit" });
@@ -2324,7 +2325,7 @@ export default function App() {
         },
         renderPreview: async () => {
           setComplianceOpen(false);
-          setStatus("Models ready — rendering Preview branch…");
+          setStatus("Models ready — rendering PreviewAudio branch…");
           recordActivationMilestone("render_started", {
             preview_node_id: previewTarget,
           });
@@ -2810,6 +2811,7 @@ export default function App() {
                 previewUrl={selectedNodePreview}
                 comparePair={comparePair}
                 textComparePair={textComparePair}
+                curveComparePair={curveComparePair}
                 compareKind={compareKind}
                 compareNote={compareNote}
                 compareMissingRender={compareMissingRender}

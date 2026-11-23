@@ -62,7 +62,7 @@
     },
     {
       "id": "n3",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 738, "y": 120.0 },
       "widgets": {}
     },

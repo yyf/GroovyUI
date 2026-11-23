@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from groovy.executor import Executor
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
@@ -94,7 +94,7 @@ def test_generate_midi_stub_render(tmp_path: Path, monkeypatch: pytest.MonkeyPat
             Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "MIDI"}),
         ],
     )
-    assert validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys())).valid
+    assert validate_workflow(workflow, known_node_types=known_node_types()).valid
     out = Executor(tmp_path).execute(workflow, target_nodes=["n2"])
     assert out.status == "completed", out.error
     assert out.outputs["n1"]["type"] == "MULTI"
@@ -151,7 +151,7 @@ def test_text_to_midi_template_stub(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     ), "GenerateMidi.log must wire to SaveGenerateLog"
 
     workflow = Workflow.model_validate(data)
-    assert validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys())).valid
+    assert validate_workflow(workflow, known_node_types=known_node_types()).valid
     registry = ModelRegistry(tmp_path)
     registry.installer.install("midi-llm")
     out = Executor(tmp_path).execute(

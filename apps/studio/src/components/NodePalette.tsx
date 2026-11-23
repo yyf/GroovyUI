@@ -35,12 +35,14 @@ export const MODULAR_NODES = new Set([
   "Filter",
   "Amplifier",
   "Envelope",
+  "EnvelopeFollower",
   "LFO",
   "Attenuator",
   "Reverb",
   "Logic",
   "Comparator",
   "SampleAndHold",
+  "ScanProcessor",
   "Quantizer",
   "Clock",
   "BeatTrack",
@@ -87,6 +89,7 @@ const HIDDEN_FROM_PALETTE = new Set([
 const CORE_IO = new Set([
   "LoadAudio",
   "LoadImage",
+  "LoadVideo",
   "SwitchImage",
   "SaveAudio",
   "SaveImage",
@@ -94,7 +97,7 @@ const CORE_IO = new Set([
   "SaveVideo",
   "SaveGenerateLog",
   "MuxVideo",
-  "Preview",
+  "PreviewAudio",
   "PreviewImage",
   "PreviewMidi",
   "PreviewVideo",
@@ -271,7 +274,7 @@ function paletteGroup(node: NodeTypeInfo): GroupId {
   if (
     MODULAR_NODES.has(node.type) ||
     node.type.includes("Float") ||
-    ["Filter", "Amplifier", "Envelope", "LFO", "Attenuator", "Reverb", "Logic", "Comparator", "SampleAndHold", "Quantizer", "Clock", "BeatTrack", "MatrixMixer"].includes(
+    ["Filter", "Amplifier", "Envelope", "EnvelopeFollower", "LFO", "Attenuator", "Reverb", "Logic", "Comparator", "SampleAndHold", "ScanProcessor", "Quantizer", "Clock", "BeatTrack", "MatrixMixer"].includes(
       node.type,
     )
   ) {

@@ -76,6 +76,10 @@
   <img src="assets/media/shepard-tone.gif" alt="GroovyUI Shepard Tone: Shepard–Risset endless rising pitch in a modular patch" width="960" />
 </p>
 
+<p align="center">
+  <img src="assets/media/scan-processor.gif" alt="GroovyUI Rutt/Etra Scan Processor: LoadVideo luma to Z Push grayscale scan terrain with envelope-driven depth" width="960" />
+</p>
+
 ---
 
 ### YouTube
@@ -176,7 +180,10 @@
       <a href="https://youtu.be/4anlG-2zRqo"><img src="https://img.youtube.com/vi/4anlG-2zRqo/hqdefault.jpg" alt="GroovyUI template — Shepard Tone (Shepard–Risset)" width="440" /></a><br />
       <sub>GroovyUI template — Shepard Tone (Shepard–Risset)</sub>
     </td>
-    <td align="center" width="50%"></td>
+    <td align="center" width="50%">
+      <a href="https://youtu.be/HauiX_LM7Qw"><img src="https://img.youtube.com/vi/HauiX_LM7Qw/hqdefault.jpg" alt="GroovyUI template — Rutt/Etra Scan Processor" width="440" /></a><br />
+      <sub>GroovyUI template — Rutt/Etra Scan Processor</sub>
+    </td>
   </tr>
 </table>
 

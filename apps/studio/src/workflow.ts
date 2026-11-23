@@ -5,12 +5,17 @@ import type { GroovyNodeData, NodeSocketSpec } from "./components/GroovyFlowNode
 import { canvasNodeKind } from "./nodeKinds";
 import { edgeTypeClass, normalizeEdgeColor, resolveEdgeStroke } from "./socketTypes";
 
+/** Canonical PreviewAudio plus legacy `Preview` type name. */
+export function isAudioPreviewType(type: string | undefined): boolean {
+  return type === "PreviewAudio" || type === "Preview";
+}
+
 export function previewOutputSlot(workflow: Workflow, nodeId: string): number {
   const outbound = workflow.links.filter((link) => link.from[0] === nodeId);
   if (!outbound.length) return 0;
   const previewLink = outbound.find((link) => {
     const target = workflow.nodes.find((node) => node.id === link.to[0]);
-    return target?.type === "Preview";
+    return isAudioPreviewType(target?.type);
   });
   return previewLink?.from[1] ?? outbound[0].from[1];
 }
@@ -61,7 +66,7 @@ export function resolveNodeListenOutput(
   if (!outputs) return undefined;
 
   const node = workflow.nodes.find((entry) => entry.id === nodeId);
-  if (node?.type === "Preview" || node?.type === "PreviewMidi") {
+  if (isAudioPreviewType(node?.type) || node?.type === "PreviewMidi") {
     const wired = listenOutputFromInboundLinks(workflow, nodeId, outputs);
     if (wired) return wired;
   }
@@ -106,7 +111,7 @@ export function preferredAuditionNodeId(
 ): string | null {
   const preview = workflow.nodes.find(
     (node) =>
-      (node.type === "Preview" || node.type === "PreviewMidi") &&
+      (isAudioPreviewType(node.type) || node.type === "PreviewMidi") &&
       resolveNodeListenId(workflow, node.id, outputs),
   );
   if (preview) return preview.id;
@@ -297,7 +302,7 @@ export function nodeSupportsAudition(
   outputSockets: Array<{ type: string }>,
 ): boolean {
   if (
-    nodeType === "Preview" ||
+    isAudioPreviewType(nodeType) ||
     nodeType === "PreviewMidi" ||
     nodeType === "PreviewVideo" ||
     nodeType === "SaveAudio" ||
@@ -840,6 +845,7 @@ export function proxyNodeId(groupId: string): string {
 /** Legacy node type names rewritten on load so the canvas matches the registry. */
 const LEGACY_NODE_TYPE_ALIASES: Record<string, string> = {
   TTS: "GenerateSpeech",
+  Preview: "PreviewAudio",
 };
 
 export function normalizeLoadedWorkflow(raw: Workflow): Workflow {
@@ -991,7 +997,7 @@ export function loadAudioChannelOutletSockets(channelCount: number): NodeSocketS
 }
 
 /** Always-on I/O chips (even before first render). */
-const IO_CHANNEL_NODE_TYPES = new Set(["LoadAudio", "Preview", "SaveAudio"]);
+const IO_CHANNEL_NODE_TYPES = new Set(["LoadAudio", "PreviewAudio", "SaveAudio"]);
 
 /** Channel layout / count chip for LoadAudio, Preview, SaveAudio (and selection lists). */
 export function resolveIoChannelLabel(
@@ -1726,10 +1732,16 @@ export type TextCompareEntry = {
   text: string;
 };
 
+export type CurveCompareEntry = {
+  node: WorkflowNode;
+  widgets: Record<string, unknown>;
+};
+
 export type CompareResolution = {
-  kind: "audio" | "text";
+  kind: "audio" | "text" | "curve";
   pair: Array<{ node: WorkflowNode; output: JobOutput }>;
   textPair: TextCompareEntry[];
+  curvePair: CurveCompareEntry[];
   note: string | null;
   missingRender: boolean;
 };
@@ -1833,11 +1845,28 @@ export function resolveComparePair(
   outputs: Record<string, JobOutput> | undefined,
   selectedIds: string[],
 ): CompareResolution | null {
-  if (!outputs || selectedIds.length !== 2) return null;
+  if (selectedIds.length !== 2) return null;
   const [firstId, secondId] = selectedIds;
   const nodeA = workflow.nodes.find((node) => node.id === firstId);
   const nodeB = workflow.nodes.find((node) => node.id === secondId);
   if (!nodeA || !nodeB) return null;
+
+  // ControlCurve A/B uses widget points (no audio cache required).
+  if (nodeA.type === "ControlCurve" && nodeB.type === "ControlCurve") {
+    return {
+      kind: "curve",
+      pair: [],
+      textPair: [],
+      curvePair: [
+        { node: nodeA, widgets: nodeA.widgets ?? {} },
+        { node: nodeB, widgets: nodeB.widgets ?? {} },
+      ],
+      note: null,
+      missingRender: false,
+    };
+  }
+
+  if (!outputs) return null;
 
   const outputA = resolveNodeListenOutput(workflow, firstId, outputs);
   const outputB = resolveNodeListenOutput(workflow, secondId, outputs);
@@ -1853,6 +1882,7 @@ export function resolveComparePair(
           { node: nodeA, text: textA },
           { node: nodeB, text: textB },
         ],
+        curvePair: [],
         note: null,
         missingRender: false,
       };
@@ -1861,6 +1891,7 @@ export function resolveComparePair(
       kind: textA || textB ? "text" : "audio",
       pair: [],
       textPair: [],
+      curvePair: [],
       note:
         textA || textB
           ? "Render both nodes so each has TEXT (or select two audio outputs for waveform A/B)."
@@ -1877,6 +1908,7 @@ export function resolveComparePair(
         { node: nodeB, output: outputB },
       ],
       textPair: [],
+      curvePair: [],
       note: null,
       missingRender: false,
     };
@@ -1891,6 +1923,7 @@ export function resolveComparePair(
         { node: nodeA, text: textA },
         { node: nodeB, text: textB },
       ],
+      curvePair: [],
       note: "Selections share the same cached audio; comparing TEXT outputs instead.",
       missingRender: false,
     };
@@ -1914,6 +1947,7 @@ export function resolveComparePair(
         { node: hopNodeB, output: hopOutputB },
       ],
       textPair: [],
+      curvePair: [],
       note:
         `${nodeA.type} (${firstId}) and ${nodeB.type} (${secondId}) share the same cached audio. ` +
         `Comparing ${hopNodeA.type} (${hopA}) → ${hopNodeB.type} (${hopB}) instead.`,
@@ -1928,6 +1962,7 @@ export function resolveComparePair(
       { node: nodeB, output: outputB },
     ],
     textPair: [],
+    curvePair: [],
     note:
       "Both selections share the same cached audio. Use a chain hop below (e.g. LoadAudio → Denoise).",
     missingRender: false,
@@ -1945,7 +1980,7 @@ export function resolveTargetNode(workflow: Workflow, selectedId: string | null)
   if (selectedId) {
     return selectedId;
   }
-  const preview = workflow.nodes.find((n: WorkflowNode) => n.type === "Preview");
+  const preview = workflow.nodes.find((n: WorkflowNode) => isAudioPreviewType(n.type));
   if (preview) {
     return preview.id;
   }
@@ -1971,7 +2006,7 @@ export function resolveRenderAllTargets(workflow: Workflow): string[] {
   if (terminals.length > 0) return terminals;
 
   const sinks = workflow.nodes
-    .filter((node) => node.type === "Preview" || node.type === "SaveAudio")
+    .filter((node) => isAudioPreviewType(node.type) || node.type === "SaveAudio")
     .map((node) => node.id);
   if (sinks.length > 0) return sinks;
 

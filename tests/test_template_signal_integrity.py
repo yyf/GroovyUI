@@ -17,7 +17,7 @@ from groovy.executor import (
 from groovy.executor.media_io import ffmpeg_available
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.registry import ModelRegistry
 from groovy.schema.validate import validate_workflow
 from groovy.server.compare import analyze_ab_pair
@@ -49,7 +49,7 @@ def prepared_project(integrity_spec: TemplateIntegritySpec, tmp_path: Path) -> t
 
 def test_l0_schema_valid(integrity_spec: TemplateIntegritySpec) -> None:
     workflow = load_template_workflow(integrity_spec)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [error.message for error in result.errors]
 
 

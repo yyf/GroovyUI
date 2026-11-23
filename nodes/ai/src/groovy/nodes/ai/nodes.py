@@ -649,7 +649,7 @@ class GenerateAudio(GroovyNode):
 
 @register_node
 class GenerateVideo(GroovyNode):
-    """Text → VIDEO generation (T2V). Default: LTX-2.3 Q4 MLX on Apple Silicon."""
+    """Text → VIDEO (T2V), optional IMAGE (I2V) or VIDEO reference (V2V / first-frame)."""
 
     CATEGORY = "GroovyUI/AI"
     EXPORT_TIER = "OFFLINE_RENDER"
@@ -687,6 +687,7 @@ class GenerateVideo(GroovyNode):
             "optional": {
                 "text": ("TEXT",),
                 "image": ("IMAGE",),
+                "video": ("VIDEO",),
                 "prompt": ("STRING", {"default": ""}),
                 "negative_prompt": ("STRING", {"default": ""}),
                 "duration": ("FLOAT", {"default": 2.0, "min": 1.0, "max": 8.0}),
@@ -714,9 +715,9 @@ class GenerateVideo(GroovyNode):
                         "min": 0.0,
                         "max": 1.0,
                         "description": (
-                            "I2V only (0–1): how hard to lock frame 0 to the LoadImage still. "
-                            "1.0 = animate the photo; lower = let the prompt restyle more. "
-                            "Values above 1 are outside LTX’s range and can break conditioning."
+                            "Reference lock (0–1) for IMAGE I2V or VIDEO first-frame / V2V. "
+                            "1.0 = stick to the reference; lower = let the prompt restyle more. "
+                            "Stay ≤1 — higher values are outside LTX’s range."
                         ),
                     },
                 ),
@@ -733,7 +734,7 @@ class GenerateVideo(GroovyNode):
                 "name": "log",
                 "type": "GENERATE_LOG",
                 "description": (
-                    "Optional run log: prompt, reference image, timing, output file, "
+                    "Optional run log: prompt, reference image/video, timing, output file, "
                     "model config, and hardware. Wire to SaveGenerateLog."
                 ),
             },

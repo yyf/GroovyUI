@@ -91,6 +91,34 @@ def image_file_info(path: Path | None, *, project_relative: str | None = None) -
     return info
 
 
+def video_file_info(path: Path | None, *, project_relative: str | None = None) -> dict[str, Any] | None:
+    """Reference / conditioning VIDEO metadata (optional inlet)."""
+    if path is None:
+        return None
+    rel = project_relative or str(path)
+    info: dict[str, Any] = {
+        "path": rel,
+        "exists": path.is_file(),
+        "format": path.suffix.lstrip(".").lower() or None,
+        "media_type": (
+            "video/mp4"
+            if path.suffix.lower() == ".mp4"
+            else (f"video/{path.suffix.lstrip('.')}" if path.suffix else None)
+        ),
+    }
+    if path.is_file():
+        info["bytes"] = int(path.stat().st_size)
+        try:
+            from groovy.executor.media_io import probe_video_dimensions
+
+            dims = probe_video_dimensions(path)
+            if dims:
+                info["width"], info["height"] = dims
+        except Exception:
+            pass
+    return info
+
+
 def video_output_info(path: Path, *, project_relative: str) -> dict[str, Any]:
     info: dict[str, Any] = {
         "path": project_relative,

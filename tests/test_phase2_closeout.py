@@ -11,7 +11,7 @@ from groovy.executor import Executor
 from groovy.executor.audio import AudioBuffer
 from groovy.executor.engine import JobContext
 from groovy.nodes.core import register_all
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.registry.agent.registry_freshness import scan_registry_freshness
 from groovy.registry.agent.template_generator import generate_template_from_workflow
 from groovy.registry import ModelRegistry
@@ -69,14 +69,14 @@ def test_template_generator_agent() -> None:
         "groovy_version": "0.1.0",
         "id": "test",
         "metadata": {"title": "Demo"},
-        "nodes": [{"id": "n1", "type": "Preview", "widgets": {}}],
+        "nodes": [{"id": "n1", "type": "PreviewAudio", "widgets": {}}],
         "links": [],
         "groups": [],
     }
     result = generate_template_from_workflow(
         workflow,
         title="Generated Demo",
-        known_node_types=set(NODE_REGISTRY.keys()),
+        known_node_types=known_node_types(),
     )
     assert result["template_id"] == "generated-demo"
     assert result["validation"]["valid"] is True
@@ -114,7 +114,7 @@ def test_pack_and_template_api() -> None:
                 "groovy_version": "0.1.0",
                 "id": "x",
                 "metadata": {"title": "API Demo"},
-                "nodes": [{"id": "n1", "type": "Preview", "widgets": {}}],
+                "nodes": [{"id": "n1", "type": "PreviewAudio", "widgets": {}}],
                 "links": [],
                 "groups": [],
             },

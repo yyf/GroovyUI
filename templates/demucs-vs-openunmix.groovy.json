@@ -62,13 +62,13 @@
     },
     {
       "id": "n4",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 560, "y": 40 },
       "widgets": {}
     },
     {
       "id": "n5",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": { "x": 560, "y": 360 },
       "widgets": {}
     }

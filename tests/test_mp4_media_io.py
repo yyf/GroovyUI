@@ -101,7 +101,7 @@ def test_load_audio_node_accepts_mp4(project_dir: Path) -> None:
                 type="LoadAudio",
                 widgets={"path": "assets/samples/tone.mp4", "audio_stream": 0},
             ),
-            NodeInstance(id="n2", type="Preview", widgets={}),
+            NodeInstance(id="n2", type="PreviewAudio", widgets={}),
         ],
         links=[Link(id="l1", from_=["n1", 0], to=["n2", 0], type="AUDIO")],
     )

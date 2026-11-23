@@ -66,7 +66,7 @@ function sampleWorkflow(): Workflow {
     nodes: [
       { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
       { id: "n2", type: "Normalize", pos: { x: 280, y: 0 }, widgets: {} },
-      { id: "n3", type: "Preview", pos: { x: 560, y: 0 }, widgets: {} },
+      { id: "n3", type: "PreviewAudio", pos: { x: 560, y: 0 }, widgets: {} },
     ],
     links: [
       { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -294,8 +294,8 @@ describe("previewTextSnippet", () => {
   it("attaches previewText on TEXT job outputs in flow nodes", () => {
     const workflow = sampleWorkflow();
     const schemas = {
-      Preview: {
-        type: "Preview",
+      PreviewAudio: {
+        type: "PreviewAudio",
         category: "Core",
         inputs: [
           { name: "audio", type: "AUDIO", optional: true },
@@ -766,7 +766,7 @@ describe("workflowToFlowNodes", () => {
       nodes: [
         { id: "load", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
         { id: "synth", type: "SynthMidi", pos: { x: 200, y: 0 }, widgets: {} },
-        { id: "prev", type: "Preview", pos: { x: 400, y: 0 }, widgets: {} },
+        { id: "prev", type: "PreviewAudio", pos: { x: 400, y: 0 }, widgets: {} },
         { id: "note", type: "Note", pos: { x: 600, y: 0 }, widgets: { text: "hi" } },
       ],
       links: [],
@@ -786,8 +786,8 @@ describe("workflowToFlowNodes", () => {
         outputs: [{ name: "audio", type: "AUDIO" }],
         widgets: [],
       },
-      Preview: {
-        type: "Preview",
+      PreviewAudio: {
+        type: "PreviewAudio",
         category: "GroovyUI/Core",
         inputs: [{ name: "audio", type: "AUDIO", optional: true }],
         outputs: [{ name: "audio", type: "AUDIO" }],
@@ -826,7 +826,7 @@ describe("workflowToFlowNodes", () => {
         { id: "gen", type: "GenerateMidi", pos: { x: 0, y: 0 }, widgets: {} },
         { id: "synth", type: "SynthMidi", pos: { x: 200, y: 0 }, widgets: { sample_rate: 48000 } },
         { id: "norm", type: "Normalize", pos: { x: 400, y: 0 }, widgets: {} },
-        { id: "prev", type: "Preview", pos: { x: 600, y: 0 }, widgets: {} },
+        { id: "prev", type: "PreviewAudio", pos: { x: 600, y: 0 }, widgets: {} },
       ],
       links: [
         { id: "l1", from: ["gen", 0], to: ["synth", 0], type: "MIDI" },
@@ -859,8 +859,8 @@ describe("workflowToFlowNodes", () => {
         outputs: [{ name: "audio", type: "AUDIO" }],
         widgets: [],
       },
-      Preview: {
-        type: "Preview",
+      PreviewAudio: {
+        type: "PreviewAudio",
         category: "GroovyUI/Core",
         inputs: [
           { name: "audio", type: "AUDIO", optional: true },
@@ -884,7 +884,7 @@ describe("workflowToFlowNodes", () => {
       ...sampleWorkflow(),
       nodes: [
         { id: "load", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
-        { id: "prev", type: "Preview", pos: { x: 200, y: 0 }, widgets: {} },
+        { id: "prev", type: "PreviewAudio", pos: { x: 200, y: 0 }, widgets: {} },
         { id: "save", type: "SaveAudio", pos: { x: 400, y: 0 }, widgets: {} },
       ],
       links: [
@@ -900,8 +900,8 @@ describe("workflowToFlowNodes", () => {
         outputs: [{ name: "output_0", type: "AUDIO" }],
         widgets: [],
       },
-      Preview: {
-        type: "Preview",
+      PreviewAudio: {
+        type: "PreviewAudio",
         category: "GroovyUI/Core",
         inputs: [
           { name: "audio", type: "AUDIO", optional: true },
@@ -1092,6 +1092,15 @@ describe("normalizeLoadedWorkflow", () => {
     expect(normalized.groups).toEqual([]);
     expect(() => workflowToFlowNodes(normalized, {})).not.toThrow();
   });
+
+  it("rewrites legacy Preview node type to PreviewAudio", () => {
+    const raw: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [{ id: "n1", type: "Preview", pos: { x: 0, y: 0 }, widgets: {} }],
+    };
+    const normalized = normalizeLoadedWorkflow(raw);
+    expect(normalized.nodes[0].type).toBe("PreviewAudio");
+  });
 });
 
 describe("layoutWorkflowNodes", () => {
@@ -1101,7 +1110,7 @@ describe("layoutWorkflowNodes", () => {
       nodes: [
         { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
         { id: "n2", type: "Normalize", pos: { x: 40, y: 10 }, widgets: {} },
-        { id: "n3", type: "Preview", pos: { x: 60, y: 20 }, widgets: {} },
+        { id: "n3", type: "PreviewAudio", pos: { x: 60, y: 20 }, widgets: {} },
       ],
     };
     expect(workflowHasOverlappingNodes(crowded)).toBe(true);
@@ -1121,10 +1130,10 @@ describe("layoutWorkflowNodes", () => {
       nodes: [
         { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
         { id: "n2", type: "SeparateStems", pos: { x: 100, y: 0 }, widgets: {} },
-        { id: "p0", type: "Preview", pos: { x: 200, y: 0 }, widgets: {} },
-        { id: "p1", type: "Preview", pos: { x: 200, y: 10 }, widgets: {} },
-        { id: "p2", type: "Preview", pos: { x: 200, y: 20 }, widgets: {} },
-        { id: "p3", type: "Preview", pos: { x: 200, y: 30 }, widgets: {} },
+        { id: "p0", type: "PreviewAudio", pos: { x: 200, y: 0 }, widgets: {} },
+        { id: "p1", type: "PreviewAudio", pos: { x: 200, y: 10 }, widgets: {} },
+        { id: "p2", type: "PreviewAudio", pos: { x: 200, y: 20 }, widgets: {} },
+        { id: "p3", type: "PreviewAudio", pos: { x: 200, y: 30 }, widgets: {} },
       ],
       links: [
         { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -1194,7 +1203,7 @@ describe("ensureNoOverlappingNodes", () => {
       nodes: [
         { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
         { id: "n2", type: "Normalize", pos: { x: 10, y: 5 }, widgets: {} },
-        { id: "n3", type: "Preview", pos: { x: 20, y: 8 }, widgets: {} },
+        { id: "n3", type: "PreviewAudio", pos: { x: 20, y: 8 }, widgets: {} },
       ],
       links: [
         { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -1324,7 +1333,7 @@ describe("resolveNodeListenId", () => {
       nodes: [
         { id: "n1", type: "LoadAudio", widgets: { path: "a.wav" } },
         { id: "n2", type: "SeparateStems", widgets: { model: "demucs-v4" } },
-        { id: "p2", type: "Preview", widgets: {} },
+        { id: "p2", type: "PreviewAudio", widgets: {} },
       ],
       links: [
         { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -1429,8 +1438,8 @@ describe("resolveNodeListenId", () => {
       nodes: [
         { id: "n1", type: "LoadAudio", widgets: { path: "a.wav" } },
         { id: "n2", type: "SeparateStems", widgets: { model: "demucs-v4" } },
-        { id: "p1", type: "Preview", widgets: {} },
-        { id: "p2", type: "Preview", widgets: {} },
+        { id: "p1", type: "PreviewAudio", widgets: {} },
+        { id: "p2", type: "PreviewAudio", widgets: {} },
       ],
       links: [
         { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -1454,14 +1463,40 @@ describe("resolveNodeListenId", () => {
     expect(resolution?.pair[1]?.output.cache_id).toBe("drums");
   });
 
+  it("resolves curve compare pair for two ControlCurve nodes without render", () => {
+    const workflow: Workflow = {
+      ...sampleWorkflow(),
+      nodes: [
+        {
+          id: "c1",
+          type: "ControlCurve",
+          widgets: { start_value: 0, end_value: 1, points: '[{"t":0,"v":0},{"t":1,"v":1}]' },
+        },
+        {
+          id: "c2",
+          type: "ControlCurve",
+          widgets: { start_value: 1, end_value: 0, points: '[{"t":0,"v":1},{"t":1,"v":0}]' },
+        },
+      ],
+      links: [],
+    };
+    const resolution = resolveComparePair(workflow, undefined, ["c1", "c2"]);
+    expect(resolution?.kind).toBe("curve");
+    expect(resolution?.missingRender).toBe(false);
+    expect(resolution?.curvePair).toHaveLength(2);
+    expect(resolution?.curvePair[0]?.node.id).toBe("c1");
+    expect(resolution?.curvePair[1]?.node.id).toBe("c2");
+    expect(resolution?.pair).toHaveLength(0);
+  });
+
   it("resolves text compare pair for Preview TEXT outputs", () => {
     const workflow: Workflow = {
       ...sampleWorkflow(),
       nodes: [
         { id: "w1", type: "WhisperSTT", widgets: { model: "whisper-small" } },
         { id: "w2", type: "WhisperSTT", widgets: { model: "whisper-turbo" } },
-        { id: "p1", type: "Preview", widgets: {} },
-        { id: "p2", type: "Preview", widgets: {} },
+        { id: "p1", type: "PreviewAudio", widgets: {} },
+        { id: "p2", type: "PreviewAudio", widgets: {} },
       ],
       links: [
         { id: "l1", from: ["w1", 0], to: ["p1", 1], type: "TEXT" },
@@ -1489,7 +1524,7 @@ describe("resolveNodeListenId", () => {
       ...sampleWorkflow(),
       nodes: [
         { id: "w1", type: "WhisperSTT", widgets: {} },
-        { id: "p1", type: "Preview", widgets: {} },
+        { id: "p1", type: "PreviewAudio", widgets: {} },
       ],
       links: [{ id: "l1", from: ["w1", 0], to: ["p1", 1], type: "TEXT" }],
     };
@@ -1504,8 +1539,8 @@ describe("resolveNodeListenId", () => {
       ...sampleWorkflow(),
       nodes: [
         { id: "n1", type: "Prompt", widgets: { text: "gold" } },
-        { id: "n8", type: "Preview", widgets: {} },
-        { id: "n6", type: "Preview", widgets: {} },
+        { id: "n8", type: "PreviewAudio", widgets: {} },
+        { id: "n6", type: "PreviewAudio", widgets: {} },
         { id: "w1", type: "WhisperSTT", widgets: {} },
       ],
       links: [
@@ -1525,8 +1560,8 @@ describe("resolveNodeListenId", () => {
         { id: "n1", type: "LoadAudio", widgets: { path: "x.wav" } },
         { id: "n2", type: "SeparateStems", widgets: { model: "demucs-v4" } },
         { id: "n3", type: "SeparateStems", widgets: { model: "openunmix-umx" } },
-        { id: "n4", type: "Preview", widgets: {} },
-        { id: "n5", type: "Preview", widgets: {} },
+        { id: "n4", type: "PreviewAudio", widgets: {} },
+        { id: "n5", type: "PreviewAudio", widgets: {} },
       ],
       links: [
         { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -1665,8 +1700,8 @@ describe("resolveRenderAllTargets", () => {
       nodes: [
         { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: { path: "a.wav" } },
         { id: "n2", type: "SeparateStems", pos: { x: 200, y: 0 }, widgets: {} },
-        { id: "p1", type: "Preview", pos: { x: 400, y: -40 }, widgets: {} },
-        { id: "p2", type: "Preview", pos: { x: 400, y: 40 }, widgets: {} },
+        { id: "p1", type: "PreviewAudio", pos: { x: 400, y: -40 }, widgets: {} },
+        { id: "p2", type: "PreviewAudio", pos: { x: 400, y: 40 }, widgets: {} },
       ],
       links: [
         { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },
@@ -1684,7 +1719,7 @@ describe("resolveRenderAllTargets", () => {
       metadata: { title: "solo" },
       nodes: [
         { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
-        { id: "n2", type: "Preview", pos: { x: 200, y: 0 }, widgets: {} },
+        { id: "n2", type: "PreviewAudio", pos: { x: 200, y: 0 }, widgets: {} },
       ],
       links: [],
       groups: [],
@@ -1700,7 +1735,7 @@ describe("withAuthenticityRenderTargets", () => {
       nodes: [
         { id: "n1", type: "LoadAudio", widgets: {} },
         { id: "n4", type: "AuthenticitySummary", widgets: {} },
-        { id: "n5", type: "Preview", widgets: {} },
+        { id: "n5", type: "PreviewAudio", widgets: {} },
       ],
       links: [{ id: "l1", from: ["n1", 0], to: ["n5", 0], type: "AUDIO" }],
     };
@@ -1717,8 +1752,8 @@ describe("subgraph port wiring", () => {
     nodes: [
       { id: "n1", type: "LoadAudio", pos: { x: 0, y: 0 }, widgets: {} },
       { id: "n2", type: "SeparateStems", pos: { x: 200, y: 0 }, widgets: {} },
-      { id: "p1", type: "Preview", pos: { x: 400, y: 0 }, widgets: {} },
-      { id: "p2", type: "Preview", pos: { x: 400, y: 80 }, widgets: {} },
+      { id: "p1", type: "PreviewAudio", pos: { x: 400, y: 0 }, widgets: {} },
+      { id: "p2", type: "PreviewAudio", pos: { x: 400, y: 80 }, widgets: {} },
     ],
     links: [
       { id: "l1", from: ["n1", 0], to: ["n2", 0], type: "AUDIO" },

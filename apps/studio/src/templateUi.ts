@@ -17,6 +17,7 @@ export const STANDARD_BUNDLED_TEMPLATE_IDS = [
   "moving-clouds",
   "podcast-denoise",
   "prompt-modular-synth",
+  "rutt-etra-scan",
   "shepard-tone",
   "text-to-midi",
   "text-to-video",
@@ -59,6 +60,7 @@ export const FEATURED_BUNDLED_TEMPLATE_IDS = [
   "neural-modular-rack",
   "song-cover-remix",
   "moving-clouds",
+  "rutt-etra-scan",
   "shepard-tone",
   "spiegel-drums-1975",
   "stable-audio",
@@ -150,6 +152,7 @@ export const TEMPLATE_DOMAIN_BY_ID: Readonly<Record<string, TemplateDomainId>> =
 
   "prompt-modular-synth": "modular",
   "moving-clouds": "modular",
+  "rutt-etra-scan": "modular",
   "shepard-tone": "modular",
 
   "stem-separation": "stems",
@@ -219,10 +222,11 @@ export const STANDARD_MODE_NODE_TYPES = [
   "SwitchImage",
   "LoadAudio",
   "LoadImage",
+  "LoadVideo",
   "MuxVideo",
   "Normalize",
   "Note",
-  "Preview",
+  "PreviewAudio",
   "PreviewImage",
   "PreviewMidi",
   "PreviewVideo",
@@ -253,6 +257,7 @@ export const MODULAR_MODE_NODE_TYPES = [
   "Comparator",
   "ControlCurve",
   "Envelope",
+  "EnvelopeFollower",
   "Filter",
   "Float",
   "FloatMath",
@@ -271,6 +276,7 @@ export const MODULAR_MODE_NODE_TYPES = [
   "Quantizer",
   "Reverb",
   "SampleAndHold",
+  "ScanProcessor",
   "SignalGenerator",
 ] as const;
 

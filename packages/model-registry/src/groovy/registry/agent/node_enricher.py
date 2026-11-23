@@ -232,17 +232,22 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
     },
     "GenerateVideo": {
         "description": (
-            "Generate a short VIDEO clip from text (T2V) or text + optional reference image (I2V). "
+            "Generate a short VIDEO from text (T2V), optional IMAGE (I2V), or optional VIDEO "
+            "reference (ScanProcessor / LoadVideo / MuxVideo → V2V or first-frame I2V). "
             "Second outlet is an optional GENERATE_LOG for SaveGenerateLog."
         ),
         "inputs": {
             "text": "Prompt (TEXT). When wired, overrides the local prompt widget.",
             "image": "Optional reference still from LoadImage (I2V on ltx-2.3-q4 Real).",
+            "video": (
+                "Optional reference VIDEO (e.g. ScanProcessor raster). IMAGE wins if both "
+                "wired. Today: first frame → I2V on LTX; native V2V reserved for pack models."
+            ),
         },
         "outputs": {
             "video": "Generated VIDEO clip (mp4).",
             "log": (
-                "Optional GENERATE_LOG: prompt, reference image, timing, output file, "
+                "Optional GENERATE_LOG: prompt, reference image/video, timing, output file, "
                 "model config, hardware — wire to SaveGenerateLog."
             ),
         },
@@ -258,8 +263,8 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
                 "ltx-2.3-q4 Real (distilled) uses a fixed ~8-step schedule; Stub ignores this."
             ),
             "image_strength": (
-                "I2V only (0–1): 1.0 locks frame 0 to the LoadImage still; lower lets the prompt restyle. "
-                "Stay ≤1 — higher values are outside LTX’s range."
+                "Reference lock (0–1) for IMAGE or VIDEO first-frame / V2V. "
+                "1.0 sticks to the reference; lower lets the prompt restyle. Stay ≤1."
             ),
             "seed": "Random seed (−1 = random).",
         },
@@ -321,6 +326,20 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
         },
         "widgets": {"gain": "Scalar gain when no curve is wired."},
     },
+    "EnvelopeFollower": {
+        "description": (
+            "Follow the amplitude envelope of AUDIO → AUTOMATION (full-wave rectify + "
+            "attack/release). Wire into ScanProcessor z_push_cv / beam, Amplifier CV, etc."
+        ),
+        "inputs": {"audio": "AUDIO to follow (e.g. AM'd oscillator, drums, voice)."},
+        "outputs": {"envelope": "Non-negative AUTOMATION envelope curve."},
+        "widgets": {
+            "attack_ms": "How fast the envelope rises toward peaks.",
+            "release_ms": "How slowly the envelope falls after peaks.",
+            "amount": "Output scale.",
+            "floor": "DC offset after scaling.",
+        },
+    },
     "MIDIToFloat": {
         "description": "Extract a control curve from MIDI CC data (stub: flat default in dev).",
         "widgets": {"cc": "MIDI CC number to follow.", "default_value": "Fallback value when CC is sparse."},
@@ -351,7 +370,54 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
             "tightness": "0 = regular grid at estimated BPM; 1 = snap each beat to a nearby onset.",
         },
     },
-    "Preview": {
+    "ScanProcessor": {
+        "description": (
+            "Offline Rutt/Etra Scan Processor — VIDEO/IMAGE luma lifts phosphor scanlines "
+            "in Z (terrain). Ten factory Look presets (Phosphor Green, Noise Terrain…). "
+            "External X/Y/beam CV optional. Render → MuxVideo → PreviewVideo scrub. No live camera."
+        ),
+        "inputs": {
+            "video": "VIDEO clip — luma drives Z Push (preferred picture source).",
+            "image": "Still IMAGE plate when no VIDEO is wired.",
+            "x": "AUTOMATION horizontal deflection (optional).",
+            "y": "AUTOMATION vertical deflection (optional).",
+            "beam": "AUTOMATION beam intensity (optional).",
+            "z_push_cv": "AUTOMATION added to Z Push (modulate depth).",
+            "rotation_cv": "AUTOMATION added to rotation.",
+            "x_audio": "AUDIO-rate H deflection (preferred over x when wired).",
+            "y_audio": "AUDIO-rate V deflection (preferred over y when wired).",
+            "beam_audio": "AUDIO-rate beam (preferred over beam when wired).",
+        },
+        "outputs": {
+            "video": (
+                "Silent raster VIDEO — mux via MuxVideo for scrub + sound, or wire to "
+                "GenerateVideo.video as a reference for AI video (I2V first-frame / future V2V)."
+            ),
+        },
+        "widgets": {
+            "look": (
+                "Factory looks: Classic 1974, Phosphor Green, Amber Terminal, Wireframe, Heavy Bloom, "
+                "Burn-In, Noise Terrain, Lissajous Spin, Worley Cells, Display 90, Scan Studies (grayscale)."
+            ),
+            "phosphor_sat": "0 = grayscale (Vasulka Scan Studies); ~0.85 = phosphor tint.",
+            "z_push": "How far bright pixels lift out of the scan plane (main DCU control).",
+            "z_bias": "DC offset on the whole depth field.",
+            "z_invert": "Bright pixels recess instead of rise.",
+            "focus": "0 = hard lines, 1 = soft CRT bloom.",
+            "intensity": "Scanline brightness.",
+            "h_size": "Bipolar H scale (0 collapses to a line; negative mirrors).",
+            "v_size": "Bipolar V scale.",
+            "aspect": "H/V pinch (default ~4:3).",
+            "luma_threshold": "Black crush before Z.",
+            "luma_contrast": "Contrast before Z.",
+            "luma_gamma": "Gamma before Z.",
+            "scan_lines": "Number of CRT scan lines.",
+            "scan_rate": "Scales effective line density.",
+            "rotation_deg": "In-plane rotation.",
+            "mirror_v": "Default ON — period-correct top-to-bottom feed.",
+        },
+    },
+    "PreviewAudio": {
         "description": "Terminal sink for cached audition (audio) and/or transcript inspection (text).",
         "inputs": {
             "audio": "Audio to audition in the transport bar (also enables SaveAudio chaining).",
@@ -400,7 +466,7 @@ NODE_HINTS: dict[str, dict[str, Any]] = {
     "SynthMidi": {
         "description": (
             "Offline MIDI → AUDIO via pretty_midi.synthesize — same DSP as PreviewMidi audition. "
-            "No ML weights. Wire Normalize / Preview / SaveAudio after it."
+            "No ML weights. Wire Normalize / PreviewAudio / SaveAudio after it."
         ),
         "inputs": {"midi": "MIDI from GenerateMidi, LoadMIDI, PreviewMidi, or AudioToMIDI."},
         "widgets": {
