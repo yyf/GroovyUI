@@ -9,7 +9,8 @@ from groovy.schema.models import Link, NodeInstance, Workflow, WorkflowMetadata
 EXTERNAL_NODE_MAP: dict[str, str] = {
     "LoadAudio": "LoadAudio",
     "SaveAudio": "SaveAudio",
-    "PreviewAudio": "Preview",
+    "PreviewAudio": "PreviewAudio",
+    "Preview": "PreviewAudio",  # legacy foreign / older Groovy graphs
     "NormalizeAudio": "Normalize",
     "DenoiseAudio": "Denoise",
     "Demucs": "SeparateStems",

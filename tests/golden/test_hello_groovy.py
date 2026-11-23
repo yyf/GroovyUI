@@ -7,7 +7,7 @@ import pytest
 from groovy.executor import Executor
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
 
@@ -30,12 +30,12 @@ def test_hello_groovy_template_shape() -> None:
         "ControlCurve",
         "AutomationApply",
         "Normalize",
-        "Preview",
+        "PreviewAudio",
         "SaveAudio",
     ]
     assert "Prompt" in NODE_REGISTRY
     assert "AutomationApply" in NODE_REGISTRY
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
 

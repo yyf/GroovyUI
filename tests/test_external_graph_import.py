@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.nodes.core import register_all
 from groovy.schema.external_graph_import import import_external_graph
 from groovy.schema.models import Workflow
@@ -27,10 +27,10 @@ def test_import_external_graph_maps_known_nodes() -> None:
     assert import_meta["mapped_nodes"] == 3
     assert import_meta["mapped_links"] == 2
     assert "UnknownExternalNode" in import_meta["unmapped_node_types"]
-    assert [n["type"] for n in result["nodes"]] == ["LoadAudio", "Normalize", "Preview"]
+    assert [n["type"] for n in result["nodes"]] == ["LoadAudio", "Normalize", "PreviewAudio"]
     validation = validate_workflow(
         Workflow.model_validate(result),
-        known_node_types=set(NODE_REGISTRY.keys()),
+        known_node_types=known_node_types(),
     )
     assert validation.valid
 

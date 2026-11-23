@@ -111,7 +111,7 @@
     },
     {
       "id": "n5",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": {
         "x": 840,
         "y": 40
@@ -120,7 +120,7 @@
     },
     {
       "id": "n6",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": {
         "x": 840,
         "y": 360

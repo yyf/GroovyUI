@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from groovy.executor import Executor
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
@@ -44,7 +44,7 @@ def test_tts_emotion_edit_template_schema_and_stub_render(tmp_path: Path, monkey
     assert convert["widgets"]["prompt_text"]
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)

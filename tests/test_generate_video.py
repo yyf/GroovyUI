@@ -10,7 +10,7 @@ from groovy.executor import Executor
 from groovy.executor.media_io import ffmpeg_available
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.registry import ModelRegistry
 from groovy.registry.catalog import ModelCatalog
 from groovy.schema.models import Link, NodeInstance, Workflow, WorkflowMetadata
@@ -97,7 +97,7 @@ def test_load_image_and_optional_wire_to_generate_video(
             Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "VIDEO"}),
         ],
     )
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
     registry = ModelRegistry(tmp_path)
     assert registry.installer.install("ltx-video").status == "ready"
@@ -157,7 +157,7 @@ def test_optional_video_reference_wire_to_generate_video(
             Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "VIDEO"}),
         ],
     )
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
     registry = ModelRegistry(tmp_path)
     assert registry.installer.install("ltx-video").status == "ready"
@@ -251,7 +251,7 @@ def test_ltx_video_mac_demo_works_without_stub_env(
             Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "VIDEO"}),
         ],
     )
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
     registry = ModelRegistry(tmp_path)
     assert registry.installer.install("ltx-video").status == "ready"
@@ -427,7 +427,7 @@ def test_generate_video_stub_render(tmp_path: Path, monkeypatch: pytest.MonkeyPa
             Link(id="l1", **{"from": ["n1", 0], "to": ["n2", 0], "type": "VIDEO"}),
         ],
     )
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     registry = ModelRegistry(tmp_path)
@@ -535,7 +535,7 @@ def test_text_to_video_template_schema_and_stub_render(
     sample_dst.write_bytes(sample_src.read_bytes())
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     # Stub env: Real MLX / mflux weights are optional; stub still produces PreviewVideo + PreviewImage.

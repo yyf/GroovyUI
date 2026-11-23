@@ -501,7 +501,7 @@
     },
     {
       "id": "preview",
-      "type": "Preview",
+      "type": "PreviewAudio",
       "pos": {
         "x": 3900,
         "y": 280

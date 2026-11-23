@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from groovy.executor import Executor
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.registry import ModelRegistry
@@ -46,7 +46,7 @@ def test_self_playing_neural_rack_schema_and_stub_render(tmp_path: Path, monkeyp
     )
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [error.message for error in result.errors]
 
     for node in workflow.nodes:
@@ -123,7 +123,7 @@ def test_neural_modular_rack_schema_and_stub_render(tmp_path: Path, monkeypatch)
     assert any(link["from"] == ["n2", 0] and link["to"] == ["n10", 0] for link in data["links"])
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [error.message for error in result.errors]
 
     for node in workflow.nodes:

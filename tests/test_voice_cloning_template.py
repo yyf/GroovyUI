@@ -10,7 +10,7 @@ import soundfile as sf
 from groovy.executor import Executor
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.registry import ModelRegistry
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
@@ -39,7 +39,7 @@ def test_voice_cloning_template_schema_and_stub_render(tmp_path: Path, monkeypat
     assert ["n2", 1] == data["links"][0]["to"]
 
     workflow = Workflow.model_validate(data)
-    result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    result = validate_workflow(workflow, known_node_types=known_node_types())
     assert result.valid, [e.message for e in result.errors]
 
     sample = tmp_path / "assets" / "samples" / "podcast_denoise_demo.wav"

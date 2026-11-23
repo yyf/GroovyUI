@@ -9,7 +9,7 @@ from groovy.nodes.core import register_all
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
 from groovy.server.main import app
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 
 register_all()
 
@@ -126,5 +126,5 @@ def test_all_templates_validate() -> None:
     register_ai()
     for path in _bundled_template_paths():
         workflow = Workflow.model_validate(json.loads(path.read_text()))
-        result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+        result = validate_workflow(workflow, known_node_types=known_node_types())
         assert result.valid, f"{path.name}: {[e.message for e in result.errors]}"

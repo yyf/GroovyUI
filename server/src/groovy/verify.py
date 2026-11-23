@@ -6,7 +6,7 @@ from pathlib import Path
 
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
-from groovy.node import NODE_REGISTRY
+from groovy.node import known_node_types
 from groovy.schema.models import Workflow
 from groovy.schema.validate import validate_workflow
 
@@ -35,7 +35,7 @@ def main() -> int:
     for path in paths:
         try:
             workflow = Workflow.model_validate(json.loads(path.read_text()))
-            result = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+            result = validate_workflow(workflow, known_node_types=known_node_types())
             if not result.valid:
                 errors.append(f"{path.name}: {[e.message for e in result.errors]}")
         except Exception as exc:

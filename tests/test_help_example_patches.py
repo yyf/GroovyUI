@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from groovy.executor import Executor
-from groovy.node import NODE_REGISTRY
+from groovy.node import NODE_REGISTRY, known_node_types
 from groovy.nodes.ai import register_all as register_ai
 from groovy.nodes.core import register_all as register_core
 from groovy.schema.models import Link, NodeInstance, Workflow, WorkflowMetadata
@@ -337,7 +337,7 @@ def _project_with_samples(tmp_path: Path, name: str, files: list[str]) -> Path:
     ],
 )
 def test_help_example_offline_render(tmp_path: Path, name: str, workflow: Workflow, targets: list[str]) -> None:
-    validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    validation = validate_workflow(workflow, known_node_types=known_node_types())
     assert validation.valid, [e.message for e in validation.errors]
     result = Executor(tmp_path / name).execute(workflow, target_nodes=targets)
     assert result.status == "completed", f"{name}: {result.error}"
@@ -468,7 +468,7 @@ def test_help_example_asset_backed_render(
     targets: list[str],
     samples: list[str],
 ) -> None:
-    validation = validate_workflow(workflow, known_node_types=set(NODE_REGISTRY.keys()))
+    validation = validate_workflow(workflow, known_node_types=known_node_types())
     assert validation.valid, [e.message for e in validation.errors]
     project = _project_with_samples(tmp_path, name, samples)
     result = Executor(project).execute(workflow, target_nodes=targets)
