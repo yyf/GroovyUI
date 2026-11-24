@@ -879,6 +879,12 @@ export default function NodeHelper({
                 <code>assets/samples/podcast_denoise_demo.wav</code>). You can also drop audio onto the canvas.
               </p>
             ) : null}
+            {node.type === "LoadVideo" ? (
+              <p className="node-helper__hint">
+                Choose a file to upload into the project, or enter a project-relative path (e.g.{" "}
+                <code>assets/samples/Cyberpunk-station.mp4</code>). Supports mp4 / mov / webm / mkv.
+              </p>
+            ) : null}
             {node.type === "LoadMIDI" ? (
               <p className="node-helper__hint">
                 Optional SMF (.mid). Leave path empty as a placeholder when the downstream MIDI inlet
@@ -3139,6 +3145,23 @@ function LoadMidiPathInput({
   );
 }
 
+function LoadVideoPathInput({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  return (
+    <ProjectMediaPathInput
+      value={value}
+      onChange={onChange}
+      accept="video/*,.mp4,.mov,.webm,.mkv,.m4v"
+      placeholder="assets/uploads/clip.mp4"
+    />
+  );
+}
+
 function SaveAudioFilenameInput({
   value,
   onChange,
@@ -3365,6 +3388,9 @@ function WidgetInput({
   }
   if (nodeType === "LoadImage" && spec.name === "path") {
     return <LoadImagePathInput value={value} onChange={onChange} />;
+  }
+  if (nodeType === "LoadVideo" && spec.name === "path") {
+    return <LoadVideoPathInput value={value} onChange={onChange} />;
   }
   if (nodeType === "LoadMIDI" && spec.name === "path") {
     return <LoadMidiPathInput value={value} onChange={onChange} />;
