@@ -123,15 +123,19 @@ def test_rescore_video_template_schema_and_stub_render(tmp_path: Path, monkeypat
     by_id = {n["id"]: n for n in data["nodes"]}
     assert by_id["n0"]["widgets"]["path"] == "assets/samples/Cyberpunk-station.mp4"
     assert by_id["n3"]["widgets"]["model"] == "ace-step-1.5-sft"
-    assert by_id["n3"]["widgets"]["num_inference_steps"] == 60
-    assert by_id["n3"]["widgets"]["guidance_scale"] == 9.0
+    assert by_id["n3"]["widgets"]["num_inference_steps"] == 72
+    assert by_id["n3"]["widgets"]["guidance_scale"] == 11.0
     assert by_id["n3"]["widgets"]["seconds_total"] == 2.0
     assert by_id["n2"]["widgets"]["text"] == (
-        "add more space to the reference audio, with slow attack and long decay"
+        "immersive rainy cyberpunk transit soundscape, soft rain on umbrellas and wet asphalt, "
+        "layered distant quadcopter drone whirrs, low industrial hum and steam vents, "
+        "muffled multilingual crowd murmur, faint neon electrical buzz, sparse melancholic "
+        "dark synth pads, slow attack long decay reverb, atmospheric documentary bed, "
+        "instrumental, no vocals, no drums, no melody hook"
     )
     assert by_id["n3"]["widgets"]["prompt"] == by_id["n2"]["widgets"]["text"]
     assert by_id["n3"]["widgets"]["lyrics_text"] == ""
-    assert by_id["n3"]["widgets"]["audio_cover_strength"] == 0.4
+    assert by_id["n3"]["widgets"]["audio_cover_strength"] == 0.18
     note_a = by_id["note-a"]
     note_b = by_id["note-b"]
     n5 = by_id["n5"]
